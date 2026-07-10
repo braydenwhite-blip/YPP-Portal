@@ -36,6 +36,6 @@ describe("AdminMentorshipRelationshipDetailPage", () => {
       AdminMentorshipRelationshipDetailPage({
         params: Promise.resolve({ mentorshipId: "ms-1" }),
       })
-    ).rejects.toThrow("redirect:/mentorship/people/mentee-1");
+    ).rejects.toThrow("redirect:/people/mentee-1");
   });
 });

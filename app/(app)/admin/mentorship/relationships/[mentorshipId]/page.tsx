@@ -23,5 +23,5 @@ export default async function AdminMentorshipRelationshipDetailPage(props: {
   });
   if (!mentorship) notFound();
 
-  redirect(`/mentorship/people/${mentorship.menteeId}`);
+  redirect(`/people/${mentorship.menteeId}`);
 }

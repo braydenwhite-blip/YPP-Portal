@@ -71,7 +71,7 @@ describe("loadRelatedEntitySummary", () => {
       id: "m1",
       label: "Mira Mentor → Theo Teen",
       typeLabel: "Mentorship",
-      href: "/mentorship/people/u9",
+      href: "/people/u9",
     });
   });
 

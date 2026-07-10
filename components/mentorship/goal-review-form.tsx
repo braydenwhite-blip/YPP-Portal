@@ -42,6 +42,7 @@ type NextMonthGoalDraft = {
 
 type Props = {
   reflectionId: string;
+  menteeId: string;
   menteeName: string;
   cycleNumber: number;
   cycleMonthLabel: string;
@@ -161,6 +162,7 @@ function NudgePanel({ reflectionId, menteeName }: { reflectionId: string; mentee
 
 export function GoalReviewForm({
   reflectionId,
+  menteeId,
   menteeName,
   cycleNumber,
   cycleMonthLabel,
@@ -383,7 +385,7 @@ export function GoalReviewForm({
             : "Draft saved."
         );
         if (submitForApproval) {
-          setTimeout(() => router.push("/mentorship/mentees"), 1200);
+          setTimeout(() => router.push(`/people/${menteeId}?section=review`), 1200);
         } else {
           router.refresh();
         }

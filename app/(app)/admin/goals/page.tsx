@@ -222,7 +222,7 @@ export default async function AdminGoalsPage() {
                   </td>
                   <td>{user.goals.length} goals</td>
                   <td>
-                    <a href={`/mentorship/people/${user.id}`} className="link">
+                    <a href={`/people/${user.id}`} className="link">
                       View Progress
                     </a>
                   </td>

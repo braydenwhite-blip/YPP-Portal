@@ -13,7 +13,20 @@ interface Props {
   bonusReason?: string | null;
 }
 
-export default function ChairActionsPanel({ reviewId, currentStatus, pointsToAward, menteeName, bonusPoints = 0, bonusReason }: Props) {
+/**
+ * The chair's approve / request-changes control, rendered inline on
+ * /people/[id] (?panel=approve). Approval == release: points are awarded and
+ * the review becomes visible to the mentee in one step. On success we refresh
+ * in place — the panel becomes the released/returned state card on its own.
+ */
+export function ChairDecisionForm({
+  reviewId,
+  currentStatus,
+  pointsToAward,
+  menteeName,
+  bonusPoints = 0,
+  bonusReason,
+}: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -22,7 +35,10 @@ export default function ChairActionsPanel({ reviewId, currentStatus, pointsToAwa
   const [chairAdjustedBonus, setChairAdjustedBonus] = useState<string>("");
   const [mode, setMode] = useState<"idle" | "approve" | "changes">("idle");
 
-  const effectiveBonus = chairAdjustedBonus !== "" ? Math.max(0, Math.min(25, parseInt(chairAdjustedBonus, 10) || 0)) : bonusPoints;
+  const effectiveBonus =
+    chairAdjustedBonus !== ""
+      ? Math.max(0, Math.min(25, parseInt(chairAdjustedBonus, 10) || 0))
+      : bonusPoints;
   const totalPoints = pointsToAward - bonusPoints + effectiveBonus;
 
   if (currentStatus === "APPROVED") {
@@ -37,7 +53,12 @@ export default function ChairActionsPanel({ reviewId, currentStatus, pointsToAwa
   }
 
   function handleApprove() {
-    if (!confirm(`Approve this review and release it to ${menteeName}? This will award ${totalPoints} achievement points.`)) return;
+    if (
+      !confirm(
+        `Approve this review and release it to ${menteeName}? This will award ${totalPoints} achievement points.`
+      )
+    )
+      return;
     setError(null);
     setSuccess(null);
     const formData = new FormData();
@@ -50,7 +71,7 @@ export default function ChairActionsPanel({ reviewId, currentStatus, pointsToAwa
       try {
         await approveGoalReview(formData);
         setSuccess(`Approved! ${totalPoints} points awarded to ${menteeName}. Review released.`);
-        setTimeout(() => router.push("/mentorship/chair"), 1500);
+        setTimeout(() => router.refresh(), 1200);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to approve");
       }
@@ -58,7 +79,10 @@ export default function ChairActionsPanel({ reviewId, currentStatus, pointsToAwa
   }
 
   function handleRequestChanges() {
-    if (!chairComments.trim()) { setError("Please add comments explaining what changes are needed."); return; }
+    if (!chairComments.trim()) {
+      setError("Please add comments explaining what changes are needed.");
+      return;
+    }
     setError(null);
     setSuccess(null);
     const formData = new FormData();
@@ -68,7 +92,7 @@ export default function ChairActionsPanel({ reviewId, currentStatus, pointsToAwa
       try {
         await requestReviewChanges(formData);
         setSuccess("Changes requested. The mentor has been notified.");
-        setTimeout(() => router.push("/mentorship/chair"), 1500);
+        setTimeout(() => router.refresh(), 1200);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to request changes");
       }
@@ -92,7 +116,8 @@ export default function ChairActionsPanel({ reviewId, currentStatus, pointsToAwa
         <span style={{ color: "var(--muted)" }}>Points that will be awarded on approval: </span>
         <strong style={{ fontSize: "1.05rem" }}>{totalPoints} pts</strong>
         <span style={{ color: "var(--muted)", fontSize: "0.78rem", marginLeft: "0.5rem" }}>
-          (base: {pointsToAward - bonusPoints}{bonusPoints > 0 || effectiveBonus > 0 ? ` + bonus: ${effectiveBonus}` : ""})
+          (base: {pointsToAward - bonusPoints}
+          {bonusPoints > 0 || effectiveBonus > 0 ? ` + bonus: ${effectiveBonus}` : ""})
         </span>
       </div>
 
@@ -156,15 +181,24 @@ export default function ChairActionsPanel({ reviewId, currentStatus, pointsToAwa
         />
       </div>
 
-      {error && <p style={{ color: "var(--color-error)", marginBottom: "0.75rem", fontWeight: 600 }}>{error}</p>}
-      {success && <p style={{ color: "var(--color-success)", marginBottom: "0.75rem", fontWeight: 600 }}>{success}</p>}
+      {error && (
+        <p style={{ color: "var(--color-error)", marginBottom: "0.75rem", fontWeight: 600 }}>{error}</p>
+      )}
+      {success && (
+        <p style={{ color: "var(--color-success)", marginBottom: "0.75rem", fontWeight: 600 }}>
+          {success}
+        </p>
+      )}
 
       {/* Action buttons */}
       <div style={{ display: "flex", gap: "0.75rem" }}>
         <button
           className="inline-flex items-center justify-center rounded-full bg-brand-600 px-4 py-2 text-[13.5px] font-semibold text-white transition-[filter] hover:brightness-95 disabled:opacity-60"
           disabled={isPending}
-          onClick={() => { setMode("approve"); handleApprove(); }}
+          onClick={() => {
+            setMode("approve");
+            handleApprove();
+          }}
         >
           {isPending && mode === "approve" ? "Approving…" : `Approve & Award ${totalPoints} pts`}
         </button>
@@ -172,7 +206,10 @@ export default function ChairActionsPanel({ reviewId, currentStatus, pointsToAwa
           className="inline-flex items-center justify-center rounded-full border border-line-soft bg-surface px-4 py-2 text-[13.5px] font-semibold text-ink transition-colors hover:bg-surface-soft disabled:opacity-60"
           disabled={isPending}
           style={{ color: "#c2410c", borderColor: "#fed7aa" }}
-          onClick={() => { setMode("changes"); handleRequestChanges(); }}
+          onClick={() => {
+            setMode("changes");
+            handleRequestChanges();
+          }}
         >
           {isPending && mode === "changes" ? "Requesting…" : "Request Changes"}
         </button>

@@ -120,7 +120,7 @@ export function buildReviewQueue(input: {
         ? `${review.monthLabel} mentor review: ${RATING_LABELS.ABOVE_AND_BEYOND} — worth recognizing`
         : `Latest mentor review: ${RATING_LABELS.ABOVE_AND_BEYOND} — worth recognizing`,
       actionLabel: "Recognize",
-      href: `/mentorship/people/${review.menteeId}`,
+      href: `/people/${review.menteeId}`,
       rank: 4,
       tone: "brand",
     });

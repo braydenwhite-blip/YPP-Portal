@@ -101,12 +101,11 @@ function candidate(
 }
 
 function detailHref(role: MentorshipRole, menteeId: string): string {
-  // The `/mentorship/mentees/[id]` route resolves `[id]` as the mentee's USER
-  // id (RelationshipWorkspace looks the mentee up by it and calls notFound()
-  // otherwise). Pass `fact.menteeId`, never `fact.id` (the mentorship/relation
-  // id) — that mismatch 404s every Calm-mode roster row and focus CTA. Mirrors
-  // the canonical builder in lib/queue/from-mentorship.ts.
-  return role === "mentee" ? "/mentorship?view=me" : `/mentorship/people/${menteeId}`;
+  // /people/[id] is the canonical person destination. Pass `fact.menteeId`,
+  // never `fact.id` (the mentorship/relation id) — that mismatch 404s every
+  // Calm-mode roster row and focus CTA. Mirrors the canonical builder in
+  // lib/queue/from-mentorship.ts.
+  return role === "mentee" ? "/mentorship?view=me" : `/people/${menteeId}`;
 }
 
 function upcomingSession(fact: MentorshipRelationshipFact, now: Date) {
@@ -142,7 +141,7 @@ function candidatesForFact(
         "Revise your review",
         `The chair requested changes on ${fact.menteeName}'s review.`,
         "Open review",
-        href,
+        `/people/${fact.menteeId}?section=review&panel=draft`,
         "attention",
         now
       )
@@ -156,7 +155,7 @@ function candidatesForFact(
         `Review ${fact.menteeName}`,
         `${fact.menteeName} submitted a reflection — your review is due.`,
         "Start review",
-        href,
+        `/people/${fact.menteeId}?section=review&panel=draft`,
         "attention",
         now
       )
@@ -170,7 +169,7 @@ function candidatesForFact(
         `Approve ${fact.mentorName}'s review`,
         `A review for ${fact.menteeName} is waiting for chair approval.`,
         "Open approvals",
-        "/mentorship/reviews",
+        `/people/${fact.menteeId}?section=review&panel=approve`,
         "attention",
         now
       )

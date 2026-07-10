@@ -6,17 +6,24 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
  * the leadership tier (confidential) or the relationship tier (scoped).
  */
 
-const { mentorshipFindFirst, hasMentorshipCommandAccess } = vi.hoisted(() => ({
-  mentorshipFindFirst: vi.fn(),
-  hasMentorshipCommandAccess: vi.fn(),
-}));
+const { mentorshipFindFirst, userFindUnique, hasMentorshipCommandAccess, isChairForLane } =
+  vi.hoisted(() => ({
+    mentorshipFindFirst: vi.fn(),
+    userFindUnique: vi.fn(),
+    hasMentorshipCommandAccess: vi.fn(),
+    isChairForLane: vi.fn(),
+  }));
 vi.mock("@/lib/prisma", () => ({
-  prisma: { mentorship: { findFirst: mentorshipFindFirst } },
+  prisma: {
+    mentorship: { findFirst: mentorshipFindFirst },
+    user: { findUnique: userFindUnique },
+  },
 }));
 vi.mock("@/lib/mentorship/command-access", () => ({
   hasMentorshipCommandAccess,
   requireMentorshipCommandAccess: vi.fn(),
 }));
+vi.mock("@/lib/mentorship-chair-access", () => ({ isChairForLane }));
 
 import { resolveWorkspaceAccess } from "@/lib/mentorship/workspace";
 
@@ -43,6 +50,12 @@ const ACTIVE = {
 beforeEach(() => {
   mentorshipFindFirst.mockReset();
   hasMentorshipCommandAccess.mockReset();
+  userFindUnique.mockReset();
+  isChairForLane.mockReset();
+  // Default: the viewed person has a mappable role but no lane-chair grant —
+  // existing tests exercise chairId/mentorId ownership, not the lane check.
+  userFindUnique.mockResolvedValue({ primaryRole: "INSTRUCTOR" });
+  isChairForLane.mockResolvedValue(false);
 });
 
 describe("resolveWorkspaceAccess", () => {
@@ -134,5 +147,44 @@ describe("resolveWorkspaceAccess", () => {
     expect(res?.isLeadership).toBe(false);
     expect(res?.capabilities.canApprove).toBe(true);
     expect(res?.capabilities.canViewPrivateComments).toBe(false);
+  });
+
+  it("gives a lane chair (MentorCommitteeChair) workspace access and canApprove even when not the pairing's recorded chairId", async () => {
+    // Before this fix, isChair only ever looked at activeMentorship.chairId —
+    // the actual approval authority (requireReviewApprover() in
+    // goal-review-actions.ts) is the lane chair for the mentee's role, which
+    // can be a different, unassigned person. A lane chair with no explicit
+    // chairId on the pairing was denied workspace access entirely.
+    hasMentorshipCommandAccess.mockResolvedValue(false);
+    mentorshipFindFirst.mockResolvedValue({ ...ACTIVE, mentorId: "someoneElse", chairId: null });
+    userFindUnique.mockResolvedValue({ primaryRole: "INSTRUCTOR" });
+    isChairForLane.mockResolvedValue(true);
+    const res = await resolveWorkspaceAccess(viewer({ id: "lane-chair" }), "personA");
+    expect(res).not.toBeNull();
+    expect(res?.isChair).toBe(true);
+    expect(res?.ownsRelationship).toBe(true);
+    expect(res?.level).toBe("relationship");
+    expect(res?.capabilities.canApprove).toBe(true);
+    expect(isChairForLane).toHaveBeenCalledWith("lane-chair", "INSTRUCTOR", []);
+  });
+
+  it("is null-safe when the viewed person has no mappable role — never calls isChairForLane, never grants chair access", async () => {
+    hasMentorshipCommandAccess.mockResolvedValue(false);
+    mentorshipFindFirst.mockResolvedValue({ ...ACTIVE, mentorId: "someoneElse" });
+    userFindUnique.mockResolvedValue({ primaryRole: "STUDENT" }); // not mappable via toMenteeRoleType
+    const res = await resolveWorkspaceAccess(viewer({ id: "stranger" }), "personA");
+    expect(res).toBeNull();
+    expect(isChairForLane).not.toHaveBeenCalled();
+  });
+
+  it("is null-safe when the viewed person has no active (or any) mentorship — lane-chair check still runs off primaryRole alone", async () => {
+    hasMentorshipCommandAccess.mockResolvedValue(false);
+    mentorshipFindFirst.mockResolvedValue(null);
+    userFindUnique.mockResolvedValue({ primaryRole: "CHAPTER_PRESIDENT" });
+    isChairForLane.mockResolvedValue(true);
+    const res = await resolveWorkspaceAccess(viewer({ id: "lane-chair" }), "personA");
+    expect(res).not.toBeNull();
+    expect(res?.isChair).toBe(true);
+    expect(res?.capabilities.canApprove).toBe(true);
   });
 });

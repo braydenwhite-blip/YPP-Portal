@@ -6,5 +6,5 @@ export default async function LegacyMentorshipFeedbackRoute({
   params: Promise<{ menteeId: string }>;
 }) {
   const { menteeId } = await params;
-  redirect(`/mentorship/reviews/${menteeId}`);
+  redirect(`/people/${menteeId}?section=review&panel=draft`);
 }
