@@ -85,6 +85,15 @@ export type ApplicationRecord = {
     recommendation: string | null;
     overallRating: string | null;
     submittedAtISO: string | null;
+    questionResponses: Array<{
+      id: string;
+      source: string;
+      prompt: string;
+      notes: string | null;
+      competency: string | null;
+      status: string;
+      sortOrder: number;
+    }>;
   }>;
   interviewerAssignments: Array<{
     id: string;
@@ -197,6 +206,18 @@ export async function loadApplicationRecord(
           overallRating: true,
           submittedAt: true,
           reviewer: { select: { name: true, email: true } },
+          questionResponses: {
+            orderBy: { sortOrder: "asc" },
+            select: {
+              id: true,
+              source: true,
+              prompt: true,
+              notes: true,
+              competency: true,
+              status: true,
+              sortOrder: true,
+            },
+          },
         },
       },
       interviewerAssignments: {
@@ -344,6 +365,15 @@ export async function loadApplicationRecord(
       recommendation: r.recommendation,
       overallRating: r.overallRating,
       submittedAtISO: r.submittedAt?.toISOString() ?? null,
+      questionResponses: r.questionResponses.map((q) => ({
+        id: q.id,
+        source: q.source,
+        prompt: q.prompt,
+        notes: q.notes,
+        competency: q.competency,
+        status: q.status,
+        sortOrder: q.sortOrder,
+      })),
     })),
     interviewerAssignments: app.interviewerAssignments.map((a) => ({
       id: a.id,

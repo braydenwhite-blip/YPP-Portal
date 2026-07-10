@@ -40,6 +40,7 @@ export type InlineInterviewReviewPanel = {
     ReturnType<typeof getInstructorInterviewReviewWorkspace>
   >["myReview"];
   canEdit: boolean;
+  lockedReason: string | null;
   isLeadReviewer: boolean;
   canFinalizeRecommendation: boolean;
   questionBank: Awaited<
@@ -104,7 +105,12 @@ export async function loadInlineReviewPanels(
 
     interview = deepSerialize({
       myReview: workspace.myReview,
-      canEdit: workspace.myReview?.status !== "SUBMITTED" || actorIsAdmin,
+      canEdit: workspace.canEdit,
+      lockedReason: workspace.preInterviewLocked
+        ? "Live interview notes open after the applicant is pre-approved for interview."
+        : workspace.myReview?.status === "SUBMITTED" && !actorIsAdmin
+          ? "This interview review is already submitted."
+          : null,
       isLeadReviewer: workspace.myReview?.isLeadReview ?? false,
       canFinalizeRecommendation: workspace.canFinalizeRecommendation,
       questionBank: workspace.questionBank,

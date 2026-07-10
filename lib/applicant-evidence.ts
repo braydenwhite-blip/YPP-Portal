@@ -233,7 +233,7 @@ export function computeApplicantOverview(
     missingInformation.push(
       `${missingInterviewCount} assigned interviewer${
         missingInterviewCount === 1 ? "" : "s"
-      } ${missingInterviewCount === 1 ? "has" : "have"} not submitted interview feedback`
+      } ${missingInterviewCount === 1 ? "has" : "have"} not submitted live interview notes`
     );
   }
   if (initialReviews.length === 0) {

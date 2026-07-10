@@ -2,19 +2,25 @@ import { prisma } from "@/lib/prisma";
 import skin from "@/components/ui-v2/portal-skin.module.css";
 import { SimpleActionStrip, SimpleSurface, type SimpleAction } from "@/components/command-center/simple";
 import { PageHeaderV2 } from "@/components/ui-v2";
-import { requirePageRoles } from "@/lib/page-guards";
+import { requireApplicationReviewerPage } from "@/lib/page-guards";
 import ExternalApplicantIntakeForm from "./intake-form";
 
 export const dynamic = "force-dynamic";
 
 export default async function NewExternalApplicantPage() {
-  const sessionUser = await requirePageRoles(["ADMIN", "CHAPTER_PRESIDENT"]);
+  // Same audience as the Application board: Admin, Hiring Chair, Chapter President.
+  const sessionUser = await requireApplicationReviewerPage();
   const roles = sessionUser.roles;
   const isAdmin = roles.includes("ADMIN");
+  const isHiringChair = roles.includes("HIRING_CHAIR");
+  const hasNetworkScope = isAdmin || isHiringChair;
+  // CP intake is network-scoped (one app per person); chapter leads stay instructor-only.
+  const canAddChapterPresident = isAdmin || isHiringChair;
+  const canAddStaff = isAdmin || isHiringChair;
 
   let chapters: Array<{ id: string; name: string }> = [];
   let scopedChapterId: string | null = null;
-  if (isAdmin) {
+  if (hasNetworkScope) {
     chapters = await prisma.chapter.findMany({
       select: { id: true, name: true },
       orderBy: { name: "asc" },
@@ -28,7 +34,7 @@ export default async function NewExternalApplicantPage() {
     chapters = me?.chapter ? [me.chapter] : [];
   }
 
-  const staffPositions = isAdmin
+  const staffPositions = canAddStaff
     ? await prisma.position.findMany({
         where: { type: "STAFF", isOpen: true },
         select: {
@@ -54,7 +60,7 @@ export default async function NewExternalApplicantPage() {
             backHref="/admin/instructor-applicants"
             backLabel="Board"
             title="Add applicant"
-            subtitle="Name, email, and chapter — they go straight into the review pipeline."
+            subtitle="Pick instructor, staff, or chapter president — then name, email, and chapter."
           />
         }
         aboveBrowse={
@@ -67,7 +73,9 @@ export default async function NewExternalApplicantPage() {
                 chapterName: position.chapter?.name ?? null,
               }))}
               scopedChapterId={scopedChapterId}
-              isAdmin={isAdmin}
+              hasNetworkScope={hasNetworkScope}
+              canAddChapterPresident={canAddChapterPresident}
+              canAddStaff={canAddStaff}
             />
             <SimpleActionStrip actions={strip} />
           </div>

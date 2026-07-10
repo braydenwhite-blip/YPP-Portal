@@ -96,25 +96,72 @@ export default async function ChapterLeadInstructorApplicantsPage({
     applicationTrack: applicationTrackFilter,
   };
 
+  const filterTake = hiringDemoMode ? 40 : undefined;
+
+  const loadReviewerUsers = () =>
+    chapterId
+      ? prisma.user.findMany({
+          where: {
+            chapterId,
+            OR: [
+              { roles: { some: { role: "ADMIN" } } },
+              { roles: { some: { role: "CHAPTER_PRESIDENT" } } },
+            ],
+          },
+          select: { id: true, name: true, email: true },
+          orderBy: { name: "asc" },
+          take: filterTake,
+        })
+      : Promise.resolve([] as Array<{ id: string; name: string | null; email: string }>);
+
+  const loadInterviewerUsers = () =>
+    chapterId
+      ? prisma.user.findMany({
+          where: {
+            chapterId,
+            OR: [
+              { roles: { some: { role: "ADMIN" } } },
+              { roles: { some: { role: "CHAPTER_PRESIDENT" } } },
+              {
+                featureGateRulesTargeted: {
+                  some: { featureKey: "INTERVIEWER", enabled: true },
+                },
+              },
+            ],
+          },
+          select: { id: true, name: true, email: true },
+          orderBy: { name: "asc" },
+          take: filterTake,
+        })
+      : Promise.resolve([] as Array<{ id: string; name: string | null; email: string }>);
+
   let pipelineResult: Awaited<ReturnType<typeof getApplicantPipeline>>;
   let archiveResult: Awaited<ReturnType<typeof getArchivedApplications>>;
+  let reviewers: Array<{ id: string; name: string | null; email: string }> = [];
+  let interviewers: Array<{ id: string; name: string | null; email: string }> = [];
 
   if (hiringDemoMode) {
-    pipelineResult = await getApplicantPipeline({
-      scope: "chapter",
-      chapterId,
-      filters: pipelineFilters,
-      take: DEMO_PIPELINE_TAKE,
-    });
+    [pipelineResult, reviewers] = await Promise.all([
+      getApplicantPipeline({
+        scope: "chapter",
+        chapterId,
+        filters: pipelineFilters,
+        take: DEMO_PIPELINE_TAKE,
+      }),
+      loadReviewerUsers(),
+    ]);
     archiveResult = { items: [], total: 0, skip: 0, take: 0 };
+    interviewers = reviewers;
   } else {
-    [pipelineResult, archiveResult] = await Promise.all([
+    [pipelineResult, archiveResult, reviewers, interviewers] = await Promise.all([
       getApplicantPipeline({
         scope: "chapter",
         chapterId,
         filters: pipelineFilters,
       }),
       getArchivedApplications({ scope: "chapter", chapterId }),
+      loadReviewerUsers(),
+      loadInterviewerUsers(),
     ]);
   }
 
@@ -160,6 +207,7 @@ export default async function ChapterLeadInstructorApplicantsPage({
     id: app.id,
     status: app.status,
     archivedAt: app.archivedAt?.toISOString() ?? null,
+    archiveReason: (app as { archiveReason?: string | null }).archiveReason ?? null,
     updatedAt: app.updatedAt.toISOString(),
     subjectsOfInterest: app.subjectsOfInterest ?? null,
     legalName: app.legalName ?? null,
@@ -200,12 +248,16 @@ export default async function ChapterLeadInstructorApplicantsPage({
         />
       }
       actions={[
+        { label: "Add Applicant", href: "/admin/external-applicants/new", icon: "user" },
         { label: "All applicants", href: "/admin/instructor-applicants", icon: "list" },
       ]}
     >
       <InstructorApplicantsCommandCenter
         pipelineApps={serializedPipeline as any}
         archivedApps={serializedArchive as any}
+        reviewers={reviewers}
+        interviewers={interviewers}
+        actorId={session!.user.id}
       />
     </ApplicationReviewShell>
   );

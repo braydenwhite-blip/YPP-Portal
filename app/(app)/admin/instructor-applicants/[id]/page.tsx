@@ -7,6 +7,9 @@ import {
   canChangeLeadInterviewer,
   canSeeChairQueue,
   getHiringActor,
+  isAdmin,
+  isChapterLead,
+  isHiringChair,
 } from "@/lib/chapter-hiring-permissions";
 import { loadApplicationRecord } from "@/lib/applications/application-record";
 import {
@@ -27,6 +30,7 @@ import {
 } from "@/lib/active-chair";
 import { ApplicationReviewShell } from "@/components/applications/application-review-shell";
 import { ApplicationRecordSimple } from "@/components/instructor-applicants/ApplicationRecordSimple";
+import { prisma } from "@/lib/prisma";
 import {
   type KeyFact,
   type StatusTone,
@@ -116,12 +120,25 @@ export default async function ApplicationRecordPage({
     notFound();
   }
 
-  const [workspaceRow, activeChair, inlineReviewPanels] = await Promise.all([
+  const [workspaceRow, activeChair, inlineReviewPanels, offeredSlotRows] = await Promise.all([
     !DECIDED_STATUSES.has(record.status)
       ? getApplicationForWorkspace(id)
       : Promise.resolve(null),
     canSeeChairQueue(actor) ? getActiveChair() : Promise.resolve(null),
     loadInlineReviewPanels(id, record, actor),
+    !DECIDED_STATUSES.has(record.status)
+      ? prisma.offeredInterviewSlot.findMany({
+          where: { instructorApplicationId: id },
+          select: {
+            id: true,
+            scheduledAt: true,
+            durationMinutes: true,
+            meetingUrl: true,
+            confirmedAt: true,
+          },
+          orderBy: { scheduledAt: "asc" },
+        })
+      : Promise.resolve([]),
   ]);
 
   const canMakeFinalDecision = canMakeFinalApplicantDecision(
@@ -130,8 +147,28 @@ export default async function ApplicationRecordPage({
   );
   const decisionApplicant = workspaceRow ? serializeWorkspaceApplicant(workspaceRow) : null;
 
-  const viewerIsChair = canSeeChairQueue(actor);
   const isActiveChair = canMakeFinalDecision;
+  const currentRound = record.interviewRound ?? 1;
+  const actorIsLeadInterviewer = record.interviewerAssignments.some(
+    (assignment) =>
+      assignment.role === "LEAD" &&
+      assignment.interviewer.id === sessionUser.id &&
+      (assignment.round == null || assignment.round === currentRound)
+  );
+  const canScheduleInterview =
+    !DECIDED_STATUSES.has(record.status) &&
+    (isAdmin(actor) ||
+      isHiringChair(actor) ||
+      actorIsLeadInterviewer ||
+      (isChapterLead(actor) && actor.chapterId === record.applicant.chapterId));
+
+  const offeredInterviewSlots = offeredSlotRows.map((slot) => ({
+    id: slot.id,
+    scheduledAt: slot.scheduledAt.toISOString(),
+    durationMinutes: slot.durationMinutes,
+    meetingUrl: slot.meetingUrl,
+    confirmedAt: slot.confirmedAt?.toISOString() ?? null,
+  }));
 
   const status = STATUS_META[record.status] ?? {
     label: pretty(record.status),
@@ -153,6 +190,7 @@ export default async function ApplicationRecordPage({
   });
   let reviewerCandidates: Awaited<ReturnType<typeof getCandidateReviewers>> = [];
   let leadInterviewerCandidates: Awaited<ReturnType<typeof getCandidateInterviewers>> = [];
+  let secondInterviewerCandidates: Awaited<ReturnType<typeof getCandidateInterviewers>> = [];
   if (canChangeReviewerRole) {
     try {
       reviewerCandidates = await getCandidateReviewers(id);
@@ -162,9 +200,13 @@ export default async function ApplicationRecordPage({
   }
   if (canChangeLeadInterviewerRole) {
     try {
-      leadInterviewerCandidates = await getCandidateInterviewers(id, { role: "LEAD" });
+      [leadInterviewerCandidates, secondInterviewerCandidates] = await Promise.all([
+        getCandidateInterviewers(id, { role: "LEAD" }),
+        getCandidateInterviewers(id, { role: "SECOND" }),
+      ]);
     } catch {
       leadInterviewerCandidates = [];
+      secondInterviewerCandidates = [];
     }
   }
 
@@ -222,10 +264,9 @@ export default async function ApplicationRecordPage({
             : record.status === "PRE_APPROVED"
               ? {
                   title: "Schedule the interview",
-                  detail:
-                    "Pre-approved — schedule an interview from the pipeline board when ready.",
-                  href: "",
-                  cta: "",
+                  detail: "Pre-approved — set a time below or send options from the scheduler.",
+                  href: "#scheduling",
+                  cta: "Schedule interview",
                 }
               : record.status === "INTERVIEW_SCHEDULED"
                 ? {
@@ -233,10 +274,10 @@ export default async function ApplicationRecordPage({
                       ? "Interview scheduled"
                       : "Interview scheduling in progress",
                     detail: record.interviewScheduledAtISO
-                      ? `Interview on ${fmtDate(record.interviewScheduledAtISO)}. Mark complete on the pipeline when done.`
-                      : "Waiting on the applicant to pick a time from the proposed slots.",
-                    href: "#reviews",
-                    cta: "View interview",
+                      ? `Interview on ${fmtDate(record.interviewScheduledAtISO)}. Update the time below if needed.`
+                      : "Waiting on the applicant to pick a time — or set one directly below.",
+                    href: "#scheduling",
+                    cta: record.interviewScheduledAtISO ? "View schedule" : "Schedule interview",
                   }
                 : record.status === "INTERVIEW_COMPLETED"
                   ? {
@@ -274,7 +315,7 @@ export default async function ApplicationRecordPage({
         : record.interviewScheduledAtISO
           ? fmtDate(record.interviewScheduledAtISO)
           : "Not scheduled",
-      href: "#reviews",
+      href: "#scheduling",
     },
     {
       label: "Decision readiness",
@@ -303,15 +344,6 @@ export default async function ApplicationRecordPage({
       maxWidth={1280}
       actions={[
         { label: "Application board", href: "/admin/instructor-applicants", icon: "list" },
-        ...(viewerIsChair
-          ? [
-              {
-                label: "Chair queue",
-                href: "/admin/instructor-applicants/chair-queue",
-                icon: "inbox" as const,
-              },
-            ]
-          : []),
       ]}
     >
       <ApplicationRecordSimple
@@ -334,6 +366,9 @@ export default async function ApplicationRecordPage({
         reviewerCandidates={reviewerCandidates}
         canChangeLeadInterviewer={canChangeLeadInterviewerRole}
         leadInterviewerCandidates={leadInterviewerCandidates}
+        secondInterviewerCandidates={secondInterviewerCandidates}
+        canScheduleInterview={canScheduleInterview}
+        offeredInterviewSlots={offeredInterviewSlots}
       />
     </ApplicationReviewShell>
   );

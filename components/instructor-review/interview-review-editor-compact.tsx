@@ -108,7 +108,7 @@ function dateToInputValue(value: Date | string | null | undefined) {
   return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
 }
 
-function buildInitialCategories(initialReview: ReviewSnapshot): CategoryState[] {
+function buildInitialCategories(initialReview: ReviewSnapshot | null): CategoryState[] {
   return INSTRUCTOR_REVIEW_CATEGORIES.map((category) => {
     const existing = initialReview?.categories.find(
       (entry) => entry.category === category.key
@@ -122,7 +122,7 @@ function buildInitialCategories(initialReview: ReviewSnapshot): CategoryState[] 
 }
 
 function buildInitialQuestions(
-  initialReview: ReviewSnapshot,
+  initialReview: ReviewSnapshot | null,
   questionBank: QuestionBankItem[]
 ): QuestionState[] {
   const existing = initialReview?.questionResponses ?? [];
@@ -189,14 +189,16 @@ export function InterviewReviewEditorCompact({
   returnTo,
   initialReview,
   canEdit,
+  lockedReason,
   canFinalizeRecommendation,
   questionBank,
 }: {
   action: (formData: FormData) => void;
   applicationId: string;
   returnTo: string;
-  initialReview: ReviewSnapshot;
+  initialReview: ReviewSnapshot | null;
   canEdit: boolean;
+  lockedReason?: string | null;
   canFinalizeRecommendation: boolean;
   questionBank: QuestionBankItem[];
 }) {
@@ -322,6 +324,42 @@ export function InterviewReviewEditorCompact({
     );
   }
 
+  function updateQuestionPrompt(localId: string, value: string) {
+    setQuestions((current) =>
+      current.map((question) =>
+        question.localId === localId ? { ...question, prompt: value } : question
+      )
+    );
+  }
+
+  function addCustomQuestion() {
+    const localId = `custom-${Date.now()}`;
+    setQuestions((current) => [
+      ...current,
+      {
+        id: null,
+        localId,
+        questionBankId: null,
+        source: "CUSTOM",
+        status: "ASKED",
+        prompt: "",
+        followUpPrompt: "",
+        competency: "",
+        whyAsked: "",
+        notes: "",
+        rating: null,
+        tags: [],
+        askedAt: new Date().toISOString(),
+        skippedAt: null,
+        sortOrder: current.length,
+      },
+    ]);
+  }
+
+  function removeCustomQuestion(localId: string) {
+    setQuestions((current) => current.filter((question) => question.localId !== localId));
+  }
+
   function collectMissingFields(): string[] {
     const missing: string[] = [];
 
@@ -379,7 +417,7 @@ export function InterviewReviewEditorCompact({
 
   return (
     <form action={action} onSubmit={handleFormSubmit} className="flex flex-col gap-3">
-      <h3 className="m-0 text-[14px] font-bold text-ink">Interview feedback</h3>
+      <h3 className="m-0 text-[14px] font-bold text-ink">Live interview notes</h3>
 
       <input type="hidden" name="applicationId" value={applicationId} />
       <input type="hidden" name="returnTo" value={returnTo} />
@@ -389,7 +427,7 @@ export function InterviewReviewEditorCompact({
 
       {!canEdit ? (
         <div className={EDITOR_NOTICE}>
-          <p>Already submitted.</p>
+          <p>{lockedReason ?? "Already submitted."}</p>
         </div>
       ) : null}
 
@@ -406,7 +444,8 @@ export function InterviewReviewEditorCompact({
 
       <div className="flex flex-col gap-4 rounded-[10px] border border-line-soft bg-surface-soft/60 p-3">
         <p className="m-0 text-[12.5px] text-ink-muted">
-          Capture notes for each question, then rate the five GOAL areas.
+          Capture notes for each question (add any extras you asked), then rate the five GOAL
+          areas. The hiring chair sees the exact question and your notes.
         </p>
 
         {groupedQuestions.map((group) => (
@@ -418,31 +457,66 @@ export function InterviewReviewEditorCompact({
               const bankItem = question.questionBankId
                 ? questionBankById.get(question.questionBankId)
                 : null;
+              const isCustom = question.source === "CUSTOM";
               return (
                 <div
                   key={question.localId}
                   className="flex flex-col gap-2 rounded-[8px] border border-line bg-surface p-3"
                 >
-                  <div className="flex flex-wrap items-center gap-2">
-                    {question.competency || bankItem?.competency ? (
-                      <span className="text-[12px] font-semibold text-ink">
-                        {question.competency || bankItem?.competency}
-                      </span>
-                    ) : null}
-                    {bankItem?.isMustAsk ? (
-                      <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-800">
-                        Must ask
-                      </span>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {isCustom ? (
+                        <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-bold text-brand-800">
+                          Added question
+                        </span>
+                      ) : null}
+                      {question.competency || bankItem?.competency ? (
+                        <span className="text-[12px] font-semibold text-ink">
+                          {question.competency || bankItem?.competency}
+                        </span>
+                      ) : null}
+                      {bankItem?.isMustAsk ? (
+                        <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                          Must ask
+                        </span>
+                      ) : null}
+                    </div>
+                    {isCustom && canEdit ? (
+                      <button
+                        type="button"
+                        className="cursor-pointer text-[12px] font-semibold text-ink-muted hover:text-danger"
+                        onClick={() => removeCustomQuestion(question.localId)}
+                      >
+                        Remove
+                      </button>
                     ) : null}
                   </div>
-                  <p className="m-0 text-[13.5px] font-semibold leading-snug text-ink">
-                    {question.prompt}
-                  </p>
-                  {bankItem?.whyItMatters ? (
-                    <p className="m-0 text-[12px] leading-relaxed text-ink-muted">
-                      {bankItem.whyItMatters}
-                    </p>
-                  ) : null}
+                  {isCustom ? (
+                    <label className={FIELD_LABEL}>
+                      Question
+                      <textarea
+                        className={FIELD_INPUT}
+                        rows={2}
+                        value={question.prompt}
+                        disabled={!canEdit}
+                        onChange={(event) =>
+                          updateQuestionPrompt(question.localId, event.target.value)
+                        }
+                        placeholder="Write the exact question you asked…"
+                      />
+                    </label>
+                  ) : (
+                    <>
+                      <p className="m-0 text-[13.5px] font-semibold leading-snug text-ink">
+                        {question.prompt}
+                      </p>
+                      {bankItem?.whyItMatters ? (
+                        <p className="m-0 text-[12px] leading-relaxed text-ink-muted">
+                          {bankItem.whyItMatters}
+                        </p>
+                      ) : null}
+                    </>
+                  )}
                   <label className={FIELD_LABEL}>
                     Notes
                     <textarea
@@ -461,6 +535,16 @@ export function InterviewReviewEditorCompact({
             })}
           </div>
         ))}
+
+        {canEdit ? (
+          <button
+            type="button"
+            className="cursor-pointer rounded-[8px] border border-dashed border-brand-300 bg-brand-50/50 px-3 py-2 text-[12.5px] font-semibold text-brand-800 hover:border-brand-400 hover:bg-brand-50"
+            onClick={addCustomQuestion}
+          >
+            + Add another question
+          </button>
+        ) : null}
       </div>
 
       <div className="flex flex-col gap-3 rounded-[10px] border border-line-soft bg-surface-soft/60 p-3">
@@ -613,7 +697,7 @@ export function InterviewReviewEditorCompact({
           value="submit"
           disabled={!canEdit}
         >
-          Submit feedback
+          Submit live interview notes
         </button>
       </div>
     </form>

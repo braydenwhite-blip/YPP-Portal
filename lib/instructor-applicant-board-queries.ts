@@ -736,17 +736,14 @@ export async function getCandidateInterviewers(
 
   const chapterId = application.applicant.chapterId;
 
-  // LEAD must be assigned before SECOND; keep render-time candidate loading non-throwing.
-  if (role === "SECOND") {
-    const hasLead = application.interviewerAssignments.some(
-      (a) => a.role === "LEAD" && a.round === application.interviewRound
-    );
-    if (!hasLead) return [];
-  }
-
-  // Already assigned interviewers (active) — exclude from candidates
+  // Already assigned interviewers for the *other* role — exclude them so the
+  // same person isn't lead and second. Keep the current role's assignee in the
+  // list so chairs can tap them again to clear.
   const alreadyAssignedIds = application.interviewerAssignments
-    .filter((assignment) => assignment.round === application.interviewRound)
+    .filter(
+      (assignment) =>
+        assignment.round === application.interviewRound && assignment.role !== role
+    )
     .map((a) => a.interviewerId);
 
   // Eligible users: ADMIN, CHAPTER_PRESIDENT, or INTERVIEWER feature key holders.
@@ -822,7 +819,6 @@ export async function getCandidateReviewers(applicationId: string) {
 
   const candidates = await prisma.user.findMany({
     where: {
-      id: application.reviewerId ? { not: application.reviewerId } : undefined,
       OR: [
         { roles: { some: { role: "ADMIN" } } },
         { roles: { some: { role: "CHAPTER_PRESIDENT" } } },

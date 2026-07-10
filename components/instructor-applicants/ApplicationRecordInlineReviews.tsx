@@ -17,8 +17,8 @@ import {
 export function ApplicationRecordInlineReviews({
   applicationId,
   returnTo,
-  needsInitialReview,
-  needsInterviewFeedback,
+  initialComplete,
+  interviewComplete,
   actorIsReviewer,
   actorIsInterviewer,
   initialPanel,
@@ -26,8 +26,8 @@ export function ApplicationRecordInlineReviews({
 }: {
   applicationId: string;
   returnTo: string;
-  needsInitialReview: boolean;
-  needsInterviewFeedback: boolean;
+  initialComplete: boolean;
+  interviewComplete: boolean;
   actorIsReviewer: boolean;
   actorIsInterviewer: boolean;
   initialPanel: InlineInitialReviewPanel | null;
@@ -65,10 +65,6 @@ export function ApplicationRecordInlineReviews({
     return () => window.removeEventListener("hashchange", openFromHash);
   }, [openFromHash]);
 
-  if (!needsInitialReview && !needsInterviewFeedback) {
-    return null;
-  }
-
   if (!initialPanel && !interviewPanel) {
     return (
       <p className="m-0 mb-4 text-[13px] text-ink-muted">
@@ -81,10 +77,10 @@ export function ApplicationRecordInlineReviews({
     <div className="mb-4 flex flex-col gap-3">
       <div className="flex flex-col gap-2 rounded-[10px] border border-brand-200 bg-brand-50/70 px-3.5 py-3">
         <p className="m-0 text-[13px] leading-relaxed text-ink">
-          Write reviews here on this page — use the buttons to show or hide each form.
+          Initial review and live interview notes live here — open either form below.
         </p>
         <div className="flex flex-wrap gap-2">
-          {needsInitialReview && initialPanel ? (
+          {initialPanel ? (
             <Button
               type="button"
               variant={showInitial ? "secondary" : "primary"}
@@ -108,12 +104,14 @@ export function ApplicationRecordInlineReviews({
             >
               {showInitial
                 ? "Hide initial review"
-                : actorIsReviewer
-                  ? "Submit initial review"
-                  : "Open initial review"}
+                : initialComplete
+                  ? "View initial review"
+                  : actorIsReviewer
+                    ? "Submit initial review"
+                    : "Open initial review"}
             </Button>
           ) : null}
-          {needsInterviewFeedback && interviewPanel ? (
+          {interviewPanel ? (
             <Button
               type="button"
               variant={showInterview ? "secondary" : "primary"}
@@ -136,10 +134,12 @@ export function ApplicationRecordInlineReviews({
               aria-controls="inline-interview-review"
             >
               {showInterview
-                ? "Hide interview feedback"
-                : actorIsInterviewer
-                  ? "Submit interview feedback"
-                  : "Open interview feedback"}
+                ? "Hide live interview notes"
+                : interviewComplete
+                  ? "View live interview notes"
+                  : actorIsInterviewer
+                    ? "Submit live interview notes"
+                    : "Open live interview notes"}
             </Button>
           ) : null}
         </div>
@@ -179,6 +179,7 @@ export function ApplicationRecordInlineReviews({
             returnTo={returnTo}
             initialReview={interviewPanel.myReview}
             canEdit={interviewPanel.canEdit}
+            lockedReason={interviewPanel.lockedReason}
             canFinalizeRecommendation={interviewPanel.canFinalizeRecommendation}
             questionBank={interviewPanel.questionBank}
           />

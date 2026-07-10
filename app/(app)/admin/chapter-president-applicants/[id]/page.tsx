@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 import { ApplicationReviewShell } from "@/components/applications/application-review-shell";
 import { PageHeaderV2 } from "@/components/ui-v2";
 import { prisma } from "@/lib/prisma";
-import { requireAdminPage } from "@/lib/page-guards";
+import { requireChairPage } from "@/lib/page-guards";
 import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
 import {
   CP_INTERVIEW_QUESTION_GROUPS,
@@ -29,6 +29,7 @@ import {
   markCPAcceptanceEmailSentAction,
   saveCPReviewAction,
   scheduleCPInterviewAction,
+  archiveCPApplicationAction,
 } from "@/lib/chapter-president-application-actions";
 import { CreateChapterFromApplicationButton } from "@/components/chapters/create-chapter-from-application-button";
 
@@ -126,7 +127,7 @@ function ScoreSelect({
 }
 
 export default async function CPApplicantWorkspacePage({ params }: PageProps) {
-  await requireAdminPage();
+  await requireChairPage();
   const { id } = await params;
 
   const [app, reviewers, chapters, mentorOptions, workflowItem] = await Promise.all([
@@ -209,14 +210,14 @@ export default async function CPApplicantWorkspacePage({ params }: PageProps) {
       maxWidth={1200}
       header={
         <PageHeaderV2
-          eyebrow="Chapter president"
+          eyebrow="Chapter President"
           title={displayName}
           subtitle={`${cpStatusLabel(app.status)} · ${cpNextAction(app)}`}
           actions={<span className="badge">{cpStatusLabel(app.status)}</span>}
         />
       }
       actions={[
-        { label: "CP pipeline", href: "/admin/chapter-president-applicants", icon: "list" },
+        { label: "Application board", href: "/admin/instructor-applicants?kind=cp", icon: "list" },
         { label: "Home", href: "/", icon: "compass" },
       ]}
     >
@@ -540,6 +541,20 @@ export default async function CPApplicantWorkspacePage({ params }: PageProps) {
               <Field label="Application history" value={`Applied ${fmt(app.createdAt)} - ${cpStatusLabel(app.status)}`} />
             </div>
           </Section>
+
+          {!app.archivedAt ? (
+            <Section title="Archive">
+              <p style={{ margin: "0 0 12px", color: "var(--muted)", fontSize: 13 }}>
+                Hide this application from the active board. You can still find it under Archive.
+              </p>
+              <form action={archiveCPApplicationAction}>
+                <HiddenId id={app.id} />
+                <button className="button secondary small" type="submit">
+                  Archive application
+                </button>
+              </form>
+            </Section>
+          ) : null}
         </aside>
       </div>
     </ApplicationReviewShell>

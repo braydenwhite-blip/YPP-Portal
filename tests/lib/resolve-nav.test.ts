@@ -420,10 +420,9 @@ describe("resolveNavModel", () => {
 
       const visibleHrefs = hrefs(model);
       expect(visibleHrefs).toContain("/admin/instructor-applicants");
-      expect(visibleHrefs).toContain("/admin/instructor-applicants/chair-queue");
+      expect(visibleHrefs).not.toContain("/admin/instructor-applicants/chair-queue");
       expect(visibleHrefs).not.toContain("/admin/bulk-users");
       expect(visibleHrefs).not.toContain("/admin");
-      expect(model.more).toHaveLength(0);
     });
 
     it("hides People hub from leadership preview pilots without officer roles", () => {
@@ -557,7 +556,6 @@ describe("officer section navigation (9-section IA)", () => {
     for (const href of [
       "/people",
       "/admin/instructor-applicants",
-      "/admin/chapter-president-applicants",
       "/actions",
       "/follow-up",
       "/delegate",
@@ -570,6 +568,7 @@ describe("officer section navigation (9-section IA)", () => {
       expect(visibleHrefs).toContain(href);
     }
     expect(visibleHrefs).not.toContain("/meetings");
+    expect(visibleHrefs).not.toContain("/admin/chapter-president-applicants");
   });
 
   it("assigns each surface to the right object section", () => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button, ButtonLink, cn } from "@/components/ui-v2";
 import { FeedbackBanner } from "@/components/people-strategy/motion";
@@ -20,7 +20,9 @@ interface Props {
   chapters: Array<{ id: string; name: string }>;
   staffPositions: StaffPosition[];
   scopedChapterId: string | null;
-  isAdmin: boolean;
+  hasNetworkScope: boolean;
+  canAddChapterPresident: boolean;
+  canAddStaff: boolean;
 }
 
 type ApplicantKind = "INSTRUCTOR" | "CHAPTER_PRESIDENT" | "STAFF";
@@ -76,16 +78,31 @@ export default function ExternalApplicantIntakeForm({
   chapters,
   staffPositions,
   scopedChapterId,
-  isAdmin,
+  hasNetworkScope,
+  canAddChapterPresident,
+  canAddStaff,
 }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [source, setSource] = useState<SourceKind>("GOOGLE_FORMS");
+  const [source, setSource] = useState<SourceKind>("MANUAL_ADMIN_ENTRY");
   const [kind, setKind] = useState<ApplicantKind>("INSTRUCTOR");
 
-  const isCP = kind === "CHAPTER_PRESIDENT";
-  const isStaff = kind === "STAFF";
+  const kindOptions = useMemo(() => {
+    const options: Array<{ value: ApplicantKind; label: string }> = [
+      { value: "INSTRUCTOR", label: "Instructor" },
+    ];
+    if (canAddStaff) options.push({ value: "STAFF", label: "Staff" });
+    if (canAddChapterPresident) {
+      options.push({ value: "CHAPTER_PRESIDENT", label: "Chapter President" });
+    }
+    return options;
+  }, [canAddChapterPresident, canAddStaff]);
+
+  const activeKind =
+    kindOptions.some((option) => option.value === kind) ? kind : "INSTRUCTOR";
+  const isCP = activeKind === "CHAPTER_PRESIDENT";
+  const isStaff = activeKind === "STAFF";
 
   function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -107,7 +124,7 @@ export default function ExternalApplicantIntakeForm({
       if (isCP) {
         const result = await createExternalChapterPresidentApplicantFromForm(formData);
         if (result.ok) {
-          router.push("/admin/chapter-president-applicants");
+          router.push(`/admin/chapter-president-applicants/${result.applicationId}`);
           router.refresh();
         } else {
           setError(result.error);
@@ -133,24 +150,19 @@ export default function ExternalApplicantIntakeForm({
         <div className="space-y-8 px-5 py-6 sm:px-7 sm:py-7">
           <FeedbackBanner message={error} tone="error" style={{ padding: "10px 14px" }} />
 
-          {isAdmin ? (
+          {kindOptions.length > 1 ? (
             <div className="space-y-2">
               <p className="m-0 text-[13px] font-semibold text-ink">Applicant type</p>
-              <div className="flex flex-wrap gap-2">
-                {(
-                  [
-                    ["INSTRUCTOR", "Instructor"],
-                    ["STAFF", "Staff"],
-                    ["CHAPTER_PRESIDENT", "Chapter president"],
-                  ] as const
-                ).map(([value, label]) => (
+              <div className="flex flex-wrap gap-2" role="group" aria-label="Applicant type">
+                {kindOptions.map((option) => (
                   <button
-                    key={value}
+                    key={option.value}
                     type="button"
-                    onClick={() => setKind(value)}
-                    className={chipClass(kind === value)}
+                    onClick={() => setKind(option.value)}
+                    className={chipClass(activeKind === option.value)}
+                    aria-pressed={activeKind === option.value}
                   >
-                    {label}
+                    {option.label}
                   </button>
                 ))}
               </div>
@@ -191,10 +203,18 @@ export default function ExternalApplicantIntakeForm({
 
           <div className="h-px bg-line-soft/80" aria-hidden />
 
-          <FormSection step={2} title="Which chapter?" hint="Where they would teach or lead.">
-            {isAdmin ? (
+          <FormSection
+            step={2}
+            title="Which chapter?"
+            hint={
+              isCP
+                ? "Optional — leave blank if they are founding a new chapter."
+                : "Where they would teach, work, or lead."
+            }
+          >
+            {hasNetworkScope ? (
               <select className={selectClass} name="chapterId" defaultValue="">
-                <option value="">No chapter yet</option>
+                <option value="">{isCP ? "No chapter yet / new chapter" : "No chapter yet"}</option>
                 {chapters.map((chapter) => (
                   <option key={chapter.id} value={chapter.id}>
                     {chapter.name}
@@ -225,17 +245,17 @@ export default function ExternalApplicantIntakeForm({
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
-                    onClick={() => setSource("GOOGLE_FORMS")}
-                    className={chipClass(source === "GOOGLE_FORMS")}
-                  >
-                    Google Forms
-                  </button>
-                  <button
-                    type="button"
                     onClick={() => setSource("MANUAL_ADMIN_ENTRY")}
                     className={chipClass(source === "MANUAL_ADMIN_ENTRY")}
                   >
                     Manual entry
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSource("GOOGLE_FORMS")}
+                    className={chipClass(source === "GOOGLE_FORMS")}
+                  >
+                    Google Forms
                   </button>
                 </div>
               </div>
@@ -244,8 +264,8 @@ export default function ExternalApplicantIntakeForm({
                 <label className="block space-y-1.5">
                   <span className="text-[13px] font-semibold text-ink">Track</span>
                   <select className={selectClass} name="applicationTrack" defaultValue="STANDARD_INSTRUCTOR">
-                    <option value="STANDARD_INSTRUCTOR">Standard instructor</option>
-                    <option value="SUMMER_WORKSHOP_INSTRUCTOR">Summer workshop</option>
+                    <option value="STANDARD_INSTRUCTOR">Full Instructor</option>
+                    <option value="SUMMER_WORKSHOP_INSTRUCTOR">Summer Workshop</option>
                   </select>
                 </label>
               ) : null}
@@ -255,7 +275,7 @@ export default function ExternalApplicantIntakeForm({
                   <label className="space-y-1.5">
                     <span className="text-[13px] font-semibold text-ink">Staff opening</span>
                     <select className={selectClass} name="positionId" defaultValue="">
-                      <option value="">Match by title below</option>
+                      <option value="">Create / match by title →</option>
                       {staffPositions.map((position) => (
                         <option key={position.id} value={position.id}>
                           {position.title}
@@ -270,6 +290,7 @@ export default function ExternalApplicantIntakeForm({
                       className={inputClass}
                       name="positionTitle"
                       defaultValue="Technology Manager"
+                      placeholder="Technology Manager"
                     />
                   </label>
                 </div>
@@ -306,13 +327,25 @@ export default function ExternalApplicantIntakeForm({
         </div>
 
         <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-line-soft bg-surface/90 px-5 py-4 sm:px-7">
-          <p className="m-0 text-[12.5px] text-ink-muted">Three fields to start — the rest can wait.</p>
+          <p className="m-0 text-[12.5px] text-ink-muted">
+            {isStaff
+              ? "Creates a Staff application (opens a position if needed)."
+              : isCP
+                ? "Creates a Chapter President application on the board."
+                : "Creates an Instructor application on the board."}
+          </p>
           <div className="flex flex-wrap items-center gap-2">
             <ButtonLink href="/admin/instructor-applicants" variant="ghost" size="md">
               Cancel
             </ButtonLink>
             <Button type="submit" variant="primary" size="md" disabled={pending}>
-              {pending ? "Adding…" : "Add applicant →"}
+              {pending
+                ? "Adding…"
+                : isStaff
+                  ? "Add Staff Applicant →"
+                  : isCP
+                    ? "Add CP Applicant →"
+                    : "Add Instructor →"}
             </Button>
           </div>
         </footer>

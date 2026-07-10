@@ -11,6 +11,8 @@ import type { InlineReviewPanels } from "@/lib/applications/load-inline-review-p
 import { parseSubjectsOfInterest } from "@/lib/instructor-applicants/parse-subjects";
 import { DecisionReadinessChecklist } from "@/components/instructor-applicants/DecisionReadinessChecklist";
 import { ApplicantAssignmentHeaderControls } from "@/components/instructor-applicants/ApplicantAssignmentHeaderControls";
+import { ApplicationRecordBoardFilterChips } from "@/components/instructor-applicants/ApplicationRecordBoardFilterChips";
+import { ApplicationRecordInterviewSchedule } from "@/components/instructor-applicants/ApplicationRecordInterviewSchedule";
 import type { ReviewerCandidate } from "@/components/instructor-applicants/ReviewerAssignDropdown";
 import type { LeadInterviewerCandidate } from "@/components/instructor-applicants/LeadInterviewerAssignDropdown";
 import {
@@ -101,6 +103,9 @@ export function ApplicationRecordSimple({
   reviewerCandidates = [],
   canChangeLeadInterviewer = false,
   leadInterviewerCandidates = [],
+  secondInterviewerCandidates = [],
+  canScheduleInterview = false,
+  offeredInterviewSlots = [],
 }: {
   record: ApplicationRecord;
   status: { label: string; tone: StatusTone };
@@ -127,6 +132,15 @@ export function ApplicationRecordSimple({
   reviewerCandidates?: ReviewerCandidate[];
   canChangeLeadInterviewer?: boolean;
   leadInterviewerCandidates?: LeadInterviewerCandidate[];
+  secondInterviewerCandidates?: LeadInterviewerCandidate[];
+  canScheduleInterview?: boolean;
+  offeredInterviewSlots?: Array<{
+    id: string;
+    scheduledAt: string;
+    durationMinutes: number;
+    meetingUrl: string | null;
+    confirmedAt: string | null;
+  }>;
 }) {
   const subjects = parseSubjectsOfInterest(record.subjectsOfInterest);
 
@@ -157,12 +171,18 @@ export function ApplicationRecordSimple({
     (check) => check.label === "Initial review" && !check.done
   );
   const needsInterviewFeedback = readinessChecks.some(
-    (check) => check.label === "Interview feedback" && !check.done
+    (check) => check.label === "Live interview notes" && !check.done
   );
   const leadAssignment =
     record.interviewerAssignments.find(
       (assignment) =>
         assignment.role === "LEAD" &&
+        (assignment.round == null || assignment.round === record.interviewRound)
+    ) ?? null;
+  const secondAssignment =
+    record.interviewerAssignments.find(
+      (assignment) =>
+        assignment.role === "SECOND" &&
         (assignment.round == null || assignment.round === record.interviewRound)
     ) ?? null;
 
@@ -176,18 +196,18 @@ export function ApplicationRecordSimple({
       </Link>
 
       {/* Header */}
-      <div className="rounded-[14px] border border-line-soft bg-surface p-5 shadow-card">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
+      <div className="min-w-0 rounded-[14px] border border-line-soft bg-surface p-4 shadow-card sm:p-5">
+        <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0 flex-1 basis-[12rem]">
             <p className="m-0 text-[11px] font-bold uppercase tracking-[0.06em] text-ink-muted">
-              Instructor applicant
+              Instructor Applicant
             </p>
-            <h1 className="m-0 mt-0.5 text-[24px] font-extrabold tracking-[-0.3px] text-ink">
+            <h1 className="m-0 mt-0.5 break-words text-[22px] font-extrabold tracking-[-0.3px] text-ink sm:text-[24px]">
               {record.displayName}
             </h1>
-            <p className="m-0 mt-1 text-[13px] text-ink-muted">{identityLine}</p>
+            <p className="m-0 mt-1 break-words text-[13px] text-ink-muted">{identityLine}</p>
           </div>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex max-w-full flex-wrap gap-1.5">
             <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
             {record.isReapplication ? <StatusBadge tone="info">Reapplication</StatusBadge> : null}
             {record.archived ? <StatusBadge tone="neutral">Archived</StatusBadge> : null}
@@ -195,8 +215,8 @@ export function ApplicationRecordSimple({
         </div>
 
         {!decided ? (
-          <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-            <p className="m-0 rounded-[10px] bg-brand-50 px-3 py-2.5 text-[13px] leading-relaxed text-ink-muted">
+          <div className="mt-4 flex min-w-0 flex-col gap-3">
+            <p className="m-0 break-words rounded-[10px] bg-brand-50 px-3 py-2.5 text-[13px] leading-relaxed text-ink-muted">
               {nextStep ? (
                 <>
                   <span className="font-semibold text-ink">{nextStep.title}.</span>{" "}
@@ -205,7 +225,7 @@ export function ApplicationRecordSimple({
               ) : (
                 <>
                   <span className="font-semibold text-ink">Assignments.</span> Choose the
-                  reviewer and lead interviewer for this application.
+                  reviewer and two interviewers for this application.
                 </>
               )}
             </p>
@@ -216,16 +236,38 @@ export function ApplicationRecordSimple({
               canChangeReviewer={canChangeReviewer}
               reviewerCandidates={reviewerCandidates}
               leadAssignment={leadAssignment}
+              secondAssignment={secondAssignment}
               canChangeLeadInterviewer={canChangeLeadInterviewer}
               leadInterviewerCandidates={leadInterviewerCandidates}
+              secondInterviewerCandidates={secondInterviewerCandidates}
             />
           </div>
         ) : null}
 
+        <ApplicationRecordBoardFilterChips
+          status={record.status}
+          interviewScheduledAtISO={record.interviewScheduledAtISO}
+          chapterId={record.applicant.chapterId}
+          chapterName={record.applicant.chapterName}
+          applicationTrack={record.applicationTrack}
+          source={record.source}
+          reviewerId={record.reviewer?.id ?? null}
+          reviewerName={record.reviewer?.name ?? null}
+          interviewerAssignments={record.interviewerAssignments}
+        />
       </div>
 
       {/* At-a-glance facts */}
       <KeyFactsGrid facts={facts} />
+
+      {!decided ? (
+        <ApplicationRecordInterviewSchedule
+          applicationId={record.id}
+          interviewScheduledAtISO={record.interviewScheduledAtISO}
+          canSchedule={canScheduleInterview}
+          offeredSlots={offeredInterviewSlots}
+        />
+      ) : null}
 
       {/* Contact */}
       <RecordSection title="Contact">
@@ -309,8 +351,8 @@ export function ApplicationRecordSimple({
           <ApplicationRecordInlineReviews
             applicationId={record.id}
             returnTo={returnTo}
-            needsInitialReview={needsInitialReview}
-            needsInterviewFeedback={needsInterviewFeedback}
+            initialComplete={!needsInitialReview}
+            interviewComplete={!needsInterviewFeedback}
             actorIsReviewer={actorIsReviewer}
             actorIsInterviewer={actorIsInterviewer}
             initialPanel={inlineReviewPanels.initial}
@@ -370,18 +412,58 @@ export function ApplicationRecordSimple({
                   : "No interview activity yet."}
               </p>
             ) : (
-              <div className="mt-2 flex flex-col gap-2">
-                {record.interviewReviews.map((review) => (
-                  <div key={review.id} className="rounded-[10px] bg-surface-soft px-3 py-2.5">
-                    <p className="m-0 text-[13.5px] font-semibold text-ink">{review.reviewerName}</p>
-                    <p className="m-0 text-[12px] text-ink-muted">
-                      {review.recommendation
-                        ? `Recommends ${pretty(review.recommendation)}`
-                        : pretty(review.status)}
-                      {review.overallRating ? ` · ${pretty(review.overallRating)}` : ""}
-                    </p>
-                  </div>
-                ))}
+              <div className="mt-2 flex flex-col gap-3">
+                {record.interviewReviews.map((review) => {
+                  const askedQuestions = review.questionResponses.filter(
+                    (q) =>
+                      q.status !== "SKIPPED" &&
+                      (Boolean(q.notes?.trim()) ||
+                        q.source === "CUSTOM" ||
+                        q.status === "ASKED")
+                  );
+                  return (
+                    <div
+                      key={review.id}
+                      className="rounded-[10px] border border-line-soft bg-surface-soft px-3 py-2.5"
+                    >
+                      <p className="m-0 text-[13.5px] font-semibold text-ink">
+                        {review.reviewerName}
+                      </p>
+                      <p className="m-0 text-[12px] text-ink-muted">
+                        {review.recommendation
+                          ? `Recommends ${pretty(review.recommendation)}`
+                          : pretty(review.status)}
+                        {review.overallRating ? ` · ${pretty(review.overallRating)}` : ""}
+                      </p>
+                      {askedQuestions.length > 0 ? (
+                        <div className="mt-2.5 flex flex-col gap-2 border-t border-line-soft pt-2.5">
+                          <p className="m-0 text-[11px] font-bold uppercase tracking-[0.06em] text-ink-muted">
+                            Live interview notes
+                          </p>
+                          {askedQuestions.map((q) => (
+                            <div key={q.id} className="flex flex-col gap-1">
+                              <p className="m-0 text-[12.5px] font-semibold leading-snug text-ink">
+                                {q.source === "CUSTOM" ? (
+                                  <span className="mr-1.5 inline-block rounded bg-brand-50 px-1.5 py-0.5 text-[10px] font-bold text-brand-800">
+                                    Added
+                                  </span>
+                                ) : null}
+                                {q.prompt}
+                              </p>
+                              {q.notes?.trim() ? (
+                                <p className="m-0 whitespace-pre-wrap text-[12.5px] leading-relaxed text-ink">
+                                  {q.notes}
+                                </p>
+                              ) : (
+                                <p className="m-0 text-[12px] italic text-ink-muted">No notes</p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

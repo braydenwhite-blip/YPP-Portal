@@ -1,13 +1,16 @@
 import { prisma } from "@/lib/prisma";
 import { ApplicationTrack, ApplicationSource } from "@prisma/client";
 import { isInstructorApplicantWorkflowV1Enabled } from "@/lib/feature-flags";
-import { canSeeChairQueue } from "@/lib/chapter-hiring-permissions";
 import { requireApplicationReviewerPage } from "@/lib/page-guards";
 import {
   getApplicantPipeline,
   getArchivedApplications,
-  getChairQueue,
 } from "@/lib/instructor-applicant-board-queries";
+import {
+  mapCpStatusToBoardStatus,
+  parseApplicantKindFilter,
+} from "@/lib/applicant-board-kind";
+import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
 import { ApplicationReviewShell } from "@/components/applications/application-review-shell";
 import InstructorApplicantsCommandCenter from "@/components/instructor-applicants/InstructorApplicantsCommandCenter";
 import { buttonVariants, PageHeaderV2 } from "@/components/ui-v2";
@@ -41,7 +44,7 @@ export default async function AdminInstructorApplicantsPage({
         maxWidth={1100}
         header={
           <PageHeaderV2
-            eyebrow={isAdmin ? "Admin" : isHiringChair ? "Hiring chair" : "Chapter president"}
+            eyebrow={isAdmin ? "Admin" : isHiringChair ? "Hiring Chair" : "Chapter President"}
             title="Application board"
             subtitle="The applicant review board is turned off in this environment. Confirmed instructors and their lifecycle still live in the Instructor Operations database — pick up there."
             actions={
@@ -101,7 +104,7 @@ export default async function AdminInstructorApplicantsPage({
           maxWidth={1100}
           header={
             <PageHeaderV2
-              eyebrow="Chapter president"
+              eyebrow="Chapter President"
               title="Application board"
               subtitle="No chapter is assigned to your account yet, so there are no applicants to show. Ask an administrator to link your account to a chapter."
             />
@@ -118,6 +121,10 @@ export default async function AdminInstructorApplicantsPage({
   const materialsMissing = resolvedParams.materialsMissing === "1";
   const overdueOnly = resolvedParams.overdueOnly === "1";
   const myCasesOnly = resolvedParams.myCasesOnly === "1";
+  const kindFilter = parseApplicantKindFilter(resolvedParams.kind);
+  // Admins and Hiring Chairs share the unified Instructor + CP board.
+  const includeCpApps = (isAdmin || isHiringChair) && kindFilter !== "instructor";
+  const includeInstructorApps = kindFilter !== "cp";
 
   // Subtype filter: ?track=summer_workshop | standard. Omit/invalid = all.
   const applicationTrackParam = (resolvedParams.track as string | undefined)?.toLowerCase();
@@ -149,9 +156,6 @@ export default async function AdminInstructorApplicantsPage({
   const effectiveChapterId = hasNetworkScope ? filterChapterId : chapterId;
   const scope: "admin" | "chapter" = hasNetworkScope ? "admin" : "chapter";
 
-  // Determine chair queue visibility
-  const showChairQueue = canSeeChairQueue(actor);
-
   const pipelineFilters = {
     reviewerId,
     interviewerId,
@@ -162,35 +166,189 @@ export default async function AdminInstructorApplicantsPage({
     source: sourceFilter,
   };
 
-  let pipelineResult: Awaited<ReturnType<typeof getApplicantPipeline>>;
-  let archiveResult: Awaited<ReturnType<typeof getArchivedApplications>>;
-  let chairQueueItems: Awaited<ReturnType<typeof getChairQueue>>;
+  const filterTake = hiringDemoMode ? 40 : undefined;
+
+  const loadChapters = () =>
+    hasNetworkScope
+      ? prisma.chapter.findMany({
+          select: { id: true, name: true },
+          orderBy: { name: "asc" },
+          take: filterTake,
+        })
+      : Promise.resolve([] as Array<{ id: string; name: string }>);
+
+  const loadReviewerUsers = () =>
+    prisma.user.findMany({
+      where: {
+        OR: [
+          { roles: { some: { role: "ADMIN" } } },
+          { roles: { some: { role: "CHAPTER_PRESIDENT" } } },
+        ],
+      },
+      select: { id: true, name: true, email: true },
+      orderBy: { name: "asc" },
+      take: filterTake,
+    });
+
+  const loadInterviewerUsers = () =>
+    prisma.user.findMany({
+      where: {
+        OR: [
+          { roles: { some: { role: "ADMIN" } } },
+          { roles: { some: { role: "CHAPTER_PRESIDENT" } } },
+          {
+            featureGateRulesTargeted: {
+              some: { featureKey: "INTERVIEWER", enabled: true },
+            },
+          },
+        ],
+      },
+      select: { id: true, name: true, email: true },
+      orderBy: { name: "asc" },
+      take: filterTake,
+    });
+
+  let pipelineResult: Awaited<ReturnType<typeof getApplicantPipeline>> | null = null;
+  let archiveResult: Awaited<ReturnType<typeof getArchivedApplications>> = {
+    items: [],
+    total: 0,
+    skip: 0,
+    take: 0,
+  };
+  let chapters: Array<{ id: string; name: string }> = [];
+  let reviewers: Array<{ id: string; name: string | null; email: string }> = [];
+  let interviewers: Array<{ id: string; name: string | null; email: string }> = [];
+  let cpApps: Array<{
+    id: string;
+    status: string;
+    interviewScheduledAt: Date | null;
+    archivedAt: Date | null;
+    archiveReason: string | null;
+    updatedAt: Date;
+    legalName: string | null;
+    preferredFirstName: string | null;
+    lastName: string | null;
+    schoolName: string | null;
+    applicant: {
+      id: string;
+      name: string | null;
+      email: string;
+      chapter: { id: string; name: string } | null;
+    };
+    reviewer: { id: string; name: string | null } | null;
+    chapter: { id: string; name: string } | null;
+  }> = [];
+  let archivedCpApps: typeof cpApps = [];
+
+  const cpChapterWhere = effectiveChapterId
+    ? {
+        OR: [
+          { chapterId: effectiveChapterId },
+          { applicant: { chapterId: effectiveChapterId } },
+        ],
+      }
+    : {};
+
+  const cpBoardSelect = {
+    id: true,
+    status: true,
+    interviewScheduledAt: true,
+    archivedAt: true,
+    archiveReason: true,
+    updatedAt: true,
+    legalName: true,
+    preferredFirstName: true,
+    lastName: true,
+    schoolName: true,
+    applicant: {
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        chapter: { select: { id: true, name: true } },
+      },
+    },
+    reviewer: { select: { id: true, name: true } },
+    chapter: { select: { id: true, name: true } },
+  } as const;
+
+  const loadCpApps = async () => {
+    if (!includeCpApps) return [] as typeof cpApps;
+    return prisma.chapterPresidentApplication.findMany({
+      where: {
+        archivedAt: null,
+        ...cpChapterWhere,
+      },
+      select: cpBoardSelect,
+      orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+      take: hiringDemoMode ? DEMO_PIPELINE_TAKE : undefined,
+    });
+  };
+
+  const loadArchivedCpApps = async () => {
+    if (!includeCpApps || hiringDemoMode) return [] as typeof cpApps;
+    return prisma.chapterPresidentApplication.findMany({
+      where: {
+        archivedAt: { not: null },
+        ...cpChapterWhere,
+      },
+      select: cpBoardSelect,
+      orderBy: { archivedAt: "desc" },
+      take: 50,
+    });
+  };
 
   if (hiringDemoMode) {
-    pipelineResult = await getApplicantPipeline({
-      scope,
-      chapterId: effectiveChapterId,
-      filters: pipelineFilters,
-      take: DEMO_PIPELINE_TAKE,
-    });
-    archiveResult = { items: [], total: 0, skip: 0, take: 0 };
-    chairQueueItems = [];
-  } else {
-    [pipelineResult, archiveResult, chairQueueItems] = await Promise.all([
-      getApplicantPipeline({
-        scope,
-        chapterId: effectiveChapterId,
-        filters: pipelineFilters,
-      }),
-      getArchivedApplications({ scope, chapterId: effectiveChapterId }),
-      showChairQueue
-        ? getChairQueue({ scope, chapterId: effectiveChapterId })
-        : Promise.resolve([]),
+    const [pipeline, chapterRows, reviewerRows, cpRows] = await Promise.all([
+      includeInstructorApps
+        ? getApplicantPipeline({
+            scope,
+            chapterId: effectiveChapterId,
+            filters: pipelineFilters,
+            take: DEMO_PIPELINE_TAKE,
+          })
+        : Promise.resolve(null),
+      loadChapters(),
+      loadReviewerUsers(),
+      loadCpApps(),
     ]);
+    pipelineResult = pipeline;
+    chapters = chapterRows;
+    reviewers = reviewerRows;
+    interviewers = reviewerRows;
+    cpApps = cpRows;
+  } else {
+    const [pipeline, archive, chapterRows, reviewerRows, interviewerRows, cpRows, archivedCpRows] =
+      await Promise.all([
+        includeInstructorApps
+          ? getApplicantPipeline({
+              scope,
+              chapterId: effectiveChapterId,
+              filters: pipelineFilters,
+            })
+          : Promise.resolve(null),
+        includeInstructorApps
+          ? getArchivedApplications({ scope, chapterId: effectiveChapterId })
+          : Promise.resolve({ items: [], total: 0, skip: 0, take: 0 }),
+        loadChapters(),
+        loadReviewerUsers(),
+        loadInterviewerUsers(),
+        loadCpApps(),
+        loadArchivedCpApps(),
+      ]);
+    pipelineResult = pipeline;
+    archiveResult = archive;
+    chapters = chapterRows;
+    reviewers = reviewerRows;
+    interviewers = interviewerRows;
+    cpApps = cpRows;
+    archivedCpApps = archivedCpRows;
   }
 
   // Flatten pipeline columns into a single array
-  const pipelineApps = (Object.values(pipelineResult.columns).flat() as any[]);
+  const pipelineApps = pipelineResult
+    ? (Object.values(pipelineResult.columns).flat() as any[])
+    : [];
 
   // Serialize dates for client components
   function serializeApp(app: any) {
@@ -201,6 +359,7 @@ export default async function AdminInstructorApplicantsPage({
     } | null) ?? null;
     return {
       id: app.id as string,
+      kind: "instructor" as const,
       status: app.status as string,
       materialsReadyAt: (app.materialsReadyAt as Date | null)?.toISOString() ?? null,
       interviewScheduledAt: (app.interviewScheduledAt as Date | null)?.toISOString() ?? null,
@@ -244,55 +403,128 @@ export default async function AdminInstructorApplicantsPage({
     };
   }
 
-  const serializedPipeline = pipelineApps.map(serializeApp);
-  const serializedArchive = archiveResult.items.map((app) => {
-    const archiveOutline = (app as {
-      workshopOutline?: { title?: string; ageRange?: string; durationMinutes?: number };
-    }).workshopOutline ?? null;
+  function serializeCpApp(app: (typeof cpApps)[number]) {
+    const chapter =
+      app.chapter ??
+      (app.applicant.chapter
+        ? { id: app.applicant.chapter.id, name: app.applicant.chapter.name }
+        : null);
     return {
       id: app.id,
-      status: app.status,
+      kind: "cp" as const,
+      status: mapCpStatusToBoardStatus(app.status),
+      materialsReadyAt: null as string | null,
+      interviewScheduledAt: app.interviewScheduledAt?.toISOString() ?? null,
       archivedAt: app.archivedAt?.toISOString() ?? null,
+      archiveReason: app.archiveReason,
       updatedAt: app.updatedAt.toISOString(),
-      subjectsOfInterest: app.subjectsOfInterest ?? null,
-      source: ((app as { source?: string }).source ?? "PORTAL") as string,
-      legalName: app.legalName ?? null,
-      preferredFirstName: app.preferredFirstName ?? null,
-      lastName: app.lastName ?? null,
+      overdue: false,
+      awaitingSlots: false,
+      subjectsOfInterest: app.schoolName,
+      applicationTrack: "CHAPTER_PRESIDENT",
+      instructorSubtype: "CHAPTER_PRESIDENT",
+      legalName: app.legalName,
+      preferredFirstName: app.preferredFirstName,
+      lastName: app.lastName,
+      workshopOutlinePresent: false,
+      workshopTitle: null as string | null,
+      workshopAgeRange: null as string | null,
+      workshopDurationMinutes: null as number | null,
+      isReapplication: false,
+      previousApplicationId: null as string | null,
+      source: "PORTAL",
       applicant: {
         id: app.applicant.id,
-        name: app.applicant.name,
-        email: "",
-        chapter: app.applicant.chapter ?? null,
+        name: app.applicant.name ?? formatApplicantDisplayName(app),
+        email: app.applicant.email,
+        chapter,
       },
-      reviewer: app.reviewer ?? null,
-      chairDecision: app.chairDecision
-        ? { action: app.chairDecision.action, decidedAt: app.chairDecision.decidedAt.toISOString() }
-        : null,
-      materialsReadyAt: null as string | null,
-      interviewScheduledAt: null as string | null,
-      interviewerAssignments: [] as Array<{ id: string; role: string; interviewer: { id: string; name: string | null } }>,
-      overdue: false,
-      applicationReviews: [] as Array<{ summary: string | null; nextStep: string | null; overallRating: string | null }>,
-      applicationTrack: (app as { applicationTrack?: string }).applicationTrack ?? "STANDARD_INSTRUCTOR",
-      instructorSubtype: (app as { instructorSubtype?: string }).instructorSubtype ?? "STANDARD",
-      workshopOutlinePresent: !!archiveOutline,
-      workshopTitle: archiveOutline?.title ?? null,
-      workshopAgeRange: archiveOutline?.ageRange ?? null,
-      workshopDurationMinutes: archiveOutline?.durationMinutes ?? null,
+      reviewer: app.reviewer,
+      interviewerAssignments: [] as Array<{
+        id: string;
+        role: string;
+        interviewer: { id: string; name: string | null };
+      }>,
+      applicationReviews: [] as Array<{
+        summary: string | null;
+        nextStep: string | null;
+        overallRating: string | null;
+      }>,
+      chairDecision: null as {
+        action: string;
+        decidedAt: string;
+        rationale: string | null;
+      } | null,
     };
+  }
+
+  const serializedPipeline = [
+    ...pipelineApps.map(serializeApp),
+    ...cpApps.map(serializeCpApp),
+  ].sort((a, b) => {
+    const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+    const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+    return bTime - aTime;
+  });
+  const serializedArchive = [
+    ...archiveResult.items.map((app) => {
+      const archiveOutline = (app as {
+        workshopOutline?: { title?: string; ageRange?: string; durationMinutes?: number };
+      }).workshopOutline ?? null;
+      return {
+        id: app.id,
+        kind: "instructor" as const,
+        status: app.status,
+        archivedAt: app.archivedAt?.toISOString() ?? null,
+        archiveReason: (app as { archiveReason?: string | null }).archiveReason ?? null,
+        updatedAt: app.updatedAt.toISOString(),
+        subjectsOfInterest: app.subjectsOfInterest ?? null,
+        source: ((app as { source?: string }).source ?? "PORTAL") as string,
+        legalName: app.legalName ?? null,
+        preferredFirstName: app.preferredFirstName ?? null,
+        lastName: app.lastName ?? null,
+        applicant: {
+          id: app.applicant.id,
+          name: app.applicant.name,
+          email: "",
+          chapter: app.applicant.chapter ?? null,
+        },
+        reviewer: app.reviewer ?? null,
+        chairDecision: app.chairDecision
+          ? { action: app.chairDecision.action, decidedAt: app.chairDecision.decidedAt.toISOString() }
+          : null,
+        materialsReadyAt: null as string | null,
+        interviewScheduledAt: null as string | null,
+        interviewerAssignments: [] as Array<{
+          id: string;
+          role: string;
+          interviewer: { id: string; name: string | null };
+        }>,
+        overdue: false,
+        applicationReviews: [] as Array<{
+          summary: string | null;
+          nextStep: string | null;
+          overallRating: string | null;
+        }>,
+        applicationTrack:
+          (app as { applicationTrack?: string }).applicationTrack ?? "STANDARD_INSTRUCTOR",
+        instructorSubtype:
+          (app as { instructorSubtype?: string }).instructorSubtype ?? "STANDARD",
+        workshopOutlinePresent: !!archiveOutline,
+        workshopTitle: archiveOutline?.title ?? null,
+        workshopAgeRange: archiveOutline?.ageRange ?? null,
+        workshopDurationMinutes: archiveOutline?.durationMinutes ?? null,
+      };
+    }),
+    ...archivedCpApps.map(serializeCpApp),
+  ].sort((a, b) => {
+    const aTime = a.archivedAt ? new Date(a.archivedAt).getTime() : 0;
+    const bTime = b.archivedAt ? new Date(b.archivedAt).getTime() : 0;
+    return bTime - aTime;
   });
 
-  const chairQueueCount =
-    hiringDemoMode && showChairQueue
-      ? pipelineResult.columns.chair_review.length
-      : chairQueueItems.length;
-
   const strip = [
-    { label: "Add applicant", href: "/admin/external-applicants/new", icon: "user" as const },
-    ...(showChairQueue
-      ? [{ label: "Chair queue", href: "/admin/instructor-applicants/chair-queue", icon: "inbox" as const }]
-      : []),
+    { label: "Add Applicant", href: "/admin/external-applicants/new", icon: "user" as const },
   ];
 
   return (
@@ -314,8 +546,12 @@ export default async function AdminInstructorApplicantsPage({
       <InstructorApplicantsCommandCenter
         pipelineApps={serializedPipeline as any}
         archivedApps={serializedArchive as any}
-        chairQueueCount={chairQueueCount}
-        canSeeChairQueue={showChairQueue}
+        chapters={chapters}
+        reviewers={reviewers}
+        interviewers={interviewers}
+        actorId={sessionUser.id}
+        showChapterFilter={hasNetworkScope}
+        showKindFilter={isAdmin || isHiringChair}
       />
     </ApplicationReviewShell>
   );

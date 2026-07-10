@@ -1530,19 +1530,17 @@ export const NAV_CATALOG: NavLink[] = [
       label: "Network Applicants",
       icon: "📝",
       roles: HIRING_CHAIR_ADMIN_ROLES,
-      dashboardDescription: "Review and approve incoming instructor applications across all chapters.",
+      dashboardDescription:
+        "Review instructor and chapter president applications across all chapters.",
       dashboardPriority: 4,
-      searchAliases: ["Instructor Applicants", "Network Instructor Applicants"],
+      searchAliases: [
+        "Instructor Applicants",
+        "Network Instructor Applicants",
+        "CP Applicants",
+        "Chapter President Applicants",
+        "Applicants",
+      ],
       dashboardBadgeKey: "instructor_applicants",
-    },
-    {
-      href: "/admin/instructor-applicants/chair-queue",
-      label: "Hiring Chair Queue",
-      icon: "⚖️",
-      roles: HIRING_CHAIR_ADMIN_ROLES,
-      badgeKey: "chairQueueCount",
-      dashboardDescription: "Review applications awaiting hiring chair decision.",
-      searchAliases: ["chair", "hiring chair", "decisions", "Chair Queue"],
     },
     {
       href: "/admin/instructor-applicants/chair-settings",
@@ -1558,14 +1556,6 @@ export const NAV_CATALOG: NavLink[] = [
         "Set Chair",
         "Chair Settings",
       ],
-    },
-    {
-      href: "/admin/chapter-president-applicants",
-      label: "CP Applicants",
-      icon: "👑",
-      roles: ADMIN_ONLY,
-      dashboardDescription: "Review and manage chapter president applications.",
-      dashboardPriority: 4,
     },
     {
       href: "/admin/form-templates",

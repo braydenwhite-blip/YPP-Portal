@@ -1,12 +1,16 @@
 "use client";
 
-import { useMemo, startTransition } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useMemo, startTransition, useTransition } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import KanbanBoard, { type KanbanColumnDef } from "@/components/kanban/kanban-board";
-import ApplicantPipelineCard from "./ApplicantPipelineCard";
+import ApplicantPipelineCard, {
+  matchesPipelineStatusFilter,
+} from "./ApplicantPipelineCard";
+import ApplicantCommandFilters from "./ApplicantCommandFilters";
 import ArchiveTable from "./ArchiveTable";
 import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
-import { ButtonLink, cn } from "@/components/ui-v2";
+import { applicantDetailHref } from "@/lib/applicant-board-kind";
+import { cn } from "@/components/ui-v2";
 
 type PipelineApp = {
   id: string;
@@ -17,6 +21,7 @@ type PipelineApp = {
   legalName?: string | null;
   preferredFirstName?: string | null;
   lastName?: string | null;
+  kind?: "instructor" | "cp";
   applicant: {
     id: string;
     name: string | null;
@@ -27,11 +32,19 @@ type PipelineApp = {
   updatedAt: Date | string;
 };
 
+type FilterUser = { id: string; name: string | null; email: string };
+
 interface InstructorApplicantsCommandCenterProps {
   pipelineApps: PipelineApp[];
   archivedApps: PipelineApp[];
-  chairQueueCount?: number;
-  canSeeChairQueue?: boolean;
+  chapters?: Array<{ id: string; name: string }>;
+  reviewers?: FilterUser[];
+  interviewers?: FilterUser[];
+  actorId?: string;
+  /** Show chapter dropdown (network-scope admins / hiring chairs). */
+  showChapterFilter?: boolean;
+  /** Show Instructor / CP / All roles filter (admin unified board). */
+  showKindFilter?: boolean;
 }
 
 const BOARD_COLUMNS: KanbanColumnDef[] = [
@@ -80,14 +93,23 @@ type TabValue = "pipeline" | "archive";
 export default function InstructorApplicantsCommandCenter({
   pipelineApps,
   archivedApps,
-  chairQueueCount = 0,
-  canSeeChairQueue = false,
+  chapters = [],
+  reviewers = [],
+  interviewers = [],
+  actorId,
+  showChapterFilter = false,
+  showKindFilter = false,
 }: InstructorApplicantsCommandCenterProps) {
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const router = useRouter();
+  const [, startFilterTransition] = useTransition();
 
   const rawTab = searchParams.get("view") ?? searchParams.get("tab");
   const activeTab: TabValue = rawTab === "archive" ? "archive" : "pipeline";
+  const statusFilter = searchParams.get("status") ?? "";
+  const chapterFilter = searchParams.get("chapterId") ?? "";
+  const kindFilter = (searchParams.get("kind") ?? "").toLowerCase();
 
   function setTab(tab: TabValue) {
     const params = new URLSearchParams(searchParams.toString());
@@ -100,19 +122,49 @@ export default function InstructorApplicantsCommandCenter({
     router.replace(`?${params.toString()}`, { scroll: false });
   }
 
-  function openApplicantRecord(applicationId: string) {
+  function openApplicantRecord(app: PipelineApp) {
+    const kind = app.kind === "cp" ? "cp" : "instructor";
     startTransition(() => {
-      router.push(`/admin/instructor-applicants/${applicationId}`);
+      router.push(applicantDetailHref(kind, app.id));
     });
   }
 
+  const setOrToggleParam = useCallback(
+    (key: string, value: string) => {
+      const params = new URLSearchParams(searchParams.toString());
+      const current = params.get(key) ?? "";
+      if (current === value) {
+        params.delete(key);
+      } else if (value) {
+        params.set(key, value);
+      } else {
+        params.delete(key);
+      }
+      startFilterTransition(() => {
+        const qs = params.toString();
+        router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+      });
+    },
+    [pathname, router, searchParams]
+  );
+
+  const filteredApps = useMemo(
+    () =>
+      pipelineApps.filter((app) => {
+        if (kindFilter === "cp" && app.kind !== "cp") return false;
+        if (kindFilter === "instructor" && app.kind === "cp") return false;
+        return matchesPipelineStatusFilter(app, statusFilter);
+      }),
+    [pipelineApps, statusFilter, kindFilter]
+  );
+
   const kanbanItems = useMemo(
     () =>
-      pipelineApps.map((app) => ({
+      filteredApps.map((app) => ({
         ...app,
         status: getDerivedStatus(app),
       })),
-    [pipelineApps]
+    [filteredApps]
   );
 
   const visibleColumns = useMemo(() => {
@@ -138,7 +190,11 @@ export default function InstructorApplicantsCommandCenter({
             aria-current={activeTab === "pipeline" ? "page" : undefined}
             onClick={() => setTab("pipeline")}
           >
-            Board ({pipelineApps.length})
+            Board ({filteredApps.length}
+            {statusFilter && filteredApps.length !== pipelineApps.length
+              ? ` of ${pipelineApps.length}`
+              : ""}
+            )
           </button>
           <button
             type="button"
@@ -149,53 +205,58 @@ export default function InstructorApplicantsCommandCenter({
             Archive
           </button>
         </nav>
-        {canSeeChairQueue && chairQueueCount > 0 ? (
-          <ButtonLink
-            href="/admin/instructor-applicants/chair-queue"
-            variant="ghost"
-            size="sm"
-            className="text-[12.5px]"
-          >
-            Chair queue ({chairQueueCount})
-          </ButtonLink>
-        ) : null}
       </div>
 
       {activeTab === "pipeline" ? (
-        <KanbanBoard
-          items={kanbanItems}
-          columns={visibleColumns}
-          dragEnabled={false}
-          renderCard={(item, { isDragging }) => {
-            const originalApp = pipelineApps.find((app) => app.id === item.id)!;
-            return (
-              <ApplicantPipelineCard
-                app={originalApp}
-                onClick={() => openApplicantRecord(item.id)}
-                isDragging={isDragging}
-              />
-            );
-          }}
-          renderDragOverlay={(item) => {
-            const originalApp = pipelineApps.find((app) => app.id === item.id)!;
-            return (
-              <ApplicantPipelineCard app={originalApp} onClick={() => {}} isDragging />
-            );
-          }}
-          getSearchText={(item) => {
-            const app = pipelineApps.find((candidate) => candidate.id === item.id);
-            return [
-              app ? formatApplicantDisplayName(app) : "",
-              app?.applicant.name ?? "",
-              app?.applicant.email ?? "",
-              app?.applicant.chapter?.name ?? "",
-            ]
-              .join(" ")
-              .toLowerCase();
-          }}
-          searchPlaceholder="Search…"
-          emptyColumnLabel="Empty"
-        />
+        <>
+          <ApplicantCommandFilters
+            isAdmin={showChapterFilter}
+            chapters={chapters}
+            showKindFilter={showKindFilter}
+          />
+          <KanbanBoard
+            items={kanbanItems}
+            columns={visibleColumns}
+            dragEnabled={false}
+            renderCard={(item, { isDragging }) => {
+              const originalApp = filteredApps.find((app) => app.id === item.id)!;
+              return (
+                <ApplicantPipelineCard
+                  app={originalApp}
+                  onClick={() => openApplicantRecord(originalApp)}
+                  isDragging={isDragging}
+                  onFilterStatus={(stage) => setOrToggleParam("status", stage)}
+                  onFilterChapter={
+                    showChapterFilter
+                      ? (chapterId) => setOrToggleParam("chapterId", chapterId)
+                      : undefined
+                  }
+                  activeStatusFilter={statusFilter}
+                  activeChapterId={chapterFilter}
+                />
+              );
+            }}
+            renderDragOverlay={(item) => {
+              const originalApp = filteredApps.find((app) => app.id === item.id)!;
+              return (
+                <ApplicantPipelineCard app={originalApp} onClick={() => {}} isDragging />
+              );
+            }}
+            getSearchText={(item) => {
+              const app = filteredApps.find((candidate) => candidate.id === item.id);
+              return [
+                app ? formatApplicantDisplayName(app) : "",
+                app?.applicant.name ?? "",
+                app?.applicant.email ?? "",
+                app?.applicant.chapter?.name ?? "",
+              ]
+                .join(" ")
+                .toLowerCase();
+            }}
+            searchPlaceholder="Search…"
+            emptyColumnLabel="Empty"
+          />
+        </>
       ) : (
         <ArchiveTable applications={archivedApps as any} />
       )}

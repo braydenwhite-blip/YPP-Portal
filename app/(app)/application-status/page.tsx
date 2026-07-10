@@ -16,7 +16,7 @@ import SpamFolderNotice from "@/components/spam-folder-notice";
 import { isHiringDemoModeEnabled } from "@/lib/hiring-demo-mode";
 import { isHttpUrl } from "@/lib/meeting-details";
 import type { WorkshopOutline } from "@/lib/summer-workshop";
-import { cpApplicantFacingStatusLabel } from "@/lib/chapter-president-lifecycle";
+import { cpApplicantFacingStatusLabel, cpApplicantStageIndex } from "@/lib/chapter-president-lifecycle";
 
 function instructorStatusLabel(status: InstructorApplicationStatus): string {
   switch (status) {
@@ -40,10 +40,17 @@ function instructorStatusLabel(status: InstructorApplicationStatus): string {
 }
 
 function statusColor(status: string): string {
-  if (status === "APPROVED") return "#16a34a";
-  if (status === "REJECTED") return "#dc2626";
-  if (status === "INFO_REQUESTED") return "#d97706";
-  if (status === "ON_HOLD") return "#71717a";
+  if (
+    status === "APPROVED" ||
+    status === "ACCEPTED" ||
+    status === "ONBOARDING" ||
+    status === "ACTIVE_CP"
+  ) {
+    return "#16a34a";
+  }
+  if (status === "REJECTED" || status === "DECLINED") return "#dc2626";
+  if (status === "INFO_REQUESTED" || status === "NEEDS_MORE_INFO") return "#d97706";
+  if (status === "ON_HOLD" || status === "WAITLISTED") return "#71717a";
   if (status === "PRE_APPROVED") return "#7c3aed";
   return "#6b21c8";
 }
@@ -58,9 +65,11 @@ function currentStageIndex(status: string): number {
 function ProgressStepper({
   status,
   middleStageLabel = "Interview",
+  stageIndex,
 }: {
   status: string;
   middleStageLabel?: string;
+  stageIndex?: number;
 }) {
   const stages = [
     { key: "submitted", label: "Submitted" },
@@ -68,7 +77,7 @@ function ProgressStepper({
     { key: "interview", label: middleStageLabel },
     { key: "decision", label: "Decision" },
   ] as const;
-  const stageIdx = currentStageIndex(status);
+  const stageIdx = stageIndex ?? currentStageIndex(status);
   return (
     <div className="card application-progress-card">
       <ol className="application-progress-track" aria-label="Application progress">
@@ -643,18 +652,18 @@ export default async function ApplicationStatusPage() {
             </span>
           </div>
 
-          <ProgressStepper status={cpApp.status} />
+          <ProgressStepper status={cpApp.status} stageIndex={cpApplicantStageIndex(cpApp.status)} />
 
           <div className="card" style={{ marginBottom: 16 }}>
             {cpApp.status === "SUBMITTED" && (
               <>
                 <h3 className="section-title">Application Received</h3>
                 <p style={{ color: "var(--muted)", fontSize: 14 }}>
-                  Your chapter president application is in the queue. A reviewer will reach out soon.
+                  Your Chapter President application is in the queue. A reviewer will reach out soon.
                 </p>
               </>
             )}
-            {cpApp.status === "UNDER_REVIEW" && (
+            {(cpApp.status === "UNDER_REVIEW" || cpApp.status === "INITIAL_REVIEW") && (
               <>
                 <h3 className="section-title">Under Review</h3>
                 <p style={{ color: "var(--muted)", fontSize: 14 }}>
@@ -662,7 +671,7 @@ export default async function ApplicationStatusPage() {
                 </p>
               </>
             )}
-            {cpApp.status === "INFO_REQUESTED" && (
+            {(cpApp.status === "INFO_REQUESTED" || cpApp.status === "NEEDS_MORE_INFO") && (
               <>
                 <h3 className="section-title">Additional Information Needed</h3>
                 {cpApp.infoRequest && (
@@ -680,6 +689,14 @@ export default async function ApplicationStatusPage() {
                   </div>
                 )}
                 <CPInfoResponseForm />
+              </>
+            )}
+            {cpApp.status === "INTERVIEW_NEEDED" && (
+              <>
+                <h3 className="section-title">Interview Next</h3>
+                <p style={{ color: "var(--muted)", fontSize: 14 }}>
+                  Your application looks strong. The team will schedule an interview with you soon.
+                </p>
               </>
             )}
             {cpApp.status === "INTERVIEW_SCHEDULED" && (
@@ -720,25 +737,27 @@ export default async function ApplicationStatusPage() {
                 )}
               </>
             )}
-            {cpApp.status === "RECOMMENDATION_SUBMITTED" && (
+            {(cpApp.status === "RECOMMENDATION_SUBMITTED" || cpApp.status === "DECISION_NEEDED") && (
               <>
                 <h3 className="section-title">Under Final Review</h3>
                 <p style={{ color: "var(--muted)", fontSize: 14 }}>
-                  Your interview is complete and a recommendation has been submitted. The hiring committee is making the final decision.
+                  Your interview is complete. The hiring committee is making the final decision.
                 </p>
               </>
             )}
-            {cpApp.status === "INTERVIEW_COMPLETED" && (
+            {(cpApp.status === "INTERVIEW_COMPLETED" || cpApp.status === "INTERVIEW_COMPLETE") && (
               <>
                 <h3 className="section-title">Interview Completed</h3>
                 <p style={{ color: "var(--muted)", fontSize: 14 }}>A final decision is pending.</p>
               </>
             )}
-            {cpApp.status === "APPROVED" && (
+            {(cpApp.status === "APPROVED" ||
+              cpApp.status === "ACCEPTED" ||
+              cpApp.status === "ONBOARDING") && (
               <>
                 <h3 className="section-title" style={{ color: "#16a34a" }}>Approved!</h3>
                 <p style={{ color: "var(--muted)", fontSize: 14, marginBottom: 16 }}>
-                  Your chapter president application has been approved. Welcome to the leadership team! Start with onboarding, then run your chapter from the President Dashboard.
+                  Your Chapter President application has been approved. Welcome to the leadership team! Start with onboarding, then run your chapter from the President Dashboard.
                 </p>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   <Link href="/chapter/onboarding" className="button" style={{ display: "inline-block", textDecoration: "none" }}>
@@ -750,7 +769,26 @@ export default async function ApplicationStatusPage() {
                 </div>
               </>
             )}
-            {cpApp.status === "REJECTED" && (
+            {cpApp.status === "ACTIVE_CP" && (
+              <>
+                <h3 className="section-title" style={{ color: "#16a34a" }}>You&apos;re Active</h3>
+                <p style={{ color: "var(--muted)", fontSize: 14, marginBottom: 16 }}>
+                  Your Chapter President role is live. Head to your dashboard to lead your chapter.
+                </p>
+                <Link href="/chapter/dashboard" className="button" style={{ display: "inline-block", textDecoration: "none" }}>
+                  President Dashboard
+                </Link>
+              </>
+            )}
+            {cpApp.status === "WAITLISTED" && (
+              <>
+                <h3 className="section-title">Waitlisted</h3>
+                <p style={{ color: "var(--muted)", fontSize: 14 }}>
+                  We&apos;re keeping your application on the waitlist for now. We&apos;ll reach out if a chapter opportunity opens up.
+                </p>
+              </>
+            )}
+            {(cpApp.status === "REJECTED" || cpApp.status === "DECLINED") && (
               <>
                 <h3 className="section-title">Application Not Accepted</h3>
                 <p style={{ color: "var(--muted)", fontSize: 14 }}>
@@ -764,7 +802,9 @@ export default async function ApplicationStatusPage() {
                 )}
               </>
             )}
-            {cpApp.reviewerNotes && cpApp.status !== "REJECTED" && (
+            {cpApp.reviewerNotes &&
+              cpApp.status !== "REJECTED" &&
+              cpApp.status !== "DECLINED" && (
               <div style={{ marginTop: 16, background: "var(--surface-2)", borderRadius: 8, padding: "12px 16px" }}>
                 <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 4px" }}><strong>Feedback from reviewer:</strong></p>
                 <p style={{ fontSize: 14, margin: 0 }}>{cpApp.reviewerNotes}</p>

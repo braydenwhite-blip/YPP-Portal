@@ -1,7 +1,7 @@
 /**
  * Pure helpers for the Decision Readiness Meter.
  *
- * Four signals — interview feedback, course materials, initial review, and
+ * Four signals — live interview notes, course materials, initial review, and
  * no open info request. Below 100% the decision dock still allows commits but
  * surfaces a warning state.
  */
@@ -87,9 +87,9 @@ export function readinessSignalLabel(
   switch (key) {
     case "hasSubmittedInterviewReviews":
       return {
-        title: "Interview feedback",
+        title: "Live interview notes",
         complete: "All interviewer reviews submitted",
-        gap: "Interview feedback pending",
+        gap: "Live interview notes pending",
       };
     case "hasMaterialsComplete":
       return {

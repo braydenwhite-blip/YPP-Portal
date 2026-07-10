@@ -184,6 +184,7 @@ export function buildDecisionReadinessChecks(
   });
 
   const showInterview =
+    Boolean(options?.inlineForms) ||
     Boolean(record.reviewer?.id) ||
     POST_INTERVIEW_STATUSES.has(record.status) ||
     record.interviewerAssignments.length > 0;
@@ -203,28 +204,28 @@ export function buildDecisionReadinessChecks(
         : [];
 
     checks.push({
-      label: "Interview feedback",
+      label: "Live interview notes",
       done: interviewDone,
       detail: interviewDone
         ? assigned > 0
           ? `${submitted} of ${assigned} interviewer review${assigned === 1 ? "" : "s"} in`
-          : "Interview review submitted"
+          : "Live interview notes submitted"
         : assigned > 0
           ? waitingOn.length > 0
             ? actorIsInterviewer && waitingOn.some((a) => a.interviewer.id === options?.actorId)
-              ? "Submit your interview feedback in the form below"
+              ? "Submit your live interview notes in the form below"
               : `Waiting on ${waitingOn
                   .slice(0, 2)
                   .map((a) => a.interviewer.name)
                   .join(", ")}${waitingOn.length > 2 ? ` +${waitingOn.length - 2} more` : ""} — use the form below`
             : `${submitted} of ${assigned} interviewer reviews submitted`
           : record.status === "INTERVIEW_SCHEDULED"
-            ? "Interview is scheduled — feedback goes in the form below"
+            ? "Interview is scheduled — notes go in the form below"
             : record.reviewer
               ? actorIsInterviewer
-                ? "Submit your interview feedback in the form below"
-                : "After the interview, submit feedback in the form below"
-              : "Interview feedback is submitted in the form below",
+                ? "Submit your live interview notes in the form below"
+                : "After the interview, submit notes in the form below"
+              : "Live interview notes are submitted in the form below",
       href: interviewDone ? undefined : interviewFormHref,
       linkLabel: actorIsInterviewer ? "Open interview form" : "Open interview form",
     });
@@ -289,8 +290,8 @@ export function readinessSignalsFromChecks(
   return {
     hasMaterialsComplete: includes("Course materials") ? Boolean(done("Course materials")) : true,
     hasReviewerRecommendation: includes("Initial review") ? Boolean(done("Initial review")) : true,
-    hasSubmittedInterviewReviews: includes("Interview feedback")
-      ? Boolean(done("Interview feedback"))
+    hasSubmittedInterviewReviews: includes("Live interview notes")
+      ? Boolean(done("Live interview notes"))
       : true,
     hasNoOpenInfoRequest: includes("Info request") ? Boolean(done("Info request")) : true,
   };

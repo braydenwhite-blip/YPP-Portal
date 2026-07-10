@@ -107,9 +107,7 @@ const SIDEBAR_BY_HREF: Record<string, { group: NavGroup; label: string; icon: st
   "/actions/responsibility": { group: "Actions", label: "Responsibility Map", icon: "🗺️" },
 
   // Applicants — application review workflows.
-  "/admin/instructor-applicants": { group: "Applicants", label: "Instructor Applicants", icon: "📝" },
-  "/admin/instructor-applicants/chair-queue": { group: "Applicants", label: "Hiring Chair Queue", icon: "⚖️" },
-  "/admin/chapter-president-applicants": { group: "Applicants", label: "CP Applicants", icon: "👑" },
+  "/admin/instructor-applicants": { group: "Applicants", label: "Applicants", icon: "📝" },
   "/interviews": { group: "Applicants", label: "Interviews", icon: "🎤" },
   "/positions": { group: "Applicants", label: "Open Positions", icon: "📌" },
 
@@ -163,8 +161,6 @@ export const OFFICER_SIDEBAR_LINK_ORDER: string[] = [
   "/actions/responsibility",
   // Applicants
   "/admin/instructor-applicants",
-  "/admin/instructor-applicants/chair-queue",
-  "/admin/chapter-president-applicants",
   "/interviews",
   "/positions",
   // Partners

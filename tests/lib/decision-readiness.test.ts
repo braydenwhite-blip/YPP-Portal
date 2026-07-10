@@ -55,7 +55,7 @@ describe("buildDecisionReadinessChecks", () => {
       }),
       opts
     );
-    const interview = checks.find((c) => c.label === "Interview feedback");
+    const interview = checks.find((c) => c.label === "Live interview notes");
     const initial = checks.find((c) => c.label === "Initial review");
     expect(interview?.done).toBe(false);
     expect(interview?.href).toBe("/applications/instructor/app-1/interview");
@@ -81,7 +81,7 @@ describe("buildDecisionReadinessChecks", () => {
         ],
       })
     );
-    expect(checks.find((c) => c.label === "Interview feedback")?.done).toBe(true);
+    expect(checks.find((c) => c.label === "Live interview notes")?.done).toBe(true);
     expect(readinessSummary(checks).headline).toBe("Ready for chair decision");
   });
 
@@ -105,7 +105,7 @@ describe("buildDecisionReadinessChecks", () => {
     expect(initial?.detail).toContain("form below");
   });
 
-  it("omits interview feedback when no reviewer is assigned yet", () => {
+  it("omits live interview notes when no reviewer is assigned yet", () => {
     const checks = buildDecisionReadinessChecks(
       baseRecord({
         status: "UNDER_REVIEW",
@@ -114,11 +114,11 @@ describe("buildDecisionReadinessChecks", () => {
         interviewReviews: [],
       })
     );
-    expect(checks.some((c) => c.label === "Interview feedback")).toBe(false);
+    expect(checks.some((c) => c.label === "Live interview notes")).toBe(false);
     expect(checks).toHaveLength(2);
   });
 
-  it("shows interview feedback as soon as a reviewer is assigned", () => {
+  it("shows live interview notes as soon as a reviewer is assigned", () => {
     const checks = buildDecisionReadinessChecks(
       baseRecord({
         status: "UNDER_REVIEW",
@@ -128,7 +128,7 @@ describe("buildDecisionReadinessChecks", () => {
       }),
       { applicationId: "app-1", inlineForms: true }
     );
-    const interview = checks.find((c) => c.label === "Interview feedback");
+    const interview = checks.find((c) => c.label === "Live interview notes");
     expect(interview).toBeDefined();
     expect(interview?.done).toBe(false);
     expect(interview?.href).toBe("#inline-interview-review");
