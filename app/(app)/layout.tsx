@@ -22,7 +22,9 @@ import {
   isGrowthOsEnabled,
   isLegacyActionCenterNavEnabled,
   isOperationsHubEnabled,
+  isRegularInstructorEnabled,
 } from "@/lib/feature-flags";
+import { isGamificationEnabled } from "@/lib/gamification-gate";
 import { isPublicPreviewSlimNavEnabled } from "@/lib/navigation/public-preview-slim-nav";
 import {
   ACTIONS_ONLY_PREVIEW_COOKIE_NAME,
@@ -30,6 +32,7 @@ import {
   isActionsOnlyPreviewActive,
 } from "@/lib/leadership-preview-access";
 import { syncPortalAuthMetadataForPrismaUser } from "@/lib/sync-portal-auth-metadata";
+import { getInstructorMentorshipMembership } from "@/lib/mentorship-access";
 import type { NavRole } from "@/lib/navigation/types";
 
 export const dynamic = "force-dynamic";
@@ -53,13 +56,23 @@ export default async function AppLayout({
     return <SessionUnavailablePage />;
   }
 
-  const roles = session.user.roles ?? [];
+  const roles = [...(session.user.roles ?? [])];
   const primaryRole = session.user.primaryRole ?? null;
   const userId = session.user.id;
   const hiringDemoMode = isHiringDemoModeEnabled();
   const shouldLoadShellMetadata = Boolean(
     userId && primaryRole !== "APPLICANT" && !hiringDemoMode
   );
+
+  const mentorshipMembership =
+    userId && (primaryRole === "INSTRUCTOR" || roles.includes("INSTRUCTOR") || roles.includes("MENTOR"))
+      ? await getInstructorMentorshipMembership(userId)
+      : { isMentee: false, isMentor: false, menteeCount: 0 };
+  const isActiveMentor = mentorshipMembership.isMentor;
+  const isActiveMentee = mentorshipMembership.isMentee;
+  if (isActiveMentor && !roles.includes("MENTOR")) {
+    roles.push("MENTOR");
+  }
 
   const currentPath = (await headers()).get("x-pathname") ?? "";
   const onLaunchpad = currentPath.startsWith("/instructor-onboarding");
@@ -148,6 +161,10 @@ export default async function AppLayout({
       studentHasChapter={Boolean(session.user.chapterId)}
       instructorFullPortalExplorer={process.env.INSTRUCTOR_FULL_PORTAL_EXPLORER === "true"}
       leadershipFullPortalExplorer={process.env.LEADERSHIP_FULL_PORTAL_EXPLORER === "true"}
+      regularInstructorEnabled={isRegularInstructorEnabled()}
+      gamificationEnabled={isGamificationEnabled()}
+      isActiveMentor={isActiveMentor}
+      isActiveMentee={isActiveMentee}
       hiringDemoMode={hiringDemoMode}
       instructorSubtype={instructorSubtype}
       publicGateActive={publicGateActive}

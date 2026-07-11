@@ -31,7 +31,6 @@ export function MentorHomeCalm({
 
   const actions: SimpleAction[] = [
     // Approvals render right on the Mentorship home now — no separate inbox.
-    { label: "Schedule", href: "/mentorship/schedule", icon: "calendar" },
     { label: "Feedback", href: "/mentorship/feedback", icon: "send" },
   ];
 

@@ -123,9 +123,19 @@ export type WorkspaceSession = {
 export type WorkspaceParticipant = { id: string; name: string };
 
 export type MentorshipWorkspace = {
-  person: { id: string; name: string; email: string; contextLabel: string | null };
+  person: {
+    id: string;
+    name: string;
+    email: string;
+    phone: string | null;
+    roleLabel: string;
+    chapterName: string | null;
+    contextLabel: string | null;
+  };
   accessLevel: WorkspaceAccessLevel;
   isSelf: boolean;
+  /** True when the viewer holds ADMIN — gates admin-only relationship controls. */
+  isAdmin: boolean;
   /** The viewer's lifecycle point of view — drives every next-action verb. */
   pov: LifecyclePov;
   canRecordCheckIn: boolean;
@@ -144,7 +154,9 @@ export type MentorshipWorkspace = {
   cycleState: CycleState;
   overview: {
     mentorName: string | null;
+    mentorEmail: string | null;
     chairName: string | null;
+    chairEmail: string | null;
     statusLabel: string;
     currentFocus: string | null;
     upcomingFollowUp: { label: string; dateLabel: string } | null;
@@ -154,6 +166,7 @@ export type MentorshipWorkspace = {
   /** G&R rollup for stats; the Goals section loads the full document itself. */
   goals: {
     docStatus: LifecycleSnapshot["grDocStatus"];
+    docTitle: string | null;
     activeGoals: number;
     completedGoals: number;
     progressLabel: string;
@@ -374,6 +387,7 @@ export async function loadMentorshipWorkspace(
       id: true,
       name: true,
       email: true,
+      phone: true,
       primaryRole: true,
       archivedAt: true,
       chapter: { select: { name: true } },
@@ -441,6 +455,7 @@ export async function loadMentorshipWorkspace(
       orderBy: { createdAt: "desc" },
       select: {
         status: true,
+        template: { select: { title: true } },
         goals: {
           where: { lifecycleStatus: { in: ["ACTIVE", "COMPLETED"] } },
           select: { lifecycleStatus: true },
@@ -925,10 +940,14 @@ export async function loadMentorshipWorkspace(
       id: person.id,
       name: personName,
       email: person.email,
+      phone: person.phone ?? null,
+      roleLabel,
+      chapterName: person.chapter?.name ?? null,
       contextLabel,
     },
     accessLevel: access.level,
     isSelf: access.isSelf,
+    isAdmin: access.isAdmin,
     pov,
     canRecordCheckIn: access.canRecordCheckIn,
     canManageSetup: access.canManageSetup,
@@ -941,10 +960,12 @@ export async function loadMentorshipWorkspace(
     cycleState,
     overview: {
       mentorName: lifecycle.mentorName,
+      mentorEmail: access.activeMentorship?.mentor.email ?? null,
       chairName:
         access.activeMentorship?.chair?.name ||
         access.activeMentorship?.chair?.email ||
         null,
+      chairEmail: access.activeMentorship?.chair?.email ?? null,
       statusLabel: access.activeMentorship ? "Active mentorship" : "No active mentorship",
       currentFocus,
       upcomingFollowUp: nextFollowUp
@@ -955,6 +976,7 @@ export async function loadMentorshipWorkspace(
     },
     goals: {
       docStatus: grDocStatus,
+      docTitle: grDoc?.template?.title ?? null,
       activeGoals,
       completedGoals,
       progressLabel,

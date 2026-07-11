@@ -71,16 +71,16 @@ test.describe("canonical Mentorship lifecycle", () => {
     await page.getByRole("button", { name: "Assign and activate" }).click();
     await expect(page.getByText("Setup is complete.")).toBeVisible();
 
-    await page.getByRole("link", { name: "Check-ins", exact: true }).click();
-    await page.getByRole("button", { name: "Mark kickoff complete" }).click();
-    await expect(page.getByText("Waiting on reflection")).toBeVisible();
+    await page.getByRole("link", { name: "Meetings", exact: true }).click();
+    await page.getByRole("button", { name: "Mark first meeting done" }).click();
+    await expect(page.getByText("Reflection due")).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath("01-admin-setup-complete.png"), fullPage: true });
 
     // Mentee submits the guided Self-Reflection from the same person workspace.
     await login(page, USERS.mentee);
     await page.goto("/mentorship");
     await expect(page).toHaveURL(new RegExp(`${personPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`));
-    await page.getByRole("link", { name: "Reviews", exact: true }).click();
+    await page.getByRole("link", { name: "Feedback", exact: true }).click();
     await page.getByPlaceholder("Share your overall reflection on the past month…").fill(
       "I improved the robotics lesson sequence and used learner feedback to choose the next iteration."
     );
@@ -110,11 +110,10 @@ test.describe("canonical Mentorship lifecycle", () => {
     await page.goto(personPath);
     await page.getByRole("link", { name: "Record the Mentor Check-in" }).click();
     await page.getByRole("button", { name: "Record Mentor Check-in" }).click();
-    await page.getByLabel("Wins").fill("The lesson sequence is clearer and learner feedback is visible.");
-    await page.getByLabel("Discussion").fill("We reviewed the reflection, work evidence, and next outcome.");
-    await page.getByLabel("Decisions").fill("Run the revised lesson and measure the first learner outcome.");
-    await page.getByLabel("Commitments").fill("Mentee will record the first learner outcome next week.");
-    await page.getByRole("button", { name: "Complete Mentor Check-in" }).click();
+    await page.getByPlaceholder("What did you cover? Anything to follow up on?").fill(
+      "Reviewed the reflection and agreed on the next learner outcome."
+    );
+    await page.getByRole("button", { name: "Mark check-in done" }).click();
     await expect(page.getByText("Progress Update due")).toBeVisible();
     await page.getByRole("link", { name: "Write the Monthly Progress Update" }).click();
     await expect(page.getByRole("heading", { name: /Write the .* Monthly Progress Update/ })).toBeVisible();
@@ -130,7 +129,7 @@ test.describe("canonical Mentorship lifecycle", () => {
       "Deliver the revised lesson, measure one learner outcome, and bring it to the next Check-in."
     );
     await page.getByRole("button", { name: "Submit for Approval" }).click();
-    await expect(page.getByText("Waiting on Role Chair approval")).toBeVisible();
+    await expect(page.getByText("Waiting for chair")).toBeVisible();
 
     // The non-admin lane Chair receives a decision-ready packet and requests changes.
     await login(page, USERS.chair);
@@ -153,7 +152,7 @@ test.describe("canonical Mentorship lifecycle", () => {
       "Strong progress: the mentee owns measuring completion rate for the first revised learner activity."
     );
     await page.getByRole("button", { name: "Submit for Approval" }).click();
-    await expect(page.getByText("Waiting on Role Chair approval")).toBeVisible();
+    await expect(page.getByText("Waiting for chair")).toBeVisible();
 
     // Chair approves; approval atomically releases immutable history and applies
     // the proposed Current G&R progress update.

@@ -85,7 +85,7 @@ export async function ReviewDraftPanel({
     return (
       <CardV2 padding="md" className="border-l-4 border-l-progress-700">
         <p className="m-0 text-[13px] text-ink-muted">
-          Record the Mentor Check-in before writing this Monthly Progress Update.
+          Log the meeting first, then write feedback.
         </p>
       </CardV2>
     );
@@ -195,10 +195,10 @@ export async function ReviewDraftPanel({
     return (
       <CardV2 padding="md" className="border-l-4 border-l-complete-700">
         <strong className="text-[14px] text-complete-700">
-          Approved and released to {menteeName}.
+          Feedback shared.
         </strong>
         <p className="m-0 mt-1 text-[13px] text-ink-muted">
-          Approved progress updates are read-only and appear in the released history below.
+          It shows in the list below.
         </p>
       </CardV2>
     );
@@ -207,7 +207,7 @@ export async function ReviewDraftPanel({
   return (
     <section className="flex flex-col gap-3">
       <h3 className="m-0 text-[15px] font-bold text-ink">
-        Write the {cycleMonthLabel} Monthly Progress Update · Cycle {latestReflection.cycleNumber}
+        Write feedback · {cycleMonthLabel}
       </h3>
 
       <LinkedWorkEvidence menteeId={menteeId} commitments={commitments} />

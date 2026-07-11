@@ -13,6 +13,7 @@ export const INSTRUCTOR_MINIMAL_GROUP_EMOJI: Partial<Record<NavGroup, string>> =
 const SIDEBAR_BY_HREF: Record<string, { group: NavGroup; label: string; icon: string }> = {
   "/": { group: "Start Here", label: "Home", icon: "🏠" },
   "/instructor-onboarding": { group: "Start Here", label: "Onboarding Guide", icon: "🧭" },
+  "/mentorship": { group: "Start Here", label: "Mentorship", icon: "🤝" },
   "/instructor/workspace": { group: "Teach", label: "Workspace", icon: "🧩" },
   "/instructor/curriculum-builder": { group: "Teach", label: "Curriculum Builder", icon: "🛠" },
   "/lesson-plans": { group: "Teach", label: "Lesson Plans", icon: "📝" },
@@ -28,7 +29,6 @@ const SIDEBAR_BY_HREF: Record<string, { group: NavGroup; label: string; icon: st
   "/announcements": { group: "People & Support", label: "Updates", icon: "📢" },
   "/notifications": { group: "Profile & Settings", label: "Notifications", icon: "🔔" },
   "/calendar": { group: "People & Support", label: "Calendar", icon: "🗓" },
-  "/mentorship": { group: "People & Support", label: "Mentorship", icon: "🤝" },
   "/chapters": { group: "Chapters", label: "Chapter", icon: "🏘" },
   "/settings/personalization": { group: "Profile & Settings", label: "Account", icon: "⚙️" },
 };
@@ -36,6 +36,7 @@ const SIDEBAR_BY_HREF: Record<string, { group: NavGroup; label: string; icon: st
 /** Order of links within the instructor minimal sidebar (lower = earlier). */
 export const INSTRUCTOR_SIDEBAR_LINK_ORDER: string[] = [
   "/instructor-onboarding",
+  "/mentorship", // only when the instructor actively mentors
   "/instructor/workspace",
   "/instructor/curriculum-builder",
   "/lesson-plans",
@@ -50,7 +51,6 @@ export const INSTRUCTOR_SIDEBAR_LINK_ORDER: string[] = [
   "/scheduling",
   "/announcements",
   "/calendar",
-  "/mentorship",
   "/chapters",
   "/settings/personalization",
   "/notifications",

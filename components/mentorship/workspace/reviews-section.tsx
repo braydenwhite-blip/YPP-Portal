@@ -59,7 +59,6 @@ export async function ReviewsSection({
   sectionHref: (sectionId: string) => string;
 }) {
   const { isSelf, lifecycle, cycleStrip, nextAction, person, capabilities } = workspace;
-  const firstName = person.name.split(" ")[0];
 
   // Everything released to this person, plus the mentee's reactions and the
   // follow-up commitments each review spawned.
@@ -87,11 +86,11 @@ export async function ReviewsSection({
   if (!lifecycle.hasActiveMentorship && releasedReviews.length === 0) {
     return (
       <EmptyStateV2
-        title="No reviews yet"
+        title="No feedback yet"
         body={
           isSelf
-            ? "Monthly reviews start once you're paired with a mentor and the kickoff happens."
-            : `Monthly reviews start once ${firstName} has an active mentorship.`
+            ? "Feedback starts after your first meeting."
+            : "Feedback starts after they have a mentor."
         }
       />
     );
@@ -129,19 +128,17 @@ export async function ReviewsSection({
 
       {releasedReviews.length === 0 ? (
         <CardV2 padding="lg" className="text-center">
-          <p className="m-0 text-[15px] font-semibold text-ink">
-            {isSelf ? "Your progress story starts soon" : "No reviews released yet"}
-          </p>
+          <p className="m-0 text-[15px] font-semibold text-ink">No feedback yet</p>
           <p className="mx-auto mt-1 max-w-md text-[13px] text-ink-muted">
             {isSelf
-              ? "After your first monthly review is shared with you, you'll see the feedback and encouragement your mentor wrote here. Nothing here is a grade — it's a picture of your growth."
-              : `Once a monthly review is approved and released, it appears here along with ${firstName}'s reaction.`}
+              ? "You'll see your mentor's feedback here when they share it."
+              : "Shared feedback shows up here."}
           </p>
         </CardV2>
       ) : (
         <section className="flex flex-col gap-3">
           <h3 className="m-0 text-[15px] font-bold text-ink">
-            {isSelf ? "Feedback released to you" : "Released reviews"}
+            {isSelf ? "Your feedback" : "Shared feedback"}
           </h3>
           {releasedReviews.map((review, i) => {
             const cfg = getGoalRatingCopy(review.overallRating);
@@ -176,7 +173,7 @@ export async function ReviewsSection({
                 {review.planOfAction ? (
                   <div className="mt-2.5 rounded-lg bg-surface-soft px-3 py-2.5">
                     <p className="m-0 text-[11.5px] font-bold uppercase tracking-[0.05em] text-ink-muted">
-                      {isSelf ? "Your next steps" : "Plan for next cycle"}
+                      Next steps
                     </p>
                     <p className="m-0 mt-1 text-[13px] text-ink">{review.planOfAction}</p>
                   </div>
@@ -185,7 +182,7 @@ export async function ReviewsSection({
                 {review.followUpActionItems.length > 0 ? (
                   <div className="mt-2.5">
                     <p className="m-0 text-[11.5px] font-bold uppercase tracking-[0.05em] text-ink-muted">
-                      What came out of this review
+                      Follow-ups
                     </p>
                     <ul className="m-0 mt-1 flex list-none flex-col gap-1 p-0">
                       {review.followUpActionItems.map((item) => (
@@ -218,7 +215,7 @@ export async function ReviewsSection({
                 ) : null}
                 {!isSelf && review.reviewAck ? (
                   <p className="m-0 mt-2.5 text-[12.5px] text-ink-muted">
-                    {firstName}&apos;s reaction:{" "}
+                    Their reaction:{" "}
                     <strong className="text-ink">
                       {review.reviewAck.reaction.toLowerCase().replace(/_/g, " ")}
                     </strong>
@@ -227,7 +224,7 @@ export async function ReviewsSection({
                 ) : null}
                 {!isSelf && isLatest && !review.reviewAck ? (
                   <p className="m-0 mt-2.5 text-[12.5px] italic text-ink-muted">
-                    {firstName} hasn&apos;t reacted to this review yet.
+                    No reaction yet.
                   </p>
                 ) : null}
               </CardV2>
@@ -244,24 +241,22 @@ export async function ReviewsSection({
 
       {isSelf && !showReflectionComposer && lifecycle.cycleStage === "REFLECTION_SUBMITTED" ? (
         <p className="m-0 text-[12.5px] text-ink-muted">
-          Your {lifecycle.cycleLabel} reflection is in — {lifecycle.mentorName ?? "your mentor"}{" "}
-          is writing your review.
+          Your reflection is in — waiting on your mentor.
         </p>
       ) : null}
 
       {!isSelf && capabilities.canDraftReview ? (
         <p className="m-0 text-[12.5px] text-ink-muted">
-          Need the full review history?{" "}
           <a
             href={sectionHref("reviews") + "&panel=draft"}
             className="font-semibold text-brand-700 hover:underline"
           >
-            Open the Monthly Progress Update writer →
+            Write feedback →
           </a>
         </p>
       ) : !isSelf ? null : (
         <p className="m-0 text-[12.5px] text-ink-muted">
-          Your goals and their latest ratings live in{" "}
+          Goals live under{" "}
           <a href={sectionHref("goals")} className="font-semibold text-brand-700 hover:underline">
             Goals
           </a>

@@ -46,6 +46,7 @@ const childEnv = {
   BYPASS_INSTRUCTOR_TRAINING_READINESS: "false",
   STUDENT_FULL_PORTAL_EXPLORER: "false",
   INSTRUCTOR_FULL_PORTAL_EXPLORER: "false",
+  LEADERSHIP_FULL_PORTAL_EXPLORER: "false",
   ENABLE_LEGACY_ACTION_CENTER_NAV: "false",
   ENABLE_GROWTH_OS: "false",
   // People & Reviews compile + table (match Vercel preview when set there).

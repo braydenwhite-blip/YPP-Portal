@@ -37,7 +37,8 @@ describe("MentorHomeCalm", () => {
     expect(screen.getByText("Your mentees")).toBeInTheDocument();
     expect(screen.getByText("Sam Mentee")).toBeInTheDocument();
     // Quiet action strip is present.
-    expect(screen.getByRole("link", { name: /Schedule/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Feedback/ })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Schedule/ })).toBeNull();
   });
 
   it("shows a caught-up empty state when nothing is waiting", () => {
@@ -61,9 +62,10 @@ describe("MentorHomeCalm", () => {
     const vm = vmWith([]);
     render(<MentorHomeCalm vm={vm} needsYouCount={0} />);
     expect(screen.queryByRole("link", { name: /Monthly reviews/ })).toBeNull();
-    expect(screen.getByRole("link", { name: /Schedule/ })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Feedback/ })).toHaveAttribute(
       "href",
-      "/mentorship/schedule"
+      "/mentorship/feedback"
     );
+    expect(screen.queryByRole("link", { name: /Schedule/ })).toBeNull();
   });
 });

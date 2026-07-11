@@ -1,11 +1,70 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  canAccessMentorship,
+  canAccessMentorshipHub,
   getInstructorMentorshipMembership,
   getMentorshipAccessibleMenteeIds,
   hasMentorshipMenteeAccess,
 } from "@/lib/mentorship-access";
 import { prisma } from "@/lib/prisma";
+
+describe("canAccessMentorship", () => {
+  it("allows admin, staff, chapter president, and mentor roles", () => {
+    expect(canAccessMentorship("ADMIN")).toBe(true);
+    expect(canAccessMentorship("STAFF")).toBe(true);
+    expect(canAccessMentorship("CHAPTER_PRESIDENT")).toBe(true);
+    expect(canAccessMentorship("MENTOR")).toBe(true);
+  });
+
+  it("allows MENTOR as a secondary role", () => {
+    expect(canAccessMentorship("INSTRUCTOR", ["INSTRUCTOR", "MENTOR"])).toBe(
+      true
+    );
+  });
+
+  it("denies mentee-only instructors and other roles", () => {
+    expect(canAccessMentorship("INSTRUCTOR")).toBe(false);
+    expect(canAccessMentorship("INSTRUCTOR", ["INSTRUCTOR"])).toBe(false);
+    expect(canAccessMentorship("HIRING_CHAIR")).toBe(false);
+    expect(canAccessMentorship("STUDENT")).toBe(false);
+  });
+});
+
+describe("canAccessMentorshipHub", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (prisma.mentorship as any).findFirst = vi.fn();
+    (prisma.mentorship as any).count = vi.fn();
+  });
+
+  it("allows instructors who currently mentor someone", async () => {
+    (prisma.mentorship as any).findFirst.mockResolvedValue(null);
+    (prisma.mentorship as any).count.mockResolvedValue(1);
+
+    await expect(
+      canAccessMentorshipHub("instructor-1", "INSTRUCTOR", ["INSTRUCTOR"])
+    ).resolves.toBe(true);
+  });
+
+  it("allows mentee-only instructors with an active pairing", async () => {
+    (prisma.mentorship as any).findFirst.mockResolvedValue({ id: "m-1" });
+    (prisma.mentorship as any).count.mockResolvedValue(0);
+
+    await expect(
+      canAccessMentorshipHub("instructor-2", "INSTRUCTOR", ["INSTRUCTOR"])
+    ).resolves.toBe(true);
+  });
+
+  it("denies instructors with no mentorship pairing either way", async () => {
+    (prisma.mentorship as any).findFirst.mockResolvedValue(null);
+    (prisma.mentorship as any).count.mockResolvedValue(0);
+
+    await expect(
+      canAccessMentorshipHub("instructor-3", "INSTRUCTOR", ["INSTRUCTOR"])
+    ).resolves.toBe(false);
+  });
+});
 
 describe("mentorship-access", () => {
   beforeEach(() => {

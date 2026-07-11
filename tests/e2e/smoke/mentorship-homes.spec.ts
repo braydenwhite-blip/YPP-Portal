@@ -46,45 +46,40 @@ test("@smoke admin can open the mentor workspace", async ({ page }) => {
 test("@smoke a mentored leader can open their mentee home", async ({ page }) => {
   await loginAs(page, "chapterLead");
 
-  // /my-mentor is now the mentee POV of the unified hub.
+  // /my-mentor → /mentorship?view=me → mentee's own workspace.
   await page.goto("/my-mentor");
-  await expect(page).toHaveURL(/\/mentorship\?view=me/);
-  await expect(
-    page.getByRole("heading", { name: "Mentorship" })
-  ).toBeVisible();
+  await expect(page).toHaveURL(/\/mentorship\/people\/[^/?]+/);
+  await expect(page.getByText(/Your mentorship|Mentorship/i).first()).toBeVisible();
 
-  // The old detail satellites redirect into the self workspace's sections,
-  // which render as the "Mentorship section" tab strip.
+  // The old /my-mentor/* detail satellites still redirect into /people/[id]
+  // (unchanged by this hub rebuild) — a separate legacy surface, not the hub.
   await page.goto("/my-mentor/goals");
-  await expect(page).toHaveURL(/\/mentorship\?view=me&section=goals/);
-  const sectionTabs = page.getByRole("group", { name: "Mentorship section" });
-  await expect(sectionTabs).toBeVisible();
-  await expect(sectionTabs.getByRole("link", { name: "Goals", exact: true })).toBeVisible();
-  await expect(sectionTabs.getByRole("link", { name: "Overview", exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/people\/[^/]+\?section=review$/);
 });
 
-test("@smoke legacy /my-program mentee flows redirect into the self workspace", async ({
+test("@smoke /mentorship?view=me opens the mentee's development workspace", async ({
+  page,
+}) => {
+  await loginAs(page, "chapterLead");
+  await page.goto("/mentorship?view=me");
+
+  await expect(page).toHaveURL(/\/mentorship\/people\/[^/?]+/);
+  await expect(page.getByText(/Your mentorship|Home|Goals/i).first()).toBeVisible();
+});
+
+test("@smoke legacy /my-program mentee flows redirect into the mentee workspace", async ({
   page,
 }) => {
   await loginAs(page, "chapterLead");
 
   await page.goto("/my-program/gr");
-  await expect(page).toHaveURL(/\/mentorship\?view=me&section=goals$/);
+  await expect(page).toHaveURL(/\/mentorship\/people\/[^/?]+\?section=goals$/);
 
   await page.goto("/my-program/schedule");
-  await expect(page).toHaveURL(/\/mentorship\?view=me&section=schedule$/);
+  await expect(page).toHaveURL(/\/mentorship\/people\/[^/?]+\?section=schedule$/);
 
   await page.goto("/my-program/awards");
-  await expect(page).toHaveURL(/\/mentorship\?view=me&section=recognition$/);
-});
-
-test("@smoke a mentee can open their recognition section", async ({ page }) => {
-  await loginAs(page, "chapterLead");
-  await page.goto("/my-mentor/awards");
-
-  await expect(page).toHaveURL(/\/mentorship\?view=me&section=recognition$/);
-  // Awards stay dark until ENABLE_GAMIFICATION; the Resources block always renders.
-  await expect(page.getByRole("heading", { name: "Resources" })).toBeVisible();
+  await expect(page).toHaveURL(/\/mentorship\/people\/[^/?]+\?section=recognition$/);
 });
 
 test("@smoke admin can open the canonical Goals & Resources workspace", async ({

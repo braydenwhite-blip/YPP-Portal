@@ -1,8 +1,9 @@
 import type { NavRole } from "@/lib/navigation/types";
 
 /**
- * Leadership / hiring sidebar — four destinations only (shipped default).
- * Home · People · Actions · Applicants
+ * Leadership / hiring sidebar — shipped default.
+ * Home · People · Mentorship · Actions · Applicants
+ * (Hiring Chair omits Mentorship — not in that role's day-to-day set.)
  *
  * Set `LEADERSHIP_FULL_PORTAL_EXPLORER=true` locally to unlock the full
  * officer / chapter-president catalog for testing.
@@ -11,6 +12,13 @@ export const LEADERSHIP_SIMPLE_NAV_ROLES: ReadonlySet<NavRole> = new Set<NavRole
   "ADMIN",
   "STAFF",
   "HIRING_CHAIR",
+  "CHAPTER_PRESIDENT",
+]);
+
+/** Roles that get Mentorship in the simple leadership sidebar. */
+const MENTORSHIP_SIMPLE_NAV_ROLES: ReadonlySet<NavRole> = new Set<NavRole>([
+  "ADMIN",
+  "STAFF",
   "CHAPTER_PRESIDENT",
 ]);
 
@@ -28,6 +36,9 @@ export const LEADERSHIP_FULL_CORE_NAV_MAP: Partial<Record<NavRole, string[]>> = 
 export function leadershipSimpleNavHrefs(primaryRole: NavRole): readonly string[] {
   const applicants =
     primaryRole === "CHAPTER_PRESIDENT" ? CHAPTER_APPLICANTS : NETWORK_APPLICANTS;
+  if (MENTORSHIP_SIMPLE_NAV_ROLES.has(primaryRole)) {
+    return ["/", "/people", "/mentorship", "/actions", applicants];
+  }
   return ["/", "/people", "/actions", applicants];
 }
 

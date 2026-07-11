@@ -4,7 +4,7 @@ import { createMentorshipNextStep } from "@/lib/mentorship-hub-actions";
 
 /**
  * The mentor's authoring tools — quick links to the pages that do the actual
- * writing (review, schedule, resources) plus a fast "next step" capture.
+ * writing (review, resources) plus a fast "next step" capture.
  * Where the review cycle stands lives in one place, the Reviews section's
  * cycle strip (`lib/mentorship/lifecycle.ts`) — this panel does not repeat
  * that status so there is only one "what happens next" per person, not two.
@@ -39,9 +39,6 @@ export async function MentorToolsPanel({
       <div className="flex flex-wrap gap-2">
         <ButtonLink href={`/mentorship/people/${menteeId}?section=reviews&panel=draft`} size="sm" variant="secondary">
           Run monthly review
-        </ButtonLink>
-        <ButtonLink href="/mentorship/schedule" size="sm" variant="secondary">
-          Schedule a session
         </ButtonLink>
         <ButtonLink href="/mentorship/resources" size="sm" variant="secondary">
           Resources

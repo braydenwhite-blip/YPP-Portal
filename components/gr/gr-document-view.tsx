@@ -49,11 +49,23 @@ interface PastReview {
 }
 interface NextMonthGoal { id: string; title: string; description: string; priority: GoalPriority; dueDate: string | null }
 
+interface ContactPerson {
+  name: string;
+  title: string | null;
+  email: string | null;
+  phone: string | null;
+  chapter: string | null;
+}
+
 interface DocumentData {
   id: string; templateTitle: string; roleType: string; roleLabel: string;
   roleMission: string; status: string; roleStartDate: string;
   mentorName: string; mentorEmail: string;
   mentorInfo: Record<string, string> | null; officerInfo: Record<string, string> | null;
+  /** Live officer/manager block (document owner). */
+  officer?: ContactPerson | null;
+  /** Live mentor list (primary + chair when present). */
+  mentors?: ContactPerson[];
   goalsByLifecycle: { ACTIVE: number; COMPLETED: number; ARCHIVED: number };
   currentPriorities: PriorityGoal[];
   goals: Goal[]; successCriteria: SuccessCriteria[]; resources: Resource[];
@@ -66,7 +78,7 @@ interface DocumentData {
 
 const PHASE_LABELS: Record<GRTimePhase, string> = {
   MONTHLY: "Monthly Goals",
-  FIRST_MONTH: "First Month",
+  FIRST_MONTH: "First Month (Short Term)",
   FIRST_QUARTER: "First Quarter",
   FULL_YEAR: "Long-Term",
   LONG_TERM: "Long-Term",
@@ -74,6 +86,107 @@ const PHASE_LABELS: Record<GRTimePhase, string> = {
 
 // Monthly first, then chronological onboarding phases
 const PHASE_ORDER: GRTimePhase[] = ["MONTHLY", "FIRST_MONTH", "FIRST_QUARTER", "LONG_TERM", "FULL_YEAR"];
+
+function ContactBlock({
+  heading,
+  people,
+}: {
+  heading: string;
+  people: ContactPerson[];
+}) {
+  if (people.length === 0) return null;
+  return (
+    <div className="card" style={{ padding: "1.1rem 1.25rem" }}>
+      <h2 style={{ fontSize: "1rem", margin: "0 0 0.75rem", fontWeight: 700 }}>{heading}</h2>
+      <div style={{ display: "grid", gap: "0.85rem" }}>
+        {people.map((person) => (
+          <div
+            key={`${person.name}-${person.email ?? ""}`}
+            style={{
+              display: "grid",
+              gap: "0.15rem 1.25rem",
+              gridTemplateColumns: "minmax(8rem, 1.2fr) minmax(8rem, 1.4fr) minmax(7rem, 1fr)",
+            }}
+          >
+            <div>
+              <p style={{ margin: 0, fontWeight: 600, fontSize: "0.92rem" }}>{person.name}</p>
+              {person.chapter ? (
+                <p style={{ margin: "0.1rem 0 0", fontSize: "0.78rem", color: "var(--muted)" }}>
+                  {person.chapter}
+                </p>
+              ) : null}
+            </div>
+            <div>
+              <p style={{ margin: 0, fontSize: "0.9rem" }}>{person.title ?? "—"}</p>
+              {person.email ? (
+                <a
+                  href={`mailto:${person.email}`}
+                  style={{ fontSize: "0.78rem", color: "var(--ypp-purple-700, #6b21c8)" }}
+                >
+                  {person.email}
+                </a>
+              ) : null}
+            </div>
+            <div>
+              {person.phone ? (
+                <a href={`tel:${person.phone}`} style={{ fontSize: "0.9rem", fontWeight: 500 }}>
+                  {person.phone}
+                </a>
+              ) : (
+                <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--muted)" }}>No phone</p>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function StatusLists({ goals }: { goals: Goal[] }) {
+  const todo = goals.filter((g) => g.lifecycleStatus === "ACTIVE" && g.progressState === "NOT_STARTED");
+  const inProgress = goals.filter((g) => g.lifecycleStatus === "ACTIVE" && g.progressState === "IN_PROGRESS");
+  if (todo.length === 0 && inProgress.length === 0) return null;
+  return (
+    <div className="card" style={{ padding: "1.1rem 1.25rem" }}>
+      <h2 style={{ fontSize: "1rem", margin: "0 0 0.75rem", fontWeight: 700 }}>Status</h2>
+      <div style={{ display: "grid", gap: "1rem", gridTemplateColumns: "1fr 1fr" }}>
+        <div>
+          <p style={{ margin: "0 0 0.4rem", fontSize: "0.8rem", fontWeight: 700, color: "var(--muted)" }}>
+            TODO
+          </p>
+          {todo.length === 0 ? (
+            <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--muted)" }}>Nothing here</p>
+          ) : (
+            <ul style={{ margin: 0, paddingLeft: "1.1rem" }}>
+              {todo.map((g) => (
+                <li key={g.id} style={{ fontSize: "0.88rem", marginBottom: "0.25rem" }}>
+                  {g.title}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div>
+          <p style={{ margin: "0 0 0.4rem", fontSize: "0.8rem", fontWeight: 700, color: "var(--muted)" }}>
+            In progress
+          </p>
+          {inProgress.length === 0 ? (
+            <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--muted)" }}>Nothing here</p>
+          ) : (
+            <ul style={{ margin: 0, paddingLeft: "1.1rem" }}>
+              {inProgress.map((g) => (
+                <li key={g.id} style={{ fontSize: "0.88rem", marginBottom: "0.25rem" }}>
+                  {g.title}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ─────────────── Sub-components ───────────────
 
@@ -246,55 +359,50 @@ export default function GRDocumentView({ document: doc, isOwner }: { document: D
   return (
     <div style={{ display: "grid", gap: "1.5rem" }}>
 
-      {/* 1. Current Priorities hero */}
-      <CurrentPrioritiesHero goals={doc.currentPriorities as Parameters<typeof CurrentPrioritiesHero>[0]["goals"]} />
+      {/* Paper G&R order: Officer → Mentor → Mission → Goals → Resources → Plan */}
+      <ContactBlock
+        heading="Officer / Manager Information"
+        people={doc.officer ? [doc.officer] : []}
+      />
+      <ContactBlock heading="Mentor Information" people={doc.mentors ?? []} />
 
-      {/* 2. Status header */}
-      <div className="card" style={{ padding: "1.1rem 1.25rem" }}>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "1.5rem", alignItems: "center" }}>
-          <div>
-            <p style={{ fontSize: "0.75rem", color: "var(--muted)", marginBottom: "0.1rem" }}>Role</p>
-            <p style={{ fontWeight: 600 }}>{doc.roleLabel}</p>
-          </div>
-          <div>
-            <p style={{ fontSize: "0.75rem", color: "var(--muted)", marginBottom: "0.1rem" }}>Mentor</p>
-            <p style={{ fontWeight: 600 }}>{doc.mentorName}</p>
-          </div>
-          {doc.officerInfo?.position && (
-            <div>
-              <p style={{ fontSize: "0.75rem", color: "var(--muted)", marginBottom: "0.1rem" }}>Officer Position</p>
-              <p style={{ fontWeight: 600 }}>{doc.officerInfo.position}</p>
-            </div>
-          )}
-          <div>
-            <p style={{ fontSize: "0.75rem", color: "var(--muted)", marginBottom: "0.1rem" }}>Start Date</p>
-            <p style={{ fontWeight: 600 }}>{new Date(doc.roleStartDate).toLocaleDateString()}</p>
-          </div>
-          <div>
-            <p style={{ fontSize: "0.75rem", color: "var(--muted)", marginBottom: "0.1rem" }}>Next Review Due</p>
-            <p style={{ fontWeight: 600 }}>{nextReviewDue.toLocaleDateString()}</p>
-          </div>
-          {doc.latestReview && (
-            <div style={{ marginLeft: "auto" }}>
-              <p style={{ fontSize: "0.75rem", color: "var(--muted)", marginBottom: "0.25rem" }}>Last Rating</p>
-              <RatingBadge rating={doc.latestReview.overallRating} size="md" />
-            </div>
-          )}
-        </div>
-        <div style={{ marginTop: "0.75rem", display: "flex", gap: "1rem", fontSize: "0.8rem", color: "var(--muted)" }}>
-          <span><strong style={{ color: "var(--foreground)" }}>{doc.goalsByLifecycle.ACTIVE}</strong> active</span>
-          <span><strong style={{ color: "#166534" }}>{doc.goalsByLifecycle.COMPLETED}</strong> completed</span>
-          <span><strong style={{ color: "var(--muted)" }}>{doc.goalsByLifecycle.ARCHIVED}</strong> archived</span>
-        </div>
-      </div>
-
-      {/* 3. My Mission */}
       <div className="card" style={{ padding: "1.25rem", borderLeft: "3px solid var(--ypp-purple-500, #a855f7)" }}>
-        <h2 style={{ fontSize: "1rem", marginBottom: "0.5rem", color: "var(--muted)" }}>My Mission</h2>
-        <p style={{ whiteSpace: "pre-wrap", lineHeight: 1.7, fontSize: "1rem" }}>{doc.roleMission}</p>
+        <h2 style={{ fontSize: "1rem", marginBottom: "0.5rem", color: "var(--muted)" }}>
+          Overall Role Mission
+        </h2>
+        <p style={{ whiteSpace: "pre-wrap", lineHeight: 1.7, fontSize: "1rem", margin: 0 }}>
+          {doc.roleMission}
+        </p>
       </div>
 
-      {/* 4. Active / Completed goals toggle */}
+      <StatusLists goals={doc.goals} />
+
+      {/* Compact status strip */}
+      <div className="card" style={{ padding: "0.85rem 1.25rem" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "1.25rem", alignItems: "center", fontSize: "0.85rem" }}>
+          <span>
+            <strong>Role:</strong> {doc.roleLabel}
+            {doc.officer?.title && doc.officer.title !== doc.roleLabel ? ` · ${doc.officer.title}` : ""}
+          </span>
+          <span>
+            <strong>Start:</strong> {new Date(doc.roleStartDate).toLocaleDateString()}
+          </span>
+          <span>
+            <strong>Next review:</strong> {nextReviewDue.toLocaleDateString()}
+          </span>
+          <span>
+            <strong style={{ color: "var(--foreground)" }}>{doc.goalsByLifecycle.ACTIVE}</strong> active ·{" "}
+            <strong style={{ color: "#166534" }}>{doc.goalsByLifecycle.COMPLETED}</strong> done
+          </span>
+          {doc.latestReview ? (
+            <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+              Last rating <RatingBadge rating={doc.latestReview.overallRating} size="md" />
+            </span>
+          ) : null}
+        </div>
+      </div>
+
+      {/* Goals */}
       <div>
         <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem", alignItems: "center" }}>
           <h2 style={{ margin: 0, flexGrow: 1 }}>Goals</h2>
@@ -329,7 +437,7 @@ export default function GRDocumentView({ document: doc, isOwner }: { document: D
               </div>
               {phaseCriteria && (
                 <div style={{ marginTop: "0.75rem", padding: "0.75rem 1rem", background: "var(--surface-alt, #f9fafb)", borderRadius: "var(--radius-sm)" }}>
-                  <p style={{ fontSize: "0.78rem", fontWeight: 600, color: "var(--muted)", marginBottom: "0.25rem" }}>Success Criteria</p>
+                  <p style={{ fontSize: "0.78rem", fontWeight: 600, color: "var(--muted)", marginBottom: "0.25rem" }}>Target Outcomes / Success Criteria</p>
                   <p style={{ fontSize: "0.85rem", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{phaseCriteria.criteria}</p>
                 </div>
               )}
@@ -346,7 +454,76 @@ export default function GRDocumentView({ document: doc, isOwner }: { document: D
         )}
       </div>
 
-      {/* 5. Mentor Feedback */}
+      {/* Resources */}
+      {doc.resources.length > 0 && (
+        <div className="card" style={{ padding: "1.25rem" }}>
+          <h2 style={{ fontSize: "1.1rem", marginBottom: "0.75rem" }}>Resources</h2>
+          <div style={{ display: "grid", gap: "0.5rem" }}>
+            {doc.resources.map((r, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem" }}>
+                <div>
+                  <strong style={{ fontSize: "0.9rem" }}>{r.title}</strong>
+                  {r.description && <p style={{ fontSize: "0.8rem", color: "var(--muted)", margin: "0.1rem 0 0" }}>{r.description}</p>}
+                </div>
+                <a href={r.url} target="_blank" rel="noopener noreferrer" className="button ghost" style={{ fontSize: "0.8rem", flexShrink: 0 }}>Open</a>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Plan of Action */}
+      <div className="card" style={{ padding: "1.25rem" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+          <h2 style={{ fontSize: "1.1rem", margin: 0 }}>Plan of Action</h2>
+          {isOwner && (
+            <button className="button" onClick={() => setShowPlanForm(!showPlanForm)}>
+              {showPlanForm ? "Cancel" : latestPlan ? "Update" : "Write Plan"}
+            </button>
+          )}
+        </div>
+
+        {error && <p style={{ color: "var(--danger)", marginBottom: "0.5rem" }}>{error}</p>}
+        {success && <p style={{ color: "var(--success)", marginBottom: "0.5rem" }}>{success}</p>}
+
+        {showPlanForm && (
+          <form onSubmit={handleSavePlan} style={{ marginBottom: "1rem" }}>
+            <input type="hidden" name="cycleNumber" value={nextCycle} />
+            <textarea
+              name="content"
+              className="input"
+              rows={5}
+              required
+              placeholder="What will you do to hit these goals? What do you need from others? Add dates if you can."
+              style={{ marginBottom: "0.5rem" }}
+            />
+            <button type="submit" className="button primary" disabled={isPending}>
+              {isPending ? "Saving…" : "Save Plan"}
+            </button>
+          </form>
+        )}
+
+        {doc.plansOfAction.length === 0 ? (
+          <p style={{ color: "var(--muted)" }}>
+            Write brief notes on how you will implement these goals.
+          </p>
+        ) : (
+          <div style={{ display: "grid", gap: "0.75rem" }}>
+            {doc.plansOfAction.map((p) => (
+              <div key={p.cycleNumber} style={{ borderLeft: "3px solid var(--ypp-purple-300, #d8b4fe)", paddingLeft: "0.75rem" }}>
+                <p style={{ fontSize: "0.78rem", fontWeight: 600, color: "var(--muted)" }}>
+                  Cycle {p.cycleNumber} — {new Date(p.updatedAt).toLocaleDateString()}
+                </p>
+                <p style={{ whiteSpace: "pre-wrap", lineHeight: 1.5, fontSize: "0.9rem" }}>{p.content}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Portal extras below the paper G&R core */}
+      <CurrentPrioritiesHero goals={doc.currentPriorities as Parameters<typeof CurrentPrioritiesHero>[0]["goals"]} />
+
       {doc.latestReview && (
         <div className="card" style={{ padding: "1.25rem" }}>
           <h2 style={{ fontSize: "1.1rem", marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
@@ -388,11 +565,9 @@ export default function GRDocumentView({ document: doc, isOwner }: { document: D
               )}
             </div>
           )}
-
         </div>
       )}
 
-      {/* 6. Next Month Priorities */}
       {doc.nextMonthGoals.length > 0 && (
         <div className="card" style={{ padding: "1.25rem" }}>
           <h2 style={{ fontSize: "1.1rem", marginBottom: "0.75rem" }}>Next Month Priorities</h2>
@@ -415,72 +590,6 @@ export default function GRDocumentView({ document: doc, isOwner }: { document: D
         </div>
       )}
 
-      {/* 7. Resources */}
-      {doc.resources.length > 0 && (
-        <div className="card" style={{ padding: "1.25rem" }}>
-          <h2 style={{ fontSize: "1.1rem", marginBottom: "0.75rem" }}>Resources</h2>
-          <div style={{ display: "grid", gap: "0.5rem" }}>
-            {doc.resources.map((r, i) => (
-              <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem" }}>
-                <div>
-                  <strong style={{ fontSize: "0.9rem" }}>{r.title}</strong>
-                  {r.description && <p style={{ fontSize: "0.8rem", color: "var(--muted)", margin: "0.1rem 0 0" }}>{r.description}</p>}
-                </div>
-                <a href={r.url} target="_blank" rel="noopener noreferrer" className="button ghost" style={{ fontSize: "0.8rem", flexShrink: 0 }}>Open</a>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* 8. Plan of Action */}
-      <div className="card" style={{ padding: "1.25rem" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
-          <h2 style={{ fontSize: "1.1rem", margin: 0 }}>My Plan of Action</h2>
-          {isOwner && (
-            <button className="button" onClick={() => setShowPlanForm(!showPlanForm)}>
-              {showPlanForm ? "Cancel" : latestPlan ? "Update" : "Write Plan"}
-            </button>
-          )}
-        </div>
-
-        {error && <p style={{ color: "var(--danger)", marginBottom: "0.5rem" }}>{error}</p>}
-        {success && <p style={{ color: "var(--success)", marginBottom: "0.5rem" }}>{success}</p>}
-
-        {showPlanForm && (
-          <form onSubmit={handleSavePlan} style={{ marginBottom: "1rem" }}>
-            <input type="hidden" name="cycleNumber" value={nextCycle} />
-            <textarea
-              name="content"
-              className="input"
-              rows={5}
-              required
-              placeholder="How do you plan to tackle your goals this cycle?"
-              style={{ marginBottom: "0.5rem" }}
-            />
-            <button type="submit" className="button primary" disabled={isPending}>
-              {isPending ? "Saving…" : "Save Plan"}
-            </button>
-          </form>
-        )}
-
-        {doc.plansOfAction.length === 0 ? (
-          <p style={{ color: "var(--muted)" }}>No plan written yet.</p>
-        ) : (
-          <div style={{ display: "grid", gap: "0.75rem" }}>
-            {doc.plansOfAction.map((p) => (
-              <div key={p.cycleNumber} style={{ borderLeft: "3px solid var(--ypp-purple-300, #d8b4fe)", paddingLeft: "0.75rem" }}>
-                <p style={{ fontSize: "0.78rem", fontWeight: 600, color: "var(--muted)" }}>
-                  Cycle {p.cycleNumber} — {new Date(p.updatedAt).toLocaleDateString()}
-                </p>
-                <p style={{ whiteSpace: "pre-wrap", lineHeight: 1.5, fontSize: "0.9rem" }}>{p.content}</p>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* 9. Past Updates */}
       {doc.pastReviews.length > 0 && (
         <div className="card" style={{ padding: "1.25rem" }}>
           <h2 style={{ fontSize: "1.1rem", marginBottom: "1rem" }}>Past Updates</h2>

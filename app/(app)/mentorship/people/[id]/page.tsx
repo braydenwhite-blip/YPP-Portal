@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { MentorshipWorkspaceView } from "@/components/mentorship/workspace/workspace-view";
 import type { MentorshipSetupData } from "@/components/mentorship/workspace/setup-repair-panel";
 import { getSessionUser } from "@/lib/auth-supabase";
+import { getInstructorMentorshipMembership } from "@/lib/mentorship-access";
 import { loadMentorshipWorkspace } from "@/lib/mentorship/workspace";
 import { prisma } from "@/lib/prisma";
 
@@ -32,6 +33,11 @@ export default async function MentorshipPersonPage({ params, searchParams }: Pag
   const workspace = await loadMentorshipWorkspace(viewer, id);
   if (!workspace) notFound();
 
+  const alsoMentors =
+    workspace.isSelf
+      ? (await getInstructorMentorshipMembership(viewer.id)).isMentor
+      : false;
+
   const section = typeof sp.section === "string" ? sp.section : undefined;
   const panel = typeof sp.panel === "string" ? sp.panel : undefined;
 
@@ -51,7 +57,9 @@ export default async function MentorshipPersonPage({ params, searchParams }: Pag
     viewer.adminSubtypes.some((subtype) =>
       ["SUPER_ADMIN", "MENTORSHIP_ADMIN", "LEADERSHIP"].includes(subtype)
     );
-  const canAssignGR = viewer.roles.includes("ADMIN");
+  const isAssignedMentor =
+    !!mentorshipMeta && mentorshipMeta.mentorId === viewer.id;
+  const canAssignGR = viewer.roles.includes("ADMIN") || isAssignedMentor;
   const canAssignChair = viewer.roles.includes("ADMIN");
   let setup: MentorshipSetupData | undefined;
 
@@ -61,7 +69,7 @@ export default async function MentorshipPersonPage({ params, searchParams }: Pag
       select: { primaryRole: true },
     });
     const chairLane = committeeLaneForRole(personRole?.primaryRole);
-    const [candidateUsers, workloadRows, templates, currentChair] = await Promise.all([
+    const [candidateUsers, workloadRows, currentChair] = await Promise.all([
       canManageMentor
         ? prisma.user.findMany({
             where: { id: { not: id }, archivedAt: null },
@@ -75,13 +83,6 @@ export default async function MentorshipPersonPage({ params, searchParams }: Pag
             by: ["mentorId"],
             where: { status: "ACTIVE" },
             _count: { id: true },
-          })
-        : [],
-      canAssignGR
-        ? prisma.gRTemplate.findMany({
-            where: { status: "GR_APPROVED", isActive: true },
-            select: { id: true, title: true, roleType: true },
-            orderBy: { title: "asc" },
           })
         : [],
       chairLane
@@ -106,11 +107,6 @@ export default async function MentorshipPersonPage({ params, searchParams }: Pag
         role: candidate.primaryRole,
         activeMenteeCount: workload.get(candidate.id) ?? 0,
       })),
-      templates: templates.map((template) => ({
-        id: template.id,
-        title: template.title,
-        roleType: template.roleType,
-      })),
       chairLane,
       currentChairName: currentChair?.user.name ?? null,
     };
@@ -133,6 +129,7 @@ export default async function MentorshipPersonPage({ params, searchParams }: Pag
           : undefined
       }
       helpSent={sp.sent === "1"}
+      alsoMentors={alsoMentors}
       sectionHref={(sectionId) =>
         `/mentorship/people/${id}?section=${encodeURIComponent(sectionId)}`
       }

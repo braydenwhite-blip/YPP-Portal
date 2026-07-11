@@ -120,8 +120,7 @@ function loopsForFact(
   // admin responsibilities — never the mentee's own reflection.
   const mentorSide = role === "mentor" || role === "admin";
   const chairSide = role === "chair" || role === "admin" || viewer.userId === fact.chairId;
-  const detailHref =
-    role === "mentee" ? "/mentorship?view=me" : `/people/${fact.menteeId}`;
+  const detailHref = `/mentorship/people/${fact.menteeId}`;
   const source: QueueEntityRef = {
     type: "mentorship",
     id: fact.id,
@@ -146,7 +145,7 @@ function loopsForFact(
         why: `The chair requested changes on ${fact.menteeName}'s review.`,
         recommendedMove: "Revise the review and resubmit it for approval.",
         resolveLabel: "Open review",
-        href: `/people/${fact.menteeId}?section=review&panel=draft`,
+        href: `/mentorship/people/${fact.menteeId}?section=reviews&panel=draft`,
         signals: baseSignals({ mine: true, missingNextStep: true }),
         statusLabel: "Changes requested",
       })
@@ -164,7 +163,7 @@ function loopsForFact(
         why: `${fact.menteeName} submitted a reflection — your review is due.`,
         recommendedMove: "Write this cycle's monthly review.",
         resolveLabel: "Start review",
-        href: `/people/${fact.menteeId}?section=review&panel=draft`,
+        href: `/mentorship/people/${fact.menteeId}?section=reviews&panel=draft`,
         signals: baseSignals({ mine: true }),
         statusLabel: "Review due",
       })
@@ -182,7 +181,7 @@ function loopsForFact(
         why: `A review for ${fact.menteeName} is waiting for chair approval.`,
         recommendedMove: "Review and approve, or request changes.",
         resolveLabel: "Open approvals",
-        href: `/people/${fact.menteeId}?section=review&panel=approve`,
+        href: `/mentorship/people/${fact.menteeId}?section=reviews&panel=approve`,
         signals: baseSignals({ mine: true }),
         statusLabel: "Awaiting approval",
       })
@@ -219,7 +218,7 @@ function loopsForFact(
         why: "Your next mentorship session is coming up — come prepared.",
         recommendedMove: "Review their goals before the session.",
         resolveLabel: "View session",
-        href: "/mentorship/schedule",
+        href: detailHref + "?section=check-ins",
         signals: baseSignals({ mine: true, connectedToMeeting: true, quickWin: true }),
         statusLabel: "Upcoming session",
         dueISO: next.scheduledISO,

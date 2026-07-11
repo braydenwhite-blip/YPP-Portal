@@ -29,7 +29,7 @@ afterAll(() => {
 });
 
 describe("app shell nav contract", () => {
-  it("gives ADMIN the simple leadership nav (Home, People, Actions, Applicants)", async () => {
+  it("gives ADMIN the simple leadership nav (Home, People, Mentorship, Actions, Applicants)", async () => {
     render(
       <Nav
         roles={["ADMIN"]}
@@ -45,6 +45,10 @@ describe("app shell nav contract", () => {
 
     expect(screen.getByRole("link", { name: /^Home$/i })).toHaveAttribute("href", "/");
     expect(screen.getByRole("link", { name: /^People$/i })).toHaveAttribute("href", "/people");
+    expect(screen.getByRole("link", { name: /^Mentorship$/i })).toHaveAttribute(
+      "href",
+      "/mentorship"
+    );
     expect(screen.getByRole("link", { name: /^Actions$/i })).toHaveAttribute("href", "/actions");
     expect(screen.getByRole("link", { name: /^Applicants$/i })).toHaveAttribute(
       "href",
@@ -121,6 +125,7 @@ describe("app shell nav contract", () => {
       );
       expect(screen.getByRole("link", { name: /^Home$/i })).toBeInTheDocument();
       expect(screen.getByRole("link", { name: /^People$/i })).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: /^Mentorship$/i })).toBeInTheDocument();
       expect(screen.getByRole("link", { name: /^Actions$/i })).toBeInTheDocument();
       expect(screen.getByRole("link", { name: /^Applicants$/i })).toBeInTheDocument();
       // Notifications are outside the simple leadership nav, so badge caps are N/A here.

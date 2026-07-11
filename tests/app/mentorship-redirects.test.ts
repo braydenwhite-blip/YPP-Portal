@@ -60,9 +60,11 @@ describe("mentorship legacy route redirects", () => {
   it("redirects legacy mentor program roots to canonical mentor workspace routes", async () => {
     await expect(async () => LegacyMentorshipProgramPage()).rejects.toThrow("redirect:/mentorship");
     await expect(async () => LegacyMentorshipReviewsPage()).rejects.toThrow("redirect:/mentorship/reviews");
-    await expect(async () => LegacyMentorshipSchedulePage()).rejects.toThrow("redirect:/mentorship/schedule");
+    await expect(async () => LegacyMentorshipSchedulePage()).rejects.toThrow(
+      "redirect:/mentorship?view=mentor"
+    );
     await expect(async () => LegacyMentorshipAwardsPage()).rejects.toThrow("redirect:/mentorship/awards");
-    await expect(async () => LegacyMentorshipChairPage()).rejects.toThrow("redirect:/mentorship/reviews");
+    await expect(async () => LegacyMentorshipChairPage()).rejects.toThrow("redirect:/mentorship");
     expect(() => MentorDashboardRedirectPage()).toThrow("redirect:/mentorship");
   });
 
@@ -157,10 +159,10 @@ describe("mentorship legacy route redirects", () => {
     ).rejects.toThrow("redirect:/admin/mentorship/gr/templates/tpl-1");
   });
 
-  it("sends the mentor's mentee G&R view to the person page's review section", async () => {
+  it("sends the mentor's mentee G&R view to the person workspace goals section", async () => {
     await expect(
       MentorMenteeGRPage({ params: Promise.resolve({ id: "mentee-1" }) })
-    ).rejects.toThrow("redirect:/people/mentee-1?section=review");
+    ).rejects.toThrow("redirect:/mentorship/people/mentee-1?section=goals");
   });
 
   it("folds the standalone admin G&R list pages into the cockpit's Goals tab", () => {

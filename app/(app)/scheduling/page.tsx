@@ -11,7 +11,6 @@ import {
   getInterviewScheduleHubData,
 } from "@/lib/interview-scheduling-actions";
 import {
-  getMentorScheduleHubData,
   getMyMentorshipScheduleHubData,
 } from "@/lib/mentorship-scheduling-actions";
 
@@ -419,7 +418,7 @@ async function MentorManagementHubCard({
     return (
       <HubCard
         title="Mentor Management"
-        subtitle="Publish availability and handle custom mentee requests"
+        subtitle="Log meetings on each mentee's workspace"
         href={null}
         hrefLabel="Unavailable"
         accent="#7c3aed"
@@ -431,112 +430,17 @@ async function MentorManagementHubCard({
     );
   }
 
-  const result = await safeCall(() => getMentorScheduleHubData());
-
-  if (!result.ok) {
-    return (
-      <HubCard
-        title="Mentor Management"
-        subtitle="Publish availability and handle custom mentee requests"
-        href={null}
-        hrefLabel="Unavailable"
-        accent="#7c3aed"
-      >
-        <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--muted)" }}>
-          The mentor scheduling workspace is not ready right now.
-        </p>
-      </HubCard>
-    );
-  }
-
   return (
     <HubCard
       title="Mentor Management"
-      subtitle="Publish availability and handle custom mentee requests"
-      href="/mentorship/schedule"
-      hrefLabel="Open Mentor Scheduling"
+      subtitle="Log meetings on each mentee's workspace — no separate scheduler"
+      href="/mentorship?view=mentor"
+      hrefLabel="Open Mentorship"
       accent="#7c3aed"
     >
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(3, 1fr)",
-          gap: "0.75rem",
-          marginBottom: "1rem",
-        }}
-      >
-        <div
-          style={{
-            padding: "0.7rem",
-            background: "var(--surface-alt)",
-            borderRadius: "var(--radius-sm)",
-          }}
-        >
-          <p style={{ margin: 0, fontSize: "0.75rem", color: "var(--muted)" }}>
-            Weekly rules
-          </p>
-          <p style={{ margin: "0.2rem 0 0", fontWeight: 700 }}>
-            {result.data.availabilityRuleCount}
-          </p>
-        </div>
-        <div
-          style={{
-            padding: "0.7rem",
-            background: "var(--surface-alt)",
-            borderRadius: "var(--radius-sm)",
-          }}
-        >
-          <p style={{ margin: 0, fontSize: "0.75rem", color: "var(--muted)" }}>
-            Pending requests
-          </p>
-          <p style={{ margin: "0.2rem 0 0", fontWeight: 700 }}>
-            {result.data.pendingRequestCount}
-          </p>
-        </div>
-        <div
-          style={{
-            padding: "0.7rem",
-            background: "var(--surface-alt)",
-            borderRadius: "var(--radius-sm)",
-          }}
-        >
-          <p style={{ margin: 0, fontSize: "0.75rem", color: "var(--muted)" }}>
-            Upcoming sessions
-          </p>
-          <p style={{ margin: "0.2rem 0 0", fontWeight: 700 }}>
-            {result.data.upcomingSessionCount}
-          </p>
-        </div>
-      </div>
-      {result.data.pendingRequests.length > 0 ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-          {result.data.pendingRequests.map((request) => (
-            <div
-              key={request.id}
-              style={{
-                padding: "0.75rem 0.85rem",
-                background: "var(--surface-alt)",
-                borderRadius: "var(--radius-sm)",
-              }}
-            >
-              <p style={{ margin: 0, fontWeight: 600 }}>{request.title}</p>
-              <p
-                style={{
-                  margin: "0.15rem 0 0",
-                  fontSize: "0.78rem",
-                  color: "var(--muted)",
-                }}
-              >
-                {request.menteeName} · {formatShortDate(request.createdAt)}
-              </p>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--muted)" }}>
-          No custom mentee requests are waiting right now.
-        </p>
-      )}
+      <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--muted)" }}>
+        Open a mentee from Mentorship, then use Meetings to mark check-ins done.
+      </p>
     </HubCard>
   );
 }

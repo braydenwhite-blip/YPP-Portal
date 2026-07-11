@@ -216,7 +216,7 @@ export function defaultLifecycleHrefs(menteeId: string): LifecycleHrefs {
     writeReview: `${base}?section=reviews&panel=draft`,
     recordMentorCheckIn: `${base}?section=check-ins&panel=cycle-check-in`,
     adminMatching: `${base}?panel=setup`,
-    adminGoals: `${base}?panel=setup`,
+    adminGoals: `${base}?section=goals`,
     reviewInbox: `${base}?section=reviews&panel=approve`,
   };
 }
@@ -288,48 +288,46 @@ export function deriveNextAction(
     if (pov === "me") {
       return {
         key: "await-kickoff",
-        label: `Schedule your kickoff with ${mentor}`,
+        label: `Waiting on ${mentor} for your first meeting`,
         href: hrefs.section("check-ins"),
-        reason: "The kickoff meeting starts the review cycle.",
+        reason: null,
         urgent: false,
       };
     }
     if (pov === "committee") {
       return {
         key: "await-kickoff",
-        label: "Kickoff not complete",
+        label: "Waiting on the first meeting",
         href: hrefs.section("overview"),
-        reason: "The mentor owns this setup step.",
+        reason: null,
         urgent: false,
       };
     }
     return {
       key: "schedule-kickoff",
-      label: "Hold the kickoff meeting",
+      label: "Have the first meeting",
       href: hrefs.section("check-ins"),
-      reason: "Kickoff unlocks goals and the monthly review cycle.",
+      reason: null,
       urgent: true,
     };
   }
 
-  // ── Goals (leadership owns G&R assignment) ────────────────────────────────
-  // Nobody begins the monthly reflection loop without the living plan it is
-  // meant to review. Non-leadership viewers see the blocker and exact owner.
+  // ── Goals (mentor or leadership assigns G&R) ──────────────────────────────
   if (snapshot.grDocStatus === "NONE") {
-    if (pov === "leadership") {
+    if (pov === "leadership" || pov === "mentor") {
       return {
         key: "assign-goals",
-        label: "Assign G&R goals",
+        label: "Set up goals",
         href: hrefs.adminGoals,
-        reason: `${personName} has no Goals & Responsibilities document yet.`,
+        reason: `${personName} does not have goals yet.`,
         urgent: false,
       };
     }
     return {
       key: "await-goals",
-      label: "Waiting for Goals & Responsibilities setup",
+      label: "Waiting for goals",
       href: hrefs.section("goals"),
-      reason: "A mentorship admin owns this setup step.",
+      reason: "Your mentor will set these up.",
       urgent: false,
     };
   }
@@ -765,11 +763,7 @@ export function deriveCycleState(
     }
   }
 
-  const blockingReason = !snapshot.hasActiveMentorship
-    ? "No active mentorship"
-    : !snapshot.kickoffComplete
-      ? "Kickoff not held"
-      : null;
+  const blockingReason = !snapshot.hasActiveMentorship ? "No mentor yet" : null;
 
   const commentsSubstate: CommentsSubstate | null =
     snapshot.commentsRequested > 0

@@ -66,13 +66,17 @@ describe("deriveNextAction — one lifecycle, one verb per POV", () => {
     expect(deriveNextAction(s, "me", hrefs).key).toBe("await-kickoff");
   });
 
-  it("asks leadership to assign G&R goals when no document exists", () => {
+  it("asks mentor or leadership to assign G&R goals when no document exists", () => {
     const s = snapshot({ grDocStatus: "NONE" });
-    const action = deriveNextAction(s, "leadership", hrefs, "Ari");
-    expect(action.key).toBe("assign-goals");
-    expect(action.href).toBe(hrefs.adminGoals);
-    // The mentee's cycle is not blocked by the missing doc.
-    expect(deriveNextAction(s, "me", hrefs).key).toBe("submit-reflection");
+    const leadership = deriveNextAction(s, "leadership", hrefs, "Ari");
+    expect(leadership.key).toBe("assign-goals");
+    expect(leadership.href).toBe(hrefs.adminGoals);
+
+    const mentor = deriveNextAction(s, "mentor", hrefs, "Ari");
+    expect(mentor.key).toBe("assign-goals");
+    expect(mentor.href).toBe("/mentorship/people/mentee-1?section=goals");
+
+    expect(deriveNextAction(s, "me", hrefs).key).toBe("await-goals");
   });
 
   it("walks the review cycle: reflection → review → approval → ack", () => {
@@ -83,7 +87,7 @@ describe("deriveNextAction — one lifecycle, one verb per POV", () => {
     const submitted = snapshot({ cycleStage: "REFLECTION_SUBMITTED" });
     const write = deriveNextAction(submitted, "mentor", hrefs, "Ari");
     expect(write.key).toBe("write-review");
-    expect(write.href).toBe("/people/mentee-1?section=review&panel=draft");
+    expect(write.href).toBe("/mentorship/people/mentee-1?section=reviews&panel=draft");
     expect(write.urgent).toBe(true);
     expect(deriveNextAction(submitted, "me", hrefs).key).toBe("await-reflection");
 

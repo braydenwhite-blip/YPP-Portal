@@ -71,10 +71,13 @@ function FieldBlock({ label, value }: { label: string; value: string }) {
 export function OverviewSection({
   workspace,
   children,
+  /** When true, skip the mentor/goals summary card (mentee dashboard already shows it). */
+  skipSummary = false,
 }: {
   workspace: MentorshipWorkspace;
   /** Host-supplied extras (leadership controls, self help card) render at the end. */
   children?: React.ReactNode;
+  skipSummary?: boolean;
 }) {
   const { overview, relationships, goals, checkIns, lifecycle } = workspace;
   const concerns =
@@ -83,58 +86,68 @@ export function OverviewSection({
 
   return (
     <div className="flex flex-col gap-4">
-      <CardV2 padding="lg" className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <StatusBadge tone={workspace.activeMentorshipId ? "success" : "neutral"}>
-            {overview.statusLabel}
-          </StatusBadge>
-          {concerns.slice(0, 3).map((signal, i) => (
-            <StatusBadge key={`${signal.kind}-${i}`} tone={signal.tone as StatusTone}>
-              {signal.label}
+      {!skipSummary ? (
+        <CardV2 padding="lg" className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <StatusBadge tone={workspace.activeMentorshipId ? "success" : "neutral"}>
+              {overview.statusLabel}
             </StatusBadge>
-          ))}
-        </div>
+            {concerns.slice(0, 3).map((signal, i) => (
+              <StatusBadge key={`${signal.kind}-${i}`} tone={signal.tone as StatusTone}>
+                {signal.label}
+              </StatusBadge>
+            ))}
+          </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <FieldBlock
-            label="Mentor"
-            value={
-              overview.mentorName
-                ? overview.chairName
-                  ? `${overview.mentorName} · Chair: ${overview.chairName}`
-                  : overview.mentorName
-                : "None assigned"
-            }
-          />
-          <FieldBlock
-            label="Current focus"
-            value={overview.currentFocus ?? "Not set yet — log a check-in to capture it."}
-          />
-        </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FieldBlock
+              label="Mentor"
+              value={
+                overview.mentorName
+                  ? overview.mentorEmail
+                    ? `${overview.mentorName}\n${overview.mentorEmail}${
+                        overview.chairName
+                          ? `\nChair: ${overview.chairName}${
+                              overview.chairEmail ? ` · ${overview.chairEmail}` : ""
+                            }`
+                          : ""
+                      }`
+                    : overview.chairName
+                      ? `${overview.mentorName} · Chair: ${overview.chairName}`
+                      : overview.mentorName
+                  : "None assigned"
+              }
+            />
+            <FieldBlock
+              label="Current focus"
+              value={overview.currentFocus ?? "Not set yet — log a check-in to capture it."}
+            />
+          </div>
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <MiniStat label="Goals" value={lifecycle.grDocStatus === "ACTIVE" ? String(goals.activeGoals) : "—"} />
-          <MiniStat label="Check-ins" value={String(checkIns.length)} />
-          <MiniStat label="Open commitments" value={String(openCommitments.length)} />
-          <MiniStat
-            label="Since"
-            value={relationships.startedAtLabel ?? "—"}
-          />
-        </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <MiniStat
+              label="Goals"
+              value={lifecycle.grDocStatus === "ACTIVE" ? String(goals.activeGoals) : "—"}
+            />
+            <MiniStat label="Check-ins" value={String(checkIns.length)} />
+            <MiniStat label="Open commitments" value={String(openCommitments.length)} />
+            <MiniStat label="Since" value={relationships.startedAtLabel ?? "—"} />
+          </div>
 
-        {relationships.cadenceLabel || overview.upcomingFollowUp ? (
-          <p className="m-0 text-[12.5px] text-ink-muted">
-            {[
-              relationships.cadenceLabel,
-              overview.upcomingFollowUp
-                ? `${overview.upcomingFollowUp.label} ${overview.upcomingFollowUp.dateLabel}`
-                : null,
-            ]
-              .filter(Boolean)
-              .join(" · ")}
-          </p>
-        ) : null}
-      </CardV2>
+          {relationships.cadenceLabel || overview.upcomingFollowUp ? (
+            <p className="m-0 text-[12.5px] text-ink-muted">
+              {[
+                relationships.cadenceLabel,
+                overview.upcomingFollowUp
+                  ? `${overview.upcomingFollowUp.label} ${overview.upcomingFollowUp.dateLabel}`
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </p>
+          ) : null}
+        </CardV2>
+      ) : null}
 
       {overview.coachingPlan ? (
         <CardV2 padding="md" className="flex flex-col gap-2">
@@ -223,27 +236,23 @@ function RecentActivity({ timeline }: { timeline: WorkspaceTimelineEvent[] }) {
 /* ------------------------------- Check-Ins -------------------------------- */
 
 /**
- * Check-ins is the home of the ongoing relationship: every conversation, the
- * commitments that came out of them (owned, due-dated, completable), and the
- * time already booked to talk.
+ * Meetings: a shared log of talks that happened. Mentor and mentee can both
+ * mark a meeting done — no scheduling here.
  */
 export function CheckInsSection({
   workspace,
-  scheduleExtra,
 }: {
   workspace: MentorshipWorkspace;
-  /** Host-supplied booking surface (self view embeds the scheduler here). */
-  scheduleExtra?: React.ReactNode;
 }) {
-  const { checkIns, commitments, upcomingSessions } = workspace;
+  const { checkIns, commitments } = workspace;
   const open = commitments.filter((c) => !c.completed);
   const done = commitments.filter((c) => c.completed);
 
   return (
     <div className="flex flex-col gap-4">
       <SectionHeading
-        title="Check-ins"
-        description="Every conversation — wins, challenges, decisions, and commitments — in one place."
+        title="Meetings"
+        description="Mark when you met."
         action={
           workspace.canRecordCheckIn && workspace.activeMentorshipId ? (
             <CheckInComposer
@@ -257,30 +266,17 @@ export function CheckInsSection({
               cycleLabel={workspace.lifecycle.cycleLabel}
               participantOptions={workspace.participantOptions}
               personName={workspace.person.name}
+              isSelf={workspace.isSelf}
             />
           ) : null
         }
       />
 
-      {upcomingSessions.length > 0 ? (
-        <CardV2 padding="md" className="flex flex-col gap-1.5">
-          <p className="m-0 text-[13px] font-bold text-ink">Upcoming sessions</p>
-          <ul className="m-0 flex list-none flex-col gap-1 p-0">
-            {upcomingSessions.map((s) => (
-              <li key={s.id} className="flex flex-wrap items-baseline justify-between gap-2 text-[13px]">
-                <span className="font-medium text-ink">{s.title}</span>
-                <span className="text-ink-muted">{s.scheduledLabel}</span>
-              </li>
-            ))}
-          </ul>
-        </CardV2>
-      ) : null}
-
       {open.length > 0 || done.length > 0 ? (
         <CardV2 padding="md" className="flex flex-col gap-2">
-          <p className="m-0 text-[13px] font-bold text-ink">Commitments</p>
+          <p className="m-0 text-[13px] font-bold text-ink">Follow-ups</p>
           {open.length === 0 ? (
-            <p className="m-0 text-[12.5px] text-ink-muted">Everything is closed out. 🎉</p>
+            <p className="m-0 text-[12.5px] text-ink-muted">Nothing open.</p>
           ) : (
             <ul className="m-0 flex list-none flex-col gap-2 p-0">
               {open.map((c) => (
@@ -291,7 +287,7 @@ export function CheckInsSection({
           {done.length > 0 ? (
             <details>
               <summary className="cursor-pointer text-[12px] font-semibold text-ink-muted">
-                Recently completed ({done.length})
+                Done ({done.length})
               </summary>
               <ul className="m-0 mt-2 flex list-none flex-col gap-1.5 p-0">
                 {done.map((c) => (
@@ -306,15 +302,13 @@ export function CheckInsSection({
         </CardV2>
       ) : null}
 
-      {scheduleExtra}
-
       {checkIns.length === 0 ? (
         <EmptyStateV2
-          title="No check-ins yet"
+          title="No meetings logged yet"
           body={
             workspace.canRecordCheckIn
-              ? "Log the first conversation to start the record."
-              : "Conversations logged by this person's mentor will appear here."
+              ? "When you meet, tap Log a meeting and pick the date."
+              : "Meetings will show up here once someone logs one."
           }
         />
       ) : (
@@ -379,50 +373,28 @@ function CheckInCard({ checkIn }: { checkIn: ConversationRecordView }) {
       : checkIn.kind === "CONVERSATION"
         ? "Conversation"
         : "Check-in";
+  const note =
+    checkIn.discussion ||
+    checkIn.notes ||
+    [checkIn.wins, checkIn.challenges, checkIn.decisions, checkIn.commitments]
+      .filter(Boolean)
+      .join(" · ");
+
   return (
-    <CardV2 padding="md" className="flex flex-col gap-3">
+    <CardV2 padding="md" className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
+          <StatusBadge tone="success">Done</StatusBadge>
           <StatusBadge tone="brand">{kindLabel}</StatusBadge>
           <span className="text-[13px] font-semibold text-ink">{checkIn.dateLabel}</span>
-          {checkIn.rating != null ? (
-            <span className="text-[12px] text-ink-muted">{checkIn.rating}/5</span>
-          ) : null}
         </div>
         {checkIn.authorName ? (
-          <span className="text-[12px] text-ink-muted">by {checkIn.authorName}</span>
+          <span className="text-[12px] text-ink-muted">Logged by {checkIn.authorName}</span>
         ) : null}
       </div>
 
-      {checkIn.participantNames.length > 0 ? (
-        <p className="m-0 text-[12px] text-ink-muted">
-          With {checkIn.participantNames.join(", ")}
-        </p>
-      ) : null}
-
-      <div className="flex flex-col gap-2.5">
-        {checkIn.wins ? <FieldBlock label="Wins" value={checkIn.wins} /> : null}
-        {checkIn.challenges ? <FieldBlock label="Challenges" value={checkIn.challenges} /> : null}
-        {checkIn.discussion ? <FieldBlock label="Discussion" value={checkIn.discussion} /> : null}
-        {checkIn.decisions ? <FieldBlock label="Decisions" value={checkIn.decisions} /> : null}
-        {checkIn.commitments ? (
-          <FieldBlock label="Commitments" value={checkIn.commitments} />
-        ) : null}
-        {!checkIn.wins &&
-        !checkIn.challenges &&
-        !checkIn.discussion &&
-        !checkIn.decisions &&
-        !checkIn.commitments ? (
-          <p className="m-0 text-[13px] text-ink">{checkIn.notes}</p>
-        ) : null}
-      </div>
-
-      {checkIn.followUpLabel ? (
-        <div>
-          <StatusBadge tone={checkIn.followUpOverdue ? "danger" : "info"}>
-            Follow-up {checkIn.followUpLabel}
-          </StatusBadge>
-        </div>
+      {note ? (
+        <p className="m-0 whitespace-pre-line text-[13.5px] leading-relaxed text-ink">{note}</p>
       ) : null}
     </CardV2>
   );

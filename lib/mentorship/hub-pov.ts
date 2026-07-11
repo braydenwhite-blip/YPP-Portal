@@ -1,10 +1,9 @@
 /**
  * Mentorship hub POV resolution (pure, testable).
  *
- * The unified `/mentorship` command center adapts to the viewer: the person
- * being developed sees "My Development", a mentor sees their coaching console,
- * and leadership sees the org-wide command center. One page, one mental model,
- * `?view=` switches between the POVs the viewer actually has.
+ * The unified `/mentorship` home adapts to the viewer: mentees, mentors, and
+ * leadership all land on the same card chooser, then enter the POV(s) they
+ * hold via `?view=`.
  */
 
 export type HubPov = "me" | "mentor" | "admin";
@@ -25,6 +24,21 @@ export type HubViewerFacts = {
 
 const POV_ORDER: HubPov[] = ["me", "mentor", "admin"];
 
+/**
+ * True when the viewer’s only Mentorship identity is being mentored —
+ * no mentor console, chair queue, committee, or command center.
+ */
+export function isMenteeOnly(facts: HubViewerFacts): boolean {
+  return (
+    facts.isMentee &&
+    !facts.isMentor &&
+    !facts.isChair &&
+    !facts.isCommitteeMember &&
+    !facts.isAdmin &&
+    !facts.hasCommandCenterAccess
+  );
+}
+
 /** Every POV this viewer may open, in display order (me · mentor · admin). */
 export function availablePovs(facts: HubViewerFacts): HubPov[] {
   const povs = new Set<HubPov>();
@@ -42,10 +56,22 @@ export function availablePovs(facts: HubViewerFacts): HubPov[] {
 }
 
 /**
+ * Everyone lands on the Mentorship home chooser until they pick a `?view=`
+ * (or open their mentee workspace). Cards shown depend on {@link availablePovs}.
+ */
+export function needsMentorshipRoleChooser(
+  _facts: HubViewerFacts,
+  requestedView: string | undefined
+): boolean {
+  return !requestedView;
+}
+
+/**
  * The POV to render: the requested one if the viewer has it, otherwise the
- * most operational POV they hold (admin → mentor → me). Leadership lands on
- * the command center; mentors land on their console; everyone else on
- * their own development.
+ * most operational POV they hold (admin → mentor → me).
+ *
+ * Callers that show {@link needsMentorshipRoleChooser} should not call this
+ * until a view is chosen.
  */
 export function resolvePov(
   facts: HubViewerFacts,

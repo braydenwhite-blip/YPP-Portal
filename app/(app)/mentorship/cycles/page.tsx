@@ -113,7 +113,7 @@ export default async function ReviewCyclesPage() {
         actions={
           <>
             <ButtonLink href="/mentorship?view=admin" variant="secondary" size="sm">
-              Command center
+              Goals
             </ButtonLink>
             <ButtonLink href="/mentorship/cycles/new" size="sm">
               Launch review cycle

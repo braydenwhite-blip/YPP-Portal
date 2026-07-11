@@ -1,13 +1,14 @@
 import type { NavRole } from "@/lib/navigation/types";
 
 /** Bump when the href set changes so dashboard cache partitions stay correct. */
-export const INSTRUCTOR_V1_ALLOWLIST_VERSION = "9";
+export const INSTRUCTOR_V1_ALLOWLIST_VERSION = "11";
 
 /**
  * Default instructor nav: a dedicated Teach section (workspace, curriculum,
  * lesson plans, class settings), training, teaching ops, scheduling, updates,
- * program hub, chapter, account. Awards, interviews, growth, college tools,
- * events, journey, etc. stay off the sidebar unless
+ * program hub, chapter, account. Mentorship is for mentors / leadership only
+ * (injected when the viewer actively mentors). Awards, interviews, growth,
+ * college tools, events, journey, etc. stay off the sidebar unless
  * `INSTRUCTOR_FULL_PORTAL_EXPLORER` is enabled (full catalog within visible nav groups).
  */
 export const INSTRUCTOR_V1_ALLOWED_HREFS: ReadonlySet<string> = new Set([
@@ -27,7 +28,6 @@ export const INSTRUCTOR_V1_ALLOWED_HREFS: ReadonlySet<string> = new Set([
   "/announcements",
   "/notifications",
   "/calendar",
-  "/mentorship",
   // Student Operating System centerpiece (gated by `requiresGrowthOs` in the
   // catalog, so this only applies when ENABLE_GROWTH_OS is on).
   "/my-growth",

@@ -285,6 +285,16 @@ export interface ResolveNavInput {
    */
   instructorSubtype?: string | null;
   /**
+   * Server-resolved `ENABLE_REGULAR_INSTRUCTOR`. Pass from the server layout so
+   * client Nav matches SSR (process.env is unavailable in the browser bundle).
+   */
+  regularInstructorEnabled?: boolean;
+  /**
+   * Server-resolved `ENABLE_GAMIFICATION`. Pass from the server layout so
+   * client Nav matches SSR.
+   */
+  gamificationEnabled?: boolean;
+  /**
    * Public portal gate. When true, hide nav links the middleware would
    * redirect to /locked. Officer-tier roles bypass this filter here even
    * if the layout still passes `publicGateActive=true` (defense in depth).
@@ -300,6 +310,14 @@ export interface ResolveNavInput {
   actionsOnlyPreviewActive?: boolean;
   viewerEmail?: string | null;
   viewerInternalLevel?: number | null;
+  /**
+   * True when the viewer currently mentors (or chairs) someone. Lets
+   * instructor-primary mentors keep Mentorship in the sidebar even though
+   * the hub is not for mentee-only instructors.
+   */
+  isActiveMentor?: boolean;
+  /** Viewer is currently mentored — show Mentorship for mentee-only instructors. */
+  isActiveMentee?: boolean;
 }
 
 function toNavRole(value: string | null | undefined): NavRole | null {
@@ -643,7 +661,11 @@ export function resolveNavModel(
       // Gamification gate: while the gamification suite is off, drop every one
       // of its nav links for everyone — including admins (no role bypass).
       // Mirrors the route gate in proxy.ts.
-      if (!isGamificationEnabled() && isGamificationGatedPath(item.href)) {
+      const gamificationOn =
+        input.gamificationEnabled !== undefined
+          ? input.gamificationEnabled
+          : isGamificationEnabled();
+      if (!gamificationOn && isGamificationGatedPath(item.href)) {
         return false;
       }
 
@@ -651,8 +673,12 @@ export function resolveNavModel(
       // Admin sidebars stay intact so admins can keep managing applicants.
       // SW-subtype users keep the workshop studio + training links so the
       // post-approval onboarding path actually works.
+      const regularInstructorOn =
+        input.regularInstructorEnabled !== undefined
+          ? input.regularInstructorEnabled
+          : isRegularInstructorEnabled();
       if (
-        !isRegularInstructorEnabled() &&
+        !regularInstructorOn &&
         !roles.includes("ADMIN") &&
         primaryRole !== "ADMIN" &&
         isRegularInstructorGatedPath(item.href) &&
@@ -732,7 +758,14 @@ export function resolveNavModel(
   }
 
   if (shouldApplyInstructorV1NavFilter(primaryRole, input.instructorFullPortalExplorer)) {
-    visible = visible.filter((item) => INSTRUCTOR_V1_ALLOWED_HREFS.has(item.href));
+    visible = visible.filter(
+      (item) =>
+        INSTRUCTOR_V1_ALLOWED_HREFS.has(item.href) ||
+        (item.href === "/mentorship" &&
+          (input.isActiveMentor === true ||
+            input.isActiveMentee === true ||
+            roles.includes("MENTOR")))
+    );
   }
 
   // Apply applicant-only allowlist for users whose primary role is APPLICANT

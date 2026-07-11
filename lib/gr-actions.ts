@@ -8,6 +8,8 @@ import { logAuditEvent } from "@/lib/audit-log-actions";
 import { notifyMenteeReflectionDue } from "@/lib/mentorship-notifications";
 import { resolveWorkspaceAccess } from "@/lib/mentorship/workspace";
 import { getGoalRatingCopy } from "@/lib/mentorship-rubric-copy";
+import { buildGRMentorList, buildGROfficerInfo } from "@/lib/gr-contact";
+import { toMenteeRoleType } from "@/lib/mentee-role-utils";
 import { z } from "zod";
 
 // Local structural fallback type references protect compilers from generated prisma variations
@@ -31,6 +33,24 @@ async function requireAdmin() {
   const session = await requireAuth();
   const roles = session.user.roles ?? [];
   if (!roles.includes("ADMIN")) throw new Error("Unauthorized");
+  return session;
+}
+
+/** Admin, or the active mentor on this mentorship, may assign/activate G&R. */
+async function requireAdminOrAssignedMentor(mentorshipId: string) {
+  const session = await requireAuth();
+  const roles = session.user.roles ?? [];
+  if (roles.includes("ADMIN")) return session;
+
+  const pairing = await prisma.mentorship.findFirst({
+    where: {
+      id: mentorshipId,
+      status: "ACTIVE",
+      mentorId: session.user.id,
+    },
+    select: { id: true },
+  });
+  if (!pairing) throw new Error("Unauthorized");
   return session;
 }
 
@@ -452,19 +472,45 @@ export async function unlinkResourceFromTemplate(formData: FormData) {
 // ============================================
 
 export async function assignGRDocument(formData: FormData) {
-  const session = await requireAdmin();
+  const mentorshipId = getString(formData, "mentorshipId");
+  const session = await requireAdminOrAssignedMentor(mentorshipId);
   const userId = getString(formData, "userId");
   const templateId = getString(formData, "templateId");
-  const mentorshipId = getString(formData, "mentorshipId");
   const roleStartDate = new Date(getString(formData, "roleStartDate"));
 
-  const template = await prisma.gRTemplate.findUniqueOrThrow({
-    where: { id: templateId },
-    include: {
-      goals: { where: { isActive: true } },
-      successCriteria: true,
-      resources: true,
-    },
+  const contactSelect = {
+    name: true,
+    email: true,
+    phone: true,
+    title: true,
+    canonicalTitle: true,
+    primaryRole: true,
+    chapter: { select: { name: true } },
+  } as const;
+
+  const [template, mentorship] = await Promise.all([
+    prisma.gRTemplate.findUniqueOrThrow({
+      where: { id: templateId },
+      include: {
+        goals: { where: { isActive: true } },
+        successCriteria: true,
+        resources: true,
+      },
+    }),
+    prisma.mentorship.findUniqueOrThrow({
+      where: { id: mentorshipId },
+      select: {
+        mentee: { select: contactSelect },
+        mentor: { select: contactSelect },
+        chair: { select: contactSelect },
+      },
+    }),
+  ]);
+
+  const officerInfo = buildGROfficerInfo(mentorship.mentee, template.officerPosition);
+  const mentors = buildGRMentorList({
+    mentor: mentorship.mentor,
+    chair: mentorship.chair,
   });
 
   const document = await prisma.gRDocument.create({
@@ -475,9 +521,8 @@ export async function assignGRDocument(formData: FormData) {
       roleMission: template.roleMission,
       roleStartDate,
       status: "DRAFT",
-      ...(template.officerPosition
-        ? { officerInfo: { position: template.officerPosition } }
-        : {}),
+      officerInfo,
+      mentorInfo: { mentors },
       goals: {
         create: (template.goals ?? []).map((g: any) => ({
           templateGoalId: g.id,
@@ -525,6 +570,8 @@ export async function assignGRDocument(formData: FormData) {
   revalidatePath("/admin/mentorship/gr/assignments");
   revalidatePath("/admin/mentorship/gr");
   revalidatePath("/admin/mentorship");
+  revalidatePath(`/mentorship/people/${userId}`);
+  revalidatePath("/mentorship");
   return { id: document.id };
 }
 
@@ -559,8 +606,17 @@ export async function bulkAssignGRDocuments(formData: FormData) {
 }
 
 export async function activateGRDocument(formData: FormData) {
-  const session = await requireAdmin();
   const documentId = getString(formData, "documentId");
+  const document = await prisma.gRDocument.findUniqueOrThrow({
+    where: { id: documentId },
+    select: { id: true, mentorshipId: true, userId: true },
+  });
+  if (!document.mentorshipId) {
+    await requireAdmin();
+  } else {
+    await requireAdminOrAssignedMentor(document.mentorshipId);
+  }
+  const session = await requireAuth();
 
   await prisma.gRDocument.update({
     where: { id: documentId },
@@ -579,6 +635,8 @@ export async function activateGRDocument(formData: FormData) {
   revalidatePath("/admin/mentorship/gr/assignments");
   revalidatePath("/admin/mentorship/gr");
   revalidatePath("/admin/mentorship");
+  revalidatePath(`/mentorship/people/${document.userId}`);
+  revalidatePath("/mentorship");
 }
 
 /**
@@ -594,6 +652,214 @@ export async function assignAndActivateGRDocument(formData: FormData): Promise<v
   await activateGRDocument(activation);
 
   revalidatePath(`/mentorship/people/${userId}`);
+  revalidatePath("/mentorship");
+}
+
+const CUSTOM_GOAL_PHASES = new Set([
+  "MONTHLY",
+  "FIRST_MONTH",
+  "FIRST_QUARTER",
+  "LONG_TERM",
+]);
+
+const CustomGoalsSchema = z.object({
+  userId: z.string().min(1),
+  mentorshipId: z.string().min(1),
+  roleMission: z.string().trim().max(4000).optional().default(""),
+  goals: z
+    .array(
+      z.object({
+        title: z.string().trim().min(1).max(200),
+        description: z.string().trim().max(4000).optional().default(""),
+        timePhase: z.string().trim().optional().default("MONTHLY"),
+        priority: z.enum(["LOW", "NORMAL", "HIGH", "CRITICAL"]).optional().default("NORMAL"),
+        dueDate: z.string().trim().optional().nullable(),
+      })
+    )
+    .min(1, "Add at least one goal"),
+});
+
+/**
+ * Mentor/admin fill-and-go: create goals inline on the mentee Goals tab
+ * without requiring an approved admin template. Builds a one-off shell
+ * template (inactive, so it stays out of the admin blueprint list) plus an
+ * activated G&R document.
+ */
+export async function createAndActivateCustomGRDocument(formData: FormData): Promise<void> {
+  const mentorshipId = getString(formData, "mentorshipId");
+  const session = await requireAdminOrAssignedMentor(mentorshipId);
+
+  let goalsRaw: unknown;
+  try {
+    goalsRaw = JSON.parse(getString(formData, "goalsJson"));
+  } catch {
+    throw new Error("Invalid goals payload");
+  }
+
+  const parsed = CustomGoalsSchema.parse({
+    userId: getString(formData, "userId"),
+    mentorshipId,
+    roleMission: getOptionalString(formData, "roleMission") ?? "",
+    goals: goalsRaw,
+  });
+
+  const goals = parsed.goals.map((g, index) => {
+    const phase = CUSTOM_GOAL_PHASES.has(g.timePhase ?? "") ? g.timePhase! : "MONTHLY";
+    return {
+      title: g.title,
+      description: g.description ?? "",
+      timePhase: phase as GRTimePhase,
+      priority: (g.priority ?? "NORMAL") as GoalPriority,
+      dueDate: g.dueDate ? new Date(g.dueDate) : null,
+      sortOrder: index,
+    };
+  });
+
+  const existing = await prisma.gRDocument.findFirst({
+    where: {
+      userId: parsed.userId,
+      mentorshipId: parsed.mentorshipId,
+      status: { in: ["DRAFT", "PENDING_APPROVAL", "ACTIVE"] },
+    },
+    select: { id: true },
+  });
+  if (existing) {
+    throw new Error("This mentee already has goals. Open the Goals tab to view them.");
+  }
+
+  const contactSelect = {
+    name: true,
+    email: true,
+    phone: true,
+    title: true,
+    canonicalTitle: true,
+    primaryRole: true,
+    chapter: { select: { name: true } },
+  } as const;
+
+  const mentorship = await prisma.mentorship.findUniqueOrThrow({
+    where: { id: parsed.mentorshipId },
+    select: {
+      menteeId: true,
+      mentee: { select: contactSelect },
+      mentor: { select: contactSelect },
+      chair: { select: contactSelect },
+    },
+  });
+
+  if (mentorship.menteeId !== parsed.userId) {
+    throw new Error("Mentee does not match this mentorship");
+  }
+
+  const roleType =
+    toMenteeRoleType(mentorship.mentee.primaryRole ?? null) ?? "INSTRUCTOR";
+  const menteeName = mentorship.mentee.name?.trim() || "mentee";
+  const roleMission =
+    parsed.roleMission?.trim() ||
+    `Goals set with ${menteeName} for this mentorship.`;
+  const roleStartDate = new Date(
+    getOptionalString(formData, "roleStartDate") ?? new Date().toISOString().slice(0, 10)
+  );
+
+  const officerInfo = buildGROfficerInfo(mentorship.mentee, null);
+  const mentors = buildGRMentorList({
+    mentor: mentorship.mentor,
+    chair: mentorship.chair,
+  });
+
+  const document = await prisma.$transaction(async (tx) => {
+    const template = await tx.gRTemplate.create({
+      data: {
+        title: `Goals for ${menteeName}`,
+        roleType: roleType as MenteeRoleType,
+        roleMission,
+        status: "GR_APPROVED",
+        publishedAt: new Date(),
+        // Keep out of the reusable admin blueprint list.
+        isActive: false,
+        createdById: session.user.id,
+        lastEditedById: session.user.id,
+        goals: {
+          create: goals.map((g) => ({
+            title: g.title,
+            description: g.description,
+            timePhase: g.timePhase,
+            sortOrder: g.sortOrder,
+            isActive: true,
+            kind: "GOAL",
+          })),
+        },
+      },
+      include: { goals: { orderBy: { sortOrder: "asc" } } },
+    });
+
+    await tx.gRTemplateVersion.create({
+      data: {
+        templateId: template.id,
+        version: 1,
+        snapshot: {
+          title: template.title,
+          roleType,
+          roleMission,
+          goals: template.goals,
+          source: "mentor-inline",
+        },
+        changedBy: session.user.id,
+        changeNote: "Created inline by mentor/admin on Goals tab",
+      },
+    });
+
+    const doc = await tx.gRDocument.create({
+      data: {
+        userId: parsed.userId,
+        templateId: template.id,
+        mentorshipId: parsed.mentorshipId,
+        roleMission,
+        roleStartDate,
+        status: "ACTIVE",
+        officerInfo,
+        mentorInfo: { mentors },
+        goals: {
+          create: template.goals.map((g, index) => ({
+            templateGoalId: g.id,
+            title: g.title,
+            description: g.description,
+            timePhase: g.timePhase,
+            sortOrder: g.sortOrder,
+            isCustom: true,
+            priority: goals[index]?.priority ?? "NORMAL",
+            dueDate: goals[index]?.dueDate ?? null,
+          })),
+        },
+      },
+    });
+
+    await tx.gRDocumentVersion.create({
+      data: {
+        documentId: doc.id,
+        version: 1,
+        snapshot: { roleMission, goals: template.goals },
+        changedById: session.user.id,
+        changeNote: "Initial goals created inline",
+      },
+    });
+
+    return doc;
+  });
+
+  await logAuditEvent({
+    action: "GR_DOCUMENT_CREATED",
+    actorId: session.user.id,
+    targetType: "GRDocument",
+    targetId: document.id,
+    description: `Created custom G&R goals for user ${parsed.userId} (inline)`,
+  });
+
+  revalidatePath("/admin/mentorship-program/gr-assignments");
+  revalidatePath("/admin/mentorship/gr/assignments");
+  revalidatePath("/admin/mentorship/gr");
+  revalidatePath("/admin/mentorship");
+  revalidatePath(`/mentorship/people/${parsed.userId}`);
   revalidatePath("/mentorship");
 }
 
@@ -904,11 +1170,29 @@ export async function getGRTemplateDetail(id: string) {
 export async function getMyGRDocument() {
   const session = await requireAuth();
 
+  const contactSelect = {
+    name: true,
+    email: true,
+    phone: true,
+    title: true,
+    canonicalTitle: true,
+    primaryRole: true,
+    chapter: { select: { name: true } },
+  } as const;
+
   // FIX: Expected 1 arguments, but got 2 runtime signature mismatch resolved using standard singular object mapping constraints
   const doc = await prisma.gRDocument.findFirst({
     where: { userId: session.user.id, status: { in: ["DRAFT", "ACTIVE"] } },
     include: {
-      template: { select: { title: true, roleType: true, maxActiveMonthlyGoals: true } },
+      template: {
+        select: {
+          title: true,
+          roleType: true,
+          maxActiveMonthlyGoals: true,
+          officerPosition: true,
+        },
+      },
+      user: { select: contactSelect },
       goals: {
         where: { lifecycleStatus: { in: ["ACTIVE", "COMPLETED"] } },
         orderBy: [{ lifecycleStatus: "asc" }, { priority: "desc" }, { dueDate: "asc" }, { sortOrder: "asc" }],
@@ -920,13 +1204,20 @@ export async function getMyGRDocument() {
       mentorship: {
         select: {
           ...MENTORSHIP_LEGACY_ROOT_SELECT,
-          mentor: { select: { id: true, name: true, email: true } },
+          mentor: { select: contactSelect },
+          chair: { select: contactSelect },
         },
       },
     },
   });
 
   if (!doc) return null;
+
+  const officer = buildGROfficerInfo(doc.user, doc.template.officerPosition);
+  const mentors = buildGRMentorList({
+    mentor: doc.mentorship.mentor,
+    chair: doc.mentorship.chair,
+  });
 
   const today = new Date();
   const sevenDaysOut = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
@@ -1014,6 +1305,8 @@ export async function getMyGRDocument() {
 
   return {
     ...doc,
+    officer,
+    mentors,
     currentPriorities,
     goalsByLifecycle,
     latestReview,
