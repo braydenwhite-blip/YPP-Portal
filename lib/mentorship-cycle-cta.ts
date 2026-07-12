@@ -23,49 +23,67 @@ type LookupArgs = {
   menteeId: string;
   mentorshipId: string;
   reviewId?: string | null;
+  mentorCheckInComplete?: boolean;
 };
 
-export function getCycleStageCTA({ stage, menteeId, reviewId }: LookupArgs): CycleCTA {
+function feedbackHref(menteeId: string, panel?: "draft" | "approve"): string {
+  const base = `/mentorship/people/${menteeId}?section=reviews`;
+  return panel ? `${base}&panel=${panel}` : base;
+}
+
+export function getCycleStageCTA({
+  stage,
+  menteeId,
+  mentorCheckInComplete = false,
+}: LookupArgs): CycleCTA {
   switch (stage) {
     case "KICKOFF_PENDING":
       return {
-        label: "Mark kickoff complete",
-        href: `/people/${menteeId}`,
+        label: "Mark first meeting done",
+        href: `/mentorship/people/${menteeId}?section=check-ins`,
         disabled: false,
         variant: "primary",
       };
     case "REFLECTION_DUE":
       return {
-        label: "Waiting on mentee reflection",
+        label: "Waiting on their note",
         href: null,
         disabled: true,
         variant: "muted",
       };
     case "REFLECTION_SUBMITTED":
+      if (!mentorCheckInComplete) {
+        return {
+          label: "Log meeting",
+          href: feedbackHref(menteeId),
+          disabled: false,
+          variant: "primary",
+        };
+      }
       return {
-        label: "Write monthly review",
-        href: `/people/${menteeId}?section=review&panel=draft`,
+        label: "Send feedback",
+        href: feedbackHref(menteeId),
         disabled: false,
         variant: "primary",
       };
     case "REVIEW_SUBMITTED":
       return {
-        label: "Awaiting chair approval",
+        label: "Waiting on chair",
         href: null,
         disabled: true,
         variant: "muted",
       };
     case "CHANGES_REQUESTED":
       return {
-        label: "Revise review",
-        href: `/people/${menteeId}?section=review&panel=draft`,
+        label: "Fix and resend feedback",
+        href: feedbackHref(menteeId, "draft"),
         disabled: false,
         variant: "primary",
       };
     case "APPROVED":
       return {
-        label: "View released review",
-        href: `/people/${menteeId}?section=review`,
+        label: "View feedback",
+        href: feedbackHref(menteeId),
         disabled: false,
         variant: "secondary",
       };
@@ -74,24 +92,29 @@ export function getCycleStageCTA({ stage, menteeId, reviewId }: LookupArgs): Cyc
     case "COMPLETE":
       return { label: "Complete", href: null, disabled: true, variant: "muted" };
     default:
-      return { label: "View", href: `/people/${menteeId}`, disabled: false, variant: "secondary" };
+      return {
+        label: "Open",
+        href: `/mentorship/people/${menteeId}`,
+        disabled: false,
+        variant: "secondary",
+      };
   }
 }
 
 export function stageLabel(stage: MentorshipCycleStage): string {
   switch (stage) {
     case "KICKOFF_PENDING":
-      return "Kickoff pending";
+      return "First meeting pending";
     case "REFLECTION_DUE":
-      return "Reflection due";
+      return "Note due";
     case "REFLECTION_SUBMITTED":
-      return "Reflection submitted";
+      return "Note in";
     case "REVIEW_SUBMITTED":
-      return "Awaiting chair";
+      return "Waiting on chair";
     case "CHANGES_REQUESTED":
       return "Changes requested";
     case "APPROVED":
-      return "Approved";
+      return "Shared";
     case "PAUSED":
       return "Paused";
     case "COMPLETE":

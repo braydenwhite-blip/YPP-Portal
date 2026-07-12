@@ -37,7 +37,7 @@ export function MentorPersonHome({
           title="Meetings"
           detail={meetings === 0 ? "Log a meeting" : `${meetings} logged`}
         />
-        <Door href={feedbackHref} title="Feedback" detail="Reviews & notes" />
+        <Door href={feedbackHref} title="Feedback" detail="Notes & check-ins" />
       </div>
 
       {(workspace.relationships.startedAtLabel ||

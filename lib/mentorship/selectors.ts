@@ -143,10 +143,24 @@ function candidatesForFact(
       candidate(
         "changes_requested",
         fact.id,
-        "Revise your review",
-        `The chair requested changes on ${fact.menteeName}'s review.`,
-        "Open review",
-        workspaceHref(fact.menteeId, "section=reviews&panel=draft"),
+        "Fix and resend feedback",
+        `The chair asked for a tweak on ${fact.menteeName}'s feedback.`,
+        "Open feedback",
+        workspaceHref(fact.menteeId, "section=reviews"),
+        "attention",
+        now
+      )
+    );
+  }
+  if (mentorSide && fact.meetingDue) {
+    out.push(
+      candidate(
+        "session",
+        fact.id,
+        `Log meeting with ${fact.menteeName}`,
+        `${fact.menteeName} sent a note — mark that you talked, then send feedback.`,
+        "Log meeting",
+        workspaceHref(fact.menteeId, "section=reviews"),
         "attention",
         now
       )
@@ -157,10 +171,10 @@ function candidatesForFact(
       candidate(
         "review",
         fact.id,
-        `Review ${fact.menteeName}`,
-        `${fact.menteeName} submitted a reflection — your review is due.`,
-        "Start review",
-        workspaceHref(fact.menteeId, "section=reviews&panel=draft"),
+        `Send feedback for ${fact.menteeName}`,
+        `${fact.menteeName}'s note is ready — write a short update.`,
+        "Send feedback",
+        workspaceHref(fact.menteeId, "section=reviews"),
         "attention",
         now
       )
@@ -171,8 +185,8 @@ function candidatesForFact(
       candidate(
         "chair_approval",
         fact.id,
-        `Approve ${fact.mentorName}'s review`,
-        `A review for ${fact.menteeName} is waiting for chair approval.`,
+        `Share ${fact.menteeName}'s feedback`,
+        `Feedback for ${fact.menteeName} is waiting for chair approval.`,
         "Open approvals",
         workspaceHref(fact.menteeId, "section=reviews&panel=approve"),
         "attention",
@@ -199,9 +213,9 @@ function candidatesForFact(
       candidate(
         "reflection",
         fact.id,
-        "Submit this month's reflection",
-        "Your reflection opens this cycle's review.",
-        "Open reflection",
+        "Share your monthly note",
+        "Three short answers for your mentor.",
+        "Open Feedback",
         workspaceHref(fact.menteeId, "section=reviews"),
         "brand",
         now

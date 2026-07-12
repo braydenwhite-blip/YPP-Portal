@@ -26,6 +26,8 @@ export type MentorHomeCardInput = {
   menteeName: string;
   cycleStage: MentorshipCycleStage;
   kickoffPending: boolean;
+  /** Cycle-bound meeting logged for the latest reflection. */
+  mentorCheckInComplete?: boolean;
   /** GoalRatingColor values from the latest review (may be empty). */
   latestRatings: string[];
 };
@@ -109,7 +111,11 @@ export function mentorCardsToFacts({
     kickoffCompleted:
       !card.kickoffPending && card.cycleStage !== "KICKOFF_PENDING",
     reflectionDue: card.cycleStage === "REFLECTION_DUE",
-    reviewDue: card.cycleStage === "REFLECTION_SUBMITTED",
+    meetingDue:
+      card.cycleStage === "REFLECTION_SUBMITTED" && !card.mentorCheckInComplete,
+    reviewDue:
+      card.cycleStage === "REFLECTION_SUBMITTED" &&
+      Boolean(card.mentorCheckInComplete),
     reviewPendingChairApproval: card.cycleStage === "REVIEW_SUBMITTED",
     reviewChangesRequested: card.cycleStage === "CHANGES_REQUESTED",
     lastActivityISO: null,

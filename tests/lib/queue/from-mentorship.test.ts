@@ -25,6 +25,7 @@ function fact(overrides: Partial<MentorshipRelationshipFact> = {}): MentorshipRe
     releasedColorStatus: null,
     kickoffCompleted: true,
     reflectionDue: false,
+    meetingDue: false,
     reviewDue: false,
     reviewPendingChairApproval: false,
     reviewChangesRequested: false,
@@ -58,7 +59,7 @@ describe("queueItemsFromMentorshipFacts", () => {
     const review = items.find((i) => i.id === "ment:review:ms-1");
     expect(review).toBeDefined();
     expect(review!.type).toBe("mentorship");
-    expect(review!.primaryAction.href).toBe("/mentorship/reviews/mentee-1");
+    expect(review!.primaryAction.href).toBe("/mentorship/people/mentee-1?section=reviews");
     expect(review!.signals.mine).toBe(true);
     expect(review!.inline).toBeNull();
   });

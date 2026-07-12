@@ -194,7 +194,7 @@ export async function MenteeGoalsSection({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="min-w-0">
             <h2 className="m-0 text-[16px] font-bold tracking-[-0.2px] text-ink">
-              Goals & Responsibilities
+              Goals
             </h2>
             <p className="m-0 mt-1 text-[13px] text-ink-muted">{doc.template.title}</p>
           </div>

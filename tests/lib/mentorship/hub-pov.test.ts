@@ -32,9 +32,11 @@ describe("availablePovs", () => {
     ]);
   });
 
-  it("chairs and admins get the mentor console even with zero mentees", () => {
+  it("chairs (and committees) get the mentor console for queues; admins alone do not", () => {
     expect(availablePovs(viewer({ isChair: true }))).toContain("mentor");
-    expect(availablePovs(viewer({ isAdmin: true }))).toContain("mentor");
+    expect(availablePovs(viewer({ isCommitteeMember: true }))).toContain("mentor");
+    expect(availablePovs(viewer({ isAdmin: true }))).not.toContain("mentor");
+    expect(availablePovs(viewer({ isAdmin: true, isMentor: true }))).toContain("mentor");
   });
 
   it("admins and command-center access both unlock the admin POV", () => {

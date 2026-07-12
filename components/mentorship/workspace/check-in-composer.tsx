@@ -23,14 +23,14 @@ function todayValue(): string {
 }
 
 /**
- * Simple meeting log — date + optional note. Mentor and mentee can both use it.
- * Cycle-bound Mentor Check-ins keep the same short form (still advances the cycle).
+ * Simple meeting log — date + optional note. Cycle-bound meetings still
+ * advance the monthly feedback loop under the hood.
  */
 export function CheckInComposer({
   subjectId,
   mentorshipId,
   selfReflectionId,
-  cycleLabel,
+  cycleLabel: _cycleLabel,
   participantOptions,
   personName,
   isSelf = false,
@@ -75,21 +75,22 @@ export function CheckInComposer({
         await recordCheckIn(input);
         setOpen(false);
         reset();
-        router.refresh();
+        if (isCycleCheckIn) {
+          router.push(`/mentorship/people/${subjectId}?section=reviews`);
+          router.refresh();
+        } else {
+          router.refresh();
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : "Could not save the meeting.");
       }
     });
   }
 
-  const buttonLabel = isCycleCheckIn
-    ? "Record Mentor Check-in"
-    : "Log a meeting";
-
   return (
     <>
       <Button variant="primary" size="sm" onClick={() => setOpen(true)}>
-        {buttonLabel}
+        Log a meeting
       </Button>
 
       <ModalV2
@@ -104,15 +105,11 @@ export function CheckInComposer({
             id="meeting-log-title"
             className="m-0 text-[16px] font-bold text-ink"
           >
-            {isCycleCheckIn
-              ? "Record Mentor Check-in"
-              : isSelf
-                ? "Log a meeting"
-                : `Log a meeting with ${personName}`}
+            {isSelf ? "Log a meeting" : `Log a meeting with ${personName}`}
           </h2>
           <p className="m-0 mt-1 text-[13px] text-ink-muted">
             {isCycleCheckIn
-              ? `Mark that you talked about ${personName}'s ${cycleLabel ?? "current"} reflection.`
+              ? "Mark that you talked. Then you can send feedback."
               : "Just mark that you met. Add a short note if you want."}
           </p>
         </div>
@@ -133,7 +130,7 @@ export function CheckInComposer({
             className={`${fieldInput} resize-y leading-relaxed`}
             rows={3}
             value={notes}
-            placeholder="What did you cover? Anything to follow up on?"
+            placeholder="What did you cover?"
             onChange={(e) => setNotes(e.target.value)}
           />
         </label>
@@ -147,7 +144,7 @@ export function CheckInComposer({
             Cancel
           </Button>
           <Button variant="primary" size="sm" onClick={submit} loading={pending}>
-            {isCycleCheckIn ? "Mark check-in done" : "Save meeting"}
+            Save meeting
           </Button>
         </ModalFooterV2>
       </ModalV2>

@@ -3,13 +3,11 @@ import { ButtonLink, PageHeaderV2 } from "@/components/ui-v2";
 import { prisma } from "@/lib/prisma";
 import type { MentorshipWorkspace } from "@/lib/mentorship/workspace";
 import { SegmentedTabs } from "@/app/(app)/mentorship/_components/segmented-tabs";
-import { ActiveReviewCycleCard } from "@/components/people-strategy/active-review-cycle-card";
 import { KickoffStatusRow } from "@/components/mentorship/kickoff-status-row";
 
 import { CheckInsSection } from "./sections";
 import { MenteeGoalsSection } from "./goals-section";
 import { ReviewsSection } from "./reviews-section";
-import { ReviewDraftPanel } from "./review-draft-panel";
 import { ChairApprovalPanel } from "./chair-approval-panel";
 import {
   SetupRepairPanel,
@@ -91,7 +89,8 @@ export function MentorshipWorkspaceView({
   alsoMentors?: boolean;
 }) {
   const isSelf = workspace.isSelf;
-  const active = resolveSection(section);
+  const active =
+    panel === "draft" || panel === "approve" ? "reviews" : resolveSection(section);
 
   const tabs = SECTIONS.map((s) => ({
     id: s.id,
@@ -99,32 +98,14 @@ export function MentorshipWorkspaceView({
     href: sectionHref(s.id),
   }));
 
-  const canOpenDraft =
-    panel === "draft" &&
-    workspace.capabilities.canDraftReview &&
-    (workspace.lifecycle.cycleStage === "REFLECTION_SUBMITTED" ||
-      workspace.lifecycle.cycleStage === "CHANGES_REQUESTED");
   const canOpenApproval =
     panel === "approve" &&
     workspace.capabilities.canApprove &&
     workspace.lifecycle.cycleStage === "REVIEW_SUBMITTED";
-  const requestedUnavailablePanel =
-    (panel === "draft" || panel === "approve") && !canOpenDraft && !canOpenApproval;
+  const requestedUnavailablePanel = panel === "approve" && !canOpenApproval;
 
   const body = (
     <>
-      <ActiveReviewCycleCard
-        cycleState={workspace.cycleState}
-        canTakeNextAction={
-          workspace.nextAction.key === workspace.cycleState.nextAction.key ||
-          workspace.cycleState.availableActions.includes(workspace.cycleState.nextAction.key) ||
-          (workspace.canManageSetup &&
-            ["assign-mentor", "schedule-kickoff", "assign-goals", "assign-role-chair"].includes(
-              workspace.cycleState.nextAction.key
-            ))
-        }
-      />
-
       {panel === "setup" && setup ? (
         <SetupRepairPanel
           personId={workspace.person.id}
@@ -151,14 +132,8 @@ export function MentorshipWorkspaceView({
         />
       ) : null}
 
-      {canOpenDraft ? (
-        <ReviewDraftPanel
-          menteeId={workspace.person.id}
-          menteeName={workspace.person.name}
-          commitments={workspace.commitments}
-        />
-      ) : null}
-
+      {/* Feedback writing is inline on the Feedback tab. Chair approval still
+          opens via ?panel=approve. */}
       {canOpenApproval ? (
         <ChairApprovalPanel
           menteeId={workspace.person.id}

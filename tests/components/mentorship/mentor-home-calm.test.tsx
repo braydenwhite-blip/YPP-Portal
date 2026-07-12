@@ -25,19 +25,16 @@ describe("MentorHomeCalm", () => {
         menteeName: "Sam Mentee",
         cycleStage: "REFLECTION_SUBMITTED",
         kickoffPending: false,
+        mentorCheckInComplete: true,
         latestRatings: ["ACHIEVED"],
       },
     ]);
 
     render(<MentorHomeCalm vm={vm} needsYouCount={1} />);
 
-    // Focus card leads with the single next move.
-    expect(screen.getByText("Review Sam Mentee")).toBeInTheDocument();
-    // Short roster shows the mentee.
+    expect(screen.getByText("Send feedback for Sam Mentee")).toBeInTheDocument();
     expect(screen.getByText("Your mentees")).toBeInTheDocument();
     expect(screen.getByText("Sam Mentee")).toBeInTheDocument();
-    // Quiet action strip is present.
-    expect(screen.getByRole("link", { name: /Feedback/ })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Schedule/ })).toBeNull();
   });
 
@@ -58,14 +55,11 @@ describe("MentorHomeCalm", () => {
     expect(screen.getByText(/caught up/i)).toBeInTheDocument();
   });
 
-  it("no longer links a separate review inbox — approvals render on the Mentorship home itself", () => {
+  it("does not link a separate review inbox — approvals live on Mentorship home", () => {
     const vm = vmWith([]);
     render(<MentorHomeCalm vm={vm} needsYouCount={0} />);
     expect(screen.queryByRole("link", { name: /Monthly reviews/ })).toBeNull();
-    expect(screen.getByRole("link", { name: /Feedback/ })).toHaveAttribute(
-      "href",
-      "/mentorship/feedback"
-    );
+    expect(screen.queryByRole("link", { name: /^Feedback$/ })).toBeNull();
     expect(screen.queryByRole("link", { name: /Schedule/ })).toBeNull();
   });
 });

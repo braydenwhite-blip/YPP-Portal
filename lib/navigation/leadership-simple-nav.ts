@@ -2,8 +2,8 @@ import type { NavRole } from "@/lib/navigation/types";
 
 /**
  * Leadership / hiring sidebar — shipped default.
- * Home · People · Mentorship · Actions · Applicants
- * (Hiring Chair omits Mentorship — not in that role's day-to-day set.)
+ * Home · Mentorship · Actions · Applicants
+ * (Hiring Chair keeps People/directory instead of Mentorship.)
  *
  * Set `LEADERSHIP_FULL_PORTAL_EXPLORER=true` locally to unlock the full
  * officer / chapter-president catalog for testing.
@@ -27,17 +27,17 @@ const CHAPTER_APPLICANTS = "/chapter-lead/instructor-applicants";
 
 /** Core pins when the full leadership explorer is on (pre–simple-nav IA). */
 export const LEADERSHIP_FULL_CORE_NAV_MAP: Partial<Record<NavRole, string[]>> = {
-  ADMIN: ["/", "/people", "/mentorship", "/actions", "/admin"],
-  STAFF: ["/", "/people", "/mentorship", "/actions", "/leadership-pathway"],
+  ADMIN: ["/", "/mentorship", "/actions", "/admin"],
+  STAFF: ["/", "/mentorship", "/actions", "/leadership-pathway"],
   HIRING_CHAIR: ["/", "/admin/instructor-applicants", "/people", "/actions", "/meetings"],
-  CHAPTER_PRESIDENT: ["/", "/chapter", "/people", "/mentorship", "/actions"],
+  CHAPTER_PRESIDENT: ["/", "/chapter", "/mentorship", "/actions"],
 };
 
 export function leadershipSimpleNavHrefs(primaryRole: NavRole): readonly string[] {
   const applicants =
     primaryRole === "CHAPTER_PRESIDENT" ? CHAPTER_APPLICANTS : NETWORK_APPLICANTS;
   if (MENTORSHIP_SIMPLE_NAV_ROLES.has(primaryRole)) {
-    return ["/", "/people", "/mentorship", "/actions", applicants];
+    return ["/", "/mentorship", "/actions", applicants];
   }
   return ["/", "/people", "/actions", applicants];
 }
@@ -48,12 +48,10 @@ export function isLeadershipFullPortalExplorerEnabled(): boolean {
 
 export function shouldApplyLeadershipSimpleNav(
   primaryRole: NavRole,
-  leadershipFullPortalExplorer?: boolean,
+  leadershipFullPortalExplorer?: boolean
 ): boolean {
   if (!LEADERSHIP_SIMPLE_NAV_ROLES.has(primaryRole)) return false;
-  const fullExplorer =
-    leadershipFullPortalExplorer !== undefined
-      ? leadershipFullPortalExplorer
-      : isLeadershipFullPortalExplorerEnabled();
-  return !fullExplorer;
+  if (leadershipFullPortalExplorer === true) return false;
+  if (isLeadershipFullPortalExplorerEnabled()) return false;
+  return true;
 }

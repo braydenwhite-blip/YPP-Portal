@@ -214,6 +214,8 @@ export type MentorshipRelationshipFact = {
   releasedColorStatus: GoalRatingColor | null;
   kickoffCompleted: boolean;
   reflectionDue: boolean;
+  /** Reflection is in; mentor still needs to log the meeting. */
+  meetingDue: boolean;
   reviewDue: boolean;
   reviewPendingChairApproval: boolean;
   reviewChangesRequested: boolean;

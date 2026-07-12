@@ -30,6 +30,7 @@ function fact(overrides: Partial<MentorshipRelationshipFact> = {}): MentorshipRe
     releasedColorStatus: null,
     kickoffCompleted: true,
     reflectionDue: false,
+    meetingDue: false,
     reviewDue: false,
     reviewPendingChairApproval: false,
     reviewChangesRequested: false,

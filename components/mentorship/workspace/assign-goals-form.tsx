@@ -96,13 +96,13 @@ export function AssignGoalsForm({
     <form onSubmit={onSubmit} className="flex w-full flex-col gap-6 text-left">
       <label className="flex flex-col gap-2">
         <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-ink-muted">
-          Role mission
+          Big picture (optional)
         </span>
         <textarea
           value={roleMission}
           onChange={(e) => setRoleMission(e.target.value)}
           rows={2}
-          placeholder="Optional — what this role is about for them"
+          placeholder="What this role is about for them"
           className="w-full resize-none rounded-[12px] border border-transparent bg-surface-soft px-4 py-3 text-[14px] leading-relaxed text-ink outline-none transition-colors placeholder:text-ink-muted/70 focus:border-brand-300 focus:bg-surface"
         />
       </label>
@@ -152,36 +152,36 @@ export function AssignGoalsForm({
                       updateGoal(index, { description: e.target.value })
                     }
                     rows={2}
-                    placeholder="A sentence on what success looks like"
+                    placeholder="A sentence on what success looks like (optional)"
                     className="mt-2 w-full resize-none border-0 bg-transparent p-0 text-[13.5px] leading-relaxed text-ink-muted outline-none placeholder:text-ink-muted/55"
                   />
-
-                  <div className="mt-4 flex flex-wrap gap-1.5">
-                    {TIME_PHASE_OPTIONS.map((o) => {
-                      const selected = goal.timePhase === o.value;
-                      return (
-                        <button
-                          key={o.value}
-                          type="button"
-                          onClick={() => updateGoal(index, { timePhase: o.value })}
-                          className={
-                            selected
-                              ? "rounded-full bg-brand-600 px-3 py-1 text-[12px] font-semibold text-white"
-                              : "rounded-full bg-surface-soft px-3 py-1 text-[12px] font-medium text-ink-muted hover:bg-line/60 hover:text-ink"
-                          }
-                        >
-                          {o.label}
-                        </button>
-                      );
-                    })}
-                  </div>
 
                   <details className="mt-3 group">
                     <summary className="cursor-pointer list-none text-[12.5px] font-medium text-ink-muted hover:text-ink [&::-webkit-details-marker]:hidden">
                       <span className="group-open:hidden">More options</span>
                       <span className="hidden group-open:inline">Fewer options</span>
                     </summary>
-                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <div className="mt-3 flex flex-col gap-3">
+                      <div className="flex flex-wrap gap-1.5">
+                        {TIME_PHASE_OPTIONS.map((o) => {
+                          const selected = goal.timePhase === o.value;
+                          return (
+                            <button
+                              key={o.value}
+                              type="button"
+                              onClick={() => updateGoal(index, { timePhase: o.value })}
+                              className={
+                                selected
+                                  ? "rounded-full bg-brand-600 px-3 py-1 text-[12px] font-semibold text-white"
+                                  : "rounded-full bg-surface-soft px-3 py-1 text-[12px] font-medium text-ink-muted hover:bg-line/60 hover:text-ink"
+                              }
+                            >
+                              {o.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
                       <label className="flex flex-col gap-1.5">
                         <span className="text-[11.5px] font-semibold uppercase tracking-[0.05em] text-ink-muted">
                           Priority
@@ -213,6 +213,7 @@ export function AssignGoalsForm({
                           className="h-9 rounded-[10px] border border-line bg-surface px-3 text-[13px] text-ink outline-none focus:border-brand-400"
                         />
                       </label>
+                      </div>
                     </div>
                   </details>
                 </div>

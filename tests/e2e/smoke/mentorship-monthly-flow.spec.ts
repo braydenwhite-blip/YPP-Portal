@@ -76,86 +76,65 @@ test.describe("canonical Mentorship lifecycle", () => {
     await expect(page.getByText("Reflection due")).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath("01-admin-setup-complete.png"), fullPage: true });
 
-    // Mentee submits the guided Self-Reflection from the same person workspace.
+    // Mentee sends a short monthly note from Feedback.
     await login(page, USERS.mentee);
     await page.goto("/mentorship");
     await expect(page).toHaveURL(new RegExp(`${personPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`));
     await page.getByRole("link", { name: "Feedback", exact: true }).click();
-    await page.getByPlaceholder("Share your overall reflection on the past month…").fill(
+    await page.getByPlaceholder("It was pretty good / busy / hard because…").fill(
       "I improved the robotics lesson sequence and used learner feedback to choose the next iteration."
     );
-    await page.getByRole("button", { name: "Next →" }).click();
-    await page.getByPlaceholder("Describe your overall engagement and fulfillment…").fill("Focused and engaged.");
-    await page.getByPlaceholder("Describe what's been working well…").fill("Short learner feedback loops.");
-    await page.getByPlaceholder("Describe what support or resources you need…").fill("One observation from my mentor.");
-    await page.getByPlaceholder("Assess your mentor's support and helpfulness…").fill("Specific and timely.");
-    await page.getByRole("button", { name: "Next →" }).click();
-    await page.getByPlaceholder("Describe your leadership team collaboration this month…").fill(
-      "We documented decisions and followed through."
+    await page.getByPlaceholder("I finished… / I felt proud of…").fill("Short learner feedback loops.");
+    await page.getByPlaceholder("I got stuck on… / I wish I had help with…").fill(
+      "One observation from my mentor."
     );
-    await page.getByRole("button", { name: "Next →" }).click();
-    await page.getByPlaceholder("Describe the progress made…").fill("Completed the learner-centered lesson draft.");
-    await page.getByPlaceholder("List your accomplishments for this goal…").fill("Piloted two revised activities.");
-    await page.getByPlaceholder("Describe your plans for next month…").fill("Measure outcomes in the first delivery.");
-    await page.getByRole("button", { name: "Next →" }).click();
-    await page.getByPlaceholder("Any additional thoughts, context, or notes…").fill("Ready for the Mentor Check-in.");
-    await page.getByRole("button", { name: "Submit Reflection" }).click();
+    await page.getByRole("button", { name: "Send to mentor" }).click();
     await expect(page).toHaveURL(
       new RegExp(`${personPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\?section=reviews`)
     );
-    await expect(page.getByText("Mentor Check-in due")).toBeVisible();
+    await expect(page.getByText(/waiting on your mentor/i)).toBeVisible();
 
-    // Mentor records the cycle-bound Check-in, then writes the Progress Update.
+    // Mentor logs the meeting from Feedback, then sends feedback on the same tab.
     await login(page, USERS.mentor);
-    await page.goto(personPath);
-    await page.getByRole("link", { name: "Record the Mentor Check-in" }).click();
-    await page.getByRole("button", { name: "Record Mentor Check-in" }).click();
-    await page.getByPlaceholder("What did you cover? Anything to follow up on?").fill(
+    await page.goto(`${personPath}?section=reviews`);
+    await page.getByRole("button", { name: "Log a meeting" }).click();
+    await page.getByPlaceholder("What did you cover?").fill(
       "Reviewed the reflection and agreed on the next learner outcome."
     );
-    await page.getByRole("button", { name: "Mark check-in done" }).click();
-    await expect(page.getByText("Progress Update due")).toBeVisible();
-    await page.getByRole("link", { name: "Write the Monthly Progress Update" }).click();
-    await expect(page.getByRole("heading", { name: /Write the .* Monthly Progress Update/ })).toBeVisible();
-    const achievedButtons = page.getByRole("button", { name: "Achieved", exact: true });
-    for (let index = 0; index < (await achievedButtons.count()); index += 1) {
-      await achievedButtons.nth(index).click();
-    }
-    await page.getByLabel(/Progress after release for/).selectOption("IN_PROGRESS");
-    await page.getByPlaceholder("Summarize performance for this cycle...").fill(
+    await page.getByRole("button", { name: "Save meeting" }).click();
+    await expect(page.getByRole("heading", { name: /Send feedback/ })).toBeVisible();
+    await page.getByRole("button", { name: "On track" }).click();
+    await page.getByPlaceholder("You did a great job with…").fill(
       "Strong progress: the lesson sequence is ready and the mentee is using learner evidence."
     );
-    await page.getByPlaceholder("What should they focus on next month?").fill(
-      "Deliver the revised lesson, measure one learner outcome, and bring it to the next Check-in."
+    await page.getByPlaceholder("Next, try…").fill(
+      "Deliver the revised lesson, measure one learner outcome, and bring it to the next meeting."
     );
-    await page.getByRole("button", { name: "Submit for Approval" }).click();
-    await expect(page.getByText("Waiting for chair")).toBeVisible();
+    await page.getByRole("button", { name: "Send feedback" }).click();
+    await expect(page.getByText(/Feedback is with the chair/i)).toBeVisible();
 
-    // The non-admin lane Chair receives a decision-ready packet and requests changes.
+    // Chair requests a small tweak.
     await login(page, USERS.chair);
     await page.goto(`${personPath}?section=reviews&panel=approve`);
     await expect(page.getByText("Ready for decision")).toBeVisible();
-    await expect(page.getByText("Mentor Check-in context")).toBeVisible();
+    await expect(page.getByText("Meeting note")).toBeVisible();
     await page.getByPlaceholder("Optional feedback for the mentor…").fill(
       "Name the measurable learner outcome and make its owner explicit."
     );
     await page.getByRole("button", { name: "Request Changes" }).click();
     await expect(page.getByText("Changes requested", { exact: true })).toBeVisible();
-    await expect(page.getByText(/Owner:\s*E2E Mentor Alpha/)).toBeVisible();
 
-    // Mentor sees the Chair feedback, revises, and resubmits.
+    // Mentor fixes and resends.
     await login(page, USERS.mentor);
-    await page.goto(personPath);
-    await page.getByRole("link", { name: "Revise your review" }).click();
+    await page.goto(`${personPath}?section=reviews`);
     await expect(page.getByText(/Name the measurable learner outcome/)).toBeVisible();
-    await page.getByPlaceholder("Summarize performance for this cycle...").fill(
+    await page.getByPlaceholder("You did a great job with…").fill(
       "Strong progress: the mentee owns measuring completion rate for the first revised learner activity."
     );
-    await page.getByRole("button", { name: "Submit for Approval" }).click();
-    await expect(page.getByText("Waiting for chair")).toBeVisible();
+    await page.getByRole("button", { name: "Send feedback" }).click();
+    await expect(page.getByText(/Feedback is with the chair/i)).toBeVisible();
 
-    // Chair approves; approval atomically releases immutable history and applies
-    // the proposed Current G&R progress update.
+    // Chair approves and shares.
     await login(page, USERS.chair);
     await page.goto(`${personPath}?section=reviews&panel=approve`);
     page.once("dialog", (dialog) => dialog.accept());
@@ -164,10 +143,10 @@ test.describe("canonical Mentorship lifecycle", () => {
     await page.screenshot({ path: testInfo.outputPath("02-chair-release-complete.png"), fullPage: true });
 
     await login(page, USERS.mentee);
-    await page.goto(`${personPath}?section=goals`);
-    await expect(page.getByText("In progress")).toBeVisible();
     await page.goto(`${personPath}?section=reviews`);
-    await expect(page.getByText("Feedback released to you")).toBeVisible();
+    await expect(
+      page.getByText(/mentee owns measuring completion rate/i)
+    ).toBeVisible();
   });
 
   test("committee member can open the quarterly packet from Mentorship", async ({ page }, testInfo) => {

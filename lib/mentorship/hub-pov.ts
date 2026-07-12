@@ -42,10 +42,11 @@ export function isMenteeOnly(facts: HubViewerFacts): boolean {
 /** Every POV this viewer may open, in display order (me · mentor · admin). */
 export function availablePovs(facts: HubViewerFacts): HubPov[] {
   const povs = new Set<HubPov>();
+  // Mentee / Mentor cards only from real pairings — not admin/chair alone.
   if (facts.isMentee) povs.add("me");
-  if (facts.isMentor || facts.isChair || facts.isCommitteeMember || facts.isAdmin) {
-    povs.add("mentor");
-  }
+  if (facts.isMentor) povs.add("mentor");
+  // Chair / committee still use the mentor console for approval queues.
+  if (facts.isChair || facts.isCommitteeMember) povs.add("mentor");
   // Any ADMIN gets the cockpit (parity with the old /admin/mentorship gate);
   // the leadership-only overview blocks are gated separately inside it.
   if (facts.hasCommandCenterAccess || facts.isAdmin) povs.add("admin");

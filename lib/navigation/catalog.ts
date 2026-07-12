@@ -675,27 +675,18 @@ export const NAV_CATALOG: NavLink[] = [
       href: "/people",
       label: "People",
       icon: "👥",
-      // Master People database (Knowledge OS V2 front door). Officer-tier:
-      // advisor check-in state and applicant stages are leadership reads.
-      roles: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"] as NavRole[],
+      // Directory / find for Hiring Chair. Leadership performance roster lives
+      // on Mentorship home; `/people` redirects there for those roles.
+      roles: ["HIRING_CHAIR"] as NavRole[],
       searchAliases: [
         "People",
         "People Hub",
-        "People Database",
         "Directory",
         "Find a person",
         "Find people",
-        "People & Performance",
-        "Students",
-        "Instructors",
-        "Advisors",
-        "Members",
-        "Manage classes",
-        "Class operations",
-        "Class review",
       ],
       dashboardDescription:
-        "One hub for the people directory, leadership performance view, and (for admins) class operations.",
+        "People directory and lookup for hiring chairs.",
       dashboardPriority: 3,
     },
     // /people/develop (the Leadership Development cockpit) folded into the
@@ -897,6 +888,7 @@ export const NAV_CATALOG: NavLink[] = [
         "CHAPTER_PRESIDENT",
         "STAFF",
         "ADMIN",
+        "INSTRUCTOR",
       ] as NavRole[],
       searchAliases: [
         "Support Hub",
@@ -907,10 +899,21 @@ export const NAV_CATALOG: NavLink[] = [
         "Mentorship admin",
         "Chair Queue",
         "Review Approvals",
+        "People",
+        "People Hub",
+        "People Database",
+        "People & Performance",
+        "People & Reviews",
+        "Workload",
+        "Directory",
+        "Students",
+        "Instructors",
+        "Advisors",
+        "Members",
       ],
       dashboardDescription:
-        "Your mentorship home — mentor, mentee, or both, from one place.",
-      dashboardPriority: 4,
+        "Mentorship home — role cards plus people workload for leadership.",
+      dashboardPriority: 3,
     },
     // /my-mentor now redirects to /mentorship?view=me (the mentee POV, which
     // renders natively in-hub). Its old detail subroutes (goals, progress,

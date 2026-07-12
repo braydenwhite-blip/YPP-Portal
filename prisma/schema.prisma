@@ -3037,6 +3037,9 @@ model Mentorship {
   longestReviewStreak     Int                      @default(0)
   /// Denormalized stage for fast Kanban queries. Recomputed on every state change.
   cycleStage              MentorshipCycleStage     @default(REFLECTION_DUE)
+  /// Mentor-asked follow-up prompts the mentee can answer anytime on Feedback.
+  /// Shape: [{ id, question, answer?, createdAt, answeredAt? }]
+  customPromptsJson       Json?
   mentor                  User                     @relation("MentorLinks", fields: [mentorId], references: [id], onDelete: Cascade)
   mentee                  User                     @relation("MenteeLinks", fields: [menteeId], references: [id], onDelete: Cascade)
   chair                   User?                    @relation("MentorshipChairs", fields: [chairId], references: [id], onDelete: SetNull)

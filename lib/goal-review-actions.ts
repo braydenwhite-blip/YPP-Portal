@@ -310,7 +310,7 @@ export async function saveGoalReview(formData: FormData) {
     reflection.goalReview?.status !== "CHANGES_REQUESTED"
   ) {
     throw new Error(
-      "Record the Mentor Check-in for this cycle before submitting the Monthly Progress Update."
+      "Log your meeting for this month before sending feedback."
     );
   }
 

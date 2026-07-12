@@ -128,7 +128,7 @@ export async function getInstructorMentorshipMembership(userId: string) {
     prisma.mentorship.count({
       where: {
         status: "ACTIVE",
-        OR: [{ mentorId: userId }, { chairId: userId }],
+        mentorId: userId,
       },
     }),
   ]);

@@ -64,7 +64,7 @@ const CRITICAL_CORE_LINKS: string[] = [];
 
 /** Always pinned in officer-tier sidebars when visible (the leadership front doors). */
 const OFFICER_CRITICAL_CORE_LINKS = [
-  "/people",
+  "/mentorship",
   "/actions",
 ];
 
@@ -766,6 +766,18 @@ export function resolveNavModel(
             input.isActiveMentee === true ||
             roles.includes("MENTOR")))
     );
+  }
+
+  // Mentorship catalog includes INSTRUCTOR so mentees can see it; hide it when
+  // this instructor is neither mentoring nor mentored (and has no MENTOR role).
+  if (primaryRole === "INSTRUCTOR" || roles.includes("INSTRUCTOR")) {
+    const hasMentorshipIdentity =
+      input.isActiveMentor === true ||
+      input.isActiveMentee === true ||
+      roles.includes("MENTOR");
+    if (!hasMentorshipIdentity) {
+      visible = visible.filter((item) => item.href !== "/mentorship");
+    }
   }
 
   // Apply applicant-only allowlist for users whose primary role is APPLICANT

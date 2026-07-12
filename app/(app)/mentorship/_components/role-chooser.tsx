@@ -5,6 +5,8 @@ import { cn } from "@/components/ui-v2";
 type RoleChooserProps = {
   menteeHref?: string | null;
   mentorHref?: string | null;
+  /** Leadership people/workload roster. */
+  peopleHref?: string | null;
   adminHref?: string | null;
   /** People this viewer mentors (shown on the Mentor card). */
   menteeNames?: string[];
@@ -13,13 +15,13 @@ type RoleChooserProps = {
 };
 
 /**
- * Mentorship home — enter as Mentor, Mentee, and/or Goals depending on
- * what the viewer actually holds. One card when they only have one side;
- * two (or three) when they hold more.
+ * Mentorship home — enter as Mentor, Mentee, and/or People depending on
+ * what the viewer actually holds.
  */
 export function MentorshipRoleChooser({
   menteeHref,
   mentorHref,
+  peopleHref,
   adminHref,
   menteeNames = [],
   mentorName,
@@ -38,7 +40,7 @@ export function MentorshipRoleChooser({
       href: mentorHref,
       title: "Mentor",
       detail: formatMenteeDetail(menteeNames),
-      description: "Check-ins, reviews, and coaching for your mentees.",
+      description: "Meetings and feedback for your mentees.",
     });
   }
   if (menteeHref) {
@@ -47,7 +49,16 @@ export function MentorshipRoleChooser({
       href: menteeHref,
       title: "Mentee",
       detail: mentorName ? `Your mentor: ${mentorName}` : "Your own development",
-      description: "Goals, meetings with your mentor, and feedback.",
+      description: "Goals, meetings, and your monthly note.",
+    });
+  }
+  if (peopleHref) {
+    cards.push({
+      key: "people",
+      href: peopleHref,
+      title: "People",
+      detail: "Org-wide workload",
+      description: "Who needs a check-in next — one row per person, sorted by urgency.",
     });
   }
   if (adminHref) {

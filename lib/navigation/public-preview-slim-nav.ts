@@ -47,6 +47,8 @@ const CHAPTER_PRESIDENT_SLIM_HREFS = ["/chapter", ...LEADERSHIP_SLIM_HREFS] as c
 /** Sidebar pin order when the slim nav is active. */
 const SLIM_NAV_ORDER = [
   ...LEADERSHIP_SLIM_HREFS,
+  "/mentorship",
+  "/people",
   ...ACTIONS_ONLY_SLIM_HREFS,
   "/chapter",
   ...PUBLIC_GATE_NAV_HREFS,
@@ -89,6 +91,9 @@ export function getPublicPreviewSlimNavHrefs(
   const hrefs = new Set<string>(LEADERSHIP_SLIM_HREFS);
 
   if (isOfficerTierFromAuth(roles, primaryRole)) {
+    hrefs.add("/mentorship");
+  }
+  if (primaryRole === "HIRING_CHAIR" || roles.includes("HIRING_CHAIR")) {
     hrefs.add("/people");
   }
 

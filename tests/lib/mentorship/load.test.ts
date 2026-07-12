@@ -43,14 +43,26 @@ describe("mentorCardsToFacts", () => {
     const [fact] = mentorCardsToFacts({
       viewerId: "u-mentor",
       viewerName: "You",
-      cards: [card({ cycleStage: "REFLECTION_SUBMITTED" })],
+      cards: [card({ cycleStage: "REFLECTION_SUBMITTED", mentorCheckInComplete: true })],
       sessions: [],
     });
     expect(fact.mentorId).toBe("u-mentor");
     expect(fact.status).toBe("ACTIVE");
     expect(fact.reviewDue).toBe(true);
+    expect(fact.meetingDue).toBe(false);
     expect(fact.kickoffCompleted).toBe(true);
     expect(fact.reviewChangesRequested).toBe(false);
+  });
+
+  it("marks meeting due when the note is in but the meeting is not logged", () => {
+    const [fact] = mentorCardsToFacts({
+      viewerId: "u-mentor",
+      viewerName: "You",
+      cards: [card({ cycleStage: "REFLECTION_SUBMITTED", mentorCheckInComplete: false })],
+      sessions: [],
+    });
+    expect(fact.meetingDue).toBe(true);
+    expect(fact.reviewDue).toBe(false);
   });
 
   it("marks a pending kickoff as not completed", () => {
@@ -94,7 +106,12 @@ describe("buildMentorHomeViewModel", () => {
       viewerId: "u-mentor",
       viewerName: "You",
       cards: [
-        card({ mentorshipId: "m1", cycleStage: "REFLECTION_SUBMITTED", menteeName: "Sam" }),
+        card({
+          mentorshipId: "m1",
+          cycleStage: "REFLECTION_SUBMITTED",
+          mentorCheckInComplete: true,
+          menteeName: "Sam",
+        }),
         card({ mentorshipId: "m2", menteeId: "u-2", cycleStage: "APPROVED", menteeName: "Lee" }),
       ],
       sessions: [],
@@ -103,6 +120,25 @@ describe("buildMentorHomeViewModel", () => {
     expect(vm.focus?.kind).toBe("review");
     expect(vm.relationships).toHaveLength(2);
     expect(vm.relationships.every((r) => r.viewerRole === "mentor")).toBe(true);
+  });
+
+  it("surfaces log-meeting when the note is in but check-in is missing", () => {
+    const vm = buildMentorHomeViewModel({
+      viewerId: "u-mentor",
+      viewerName: "You",
+      cards: [
+        card({
+          mentorshipId: "m1",
+          cycleStage: "REFLECTION_SUBMITTED",
+          mentorCheckInComplete: false,
+          menteeName: "Sam",
+        }),
+      ],
+      sessions: [],
+      now: NOW,
+    });
+    expect(vm.focus?.kind).toBe("session");
+    expect(vm.focus?.ctaLabel).toBe("Log meeting");
   });
 
   it("returns no focus when nothing waits on the mentor", () => {

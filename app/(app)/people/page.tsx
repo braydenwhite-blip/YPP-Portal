@@ -1,14 +1,17 @@
 import { redirect } from "next/navigation";
 
-import { PeopleReviewsPage } from "@/components/people-strategy/people-reviews-page";
 import { getSession } from "@/lib/auth-supabase";
 import { type ActionViewer } from "@/lib/people-strategy/action-permissions";
 import { canAccessPeopleHub, getPeopleHubAccess } from "@/lib/people/hub-access";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "People & Reviews — Pathways Portal" };
+export const metadata = { title: "People — Pathways Portal" };
 
-/** Leadership landing — People & Reviews mockup. Others go to the directory. */
+/**
+ * People landing — leadership performance roster now lives at
+ * `/mentorship?view=people`. Officer-tier users without the performance table
+ * still get the directory.
+ */
 export default async function PeoplePage({
   searchParams,
 }: {
@@ -32,5 +35,29 @@ export default async function PeoplePage({
     redirect("/people/directory");
   }
 
-  return <PeopleReviewsPage searchParams={searchParams} basePath="/people" />;
+  const sp = await searchParams;
+  const params = new URLSearchParams();
+  params.set("view", "people");
+  for (const [key, raw] of Object.entries(sp)) {
+    const value = Array.isArray(raw) ? raw[0] : raw;
+    if (!value) continue;
+    if (key === "view") {
+      // Old People urgency filters used `view=`; map them to `roster=`.
+      params.set("roster", value);
+      continue;
+    }
+    if (
+      key === "roster" ||
+      key === "q" ||
+      key === "page" ||
+      key === "mentor" ||
+      key === "chair" ||
+      key === "feedback" ||
+      key === "performance" ||
+      key === "potential"
+    ) {
+      params.set(key, value);
+    }
+  }
+  redirect(`/mentorship?${params.toString()}`);
 }

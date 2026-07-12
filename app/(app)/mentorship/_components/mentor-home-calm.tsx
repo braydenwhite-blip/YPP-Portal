@@ -2,9 +2,7 @@ import Link from "next/link";
 
 import {
   EmptySimpleState,
-  SimpleActionStrip,
   SimpleListCard,
-  type SimpleAction,
 } from "@/components/command-center/simple";
 import { MentorshipFocusCard, MentorshipRow } from "@/components/mentorship/calm";
 import type { MentorshipViewModel } from "@/lib/mentorship/view-model";
@@ -13,11 +11,7 @@ import type { MentorshipViewModel } from "@/lib/mentorship/view-model";
 const CALM_LIST_LIMIT = 5;
 
 /**
- * Calm mentor home — one obvious next move plus a short, scannable roster. The
- * focus card is the single highest-priority thing waiting on the mentor (a
- * kickoff, a review, a follow-up); the list shows a few mentees with their cycle
- * state and rubric color. Everything denser — the kanban, engagement panels,
- * the full workspace grid — lives in Executive mode, one toggle away.
+ * Calm mentor home — one obvious next move plus a short, scannable roster.
  */
 export function MentorHomeCalm({
   vm,
@@ -29,11 +23,6 @@ export function MentorHomeCalm({
   const shown = vm.relationships.slice(0, CALM_LIST_LIMIT);
   const remaining = vm.relationships.length - shown.length;
 
-  const actions: SimpleAction[] = [
-    // Approvals render right on the Mentorship home now — no separate inbox.
-    { label: "Feedback", href: "/mentorship/feedback", icon: "send" },
-  ];
-
   return (
     <div className="flex flex-col gap-5">
       {vm.focus ? (
@@ -41,8 +30,8 @@ export function MentorHomeCalm({
       ) : (
         <EmptySimpleState icon="check">
           {needsYouCount > 0
-            ? "A few mentees need you — open the roster below to see who."
-            : "You're all caught up. Nothing is waiting on you right now."}
+            ? "A few mentees need you — open the list below."
+            : "You're all caught up. Nothing is waiting on you."}
         </EmptySimpleState>
       )}
 
@@ -65,8 +54,6 @@ export function MentorHomeCalm({
           ))}
         </SimpleListCard>
       ) : null}
-
-      <SimpleActionStrip actions={actions} />
     </div>
   );
 }

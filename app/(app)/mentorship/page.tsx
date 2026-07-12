@@ -26,12 +26,17 @@ import { SegmentedTabs } from "./_components/segmented-tabs";
 import { EmptyStateEditorial } from "./_components/empty-state-editorial";
 import { AdminMentorshipHome } from "./_components/admin-home-calm";
 import { MentorshipRoleChooser } from "./_components/role-chooser";
+import { PeopleReviewsPage } from "@/components/people-strategy/people-reviews-page";
+import { getPeopleHubAccess } from "@/lib/people/hub-access";
+import { isPeopleDashboardEnabled } from "@/lib/feature-flags";
+import type { ActionViewer } from "@/lib/people-strategy/action-permissions";
 import { prisma } from "@/lib/prisma";
 
 /**
  * Mentorship hub — mentors, mentees, and leadership.
  *
  *   (home)  → role cards for whatever sides the viewer holds
+ *   people  → org-wide People & workload roster
  *   mentor  → coaching console
  *   admin   → goals / G&R setup
  *   me      → own development workspace (/mentorship/people/[id])
@@ -47,18 +52,17 @@ function povHref(pov: HubPov): string {
   return `/mentorship?view=${pov}`;
 }
 
+function spString(
+  sp: Record<string, string | string[] | undefined> | undefined,
+  key: string
+): string | undefined {
+  const raw = sp?.[key];
+  return typeof raw === "string" ? raw : undefined;
+}
+
 export default async function MentorshipPage(
   props: {
-    searchParams?: Promise<{
-      view?: string;
-      who?: string;
-      lane?: string;
-      tab?: string;
-      menteeId?: string;
-      supportRole?: string;
-      section?: string;
-      sent?: string;
-    }>;
+    searchParams?: Promise<Record<string, string | string[] | undefined>>;
   }
 ) {
   const searchParams = await props.searchParams;
@@ -97,39 +101,54 @@ export default async function MentorshipPage(
     hasCommandCenterAccess: commandAccess,
   };
   const povs = availablePovs(facts);
+  const requestedView = spString(searchParams, "view");
 
-  // Home: card chooser for every Mentorship identity the viewer holds.
-  if (needsMentorshipRoleChooser(facts, searchParams?.view)) {
-    const showMentor = povs.includes("mentor");
-    const showMentee = povs.includes("me");
+  // Home: card chooser — Mentor only if you have mentees, Mentee only if you
+  // have a mentor. Leadership may still see People / Goals.
+  if (needsMentorshipRoleChooser(facts, requestedView)) {
+    const hubViewer: ActionViewer = {
+      id: userId,
+      roles,
+      primaryRole: primaryRole ?? null,
+      adminSubtypes: (session.user.adminSubtypes ?? []) as string[],
+    };
+    const showPeopleCard =
+      isPeopleDashboardEnabled() && getPeopleHubAccess(hubViewer).showPerformance;
 
     const [asMentee, asMentor] = await Promise.all([
-      showMentee
-        ? prisma.mentorship.findFirst({
-            where: { menteeId: userId, status: "ACTIVE" },
-            select: { mentor: { select: { name: true } } },
-          })
-        : Promise.resolve(null),
-      showMentor
-        ? prisma.mentorship.findMany({
-            where: {
-              status: "ACTIVE",
-              OR: [{ mentorId: userId }, { chairId: userId }],
-            },
-            select: { mentee: { select: { name: true } } },
-            orderBy: { mentee: { name: "asc" } },
-            take: 8,
-          })
-        : Promise.resolve([]),
+      prisma.mentorship.findFirst({
+        where: { menteeId: userId, status: "ACTIVE" },
+        select: { mentor: { select: { name: true } } },
+      }),
+      prisma.mentorship.findMany({
+        where: { status: "ACTIVE", mentorId: userId },
+        select: { mentee: { select: { name: true } } },
+        orderBy: { mentee: { name: "asc" } },
+        take: 8,
+      }),
     ]);
 
-    const cardCount = [showMentor, showMentee].filter(Boolean).length;
+    const menteeNames = asMentor
+      .map((row) => row.mentee.name)
+      .filter((name): name is string => Boolean(name));
+
+    const showMentorCard = asMentor.length > 0;
+    const showMenteeCard = Boolean(asMentee);
+    const showGoalsCard = povs.includes("admin");
+
+    const cardCount = [showMentorCard, showMenteeCard, showPeopleCard, showGoalsCard].filter(
+      Boolean
+    ).length;
     const subtitle =
       cardCount > 1
         ? "Pick which side you’re working from."
-        : showMentor
+        : showMentorCard
           ? "Your coaching home."
-          : "Your development home.";
+          : showPeopleCard
+            ? "People workload for your org."
+            : showGoalsCard
+              ? "Program setup."
+              : "Your development home.";
 
     return (
       <div className={`${skin.portalSkin} flex flex-col gap-6`}>
@@ -139,18 +158,51 @@ export default async function MentorshipPage(
           subtitle={subtitle}
         />
         <MentorshipRoleChooser
-          mentorHref={showMentor ? povHref("mentor") : null}
-          menteeHref={showMentee ? `/mentorship/people/${userId}` : null}
+          mentorHref={showMentorCard ? povHref("mentor") : null}
+          menteeHref={showMenteeCard ? `/mentorship/people/${userId}` : null}
+          peopleHref={showPeopleCard ? "/mentorship?view=people" : null}
+          adminHref={showGoalsCard ? povHref("admin") : null}
           mentorName={asMentee?.mentor.name ?? null}
-          menteeNames={asMentor
-            .map((row) => row.mentee.name)
-            .filter((name): name is string => Boolean(name))}
+          menteeNames={menteeNames}
         />
       </div>
     );
   }
 
-  const pov = resolvePov(facts, searchParams?.view);
+  // People & workload — leadership roster (same table as the old /people page).
+  if (requestedView === "people") {
+    const hubViewer: ActionViewer = {
+      id: userId,
+      roles,
+      primaryRole: primaryRole ?? null,
+      adminSubtypes: (session.user.adminSubtypes ?? []) as string[],
+    };
+    if (!isPeopleDashboardEnabled() || !getPeopleHubAccess(hubViewer).showPerformance) {
+      redirect("/mentorship");
+    }
+
+    return (
+      <div className={`${skin.portalSkin} flex flex-col gap-6`}>
+        <PageHeaderV2
+          eyebrow="Mentorship"
+          title="People"
+          subtitle="Who needs a check-in next — one row per person, sorted by urgency."
+          backHref="/mentorship"
+          backLabel="Mentorship"
+        />
+        <PeopleReviewsPage
+          searchParams={Promise.resolve(searchParams ?? {})}
+          basePath="/mentorship"
+          filterParam="roster"
+          embedded
+          hideHeading
+          personHrefBase="/mentorship/people"
+        />
+      </div>
+    );
+  }
+
+  const pov = resolvePov(facts, requestedView);
   const dualRole = facts.isMentee && (facts.isMentor || facts.isChair || facts.isAdmin);
 
   const header = (
@@ -204,15 +256,15 @@ export default async function MentorshipPage(
     return (
       <div className={`${skin.portalSkin} flex flex-col gap-6`}>
         {header}
-        {searchParams?.tab ? (
+        {spString(searchParams, "tab") ? (
           <AdminMentorshipCockpit
             showLeadershipOverview={commandAccess}
             searchParams={{
-              tab: searchParams.tab,
-              lane: searchParams?.lane,
-              who: searchParams?.who,
-              menteeId: searchParams?.menteeId,
-              supportRole: searchParams?.supportRole,
+              tab: spString(searchParams, "tab"),
+              lane: spString(searchParams, "lane"),
+              who: spString(searchParams, "who"),
+              menteeId: spString(searchParams, "menteeId"),
+              supportRole: spString(searchParams, "supportRole"),
             }}
           />
         ) : (
@@ -226,7 +278,7 @@ export default async function MentorshipPage(
   // your own /people/[id] now, not a "Mentorship" destination — redirect
   // rather than render inline.
   if (pov === "me") {
-    const section = typeof searchParams?.section === "string" ? searchParams.section : null;
+    const section = spString(searchParams, "section") ?? null;
     redirect(`/mentorship/people/${userId}${section ? `?section=${section}` : ""}`);
   }
 
@@ -270,6 +322,7 @@ export default async function MentorshipPage(
       menteeName: card.menteeName,
       cycleStage: card.cycleStage,
       kickoffPending: card.kickoffPending,
+      mentorCheckInComplete: card.mentorCheckInComplete,
       latestRatings: card.latestRatings,
     })),
     sessions: engagement.upcomingSessions.map((s) => ({
