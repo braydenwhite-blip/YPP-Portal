@@ -143,6 +143,13 @@ export default async function ClassDetailPage({
   }
 
   const roles = session.user.roles ?? [];
+  if (
+    offering.instructorId === session.user.id &&
+    roles.includes("INSTRUCTOR") &&
+    !roles.includes("ADMIN")
+  ) {
+    redirect(`/instructor/classes/${offering.id}`);
+  }
   const isInstructor = offering.instructorId === session.user.id || roles.includes("ADMIN");
   const enrolledStudents = offering.enrollments.filter((e) => e.status === "ENROLLED");
   const waitlistedStudents = offering.enrollments.filter((e) => e.status === "WAITLISTED");

@@ -5014,6 +5014,33 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
+    pattern: "/instructor/students",
+    title: "Students Needing Attention",
+    content: {
+      purpose: "This page shows only students who have a recorded, actionable teaching reason for follow-up.",
+      firstStep: "Read the reason and expected action, then record the check-in or give the waiting assignment feedback in the same row.",
+      nextStep: "After you record the outcome, the completed item clears from the instructor workspace automatically."
+    }
+  },
+  {
+    pattern: "/instructor/materials",
+    title: "Teaching Materials",
+    content: {
+      purpose: "This page gathers the lesson plans, slides, activities, worksheets, and links attached to the classes you teach.",
+      firstStep: "Choose the class and session you are preparing, then open the attached material directly.",
+      nextStep: "Return to the class workspace to finish the preparation check for that session."
+    }
+  },
+  {
+    pattern: "/instructor/schedule",
+    title: "Teaching Schedule",
+    content: {
+      purpose: "This page shows the scheduled sessions for the classes you are assigned to teach.",
+      firstStep: "Open the nearest session to see its lesson, materials, location, roster, and current action.",
+      nextStep: "Use the session workspace to prepare, take attendance, and close the recap without entering the same information again."
+    }
+  },
+  {
     pattern: "/classes",
     title: "Classes",
     content: {

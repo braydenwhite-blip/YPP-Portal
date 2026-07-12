@@ -112,6 +112,16 @@ export const PUBLIC_ALLOWED_PREFIXES: readonly string[] = [
   // Summer Workshop Proposals (workshop design studio + required
   // training surface that the Summer Workshop pathway depends on).
   "/instructor/workshop-design-studio",
+  // Canonical teaching workspace. Leaf pages and every mutation enforce the
+  // instructor's real class assignment on the server; listing the routes here
+  // only makes assigned teaching work reachable through the rollout gate.
+  "/instructor/classes",
+  "/instructor/students",
+  "/instructor/materials",
+  "/instructor/schedule",
+  // Secondary completion routes reached from a live teaching requirement.
+  "/instructor/class-settings",
+  "/instructor/lesson-design-studio",
   "/instructor-training",
 ];
 

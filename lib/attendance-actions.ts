@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import { AttendanceStatus, Prisma } from "@prisma/client";
-import { requireAttendanceAccess, requireOwnershipOrRole } from "@/lib/authorization-helpers";
+import { requireAttendanceAccess } from "@/lib/authorization-helpers";
 
 // ============================================
 // HELPERS
@@ -32,6 +32,104 @@ async function requireStaffRole() {
   return session;
 }
 
+type StaffSession = Awaited<ReturnType<typeof requireStaffRole>>;
+
+async function chapterIdForViewer(viewer: StaffSession) {
+  if (!viewer.user.roles?.includes("CHAPTER_PRESIDENT")) return null;
+  const user = await prisma.user.findUnique({
+    where: { id: viewer.user.id },
+    select: { chapterId: true },
+  });
+  return user?.chapterId ?? null;
+}
+
+async function requireLegacyAttendanceTargetAccess(
+  viewer: StaffSession,
+  courseId: string | null,
+  eventId: string | null
+) {
+  if (courseId && eventId) throw new Error("Attendance can belong to a course or an event, not both");
+  if (viewer.user.roles?.includes("ADMIN")) return;
+
+  if (courseId) {
+    const course = await prisma.course.findUnique({
+      where: { id: courseId },
+      select: { leadInstructorId: true, chapterId: true },
+    });
+    if (!course) throw new Error("Course not found");
+    if (course.leadInstructorId === viewer.user.id) return;
+    const viewerChapterId = await chapterIdForViewer(viewer);
+    if (viewerChapterId && viewerChapterId === course.chapterId) return;
+    throw new Error("Unauthorized: This course is outside your teaching responsibility");
+  }
+
+  if (eventId) {
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+      select: { createdById: true, chapterId: true },
+    });
+    if (!event) throw new Error("Event not found");
+    if (event.createdById === viewer.user.id) return;
+    const viewerChapterId = await chapterIdForViewer(viewer);
+    if (viewerChapterId && viewerChapterId === event.chapterId) return;
+    throw new Error("Unauthorized: This event is outside your chapter responsibility");
+  }
+
+  throw new Error("Only an admin can create standalone attendance");
+}
+
+async function requireLegacyAttendanceSessionAccess(sessionId: string) {
+  const viewer = await requireStaffRole();
+  const attendanceSession = await prisma.attendanceSession.findUnique({
+    where: { id: sessionId },
+    select: {
+      id: true,
+      date: true,
+      courseId: true,
+      eventId: true,
+      createdById: true,
+    },
+  });
+  if (!attendanceSession) throw new Error("Attendance session not found");
+  if (!viewer.user.roles?.includes("ADMIN") && attendanceSession.createdById !== viewer.user.id) {
+    await requireLegacyAttendanceTargetAccess(
+      viewer,
+      attendanceSession.courseId,
+      attendanceSession.eventId
+    );
+  }
+  return { viewer, attendanceSession };
+}
+
+async function requireLegacyAttendanceRosterMember(
+  attendanceSession: { courseId: string | null; eventId: string | null },
+  userId: string
+) {
+  if (attendanceSession.courseId) {
+    const enrollment = await prisma.enrollment.findFirst({
+      where: {
+        courseId: attendanceSession.courseId,
+        userId,
+        status: "ENROLLED",
+      },
+      select: { id: true },
+    });
+    if (!enrollment) throw new Error("That student is not enrolled in this course");
+    return;
+  }
+  if (attendanceSession.eventId) {
+    const rsvp = await prisma.eventRsvp.findUnique({
+      where: {
+        eventId_userId: { eventId: attendanceSession.eventId, userId },
+      },
+      select: { status: true },
+    });
+    if (!rsvp || rsvp.status === "NOT_GOING") {
+      throw new Error("That person is not on this event's attendance list");
+    }
+  }
+}
+
 function getString(formData: FormData, key: string, required = true) {
   const value = formData.get(key);
   if (required && (!value || String(value).trim() === "")) {
@@ -52,6 +150,8 @@ export async function createAttendanceSession(formData: FormData) {
   const dateStr = getString(formData, "date");
   const courseId = getString(formData, "courseId", false);
   const eventId = getString(formData, "eventId", false);
+
+  await requireLegacyAttendanceTargetAccess(session, courseId || null, eventId || null);
 
   const date = new Date(dateStr);
   if (isNaN(date.getTime())) {
@@ -205,6 +305,7 @@ type AttendanceSessionWithRecords = Prisma.AttendanceSessionGetPayload<{
 }>;
 
 export async function getSessionWithRecords(sessionId: string): Promise<AttendanceSessionWithRecords> {
+  await requireLegacyAttendanceSessionAccess(sessionId);
   // First get the session to determine what to authorize against
   const session = await prisma.attendanceSession.findUnique({
     where: { id: sessionId },
@@ -233,10 +334,6 @@ export async function getSessionWithRecords(sessionId: string): Promise<Attendan
     throw new Error("Attendance session not found");
   }
 
-  // Verify user has access to this session's attendance records
-  // Only instructors of the course, chapter presidents, or admins can access
-  await requireAttendanceAccess(undefined, session.courseId || undefined);
-
   return session;
 }
 
@@ -245,25 +342,21 @@ export async function getSessionWithRecords(sessionId: string): Promise<Attendan
 // ============================================
 
 export async function recordAttendance(formData: FormData) {
-  await requireStaffRole();
-
   const sessionId = getString(formData, "sessionId");
   const userId = getString(formData, "userId");
   const status = getString(formData, "status") as AttendanceStatus;
   const notes = getString(formData, "notes", false);
+  const hasNotes = formData.has("notes");
 
   if (!Object.values(AttendanceStatus).includes(status)) {
     throw new Error("Invalid attendance status");
   }
 
-  // Verify the session exists
-  const attendanceSession = await prisma.attendanceSession.findUnique({
-    where: { id: sessionId },
-  });
-
-  if (!attendanceSession) {
-    throw new Error("Attendance session not found");
+  const { attendanceSession } = await requireLegacyAttendanceSessionAccess(sessionId);
+  if (attendanceSession.date.getTime() > Date.now()) {
+    throw new Error("Attendance opens on the session date");
   }
+  await requireLegacyAttendanceRosterMember(attendanceSession, userId);
 
   await prisma.attendanceRecord.upsert({
     where: {
@@ -277,7 +370,7 @@ export async function recordAttendance(formData: FormData) {
     },
     update: {
       status,
-      notes: notes || null,
+      ...(hasNotes ? { notes: notes || null } : {}),
       checkedInAt: new Date(),
     },
   });
@@ -291,18 +384,12 @@ export async function recordAttendance(formData: FormData) {
 // ============================================
 
 export async function bulkRecordAttendance(formData: FormData) {
-  await requireStaffRole();
-
   const sessionId = getString(formData, "sessionId");
   const recordsJson = getString(formData, "records");
 
-  // Verify the session exists
-  const attendanceSession = await prisma.attendanceSession.findUnique({
-    where: { id: sessionId },
-  });
-
-  if (!attendanceSession) {
-    throw new Error("Attendance session not found");
+  const { attendanceSession } = await requireLegacyAttendanceSessionAccess(sessionId);
+  if (attendanceSession.date.getTime() > Date.now()) {
+    throw new Error("Attendance opens on the session date");
   }
 
   let records: { userId: string; status: AttendanceStatus; notes?: string | null }[];
@@ -324,6 +411,7 @@ export async function bulkRecordAttendance(formData: FormData) {
     if (!Object.values(AttendanceStatus).includes(record.status)) {
       throw new Error(`Invalid attendance status: ${record.status}`);
     }
+    await requireLegacyAttendanceRosterMember(attendanceSession, record.userId);
   }
 
   await prisma.$transaction(
@@ -344,7 +432,7 @@ export async function bulkRecordAttendance(formData: FormData) {
         },
         update: {
           status: record.status,
-          notes,
+          ...(record.notes !== undefined ? { notes } : {}),
           checkedInAt: new Date(),
         },
       });

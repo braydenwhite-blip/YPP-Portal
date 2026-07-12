@@ -331,34 +331,43 @@ export async function requireAttendanceAccess(
     return user;
   }
 
+  let resourceChapterId: string | null = null;
+
   // If classOfferingId provided, check if instructor
   if (classOfferingId) {
     const classOffering = await prisma.classOffering.findUnique({
       where: { id: classOfferingId },
-      select: { instructorId: true }
+      select: { instructorId: true, chapterId: true }
     });
 
     if (classOffering?.instructorId === user.id) {
       return user;
     }
+    resourceChapterId = classOffering?.chapterId ?? null;
   }
 
   // If courseId provided, check if instructor
   if (courseId) {
     const course = await prisma.course.findUnique({
       where: { id: courseId },
-      select: { leadInstructorId: true }
+      select: { leadInstructorId: true, chapterId: true }
     });
 
     if (course?.leadInstructorId === user.id) {
       return user;
     }
+    resourceChapterId = course?.chapterId ?? null;
   }
 
   // Chapter leads can access attendance for their chapter
   if (user.roles.includes("CHAPTER_PRESIDENT")) {
-    // Could add chapter-specific check here if needed
-    return user;
+    const chapterOwner = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { chapterId: true },
+    });
+    if (resourceChapterId && chapterOwner?.chapterId === resourceChapterId) {
+      return user;
+    }
   }
 
   throw new Error("Unauthorized: You cannot access these attendance records");
@@ -439,4 +448,3 @@ export async function requireReviewSpineAccess(menteeId: string): Promise<Sessio
 
   throw new Error("Unauthorized: You cannot view this mentee's review timeline");
 }
-

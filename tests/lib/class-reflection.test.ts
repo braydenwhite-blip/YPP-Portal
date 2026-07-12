@@ -2,8 +2,15 @@ import { describe, it, expect } from "vitest";
 import { SubmitReflectionSchema, reflectionRaisesConcern } from "@/lib/classes/reflection";
 
 describe("SubmitReflectionSchema", () => {
-  it("accepts a minimal reflection (just the session)", () => {
-    expect(SubmitReflectionSchema.safeParse({ offeringId: "o1", sessionId: "s1" }).success).toBe(true);
+  it("rejects an empty recap and accepts one useful note", () => {
+    expect(SubmitReflectionSchema.safeParse({ offeringId: "o1", sessionId: "s1" }).success).toBe(false);
+    expect(
+      SubmitReflectionSchema.safeParse({
+        offeringId: "o1",
+        sessionId: "s1",
+        wentWell: "Students completed the first prototype.",
+      }).success
+    ).toBe(true);
   });
   it("accepts a full reflection and bounds confidence to 1–5", () => {
     expect(
@@ -17,6 +24,16 @@ describe("SubmitReflectionSchema", () => {
       }).success
     ).toBe(true);
     expect(SubmitReflectionSchema.safeParse({ offeringId: "o1", sessionId: "s1", confidence: 9 }).success).toBe(false);
+  });
+  it("requires a reason when a student is selected for follow-up", () => {
+    expect(
+      SubmitReflectionSchema.safeParse({
+        offeringId: "o1",
+        sessionId: "s1",
+        followUpStudentId: "student-1",
+        wentWell: "Students completed the activity.",
+      }).success
+    ).toBe(false);
   });
 });
 

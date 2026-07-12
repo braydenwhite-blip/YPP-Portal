@@ -1,4 +1,4 @@
-import { Suspense, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { isPublicGateEnabled, isOfficerTierFromAuth } from "@/lib/public-gate";
 import { redirect } from "next/navigation";
@@ -12,8 +12,8 @@ import {
   getHiringDemoHomeHref,
   isHiringDemoModeEnabled,
 } from "@/lib/hiring-demo-mode";
-import { InstructorDashboard } from "@/components/instructor/instructor-dashboard";
-import DashboardTourLauncher from "@/components/instructor/dashboard-tour-launcher";
+import { InstructorTeachingHome } from "@/components/instructor/instructor-teaching-home";
+import { loadInstructorTeachingWorkspace } from "@/lib/classes/instructor-workspace";
 import { getStudentProgressSnapshot } from "@/lib/student-progress-actions";
 import { getMyClassesHubData } from "@/lib/student-class-portal";
 import { getStudentChapterJourneyData } from "@/lib/chapter-pathway-journey";
@@ -372,18 +372,8 @@ export default async function OverviewPage() {
   }
 
   if (isInstructor) {
-    return (
-      <>
-        <InstructorDashboard
-          userId={session.user.id}
-          name={name}
-          topSlot={<MyActionsCard viewer={actionViewer} />}
-        />
-        <Suspense fallback={null}>
-          <DashboardTourLauncher />
-        </Suspense>
-      </>
-    );
+    const teachingWorkspace = await loadInstructorTeachingWorkspace(session.user.id);
+    return <InstructorTeachingHome name={name} workspace={teachingWorkspace} />;
   }
 
   if (roles.includes("STUDENT")) {

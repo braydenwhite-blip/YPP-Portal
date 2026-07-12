@@ -25,6 +25,37 @@ describe("Summer Workshop route gates", () => {
     expect(isAllowedPublicPath("/instructor-training")).toBe(true);
     expect(isAllowedPublicPath("/training/module-1")).toBe(false);
   });
+
+  it("allows approved instructors into the canonical teaching workspace", () => {
+    for (const path of [
+      "/instructor/classes",
+      "/instructor/students",
+      "/instructor/materials",
+      "/instructor/schedule",
+      "/instructor/class-settings",
+    ]) {
+      expect(isSummerWorkshopPermittedPath(path)).toBe(true);
+      expect(
+        canBypassInstructorGate({
+          roles: ["INSTRUCTOR"],
+          primaryRole: "INSTRUCTOR",
+          instructorSubtype: "SUMMER_WORKSHOP",
+          pathname: path,
+        })
+      ).toBe(true);
+    }
+  });
+
+  it("does not let a query string grant instructor access", () => {
+    expect(
+      canBypassInstructorGate({
+        roles: ["STUDENT"],
+        primaryRole: "STUDENT",
+        adminPreviewParam: "1",
+        pathname: "/instructor/classes",
+      })
+    ).toBe(false);
+  });
 });
 
 describe("Public portal gate allowlist", () => {
@@ -40,6 +71,13 @@ describe("Public portal gate allowlist", () => {
     "/application-status",
     "/instructor-training",
     "/instructor/workshop-design-studio",
+    "/instructor/classes",
+    "/instructor/classes/class-1",
+    "/instructor/students",
+    "/instructor/materials",
+    "/instructor/schedule",
+    "/instructor/class-settings",
+    "/instructor/lesson-design-studio",
     "/profile",
     "/settings",
     "/locked",

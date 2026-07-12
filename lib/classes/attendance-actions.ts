@@ -10,26 +10,13 @@
 // feeds Student Community, retention, the class runtime, and Recent Activity.
 
 import { revalidatePath } from "next/cache";
-import type {
-  ClassEnrollmentStatus,
-  RegularInstructorAssignmentStatus,
-} from "@prisma/client";
-
 import { prisma } from "@/lib/prisma";
-import { requireSessionUser } from "@/lib/authorization";
-import { getChapterViewerContext } from "@/lib/chapters/access";
 import {
   SubmitAttendanceSchema,
   UpdateAttendanceSchema,
-  canManageClassAttendance,
 } from "@/lib/classes/attendance";
-
-const CONFIRMED_RIA: RegularInstructorAssignmentStatus[] = [
-  "INSTRUCTOR_CONFIRMED",
-  "CHAPTER_CONFIRMED",
-  "FULLY_CONFIRMED",
-];
-const ATTENDED_ENROLLMENT: ClassEnrollmentStatus[] = ["ENROLLED", "COMPLETED"];
+import { requireTeachingSessionAccess } from "@/lib/classes/instructor-access";
+import { sessionDateTime } from "@/lib/classes/instructor-state";
 
 export type AttendanceResult = { ok: true; recorded: number } | { ok: false; error: string };
 
@@ -44,39 +31,32 @@ async function authorizeAttendanceSession(
   sessionId: string,
   offeringId: string
 ): Promise<{ ok: true; ctx: AuthorizedSession } | { ok: false; error: string }> {
-  const viewer = await requireSessionUser();
-
-  const classSession = await prisma.classSession.findUnique({
-    where: { id: sessionId },
-    select: {
-      offeringId: true,
-      offering: { select: { instructorId: true, chapterId: true } },
-    },
-  });
-  if (!classSession || classSession.offeringId !== offeringId) {
-    return { ok: false, error: "Session not found for this class" };
-  }
-
-  const chapterCtx = await getChapterViewerContext();
-  const coInstructor = await prisma.regularInstructorAssignment.findFirst({
-    where: { offeringId, instructorId: viewer.id, status: { in: CONFIRMED_RIA } },
-    select: { id: true },
-  });
-
-  const allowed = canManageClassAttendance(
-    { id: viewer.id, roles: viewer.roles },
-    { instructorId: classSession.offering.instructorId, chapterId: classSession.offering.chapterId },
-    {
-      isConfirmedCoInstructor: Boolean(coInstructor),
-      managesChapter:
-        chapterCtx.isLeadership ||
-        (chapterCtx.ledChapterId != null && chapterCtx.ledChapterId === classSession.offering.chapterId),
-    }
+  const { viewer, classSession } = await requireTeachingSessionAccess(sessionId, offeringId);
+  if (classSession.isCancelled) return { ok: false, error: "Attendance is not recorded for a cancelled session" };
+  const startsAt = sessionDateTime(
+    classSession.date,
+    classSession.startTime,
+    classSession.offering.timezone
   );
-  if (!allowed) return { ok: false, error: "You can't record attendance for this class" };
+  if (Date.now() < startsAt.getTime()) {
+    return { ok: false, error: "Attendance opens when the session starts" };
+  }
+  const rawEnd = sessionDateTime(
+    classSession.date,
+    classSession.endTime,
+    classSession.offering.timezone
+  );
+  const endsAt = rawEnd.getTime() > startsAt.getTime()
+    ? rawEnd
+    : new Date(rawEnd.getTime() + 24 * 60 * 60 * 1000);
 
   const enrollments = await prisma.classEnrollment.findMany({
-    where: { offeringId, status: { in: ATTENDED_ENROLLMENT } },
+    where: {
+      offeringId,
+      status: { not: "WAITLISTED" },
+      enrolledAt: { lte: endsAt },
+      OR: [{ droppedAt: null }, { droppedAt: { gt: startsAt } }],
+    },
     select: { studentId: true },
   });
 
@@ -134,7 +114,10 @@ export async function submitClassAttendance(input: unknown): Promise<AttendanceR
         prisma.classAttendanceRecord.upsert({
           where: { sessionId_studentId: { sessionId, studentId: m.studentId } },
           create: { sessionId, studentId: m.studentId, status: m.status, notes: m.note?.trim() || null },
-          update: { status: m.status, notes: m.note?.trim() || null },
+          update: {
+            status: m.status,
+            ...(m.note !== undefined ? { notes: m.note.trim() || null } : {}),
+          },
         })
       )
     );
@@ -168,7 +151,10 @@ export async function updateClassAttendance(input: unknown): Promise<AttendanceR
     await prisma.classAttendanceRecord.upsert({
       where: { sessionId_studentId: { sessionId, studentId } },
       create: { sessionId, studentId, status, notes: note?.trim() || null },
-      update: { status, notes: note?.trim() || null },
+      update: {
+        status,
+        ...(note !== undefined ? { notes: note.trim() || null } : {}),
+      },
     });
     await recomputeSessionsAttended(offeringId, [studentId]);
   } catch {

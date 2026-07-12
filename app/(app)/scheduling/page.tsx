@@ -728,6 +728,12 @@ export default async function SchedulingHubPage() {
   if (!session?.user?.id) redirect("/login");
 
   const roles = session.user.roles ?? [];
+  if (
+    session.user.primaryRole === "INSTRUCTOR" ||
+    (roles.includes("INSTRUCTOR") && !roles.includes("ADMIN") && !roles.includes("CHAPTER_PRESIDENT"))
+  ) {
+    redirect("/instructor/schedule");
+  }
   const canMentorManage =
     roles.includes("MENTOR") ||
     roles.includes("CHAPTER_PRESIDENT") ||

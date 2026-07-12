@@ -8,19 +8,12 @@
 // idempotent (upsert by session).
 
 import { revalidatePath } from "next/cache";
-import type { RegularInstructorAssignmentStatus } from "@prisma/client";
-
 import { prisma } from "@/lib/prisma";
-import { requireSessionUser } from "@/lib/authorization";
-import { getChapterViewerContext } from "@/lib/chapters/access";
-import { canManageClassAttendance } from "@/lib/classes/attendance";
 import { SubmitReflectionSchema, reflectionRaisesConcern } from "@/lib/classes/reflection";
-
-const CONFIRMED_RIA: RegularInstructorAssignmentStatus[] = [
-  "INSTRUCTOR_CONFIRMED",
-  "CHAPTER_CONFIRMED",
-  "FULLY_CONFIRMED",
-];
+import { requireTeachingSessionAccess } from "@/lib/classes/instructor-access";
+import { sessionDateTime } from "@/lib/classes/instructor-state";
+import { canTeachOffering } from "@/lib/classes/instructor-access";
+import { upsertInstructorRequestedStudentFollowUp } from "@/lib/classes/student-follow-up-records";
 
 export type ReflectionResult = { ok: true } | { ok: false; error: string };
 
@@ -29,37 +22,65 @@ export async function submitSessionReflection(input: unknown): Promise<Reflectio
   if (!parsed.success) return { ok: false, error: "Invalid input" };
   const data = parsed.data;
 
-  let viewer;
+  let access;
   try {
-    viewer = await requireSessionUser();
-  } catch {
-    return { ok: false, error: "Unauthorized" };
+    access = await requireTeachingSessionAccess(data.sessionId, data.offeringId);
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Unauthorized" };
+  }
+  const { viewer, classSession } = access;
+  if (classSession.isCancelled) return { ok: false, error: "A cancelled session does not need a recap" };
+  const startsAt = sessionDateTime(classSession.date, classSession.startTime, classSession.offering.timezone);
+  const rawEnd = sessionDateTime(classSession.date, classSession.endTime, classSession.offering.timezone);
+  const endsAt = rawEnd.getTime() > startsAt.getTime()
+    ? rawEnd
+    : new Date(rawEnd.getTime() + 24 * 60 * 60 * 1000);
+  if (Date.now() < endsAt.getTime()) {
+    return { ok: false, error: "Submit the recap after the session ends" };
   }
 
-  const classSession = await prisma.classSession.findUnique({
-    where: { id: data.sessionId },
-    select: { offeringId: true, offering: { select: { instructorId: true, chapterId: true, title: true } } },
-  });
-  if (!classSession || classSession.offeringId !== data.offeringId) {
-    return { ok: false, error: "Session not found for this class" };
+  const expectedRoster = await prisma.classEnrollment.findMany({
+      where: {
+        offeringId: data.offeringId,
+        status: { not: "WAITLISTED" },
+        enrolledAt: { lte: endsAt },
+        OR: [{ droppedAt: null }, { droppedAt: { gt: startsAt } }],
+      },
+      select: { studentId: true },
+    });
+  const attendanceRecorded = expectedRoster.length > 0
+    ? await prisma.classAttendanceRecord.count({
+        where: {
+          sessionId: data.sessionId,
+          studentId: { in: expectedRoster.map((enrollment) => enrollment.studentId) },
+        },
+      })
+    : 0;
+  if (expectedRoster.length > 0 && attendanceRecorded < expectedRoster.length) {
+    return {
+      ok: false,
+      error: `Finish attendance first (${attendanceRecorded} of ${expectedRoster.length} students recorded)`,
+    };
   }
 
-  const chapterCtx = await getChapterViewerContext();
-  const coInstructor = await prisma.regularInstructorAssignment.findFirst({
-    where: { offeringId: data.offeringId, instructorId: viewer.id, status: { in: CONFIRMED_RIA } },
-    select: { id: true },
-  });
-  const allowed = canManageClassAttendance(
-    { id: viewer.id, roles: viewer.roles },
-    { instructorId: classSession.offering.instructorId, chapterId: classSession.offering.chapterId },
-    {
-      isConfirmedCoInstructor: Boolean(coInstructor),
-      managesChapter:
-        chapterCtx.isLeadership ||
-        (chapterCtx.ledChapterId != null && chapterCtx.ledChapterId === classSession.offering.chapterId),
+  let followUpStudent: { student: { name: string | null } } | null = null;
+  if (data.followUpStudentId) {
+    if (!(await canTeachOffering(viewer.id, data.offeringId))) {
+      return { ok: false, error: "Only an assigned instructor can create a student follow-up" };
     }
-  );
-  if (!allowed) return { ok: false, error: "You can't reflect on this class" };
+    followUpStudent = await prisma.classEnrollment.findUnique({
+      where: {
+        studentId_offeringId: {
+          studentId: data.followUpStudentId,
+          offeringId: data.offeringId,
+        },
+      },
+      select: { student: { select: { name: true } } },
+    });
+    if (!followUpStudent) {
+      return { ok: false, error: "That student is not connected to this class" };
+    }
+  }
 
   const clean = (s?: string) => (s && s.trim() ? s.trim() : null);
   const payload = {
@@ -85,14 +106,38 @@ export async function submitSessionReflection(input: unknown): Promise<Reflectio
     return { ok: false, error: "Could not save the reflection" };
   }
 
-  // Concern → a deduped, chapter-scoped ActionItem the CP will see (best-effort,
-  // never blocks the reflection). Mirrors lib/chapters/operating-actions.ts.
-  if (reflectionRaisesConcern(payload) && classSession.offering.chapterId) {
+  if (data.followUpStudentId && followUpStudent && payload.struggled) {
+    try {
+      await upsertInstructorRequestedStudentFollowUp({
+        offeringId: data.offeringId,
+        sessionId: data.sessionId,
+        studentId: data.followUpStudentId,
+        studentName: followUpStudent.student.name,
+        className: classSession.offering.title,
+        chapterId: classSession.offering.chapterId,
+        instructorId: viewer.id,
+        reason: payload.struggled,
+      });
+    } catch {
+      return { ok: false, error: "The recap was saved, but the student follow-up could not be created" };
+    }
+  }
+
+  // Concern → one deduped, chapter-scoped ActionItem. A failed handoff is
+  // reported explicitly so the instructor is never told leadership was
+  // notified when no real request exists.
+  if (reflectionRaisesConcern(payload)) {
+    if (!classSession.offering.chapterId) {
+      return {
+        ok: false,
+        error: "The recap was saved, but this class has no chapter to receive the help request",
+      };
+    }
     const chapterId = classSession.offering.chapterId;
     const sourceId = `reflection-concern:${data.sessionId}`;
     try {
       const existing = await prisma.actionItem.findFirst({
-        where: { chapterId, sourceId, status: { not: "COMPLETE" } },
+        where: { chapterId, sourceId, status: { in: ["NOT_STARTED", "IN_PROGRESS", "OVERDUE", "BLOCKED"] } },
         select: { id: true },
       });
       if (!existing) {
@@ -121,7 +166,10 @@ export async function submitSessionReflection(input: unknown): Promise<Reflectio
         });
       }
     } catch {
-      // best-effort
+      return {
+        ok: false,
+        error: "The recap was saved, but the leadership follow-up could not be created",
+      };
     }
   }
 

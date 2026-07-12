@@ -77,23 +77,13 @@ describe("resolveNavModel", () => {
       expect(INSTRUCTOR_V1_ALLOWED_HREFS.has(href)).toBe(true);
     }
 
-    expect(visibleHrefs).toContain("/");
-    expect(visibleHrefs).toContain("/instructor-onboarding");
-    expect(visibleHrefs).toContain("/instructor-training");
-    expect(visibleHrefs).toContain("/instructor/lesson-design-studio");
-    expect(visibleHrefs).toContain("/attendance");
-    expect(visibleHrefs).toContain("/instructor/parent-feedback");
-    expect(visibleHrefs).toContain("/feedback/anonymous");
-    expect(visibleHrefs).toContain("/scheduling");
-    expect(visibleHrefs).toContain("/announcements");
-    expect(visibleHrefs).toContain("/calendar");
-    expect(visibleHrefs).toContain("/mentorship");
-    expect(visibleHrefs).not.toContain("/messages");
-    // `/chapters` (Find a Chapter) is consolidated into the Chapter Hub and
-    // intentionally hidden from the sidebar — see ALWAYS_HIDDEN_HREFS.
-    expect(visibleHrefs).not.toContain("/chapters");
-    expect(visibleHrefs).toContain("/notifications");
-    expect(visibleHrefs).toContain("/settings/personalization");
+    expect(visibleHrefs).toEqual([
+      "/",
+      "/instructor/classes",
+      "/instructor/students",
+      "/instructor/materials",
+      "/instructor/schedule",
+    ]);
 
     expect(visibleHrefs).not.toContain("/interviews");
     expect(visibleHrefs).not.toContain("/my-program/awards");
@@ -107,6 +97,9 @@ describe("resolveNavModel", () => {
     expect(visibleHrefs).not.toContain("/world");
     expect(visibleHrefs).not.toContain("/instructor/workspace");
     expect(visibleHrefs).not.toContain("/lesson-plans");
+    expect(visibleHrefs).not.toContain("/attendance");
+    expect(visibleHrefs).not.toContain("/calendar");
+    expect(visibleHrefs).not.toContain("/scheduling");
   });
 
   it("restores broad instructor navigation when full portal explorer is on", () => {

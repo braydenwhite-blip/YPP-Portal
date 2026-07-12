@@ -261,6 +261,13 @@ export const REGULAR_INSTRUCTOR_GATED_HREF_PREFIXES: readonly string[] = [
  */
 export const SUMMER_WORKSHOP_PERMITTED_HREF_PREFIXES: readonly string[] = [
   "/instructor/workshop-design-studio",
+  // Approved instructors on either pathway still need the calm teaching
+  // workspace once YPP assigns them a real class.
+  "/instructor/classes",
+  "/instructor/students",
+  "/instructor/materials",
+  "/instructor/schedule",
+  "/instructor/class-settings",
   "/instructor-training",
   "/training",
 ];
@@ -299,8 +306,8 @@ export function canBypassInstructorGate(opts: {
   const roles = opts.roles ?? [];
   if (roles.includes("ADMIN") || roles.includes("SUPER_ADMIN")) return true;
   if (opts.primaryRole === "ADMIN" || opts.primaryRole === "SUPER_ADMIN") return true;
-  const preview = (opts.adminPreviewParam ?? "").toLowerCase();
-  if (preview === "1" || preview === "true" || preview === "yes") return true;
+  // A query string is never an authorization boundary. Admin roles already
+  // bypass above; non-admin users cannot elevate themselves with ?adminPreview.
 
   // Approved Full Instructors (subtype STANDARD with INSTRUCTOR role) keep
   // access to /instructor/* surfaces even while the regular instructor

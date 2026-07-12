@@ -781,8 +781,8 @@ model Chapter {
   users                          User[]
   meetings                       Meeting[]                       @relation("ChapterMeetings")
   weeklyEntries                  WeeklyImpactEntry[]             @relation("ChapterWeeklyEntries")
-  operationsTarget              ChapterOperationsTarget?
-  operationsReports             ChapterOperationsReport[]
+  operationsTarget               ChapterOperationsTarget?
+  operationsReports              ChapterOperationsReport[]
   joinRequests                   ChapterJoinRequest[]
   goals                          ChapterGoal[]
   channels                       ChapterChannel[]
@@ -950,18 +950,18 @@ model ChapterNote {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  name         String
-  email        String   @unique
-  phone        String?
-  passwordHash String
-  primaryRole  RoleType
+  id                              String                    @id @default(cuid())
+  name                            String
+  email                           String                    @unique
+  phone                           String?
+  passwordHash                    String
+  primaryRole                     RoleType
   // Human-readable job/role title (e.g. "Lead Instructor", "VP of People").
   // Optional; when absent, `getUserTitle()` falls back to the admin-subtype
   // label or a formatted `primaryRole`. Surfaced on profiles and action cards.
-  title        String?
-  chapterId    String?
-  chapter      Chapter? @relation(fields: [chapterId], references: [id])
+  title                           String?
+  chapterId                       String?
+  chapter                         Chapter?                  @relation(fields: [chapterId], references: [id])
   chapterOperationsReportsCreated ChapterOperationsReport[] @relation("ChapterOperationsReportCreator")
 
   // Org authority spine (Phase 3 of the Roles/Mentorship/Reviews/Access plan).
@@ -1348,24 +1348,24 @@ model User {
   instructorPathwaySpecs   InstructorPathwaySpec[] @relation("InstructorPathwaySpecs")
 
   // Mentorship Program Relations
-  mentorshipProgramGoalsCreated       MentorshipProgramGoal[]  @relation("MentorshipProgramGoalsCreated")
-  selfReflectionsSubmitted            MonthlySelfReflection[]  @relation("SelfReflectionsSubmitted")
-  goalReviewsAuthored                 MentorGoalReview[]       @relation("GoalReviewsAuthored")
-  goalReviewsReceived                 MentorGoalReview[]       @relation("GoalReviewsReceived")
-  goalReviewsChairApproved            MentorGoalReview[]       @relation("GoalReviewsChairApproved")
-  peopleCheckIns                      CheckIn[]                @relation("UserPeopleCheckIns")
-  quarterlyReviews                    QuarterlyReview[]        @relation("UserQuarterlyReviews")
-  quarterlyReviewsCreated             QuarterlyReview[]        @relation("QuarterlyReviewsCreated")
-  mentorshipQuarterlyReviews          MentorshipQuarterlyReview[] @relation("MentorshipQuarterlyReviewMentees")
-  mentorshipQuarterlyReviewsRecommended MentorshipQuarterlyReview[] @relation("MentorshipQuarterlyReviewRecommendedBy")
+  mentorshipProgramGoalsCreated           MentorshipProgramGoal[]     @relation("MentorshipProgramGoalsCreated")
+  selfReflectionsSubmitted                MonthlySelfReflection[]     @relation("SelfReflectionsSubmitted")
+  goalReviewsAuthored                     MentorGoalReview[]          @relation("GoalReviewsAuthored")
+  goalReviewsReceived                     MentorGoalReview[]          @relation("GoalReviewsReceived")
+  goalReviewsChairApproved                MentorGoalReview[]          @relation("GoalReviewsChairApproved")
+  peopleCheckIns                          CheckIn[]                   @relation("UserPeopleCheckIns")
+  quarterlyReviews                        QuarterlyReview[]           @relation("UserQuarterlyReviews")
+  quarterlyReviewsCreated                 QuarterlyReview[]           @relation("QuarterlyReviewsCreated")
+  mentorshipQuarterlyReviews              MentorshipQuarterlyReview[] @relation("MentorshipQuarterlyReviewMentees")
+  mentorshipQuarterlyReviewsRecommended   MentorshipQuarterlyReview[] @relation("MentorshipQuarterlyReviewRecommendedBy")
   mentorshipQuarterlyReviewsChairApproved MentorshipQuarterlyReview[] @relation("MentorshipQuarterlyReviewChairApproved")
   mentorshipQuarterlyReviewsBoardApproved MentorshipQuarterlyReview[] @relation("MentorshipQuarterlyReviewBoardApproved")
-  achievementPointSummary             AchievementPointSummary? @relation("AchievementPointSummary")
-  achievementAwardNominations         AwardNomination[]        @relation("AwardNominations")
-  achievementAwardNominationsGiven    AwardNomination[]        @relation("AwardNominationsGiven")
-  achievementAwardNominationsChairApp AwardNomination[]        @relation("AwardNominationsChairApproved")
-  achievementAwardNominationsBoardApp AwardNomination[]        @relation("AwardNominationsBoardApproved")
-  mentorCommitteeChairRoles           MentorCommitteeChair[]   @relation("MentorCommitteeChairRoles")
+  achievementPointSummary                 AchievementPointSummary?    @relation("AchievementPointSummary")
+  achievementAwardNominations             AwardNomination[]           @relation("AwardNominations")
+  achievementAwardNominationsGiven        AwardNomination[]           @relation("AwardNominationsGiven")
+  achievementAwardNominationsChairApp     AwardNomination[]           @relation("AwardNominationsChairApproved")
+  achievementAwardNominationsBoardApp     AwardNomination[]           @relation("AwardNominationsBoardApproved")
+  mentorCommitteeChairRoles               MentorCommitteeChair[]      @relation("MentorCommitteeChairRoles")
 
   // Two-Factor Authentication
   twoFactorEnabled  Boolean             @default(false)
@@ -1537,34 +1537,34 @@ model User {
   partnersAsRelationshipLead Partner[] @relation("PartnerRelationshipLead")
 
   // Action Tracker (People Strategy)
-  actionItemsLed              ActionItem[]       @relation("ActionItemsLed")
-  actionItemsCreated          ActionItem[]       @relation("ActionItemsCreated")
-  actionItemsApproved         ActionItem[]       @relation("ActionItemsApproved")
-  actionAssignments           ActionAssignment[] @relation("ActionAssignments")
-  actionComments              ActionComment[]    @relation("ActionComments")
-  actionFileLinksAdded        ActionFileLink[]   @relation("ActionFileLinksAdded")
-  actionEmailLogs             ActionEmailLog[]   @relation("ActionEmailLogRecipient")
-  feedbackRequestsAbout       FeedbackRequest[]  @relation("FeedbackRequestSubject")
-  feedbackRequestsToAnswer    FeedbackRequest[]  @relation("FeedbackRequestCollaborator")
-  monthlyFeedbackRequestsSent FeedbackRequest[]  @relation("MonthlyFeedbackRequestedBy")
-  growthTags                  MemberGrowthTag[]  @relation("MemberGrowthTags")
-  growthTagsCreated           MemberGrowthTag[]  @relation("MemberGrowthTagsCreated")
-  actionTemplatesCreated      ActionTemplate[]   @relation("ActionTemplatesCreated")
-  savedActionViews            SavedActionView[]  @relation("SavedActionViews")
+  actionItemsLed                ActionItem[]            @relation("ActionItemsLed")
+  actionItemsCreated            ActionItem[]            @relation("ActionItemsCreated")
+  actionItemsApproved           ActionItem[]            @relation("ActionItemsApproved")
+  actionAssignments             ActionAssignment[]      @relation("ActionAssignments")
+  actionComments                ActionComment[]         @relation("ActionComments")
+  actionFileLinksAdded          ActionFileLink[]        @relation("ActionFileLinksAdded")
+  actionEmailLogs               ActionEmailLog[]        @relation("ActionEmailLogRecipient")
+  feedbackRequestsAbout         FeedbackRequest[]       @relation("FeedbackRequestSubject")
+  feedbackRequestsToAnswer      FeedbackRequest[]       @relation("FeedbackRequestCollaborator")
+  monthlyFeedbackRequestsSent   FeedbackRequest[]       @relation("MonthlyFeedbackRequestedBy")
+  growthTags                    MemberGrowthTag[]       @relation("MemberGrowthTags")
+  growthTagsCreated             MemberGrowthTag[]       @relation("MemberGrowthTagsCreated")
+  actionTemplatesCreated        ActionTemplate[]        @relation("ActionTemplatesCreated")
+  savedActionViews              SavedActionView[]       @relation("SavedActionViews")
   emailTemplateOverridesCreated EmailTemplateOverride[] @relation("EmailTemplateOverridesCreated")
   emailTemplateOverridesUpdated EmailTemplateOverride[] @relation("EmailTemplateOverridesUpdated")
 
   // Weekly Meetings — Teams, Weekly Impact, Meeting Runner
-  teamsCreated            Team[]              @relation("TeamCreatedBy")
-  teamMemberships         TeamMembership[]    @relation("TeamMembershipUser")
-  weeklyImpactEntries     WeeklyImpactEntry[] @relation("WeeklyImpactEntryUser")
-  meetingsFacilitated     Meeting[]           @relation("MeetingFacilitator")
-  meetingsCreated         Meeting[]           @relation("MeetingCreatedBy")
-  meetingAttendances      MeetingAttendee[]   @relation("MeetingAttendeeUser")
-  officerTopicsCreated    OfficerTopic[]      @relation("OfficerTopicCreatedBy")
-  officerTopicOwnerships  OfficerTopicOwner[] @relation("OfficerTopicOwnerUser")
-  meetingDecisionsMade    MeetingDecision[]   @relation("MeetingDecisionDecidedBy")
-  meetingFollowUpsOwned   MeetingFollowUp[]   @relation("MeetingFollowUpOwner")
+  teamsCreated           Team[]              @relation("TeamCreatedBy")
+  teamMemberships        TeamMembership[]    @relation("TeamMembershipUser")
+  weeklyImpactEntries    WeeklyImpactEntry[] @relation("WeeklyImpactEntryUser")
+  meetingsFacilitated    Meeting[]           @relation("MeetingFacilitator")
+  meetingsCreated        Meeting[]           @relation("MeetingCreatedBy")
+  meetingAttendances     MeetingAttendee[]   @relation("MeetingAttendeeUser")
+  officerTopicsCreated   OfficerTopic[]      @relation("OfficerTopicCreatedBy")
+  officerTopicOwnerships OfficerTopicOwner[] @relation("OfficerTopicOwnerUser")
+  meetingDecisionsMade   MeetingDecision[]   @relation("MeetingDecisionDecidedBy")
+  meetingFollowUpsOwned  MeetingFollowUp[]   @relation("MeetingFollowUpOwner")
 
   // People Strategy — provisional 3-month confirmation clock
   // (ENABLE_PROVISIONAL_CLOCK). `provisionalStart` is set when a hire is
@@ -3044,19 +3044,19 @@ model Mentorship {
   checkIns                MentorshipCheckIn[]
 
   // Mentorship Program relations
-  selfReflections  MonthlySelfReflection[]
-  goalReviews      MentorGoalReview[]
-  monthlyReviews   MonthlyGoalReview[]
-  circleMembers    MentorshipCircleMember[]
-  sessions         MentorshipSession[]
-  actionItems      MentorshipActionItem[]
-  supportRequests  MentorshipRequest[]
-  resources        MentorshipResource[]
-  feedbackRequests QuarterlyFeedbackRequest[]
-  scheduleRequests MentorshipScheduleRequest[]
-  grDocuments      GRDocument[]
+  selfReflections         MonthlySelfReflection[]
+  goalReviews             MentorGoalReview[]
+  monthlyReviews          MonthlyGoalReview[]
+  circleMembers           MentorshipCircleMember[]
+  sessions                MentorshipSession[]
+  actionItems             MentorshipActionItem[]
+  supportRequests         MentorshipRequest[]
+  resources               MentorshipResource[]
+  feedbackRequests        QuarterlyFeedbackRequest[]
+  scheduleRequests        MentorshipScheduleRequest[]
+  grDocuments             GRDocument[]
   reviewCycleParticipants ReviewCycleParticipant[]
-  quarterlyReviews MentorshipQuarterlyReview[]
+  quarterlyReviews        MentorshipQuarterlyReview[]
 
   @@index([trackId])
   @@index([chairId])
@@ -3120,32 +3120,32 @@ model MentorshipCheckIn {
 /// Statuses/kinds are strings validated in app code
 /// (lib/mentorship/cycle-constants.ts) — mentorship-2 convention.
 model ReviewCycle {
-  id          String  @id @default(cuid())
-  name        String
+  id                      String    @id @default(cuid())
+  name                    String
   /// "monthly" | "quarterly"
-  kind        String  @default("monthly")
+  kind                    String    @default("monthly")
   /// Period targeted: "2026-07" (monthly) or "2026-Q3" (quarterly).
-  periodLabel String
+  periodLabel             String
   /// "role-group" | "chapter" | "lane" | "custom"
-  scopeType   String
+  scopeType               String
   /// Human descriptor, e.g. "All chapter presidents" / "Scarsdale chapter".
-  scopeLabel  String
+  scopeLabel              String
   /// Snapshot of the launcher input for auditability.
-  scopeJson   Json?
-  dueDate     DateTime?
+  scopeJson               Json?
+  dueDate                 DateTime?
   /// "active" | "closed"
-  status      String    @default("active")
+  status                  String    @default("active")
   /// This cycle's actual monthly reflection question wording, editable by
   /// admin/Global Leadership before launch. Falls back to the participant's
   /// GRTemplate.reflectionQuestions default when null — the reflection form
   /// still writes to MonthlySelfReflection's fixed columns; only the
   /// displayed prompt text is templated/overridable per cycle.
   reflectionQuestionsJson Json?
-  createdById String
-  createdBy   User      @relation("ReviewCyclesCreated", fields: [createdById], references: [id], onDelete: Cascade)
-  closedAt    DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdById             String
+  createdBy               User      @relation("ReviewCyclesCreated", fields: [createdById], references: [id], onDelete: Cascade)
+  closedAt                DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
 
   participants ReviewCycleParticipant[]
 
@@ -3154,18 +3154,18 @@ model ReviewCycle {
 }
 
 model ReviewCycleParticipant {
-  id           String      @id @default(cuid())
-  cycleId      String
-  cycle        ReviewCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
-  userId       String
-  user         User        @relation("ReviewCycleParticipations", fields: [userId], references: [id], onDelete: Cascade)
+  id            String      @id @default(cuid())
+  cycleId       String
+  cycle         ReviewCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User        @relation("ReviewCycleParticipations", fields: [userId], references: [id], onDelete: Cascade)
   /// Active pairing snapshotted at launch (null ⇒ "needs mentor" stage).
-  mentorshipId String?
-  mentorship   Mentorship? @relation(fields: [mentorshipId], references: [id], onDelete: SetNull)
+  mentorshipId  String?
+  mentorship    Mentorship? @relation(fields: [mentorshipId], references: [id], onDelete: SetNull)
   /// Manual override: "waived" — normally null, stage is derived.
   stageOverride String?
   note          String?
-  addedAt       DateTime @default(now())
+  addedAt       DateTime    @default(now())
 
   feedbackRequests FeedbackRequest[]
 
@@ -3282,42 +3282,42 @@ model MentorAvailabilityOverride {
 }
 
 model MentorshipActionItem {
-  id             String                     @id @default(cuid())
-  mentorshipId   String?
-  mentorship     Mentorship?                @relation(fields: [mentorshipId], references: [id], onDelete: SetNull)
-  menteeId       String
-  mentee         User                       @relation("MentorshipActionItemsForMentees", fields: [menteeId], references: [id], onDelete: Cascade)
-  sessionId      String?
-  session        MentorshipSession?         @relation(fields: [sessionId], references: [id], onDelete: SetNull)
-  title          String
-  details        String?
-  status         MentorshipActionItemStatus @default(OPEN)
-  ownerId        String?
-  owner          User?                      @relation("MentorshipActionItemsOwned", fields: [ownerId], references: [id], onDelete: SetNull)
-  createdById    String
-  createdBy      User                       @relation("MentorshipActionItemsCreated", fields: [createdById], references: [id], onDelete: Cascade)
-  dueAt          DateTime?
-  completedAt    DateTime?
+  id               String                     @id @default(cuid())
+  mentorshipId     String?
+  mentorship       Mentorship?                @relation(fields: [mentorshipId], references: [id], onDelete: SetNull)
+  menteeId         String
+  mentee           User                       @relation("MentorshipActionItemsForMentees", fields: [menteeId], references: [id], onDelete: Cascade)
+  sessionId        String?
+  session          MentorshipSession?         @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  title            String
+  details          String?
+  status           MentorshipActionItemStatus @default(OPEN)
+  ownerId          String?
+  owner            User?                      @relation("MentorshipActionItemsOwned", fields: [ownerId], references: [id], onDelete: SetNull)
+  createdById      String
+  createdBy        User                       @relation("MentorshipActionItemsCreated", fields: [createdById], references: [id], onDelete: Cascade)
+  dueAt            DateTime?
+  completedAt      DateTime?
   // Calm Mentorship (Phase 7): back-link to the org Action this commitment was
   // bridged into, so the "convert to Action" one-click is idempotent (a second
   // convert is a no-op). Nullable + backfill-free; cleared if the Action is
   // dropped, in which case a fresh convert creates a new one. No FK — the org
   // ActionItem links back via relatedEntityType:"MENTORSHIP", and this side
   // tolerates a stale id (the read path treats a missing target as unlinked).
-  linkedActionId String?
+  linkedActionId   String?
   /// Follow-up spawned from a released mentor review — links the outcome back
   /// to the review, so "what came out of this review" is queryable.
-  sourceReviewId String?
-  sourceReview   MentorGoalReview?          @relation("ActionItemsFromReview", fields: [sourceReviewId], references: [id], onDelete: SetNull)
+  sourceReviewId   String?
+  sourceReview     MentorGoalReview?          @relation("ActionItemsFromReview", fields: [sourceReviewId], references: [id], onDelete: SetNull)
   /// The other direction: which current-G&R goal this action item advances.
   /// Completed items linked to a goal become that goal's evidence trail for
   /// the next review cycle — the minimum connection needed to close the loop
   /// from "review creates goal" to "work happens" to "next review evaluates
   /// progress," without a project-management system.
   grDocumentGoalId String?
-  grDocumentGoal   GRDocumentGoal?          @relation("MentorshipActionItemsForGoal", fields: [grDocumentGoalId], references: [id], onDelete: SetNull)
-  createdAt      DateTime                   @default(now())
-  updatedAt      DateTime                   @updatedAt
+  grDocumentGoal   GRDocumentGoal?            @relation("MentorshipActionItemsForGoal", fields: [grDocumentGoalId], references: [id], onDelete: SetNull)
+  createdAt        DateTime                   @default(now())
+  updatedAt        DateTime                   @updatedAt
 
   @@index([mentorshipId])
   @@index([menteeId, status])
@@ -5010,6 +5010,7 @@ model LessonPlan {
   authorId        String
   author          User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
   activities      LessonActivity[]
+  classSessions   ClassSession[]
   isTemplate      Boolean          @default(false)
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
@@ -8023,6 +8024,10 @@ model ClassSession {
   materialsUrl String?
   recordingUrl String?
   notesUrl     String?
+  /// The exact reusable lesson plan used for this session. A lesson plan may be
+  /// reused across offerings, while each session points to at most one plan.
+  lessonPlanId String?
+  lessonPlan   LessonPlan? @relation(fields: [lessonPlanId], references: [id], onDelete: SetNull)
 
   // Status
   isCancelled  Boolean @default(false)
@@ -8032,7 +8037,8 @@ model ClassSession {
   attendance ClassAttendanceRecord[]
 
   // Post-session instructor reflection (Phase 5) — 1:1, created on submit.
-  reflection ClassSessionReflection?
+  reflection   ClassSessionReflection?
+  preparations InstructorSessionPreparation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -8040,6 +8046,32 @@ model ClassSession {
   @@unique([offeringId, sessionNumber])
   @@index([offeringId])
   @@index([date])
+  @@index([lessonPlanId])
+}
+
+// Per-instructor proof that the required session preparation was actually
+// reviewed. Content readiness (lesson/material/location existence) remains
+// derived from ClassSession/ClassOffering; this row records the human review so
+// the portal never guesses that an instructor prepared merely because a link
+// exists.
+model InstructorSessionPreparation {
+  id           String       @id @default(cuid())
+  sessionId    String
+  session      ClassSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  instructorId String
+
+  lessonReviewedAt         DateTime?
+  materialsReviewedAt      DateTime?
+  studentContextReviewedAt DateTime?
+  completedAt              DateTime?
+  reviewFingerprint        String?
+  note                     String?   @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([sessionId, instructorId])
+  @@index([instructorId, completedAt])
 }
 
 // Student enrollment in a class offering
@@ -8111,12 +8143,12 @@ model ClassSessionReflection {
   instructorId   String?
   instructorName String?
 
-  wentWell       String?  @db.Text
-  struggled      String?  @db.Text
-  studentToWatch String?  @db.Text
-  changeNextTime String?  @db.Text
-  logisticsIssue String?  @db.Text
-  needsCpHelp    Boolean  @default(false)
+  wentWell       String? @db.Text
+  struggled      String? @db.Text
+  studentToWatch String? @db.Text
+  changeNextTime String? @db.Text
+  logisticsIssue String? @db.Text
+  needsCpHelp    Boolean @default(false)
   /// Instructor confidence after the session, 1–5 (optional).
   confidence     Int?
 
@@ -10039,9 +10071,9 @@ model MonthlySelfReflection {
 
   submittedAt DateTime @default(now())
 
-  goalReview     MentorGoalReview?
+  goalReview         MentorGoalReview?
   mentorCycleCheckIn MentorshipCheckIn? @relation("MentorCycleCheckIn")
-  peopleCheckIns CheckIn[]         @relation("CheckInSelfReflection")
+  peopleCheckIns     CheckIn[]          @relation("CheckInSelfReflection")
 
   @@unique([mentorshipId, cycleNumber])
   @@index([menteeId])
@@ -10134,12 +10166,12 @@ model MentorGoalReview {
   aiDraftUsed Boolean @default(false)
 
   // G&R integration
-  goalSnapshots  MentorGoalReviewGoalSnapshot[]
-  spawnedGRGoals GRDocumentGoal[]               @relation("GRGoalsSpawnedByReview")
-  reviewAck      MenteeReviewAck?
-  peopleCheckIns CheckIn[]                      @relation("CheckInMentorGoalReview")
+  goalSnapshots       MentorGoalReviewGoalSnapshot[]
+  spawnedGRGoals      GRDocumentGoal[]               @relation("GRGoalsSpawnedByReview")
+  reviewAck           MenteeReviewAck?
+  peopleCheckIns      CheckIn[]                      @relation("CheckInMentorGoalReview")
   /// Follow-up commitments created from this review's outcomes.
-  followUpActionItems MentorshipActionItem[]    @relation("ActionItemsFromReview")
+  followUpActionItems MentorshipActionItem[]         @relation("ActionItemsFromReview")
 
   /// Draft next-month goal proposals persisted between form saves. Cleared on submit.
   nextMonthGoalDraftsJson Json?
@@ -10269,13 +10301,13 @@ enum MentorCommitteeLane {
 /// Designates which user is the Mentor Committee Chair for a given mentee role group.
 /// Chairs approve goal reviews and award nominations for their role group.
 model MentorCommitteeChair {
-  id       String         @id @default(cuid())
+  id       String               @id @default(cuid())
   userId   String
-  user     User           @relation("MentorCommitteeChairRoles", fields: [userId], references: [id], onDelete: Cascade)
+  user     User                 @relation("MentorCommitteeChairRoles", fields: [userId], references: [id], onDelete: Cascade)
   roleType MenteeRoleType
   /// The named committee this chair leads (see MentorCommitteeLane doc comment).
   lane     MentorCommitteeLane?
-  isActive Boolean        @default(true)
+  isActive Boolean              @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -10545,11 +10577,11 @@ model ChapterPresidentApplication {
   importedBy          User?             @relation("ChapterPresidentApplicationImportedBy", fields: [importedById], references: [id], onDelete: SetNull)
   manualEmailTasks    ManualEmailTask[] @relation("ManualEmailTasksChapterPresidentApplication")
 
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  archivedAt DateTime?
-  archiveReason String?
-  inactivityNudgeStage Int @default(0)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  archivedAt           DateTime?
+  archiveReason        String?
+  inactivityNudgeStage Int       @default(0)
 
   @@index([status])
   @@index([reviewerId])
@@ -11112,11 +11144,11 @@ model ChapterOperationsTarget {
   chapterId String  @unique
   chapter   Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
 
-  activeStudentsTarget      Int @default(80)
-  activeInstructorsTarget   Int @default(15)
-  instructorPipelineTarget  Int @default(30)
-  activePartnersTarget      Int @default(8)
-  classesRunningTarget      Int @default(8)
+  activeStudentsTarget     Int @default(80)
+  activeInstructorsTarget  Int @default(15)
+  instructorPipelineTarget Int @default(30)
+  activePartnersTarget     Int @default(8)
+  classesRunningTarget     Int @default(8)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -11130,11 +11162,11 @@ model ChapterOperationsReport {
   chapterId String
   chapter   Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
 
-  type        ChapterOperationsReportType
-  status      ChapterOperationsReportStatus @default(DRAFT)
-  periodStart DateTime
-  periodEnd   DateTime
-  metrics     Json
+  type             ChapterOperationsReportType
+  status           ChapterOperationsReportStatus @default(DRAFT)
+  periodStart      DateTime
+  periodEnd        DateTime
+  metrics          Json
   sourceRecordRefs Json
 
   biggestWin       String? @db.Text
@@ -11145,10 +11177,10 @@ model ChapterOperationsReport {
   nextPeriodFocus  String? @db.Text
 
   createdById String
-  createdBy   User @relation("ChapterOperationsReportCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdBy   User      @relation("ChapterOperationsReportCreator", fields: [createdById], references: [id], onDelete: Restrict)
   finalizedAt DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@unique([chapterId, type, periodStart])
   @@index([chapterId, type, periodStart])
@@ -11282,11 +11314,11 @@ model GRTemplate {
   /// Leadership columns. Informational/guidance only; not bound to a title
   /// enum, so it doesn't require extending the org authority spine's title
   /// lists to add new column labels.
-  columns Json?
+  columns               Json?
   /// Default monthly reflection question text per fixed MonthlySelfReflection
   /// section, editable per-cycle via ReviewCycle.reflectionQuestionsJson
   /// (falls back to this when a cycle hasn't overridden it).
-  reflectionQuestions Json?
+  reflectionQuestions   Json?
 
   createdById    String
   createdBy      User    @relation("GRTemplatesCreated", fields: [createdById], references: [id], onDelete: Cascade)
@@ -11309,17 +11341,17 @@ model GRTemplate {
 
 /// Individual goals within a template, organized by time phase
 model GRTemplateGoal {
-  id          String      @id @default(cuid())
-  templateId  String
-  template    GRTemplate  @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  title       String
-  description String      @db.Text
-  timePhase   GRTimePhase
-  sortOrder   Int         @default(0)
-  isActive    Boolean     @default(true)
+  id            String      @id @default(cuid())
+  templateId    String
+  template      GRTemplate  @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  title         String
+  description   String      @db.Text
+  timePhase     GRTimePhase
+  sortOrder     Int         @default(0)
+  isActive      Boolean     @default(true)
   /// See GRDocumentGoal.kind — GOAL rows are copied per-cycle/time-phase;
   /// COMPETENCY rows are copied once and re-rated every cycle.
-  kind        GRGoalKind  @default(GOAL)
+  kind          GRGoalKind  @default(GOAL)
   /// Map of column label (from GRTemplate.columns) -> guidance bullets for
   /// this competency at that level. Only meaningful for kind=COMPETENCY rows.
   levelGuidance Json?
@@ -11486,7 +11518,7 @@ model GRDocumentGoal {
   reviewRatings   GoalReviewRating[]
   reviewSnapshots MentorGoalReviewGoalSnapshot[]
   /// Completed actions linked here become this goal's evidence trail.
-  actionItems     MentorshipActionItem[] @relation("MentorshipActionItemsForGoal")
+  actionItems     MentorshipActionItem[]         @relation("MentorshipActionItemsForGoal")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -14036,15 +14068,15 @@ model Meeting {
   sourceType String?
   sourceId   String?
 
-  attendees     MeetingAttendee[]  @relation("MeetingAttendees")
-  presentations WeeklyImpactRow[]  @relation("MeetingPresentationRows")
-  officerTopics OfficerTopic[]     @relation("MeetingOfficerTopics")
-  decisions     MeetingDecision[]  @relation("MeetingDecisions")
-  followUps     MeetingFollowUp[]  @relation("MeetingFollowUps")
+  attendees     MeetingAttendee[] @relation("MeetingAttendees")
+  presentations WeeklyImpactRow[] @relation("MeetingPresentationRows")
+  officerTopics OfficerTopic[]    @relation("MeetingOfficerTopics")
+  decisions     MeetingDecision[] @relation("MeetingDecisions")
+  followUps     MeetingFollowUp[] @relation("MeetingFollowUps")
 
   /// Action items explicitly assigned to this meeting from the Actions hub
   /// "+ Add to meeting" picker (independent of any action's source provenance).
-  actionItems   ActionItem[]       @relation("ActionItemMeeting")
+  actionItems ActionItem[] @relation("ActionItemMeeting")
 
   createdById String?
   createdBy   User?   @relation("MeetingCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
@@ -14145,9 +14177,9 @@ model WeeklyImpactRow {
 
 /// A numbered officer-meeting discussion topic with one or more owners.
 model OfficerTopic {
-  id        String             @id @default(cuid())
+  id        String  @id @default(cuid())
   meetingId String
-  meeting   Meeting            @relation("MeetingOfficerTopics", fields: [meetingId], references: [id], onDelete: Cascade)
+  meeting   Meeting @relation("MeetingOfficerTopics", fields: [meetingId], references: [id], onDelete: Cascade)
 
   sortOrder Int                @default(0)
   title     String
@@ -14361,7 +14393,7 @@ model MentorshipQuarterlyReview {
   mentee       User       @relation("MentorshipQuarterlyReviewMentees", fields: [menteeId], references: [id], onDelete: Cascade)
 
   /// e.g. "2026-Q3" (see lib/people-strategy/people-performance-selectors.ts currentQuarterLabel).
-  quarter String
+  quarter     String
   /// The monthly cycleNumber (divisible by 3) that triggered this review.
   cycleNumber Int
 
@@ -14419,12 +14451,12 @@ model MentorshipQuarterlyReview {
 /// monthly MentorGoalReviews it's based on. An explicit model rather than an
 /// implicit many-to-many so the evidence set is easy to read/write directly.
 model MentorshipQuarterlyReviewEvidence {
-  id                  String                    @id @default(cuid())
-  quarterlyReviewId   String
-  quarterlyReview     MentorshipQuarterlyReview @relation(fields: [quarterlyReviewId], references: [id], onDelete: Cascade)
-  monthlyReviewId     String
-  monthlyReview       MentorGoalReview          @relation(fields: [monthlyReviewId], references: [id], onDelete: Cascade)
-  createdAt           DateTime                  @default(now())
+  id                String                    @id @default(cuid())
+  quarterlyReviewId String
+  quarterlyReview   MentorshipQuarterlyReview @relation(fields: [quarterlyReviewId], references: [id], onDelete: Cascade)
+  monthlyReviewId   String
+  monthlyReview     MentorGoalReview          @relation(fields: [monthlyReviewId], references: [id], onDelete: Cascade)
+  createdAt         DateTime                  @default(now())
 
   @@unique([quarterlyReviewId, monthlyReviewId])
   @@index([monthlyReviewId])
@@ -15195,14 +15227,14 @@ enum WorkflowAutomationTrigger {
 
 /// What a WorkflowAutomationRule does — each maps to an EXISTING subsystem.
 enum WorkflowAutomationAction {
-  CREATE_ACTION        // → People-Strategy ActionItem (lib/people-strategy)
-  CREATE_MEETING       // → weekly-meetings Meeting
-  SEND_NOTIFICATION    // → lib/notifications.createNotification
+  CREATE_ACTION // → People-Strategy ActionItem (lib/people-strategy)
+  CREATE_MEETING // → weekly-meetings Meeting
+  SEND_NOTIFICATION // → lib/notifications.createNotification
   CREATE_WORKFLOW_ITEM // → lib/workflow.upsertWorkflowItem (home queue + routing)
-  SCHEDULE_FOLLOW_UP   // → sets instance.followUpAt for the engine cron
-  ESCALATE             // → notifies leadership (reuses notification system)
-  ADVANCE_STAGE        // → auto-advances the instance when criteria are met
-  START_WORKFLOW       // → starts another published template's instance (chaining)
+  SCHEDULE_FOLLOW_UP // → sets instance.followUpAt for the engine cron
+  ESCALATE // → notifies leadership (reuses notification system)
+  ADVANCE_STAGE // → auto-advances the instance when criteria are met
+  START_WORKFLOW // → starts another published template's instance (chaining)
 }
 
 /// How a WorkflowTrigger decides to START an instance.
@@ -15233,39 +15265,39 @@ enum WorkflowEventKind {
 
 /// A reusable, domain-agnostic process definition.
 model WorkflowTemplate {
-  id          String                 @id @default(cuid())
+  id                   String                 @id @default(cuid())
   /// Stable slug, unique across templates. Blueprints seed with a fixed key.
-  key         String                 @unique
-  name        String
-  description String?                @db.Text
+  key                  String                 @unique
+  name                 String
+  description          String?                @db.Text
   /// Free-text domain lane (PARTNERS / INSTRUCTORS / PROGRAMS / …); validated
   /// in app code (lib/workflow-engine/constants.ts), not a Postgres enum.
-  domain      String?
-  status      WorkflowTemplateStatus @default(DRAFT)
-  version     Int                    @default(1)
+  domain               String?
+  status               WorkflowTemplateStatus @default(DRAFT)
+  version              Int                    @default(1)
   /// True when this template was installed from a code blueprint (seedable),
   /// carrying the blueprint key for idempotent re-install/diff.
-  isBlueprint  Boolean               @default(false)
-  blueprintKey String?
+  isBlueprint          Boolean                @default(false)
+  blueprintKey         String?
   /// Default assignment for new instances when none is supplied. Strings
   /// validated against RoleType / AdminSubtype in app code.
-  defaultOwnerRole       String?
-  defaultOwnerSubtype    String?
+  defaultOwnerRole     String?
+  defaultOwnerSubtype  String?
   /// Default follow-up cadence + escalation thresholds (hours) for the cron.
-  followUpCadenceHours   Int?
-  escalateAfterHours     Int?
+  followUpCadenceHours Int?
+  escalateAfterHours   Int?
   /// Freeform template-level settings.
-  config      Json?
-  createdById String?
-  updatedById String?
-  createdAt   DateTime               @default(now())
-  updatedAt   DateTime               @updatedAt
+  config               Json?
+  createdById          String?
+  updatedById          String?
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
 
-  stages          WorkflowTemplateStage[]   @relation("WorkflowTemplateStages")
-  transitions     WorkflowTransition[]      @relation("WorkflowTemplateTransitions")
-  automationRules WorkflowAutomationRule[]  @relation("WorkflowTemplateAutomationRules")
-  triggers        WorkflowTrigger[]         @relation("WorkflowTemplateTriggers")
-  instances       WorkflowInstance[]        @relation("WorkflowTemplateInstances")
+  stages           WorkflowTemplateStage[]           @relation("WorkflowTemplateStages")
+  transitions      WorkflowTransition[]              @relation("WorkflowTemplateTransitions")
+  automationRules  WorkflowAutomationRule[]          @relation("WorkflowTemplateAutomationRules")
+  triggers         WorkflowTrigger[]                 @relation("WorkflowTemplateTriggers")
+  instances        WorkflowInstance[]                @relation("WorkflowTemplateInstances")
   versionSnapshots WorkflowTemplateVersionSnapshot[] @relation("WorkflowTemplateVersionSnapshots")
 
   @@index([status])
@@ -15282,13 +15314,13 @@ model WorkflowTemplate {
 /// WorkflowStepExecution rows (which denormalize stageKey/stepKey and don't
 /// reference the template's live authoring state) are never put at risk.
 model WorkflowTemplateVersionSnapshot {
-  id          String           @id @default(cuid())
-  templateId  String
-  template    WorkflowTemplate @relation("WorkflowTemplateVersionSnapshots", fields: [templateId], references: [id], onDelete: Cascade)
-  version     Int
+  id            String           @id @default(cuid())
+  templateId    String
+  template      WorkflowTemplate @relation("WorkflowTemplateVersionSnapshots", fields: [templateId], references: [id], onDelete: Cascade)
+  version       Int
   /// Full serialized WorkflowTemplateDefinition at publish time.
-  snapshot    Json
-  publishedAt DateTime         @default(now())
+  snapshot      Json
+  publishedAt   DateTime         @default(now())
   publishedById String?
 
   @@index([templateId, publishedAt])
@@ -15297,27 +15329,27 @@ model WorkflowTemplateVersionSnapshot {
 /// An ordered stage within a template (the spec's "WorkflowStage", renamed to
 /// avoid colliding with the existing WorkflowStage enum used by WorkflowItem).
 model WorkflowTemplateStage {
-  id          String  @id @default(cuid())
-  templateId  String
-  template    WorkflowTemplate @relation("WorkflowTemplateStages", fields: [templateId], references: [id], onDelete: Cascade)
+  id           String           @id @default(cuid())
+  templateId   String
+  template     WorkflowTemplate @relation("WorkflowTemplateStages", fields: [templateId], references: [id], onDelete: Cascade)
   /// Slug, unique within the template.
-  key         String
-  name        String
-  description String? @db.Text
-  order       Int     @default(0)
+  key          String
+  name         String
+  description  String?          @db.Text
+  order        Int              @default(0)
   /// Soft SLA: hours after entering this stage before it is "overdue".
-  slaHours    Int?
-  isInitial   Boolean @default(false)
-  isTerminal  Boolean @default(false)
+  slaHours     Int?
+  isInitial    Boolean          @default(false)
+  isTerminal   Boolean          @default(false)
   /// Exit-criteria config: { requireAllRequiredSteps?: bool, minProgress?: int,
   /// custom?: string[] }. Evaluated by the pure runtime.
   exitCriteria Json?
 
-  steps              WorkflowTemplateStep[]   @relation("WorkflowStageSteps")
-  outgoingTransitions WorkflowTransition[]    @relation("WorkflowTransitionFrom")
-  incomingTransitions WorkflowTransition[]    @relation("WorkflowTransitionTo")
-  automationRules    WorkflowAutomationRule[] @relation("WorkflowStageAutomationRules")
-  currentInstances   WorkflowInstance[]       @relation("WorkflowInstanceCurrentStage")
+  steps               WorkflowTemplateStep[]   @relation("WorkflowStageSteps")
+  outgoingTransitions WorkflowTransition[]     @relation("WorkflowTransitionFrom")
+  incomingTransitions WorkflowTransition[]     @relation("WorkflowTransitionTo")
+  automationRules     WorkflowAutomationRule[] @relation("WorkflowStageAutomationRules")
+  currentInstances    WorkflowInstance[]       @relation("WorkflowInstanceCurrentStage")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -15328,16 +15360,16 @@ model WorkflowTemplateStage {
 
 /// A step within a stage (the spec's "WorkflowStep").
 model WorkflowTemplateStep {
-  id          String           @id @default(cuid())
-  stageId     String
-  stage       WorkflowTemplateStage @relation("WorkflowStageSteps", fields: [stageId], references: [id], onDelete: Cascade)
-  key         String
-  name        String
-  description String?          @db.Text
-  order       Int              @default(0)
-  kind        WorkflowStepKind @default(TASK)
+  id              String                @id @default(cuid())
+  stageId         String
+  stage           WorkflowTemplateStage @relation("WorkflowStageSteps", fields: [stageId], references: [id], onDelete: Cascade)
+  key             String
+  name            String
+  description     String?               @db.Text
+  order           Int                   @default(0)
+  kind            WorkflowStepKind      @default(TASK)
   /// Required steps gate stage exit; optional steps do not.
-  isRequired  Boolean          @default(true)
+  isRequired      Boolean               @default(true)
   /// How the step's owner is resolved: OWNER | ROLE | SUBTYPE | SUBJECT.
   assigneeMode    String?
   assigneeRole    String?
@@ -15346,7 +15378,7 @@ model WorkflowTemplateStep {
   dueOffsetHours  Int?
   /// Step-kind config (meeting type, document key, form fields, automation
   /// action params, …).
-  config      Json?
+  config          Json?
 
   executions WorkflowStepExecution[] @relation("WorkflowStepExecutions")
 
@@ -15359,9 +15391,9 @@ model WorkflowTemplateStep {
 
 /// A directed edge between two stages. Conditions enable branching flows.
 model WorkflowTransition {
-  id          String @id @default(cuid())
+  id          String                @id @default(cuid())
   templateId  String
-  template    WorkflowTemplate @relation("WorkflowTemplateTransitions", fields: [templateId], references: [id], onDelete: Cascade)
+  template    WorkflowTemplate      @relation("WorkflowTemplateTransitions", fields: [templateId], references: [id], onDelete: Cascade)
   fromStageId String
   fromStage   WorkflowTemplateStage @relation("WorkflowTransitionFrom", fields: [fromStageId], references: [id], onDelete: Cascade)
   toStageId   String
@@ -15370,10 +15402,10 @@ model WorkflowTransition {
   /// Branch condition: { allRequiredStepsComplete?: bool, expr?: string }.
   condition   Json?
   /// The default outgoing edge taken when criteria are met.
-  isDefault   Boolean @default(true)
+  isDefault   Boolean               @default(true)
   /// Whether the engine may take this edge automatically (vs. manual advance).
-  isAutomatic Boolean @default(true)
-  order       Int     @default(0)
+  isAutomatic Boolean               @default(true)
+  order       Int                   @default(0)
 
   createdAt DateTime @default(now())
 
@@ -15431,32 +15463,32 @@ model WorkflowTrigger {
 
 /// A single running execution of a template.
 model WorkflowInstance {
-  id          String                 @id @default(cuid())
-  templateId  String
-  template    WorkflowTemplate       @relation("WorkflowTemplateInstances", fields: [templateId], references: [id], onDelete: Restrict)
-  title       String
-  status      WorkflowInstanceStatus @default(ACTIVE)
+  id                String                 @id @default(cuid())
+  templateId        String
+  template          WorkflowTemplate       @relation("WorkflowTemplateInstances", fields: [templateId], references: [id], onDelete: Restrict)
+  title             String
+  status            WorkflowInstanceStatus @default(ACTIVE)
   /// The stage the instance is currently in (SetNull if the stage is deleted).
-  currentStageId String?
-  currentStage   WorkflowTemplateStage? @relation("WorkflowInstanceCurrentStage", fields: [currentStageId], references: [id], onDelete: SetNull)
+  currentStageId    String?
+  currentStage      WorkflowTemplateStage? @relation("WorkflowInstanceCurrentStage", fields: [currentStageId], references: [id], onDelete: SetNull)
   /// Polymorphic subject (what the workflow is ABOUT) — reuses the
   /// RELATED_ENTITY_TYPE vocabulary; both-or-neither, validated in app code.
-  subjectType String?
-  subjectId   String?
+  subjectType       String?
+  subjectId         String?
   /// Loosely-coupled org links (resolved in app code, no FK).
-  chapterId   String?
-  ownerId     String?
-  startedById String?
+  chapterId         String?
+  ownerId           String?
+  startedById       String?
   /// Denormalized 0–100 completion, recomputed on every step change.
-  completionPercent Int            @default(0)
-  startedAt        DateTime        @default(now())
-  dueAt            DateTime?
-  followUpAt       DateTime?
-  escalatedAt      DateTime?
-  lastEscalationAt DateTime?
-  completedAt      DateTime?
-  cancelledAt      DateTime?
-  metadata         Json?
+  completionPercent Int                    @default(0)
+  startedAt         DateTime               @default(now())
+  dueAt             DateTime?
+  followUpAt        DateTime?
+  escalatedAt       DateTime?
+  lastEscalationAt  DateTime?
+  completedAt       DateTime?
+  cancelledAt       DateTime?
+  metadata          Json?
 
   executions  WorkflowStepExecution[] @relation("WorkflowInstanceExecutions")
   events      WorkflowEvent[]         @relation("WorkflowInstanceEvents")
@@ -15479,26 +15511,26 @@ model WorkflowInstance {
 /// back to the REUSED entities the engine created (ActionItem / Meeting /
 /// WorkflowItem) so nothing is duplicated.
 model WorkflowStepExecution {
-  id         String            @id @default(cuid())
-  instanceId String
-  instance   WorkflowInstance  @relation("WorkflowInstanceExecutions", fields: [instanceId], references: [id], onDelete: Cascade)
+  id                   String                @id @default(cuid())
+  instanceId           String
+  instance             WorkflowInstance      @relation("WorkflowInstanceExecutions", fields: [instanceId], references: [id], onDelete: Cascade)
   /// The template step this realizes (SetNull if the step is later deleted).
-  stepId     String?
-  step       WorkflowTemplateStep? @relation("WorkflowStepExecutions", fields: [stepId], references: [id], onDelete: SetNull)
+  stepId               String?
+  step                 WorkflowTemplateStep? @relation("WorkflowStepExecutions", fields: [stepId], references: [id], onDelete: SetNull)
   /// Denormalized identity so executions survive template edits.
-  stageKey   String
-  stepKey    String
-  title      String
-  kind       WorkflowStepKind  @default(TASK)
-  state      WorkflowStepState @default(PENDING)
-  isRequired Boolean           @default(true)
-  ownerId    String?
-  dueAt      DateTime?
-  startedAt  DateTime?
-  completedAt   DateTime?
-  completedById String?
-  blockedReason String?        @db.Text
-  output     Json?
+  stageKey             String
+  stepKey              String
+  title                String
+  kind                 WorkflowStepKind      @default(TASK)
+  state                WorkflowStepState     @default(PENDING)
+  isRequired           Boolean               @default(true)
+  ownerId              String?
+  dueAt                DateTime?
+  startedAt            DateTime?
+  completedAt          DateTime?
+  completedById        String?
+  blockedReason        String?               @db.Text
+  output               Json?
   /// Reuse links — the engine never creates parallel task/meeting tables.
   linkedActionItemId   String?
   linkedMeetingId      String?
@@ -15527,12 +15559,12 @@ model WorkflowAttachment {
   workflowInstanceId String
   workflowInstance   WorkflowInstance @relation("WorkflowInstanceAttachments", fields: [workflowInstanceId], references: [id], onDelete: Cascade)
   /// WORKFLOW_ENTITY_TYPE vocabulary (lib/workflow-engine/entity-types.ts).
-  entityType String
-  entityId   String
+  entityType         String
+  entityId           String
   /// SECONDARY | STAKEHOLDER | WATCHER — never PRIMARY (that's subjectType/subjectId on the instance itself).
-  relationship String   @default("SECONDARY")
-  createdById  String?
-  createdAt    DateTime @default(now())
+  relationship       String           @default("SECONDARY")
+  createdById        String?
+  createdAt          DateTime         @default(now())
 
   @@unique([workflowInstanceId, entityType, entityId, relationship])
   @@index([entityType, entityId])
@@ -15541,17 +15573,17 @@ model WorkflowAttachment {
 
 /// Append-only history timeline for an instance.
 model WorkflowEvent {
-  id         String            @id @default(cuid())
-  instanceId String
-  instance   WorkflowInstance  @relation("WorkflowInstanceEvents", fields: [instanceId], references: [id], onDelete: Cascade)
-  kind       WorkflowEventKind
-  summary    String
+  id           String            @id @default(cuid())
+  instanceId   String
+  instance     WorkflowInstance  @relation("WorkflowInstanceEvents", fields: [instanceId], references: [id], onDelete: Cascade)
+  kind         WorkflowEventKind
+  summary      String
   fromStageKey String?
   toStageKey   String?
   stepKey      String?
   actorId      String?
   data         Json?
-  createdAt  DateTime          @default(now())
+  createdAt    DateTime          @default(now())
 
   @@index([instanceId, createdAt])
   @@index([kind])
@@ -15559,14 +15591,14 @@ model WorkflowEvent {
 
 /// Point-in-time serialized runtime state of an instance (audit + analytics).
 model WorkflowSnapshot {
-  id         String           @id @default(cuid())
-  instanceId String
-  instance   WorkflowInstance @relation("WorkflowInstanceSnapshots", fields: [instanceId], references: [id], onDelete: Cascade)
-  stageKey   String?
-  status     String
-  completionPercent Int       @default(0)
-  state      Json
-  capturedAt DateTime         @default(now())
+  id                String           @id @default(cuid())
+  instanceId        String
+  instance          WorkflowInstance @relation("WorkflowInstanceSnapshots", fields: [instanceId], references: [id], onDelete: Cascade)
+  stageKey          String?
+  status            String
+  completionPercent Int              @default(0)
+  state             Json
+  capturedAt        DateTime         @default(now())
 
   @@index([instanceId, capturedAt])
 }
@@ -15574,17 +15606,17 @@ model WorkflowSnapshot {
 /// Rolled-up analytics metric (completion rate, avg stage duration, velocity,
 /// bottlenecks). bucketKey makes cron upserts idempotent.
 model WorkflowMetric {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   /// Null = org-wide; otherwise the template id (loosely-coupled, no FK).
   templateId  String?
   metricKey   String
   dimension   String?
-  value       Float    @default(0)
+  value       Float     @default(0)
   windowStart DateTime?
   windowEnd   DateTime?
   /// Deterministic idempotency key: templateId:metricKey:dimension:windowStart.
-  bucketKey   String   @unique
-  capturedAt  DateTime @default(now())
+  bucketKey   String    @unique
+  capturedAt  DateTime  @default(now())
 
   @@index([templateId, metricKey, capturedAt])
 }
