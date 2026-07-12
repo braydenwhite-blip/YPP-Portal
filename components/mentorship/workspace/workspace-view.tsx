@@ -8,6 +8,7 @@ import { KickoffStatusRow } from "@/components/mentorship/kickoff-status-row";
 import { CheckInsSection } from "./sections";
 import { MenteeGoalsSection } from "./goals-section";
 import { ReviewsSection } from "./reviews-section";
+import { ProgressUpdateSection } from "./progress-update-section";
 import { ChairApprovalPanel } from "./chair-approval-panel";
 import {
   SetupRepairPanel,
@@ -23,12 +24,12 @@ import { SelfGoalsSection, SelfHelpCard, SelfMilestones, SelfRecognitionCard } f
  * section. Rendered from two hosts: `/mentorship/people/[id]` (full header) and
  * the hub's `?view=me` POV (`showHeader={false}`, one header per page).
  *
- * One lifecycle, one workspace: four sections for every viewer — Overview,
- * Goals, Check-ins, Reviews — because Mentorship is one lifecycle
- * (relationship → goals → check-ins → reflection/review → follow-up), not a
- * menu of features. `workspace.isSelf` only changes what each section shows
- * (e.g. Goals renders the mentee's own G&R document vs. the mentor's read
- * view + propose-change form), never which tabs exist.
+ * One lifecycle, one workspace: Overview, Goals, Check-ins, Reviews, and
+ * Progress update — because Mentorship is one lifecycle (relationship → goals →
+ * check-ins → reflection/review → progress update → follow-up), not a menu of
+ * features. `workspace.isSelf` only changes what each section shows (e.g. Goals
+ * renders the mentee's own G&R document vs. the mentor's read view +
+ * propose-change form), never which tabs exist.
  */
 
 const SECTIONS = [
@@ -36,11 +37,12 @@ const SECTIONS = [
   { id: "goals", label: "Goals" },
   { id: "check-ins", label: "Meetings" },
   { id: "reviews", label: "Feedback" },
+  { id: "progress", label: "Progress update" },
 ] as const;
 
 type SectionId = (typeof SECTIONS)[number]["id"];
 
-/** Old section ids from the previous seven-tab layout resolve into the four above. */
+/** Old section ids from the previous seven-tab layout resolve into the five above. */
 const SECTION_ALIASES: Record<string, SectionId> = {
   plan: "goals",
   relationships: "overview",
@@ -49,11 +51,14 @@ const SECTION_ALIASES: Record<string, SectionId> = {
   reflection: "reviews",
   schedule: "check-ins",
   recognition: "overview",
+  "progress-update": "progress",
 };
 
 function resolveSection(raw: string | undefined): SectionId {
   if (!raw) return "overview";
-  if (SECTIONS.some((s) => s.id === raw)) return raw as SectionId;
+  if ((SECTIONS as readonly { id: string }[]).some((s) => s.id === raw)) {
+    return raw as SectionId;
+  }
   return SECTION_ALIASES[raw] ?? "overview";
 }
 
@@ -67,9 +72,11 @@ export function MentorshipWorkspaceView({
   showHeader = true,
   helpSent = false,
   alsoMentors = false,
+  progressSent = false,
+  progressPending = false,
 }: {
   workspace: MentorshipWorkspace;
-  /** Raw `?section=` value; unknown or legacy ids resolve to one of the four. */
+  /** Raw `?section=` value; unknown or legacy ids resolve to a known tab. */
   section?: string;
   /** Opens the one stage-specific work surface selected by the lifecycle CTA. */
   panel?: string;
@@ -87,6 +94,10 @@ export function MentorshipWorkspaceView({
   helpSent?: boolean;
   /** Self workspace: viewer also mentors others — show Mentor switch. */
   alsoMentors?: boolean;
+  /** Mentor just released a progress update (`?progressSent=1`). */
+  progressSent?: boolean;
+  /** Mentor submitted a progress update awaiting chair (`?progressPending=1`). */
+  progressPending?: boolean;
 }) {
   const isSelf = workspace.isSelf;
   const active =
@@ -180,6 +191,7 @@ export function MentorshipWorkspaceView({
               goalsHref={sectionHref("goals")}
               meetingsHref={sectionHref("check-ins")}
               feedbackHref={sectionHref("reviews")}
+              progressHref={sectionHref("progress")}
             />
             {workspace.isAdmin && workspace.activeMentorshipId ? (
               <ManageRelationshipHost
@@ -208,6 +220,14 @@ export function MentorshipWorkspaceView({
 
       {active === "reviews" ? (
         <ReviewsSection workspace={workspace} sectionHref={sectionHref} />
+      ) : null}
+
+      {active === "progress" ? (
+        <ProgressUpdateSection
+          workspace={workspace}
+          justSent={progressSent}
+          pendingChair={progressPending}
+        />
       ) : null}
     </>
   );

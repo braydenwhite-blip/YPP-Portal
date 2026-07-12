@@ -130,6 +130,8 @@ export default async function MentorshipPersonPage({ params, searchParams }: Pag
       }
       helpSent={sp.sent === "1"}
       alsoMentors={alsoMentors}
+      progressSent={sp.progressSent === "1"}
+      progressPending={sp.progressPending === "1"}
       sectionHref={(sectionId) =>
         `/mentorship/people/${id}?section=${encodeURIComponent(sectionId)}`
       }

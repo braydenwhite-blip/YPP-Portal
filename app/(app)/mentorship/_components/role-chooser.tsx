@@ -7,7 +7,6 @@ type RoleChooserProps = {
   mentorHref?: string | null;
   /** Leadership people/workload roster. */
   peopleHref?: string | null;
-  adminHref?: string | null;
   /** People this viewer mentors (shown on the Mentor card). */
   menteeNames?: string[];
   /** This viewer's own mentor (shown on the Mentee card). */
@@ -22,7 +21,6 @@ export function MentorshipRoleChooser({
   menteeHref,
   mentorHref,
   peopleHref,
-  adminHref,
   menteeNames = [],
   mentorName,
 }: RoleChooserProps) {
@@ -59,15 +57,6 @@ export function MentorshipRoleChooser({
       title: "People",
       detail: "Org-wide workload",
       description: "Who needs a check-in next — one row per person, sorted by urgency.",
-    });
-  }
-  if (adminHref) {
-    cards.push({
-      key: "admin",
-      href: adminHref,
-      title: "Goals",
-      detail: "Program setup",
-      description: "Create and assign Goals & Responsibilities.",
     });
   }
 

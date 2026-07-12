@@ -27,9 +27,11 @@ import { EmptyStateEditorial } from "./_components/empty-state-editorial";
 import { AdminMentorshipHome } from "./_components/admin-home-calm";
 import { MentorshipRoleChooser } from "./_components/role-chooser";
 import { PeopleReviewsPage } from "@/components/people-strategy/people-reviews-page";
-import { getPeopleHubAccess } from "@/lib/people/hub-access";
 import { isPeopleDashboardEnabled } from "@/lib/feature-flags";
-import type { ActionViewer } from "@/lib/people-strategy/action-permissions";
+import {
+  isOfficerTier,
+  type ActionViewer,
+} from "@/lib/people-strategy/action-permissions";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -104,7 +106,7 @@ export default async function MentorshipPage(
   const requestedView = spString(searchParams, "view");
 
   // Home: card chooser — Mentor only if you have mentees, Mentee only if you
-  // have a mentor. Leadership may still see People / Goals.
+  // have a mentor. Officer-tier (Admin / Staff / CP / Hiring Chair) may see People.
   if (needsMentorshipRoleChooser(facts, requestedView)) {
     const hubViewer: ActionViewer = {
       id: userId,
@@ -112,8 +114,7 @@ export default async function MentorshipPage(
       primaryRole: primaryRole ?? null,
       adminSubtypes: (session.user.adminSubtypes ?? []) as string[],
     };
-    const showPeopleCard =
-      isPeopleDashboardEnabled() && getPeopleHubAccess(hubViewer).showPerformance;
+    const showPeopleCard = isPeopleDashboardEnabled() && isOfficerTier(hubViewer);
 
     const [asMentee, asMentor] = await Promise.all([
       prisma.mentorship.findFirst({
@@ -134,11 +135,8 @@ export default async function MentorshipPage(
 
     const showMentorCard = asMentor.length > 0;
     const showMenteeCard = Boolean(asMentee);
-    const showGoalsCard = povs.includes("admin");
 
-    const cardCount = [showMentorCard, showMenteeCard, showPeopleCard, showGoalsCard].filter(
-      Boolean
-    ).length;
+    const cardCount = [showMentorCard, showMenteeCard, showPeopleCard].filter(Boolean).length;
     const subtitle =
       cardCount > 1
         ? "Pick which side you’re working from."
@@ -146,9 +144,7 @@ export default async function MentorshipPage(
           ? "Your coaching home."
           : showPeopleCard
             ? "People workload for your org."
-            : showGoalsCard
-              ? "Program setup."
-              : "Your development home.";
+            : "Your development home.";
 
     return (
       <div className={`${skin.portalSkin} flex flex-col gap-6`}>
@@ -161,7 +157,6 @@ export default async function MentorshipPage(
           mentorHref={showMentorCard ? povHref("mentor") : null}
           menteeHref={showMenteeCard ? `/mentorship/people/${userId}` : null}
           peopleHref={showPeopleCard ? "/mentorship?view=people" : null}
-          adminHref={showGoalsCard ? povHref("admin") : null}
           mentorName={asMentee?.mentor.name ?? null}
           menteeNames={menteeNames}
         />
@@ -169,7 +164,7 @@ export default async function MentorshipPage(
     );
   }
 
-  // People & workload — leadership roster (same table as the old /people page).
+  // People & workload — officer-tier roster (Admin / Staff / CP / Hiring Chair).
   if (requestedView === "people") {
     const hubViewer: ActionViewer = {
       id: userId,
@@ -177,7 +172,7 @@ export default async function MentorshipPage(
       primaryRole: primaryRole ?? null,
       adminSubtypes: (session.user.adminSubtypes ?? []) as string[],
     };
-    if (!isPeopleDashboardEnabled() || !getPeopleHubAccess(hubViewer).showPerformance) {
+    if (!isPeopleDashboardEnabled() || !isOfficerTier(hubViewer)) {
       redirect("/mentorship");
     }
 

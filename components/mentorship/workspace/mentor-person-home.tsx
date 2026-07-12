@@ -11,18 +11,20 @@ export function MentorPersonHome({
   goalsHref,
   meetingsHref,
   feedbackHref,
+  progressHref,
 }: {
   workspace: MentorshipWorkspace;
   goalsHref: string;
   meetingsHref: string;
   feedbackHref: string;
+  progressHref?: string;
 }) {
   const meetings = workspace.checkIns.length;
   const goalsReady = workspace.goals.docStatus === "ACTIVE";
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Door
           href={goalsHref}
           title="Goals"
@@ -38,6 +40,13 @@ export function MentorPersonHome({
           detail={meetings === 0 ? "Log a meeting" : `${meetings} logged`}
         />
         <Door href={feedbackHref} title="Feedback" detail="Notes & check-ins" />
+        {progressHref ? (
+          <Door
+            href={progressHref}
+            title="Progress update"
+            detail="Review work · rate · share PDF"
+          />
+        ) : null}
       </div>
 
       {(workspace.relationships.startedAtLabel ||

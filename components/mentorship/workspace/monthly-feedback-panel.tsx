@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 import { Button } from "@/components/ui-v2";
 import {
@@ -24,6 +25,7 @@ const fieldInput =
  */
 export function MonthlyFeedbackPanel({
   mentorshipId,
+  personId,
   current,
   past,
   canCompose,
@@ -31,6 +33,7 @@ export function MonthlyFeedbackPanel({
   menteeFirstName,
 }: {
   mentorshipId: string;
+  personId: string;
   current: MonthlyFeedbackForm;
   past: MonthlyFeedbackForm[];
   canCompose: boolean;
@@ -46,7 +49,7 @@ export function MonthlyFeedbackPanel({
         canAnswer={canAnswer}
         menteeFirstName={menteeFirstName}
       />
-      <PastMonthsSection past={past} isSelf={canAnswer && !canCompose} />
+      <PastMonthsSection past={past} isSelf={canAnswer && !canCompose} personId={personId} />
     </div>
   );
 }
@@ -92,28 +95,28 @@ function CurrentMonthCard({
 
   return (
     <section className="flex flex-col gap-4 rounded-[16px] border border-line bg-surface p-5 shadow-sm">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <p className="m-0 text-[11.5px] font-bold uppercase tracking-[0.07em] text-ink-muted">
-            Current month
-          </p>
-          <h3 className="m-0 mt-1 text-[18px] font-bold tracking-[-0.3px] text-ink">
-            {form.cycleLabel}
-          </h3>
-          <p className="m-0 mt-1 text-[13px] text-ink-muted">
-            {form.status === "DRAFT" && canCompose
-              ? "Build the question list, then send it to them."
-              : form.status === "DRAFT" && canAnswer
-                ? "Your mentor hasn’t sent this month’s questions yet."
-                : form.status === "SENT" && canCompose
-                  ? `Waiting on ${menteeFirstName} to answer.`
-                  : form.status === "SENT" && canAnswer
-                    ? "Answer each question, then send."
-                    : "Answers are in for this month."}
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <p className="m-0 text-[11.5px] font-bold uppercase tracking-[0.07em] text-ink-muted">
+              Current month
+            </p>
+            <h3 className="m-0 mt-1 text-[18px] font-bold tracking-[-0.3px] text-ink">
+              {form.cycleLabel}
+            </h3>
+            <p className="m-0 mt-1 text-[13px] text-ink-muted">
+              {form.status === "DRAFT" && canCompose
+                ? "Build the question list, then send it to them."
+                : form.status === "DRAFT" && canAnswer
+                  ? "Your mentor hasn’t sent this month’s questions yet."
+                  : form.status === "SENT" && canCompose
+                    ? `Waiting on ${menteeFirstName} to answer.`
+                    : form.status === "SENT" && canAnswer
+                      ? "Answer each question, then send."
+                      : "Answers are in for this month."}
+            </p>
+          </div>
+          <StatusPill status={form.status} />
         </div>
-        <StatusPill status={form.status} />
-      </div>
 
       {form.status === "DRAFT" && canCompose ? (
         <>
@@ -283,13 +286,6 @@ function CurrentMonthCard({
         </ul>
       ) : null}
 
-      {form.status === "ANSWERED" ? (
-        <p className="m-0 rounded-[12px] border border-line-soft bg-surface-soft/40 px-4 py-3 text-[13.5px] text-ink-muted">
-          Done for {form.cycleLabel}. Open it under{" "}
-          <strong className="font-semibold text-ink">Past months</strong> to read the answers.
-        </p>
-      ) : null}
-
       {error ? (
         <p className="m-0 text-[12.5px] font-medium text-danger-700">{error}</p>
       ) : null}
@@ -300,9 +296,11 @@ function CurrentMonthCard({
 function PastMonthsSection({
   past,
   isSelf,
+  personId,
 }: {
   past: MonthlyFeedbackForm[];
   isSelf: boolean;
+  personId: string;
 }) {
   if (past.length === 0) {
     return (
@@ -333,7 +331,16 @@ function PastMonthsSection({
           <summary className="cursor-pointer list-none px-4 py-3 marker:content-none [&::-webkit-details-marker]:hidden">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <strong className="text-[14px] text-ink">{form.cycleLabel}</strong>
-              <StatusPill status={form.status} />
+              <div className="flex items-center gap-2">
+                <StatusPill status={form.status} />
+                <Link
+                  href={`/mentorship/people/${personId}/monthly-update/print?month=${form.cycleMonthKey}`}
+                  className="text-[12px] font-semibold text-brand-700 no-underline hover:underline"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  PDF
+                </Link>
+              </div>
             </div>
           </summary>
           <div className="border-t border-line-soft px-4 py-4">

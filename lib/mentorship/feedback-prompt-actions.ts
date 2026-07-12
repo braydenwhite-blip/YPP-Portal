@@ -244,6 +244,40 @@ export async function submitMonthlyFeedbackAnswers(input: unknown) {
   return { ok: true as const };
 }
 
+/**
+ * Testing helper: wipe past months and reset this month to a fresh draft
+ * so the mentor/mentee flow can be tried again.
+ */
+export async function resetMonthlyFeedbackForTesting(input: unknown) {
+  const viewer = await requireSessionUser();
+  const data = MentorshipIdSchema.parse(input);
+  const mentorship = await loadMentorshipForViewer(
+    data.mentorshipId,
+    viewer.id,
+    viewer.roles ?? []
+  );
+  if (!isMentorOf(mentorship, viewer.id, viewer.roles ?? [])) {
+    throw new Error("Only the mentor can reset monthly feedback.");
+  }
+
+  const { current } = ensureCurrentMonthForm(
+    readMonthlyFeedbackStore(mentorship.customPromptsJson)
+  );
+  const fresh: MonthlyFeedbackForm = {
+    ...current,
+    status: "DRAFT",
+    sentAt: null,
+    answeredAt: null,
+    questions: current.questions.map((q) => ({ ...q, answer: null })),
+  };
+  // Drop past months entirely; keep only a clean current-month draft.
+  await saveStore(mentorship.id, mentorship.menteeId, {
+    version: 2,
+    forms: [fresh],
+  });
+  return { ok: true as const };
+}
+
 /** @deprecated — use addMonthlyFeedbackQuestion */
 export async function addMentorshipCustomPrompt(input: unknown) {
   return addMonthlyFeedbackQuestion(input);
