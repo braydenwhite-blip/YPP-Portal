@@ -9,8 +9,11 @@ import { StatusBadge, ButtonLink } from "@/components/ui-v2";
 import { LaneRecordCard } from "@/components/chapters/lane-record-card";
 import { LaneNeeds } from "@/components/chapters/lane-needs";
 import type { ChapterLaneView } from "@/lib/chapters/lanes";
+import type { loadChapterStudentOperations } from "@/lib/chapters/operations";
 
-export function LaneStudents({ chapterId, view }: { chapterId: string; view: ChapterLaneView }) {
+type StudentOperations = Awaited<ReturnType<typeof loadChapterStudentOperations>>;
+
+export function LaneStudents({ chapterId, view, operations }: { chapterId: string; view: ChapterLaneView; operations?: StudentOperations }) {
   const liveClassesSection = view.sections.find((s) => s.title === "Live Classes");
 
   return (
@@ -31,6 +34,8 @@ export function LaneStudents({ chapterId, view }: { chapterId: string; view: Cha
       </div>
 
       <LaneNeeds chapterId={chapterId} needs={view.needs} />
+
+      {operations && <section><div className="grid grid-cols-3 border-y border-slate-200"><div className="px-3 py-3"><p className="text-[11px] uppercase tracking-wide text-slate-500">Total students</p><p className="mt-1 text-xl font-semibold tabular-nums text-slate-950">{operations.totalStudents}</p></div><div className="border-l border-slate-200 px-3 py-3"><p className="text-[11px] uppercase tracking-wide text-slate-500">Active / enrolled</p><p className="mt-1 text-xl font-semibold tabular-nums text-slate-950">{operations.activeStudents}</p></div><div className="border-l border-slate-200 px-3 py-3"><p className="text-[11px] uppercase tracking-wide text-slate-500">Current active-rate proxy</p><p className="mt-1 text-xl font-semibold tabular-nums text-slate-950">{operations.activeRateProxy}%</p></div></div><div className="mt-4 overflow-x-auto"><table className="w-full border-y border-slate-200 text-sm"><thead className="bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500"><tr><th className="px-3 py-2 text-left">Cohort month</th><th className="px-3 py-2 text-right">Students added</th><th className="px-3 py-2 text-right">Currently active</th></tr></thead><tbody>{operations.cohorts.map((row) => <tr key={row.month} className="border-t border-slate-100"><td className="px-3 py-2">{row.month}</td><td className="px-3 py-2 text-right tabular-nums">{row.studentsAdded}</td><td className="px-3 py-2 text-right tabular-nums">{row.currentlyActive}</td></tr>)}</tbody></table></div><p className="mt-2 text-[11.5px] text-slate-500">This is a current-status cohort proxy. True retention requires historical student-status snapshots; this view does not claim otherwise.</p></section>}
 
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-2">

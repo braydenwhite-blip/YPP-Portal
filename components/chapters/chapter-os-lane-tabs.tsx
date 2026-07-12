@@ -17,7 +17,7 @@ export function activeLaneFromSearchParam(lane: string | undefined): LaneKey {
 
 export function ChapterOSLaneTabs({ active, counts }: { active: LaneKey | null; counts?: Partial<Record<LaneKey, number>> }) {
   return (
-    <nav className="seg-tabs w-fit" aria-label="Chapter operating lanes">
+    <nav className="seg-tabs w-full overflow-x-auto whitespace-nowrap" aria-label="Chapter operating lanes">
       <Link href="/chapter" aria-current={active === null ? "page" : undefined} className={cn("seg-tab no-underline", active === null && "active")}>Overview</Link>
       {LANE_KEYS.map((key) => {
         const isActive = key === active;
@@ -34,6 +34,7 @@ export function ChapterOSLaneTabs({ active, counts }: { active: LaneKey | null; 
           </Link>
         );
       })}
+      <Link href="/chapter/activity" className="seg-tab no-underline">Activity</Link>
       <Link href="/chapter/reports" className="seg-tab no-underline">Reports</Link>
     </nav>
   );

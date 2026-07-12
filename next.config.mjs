@@ -16,6 +16,9 @@ const nextConfig = {
   turbopack: {
     root: projectRoot,
   },
+  images: {
+    qualities: [75, 95],
+  },
   async headers() {
     return [
       {
