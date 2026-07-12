@@ -6,6 +6,7 @@ import {
   isActionTrackerEnabled,
   isOperationsHubEnabled,
 } from "@/lib/feature-flags";
+import { isHiringDemoModeEnabled } from "@/lib/hiring-demo-mode";
 import { loadData360 } from "@/lib/operations/data-360-queries";
 import { METRIC_GROUPS, METRIC_GROUP_LABELS } from "@/lib/operations/metrics";
 import { countOpenWorkItems } from "@/lib/operations/work-items";
@@ -22,6 +23,7 @@ import { QuickFind } from "@/components/operations/quick-find";
 import { UnifiedTimeline } from "@/components/operations/unified-timeline";
 import { UnifiedWorkBoard } from "@/components/operations/work-board";
 import { LegacySurfaceBanner } from "@/components/ui-v2";
+import { AnalyticsDashboard } from "@/components/operations/analytics-dashboard";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Data 360 · Operations" };
@@ -53,8 +55,19 @@ const METRIC_ICON: Record<string, PsIconName> = {
 export default async function Data360Page() {
   if (!isOperationsHubEnabled() || !isActionTrackerEnabled()) notFound();
 
-  const viewer = await requireOfficer().catch(() => null);
-  if (!viewer) notFound();
+  // Allow demo mode access without authentication
+  const isDemoMode = isHiringDemoModeEnabled();
+  const viewer = isDemoMode 
+    ? { id: "demo", roles: ["ADMIN"], primaryRole: "ADMIN", adminSubtypes: ["SUPER_ADMIN"] }
+    : await requireOfficer().catch(() => null);
+  
+  if (!viewer) {
+    if (isDemoMode) {
+      // Demo mode fallback (should not reach here due to ternary above)
+      throw new Error("Demo mode misconfigured");
+    }
+    notFound();
+  }
 
   const now = new Date();
   const data = await loadData360(viewer, { now });
@@ -64,7 +77,7 @@ export default async function Data360Page() {
     <div className="page-shell" style={{ maxWidth: 1180 }}>
       <LegacySurfaceBanner
         title="Work is the front door for the unified work list now."
-        body="The triaged work board, attention queue, and my-work view live at /work — this page keeps the connected-data explorer and quick find."
+        body="The sorted work board, attention queue, and my-work view live at /work — this page keeps the connected-data explorer and quick find."
         ctaLabel="Open Work"
         ctaHref="/work"
       />

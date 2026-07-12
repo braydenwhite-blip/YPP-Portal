@@ -62,15 +62,14 @@ const RANGE_LABELS: Record<DateRangeKey, string> = {
 };
 
 function asOf(iso: string): string {
-  return (
-    new Date(iso).toLocaleString("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-      timeZone: "UTC",
-    }) + " UTC"
-  );
+  const date = new Date(iso);
+  const month = date.toLocaleString("en-US", { month: "short", timeZone: "UTC" });
+  const day = date.getUTCDate();
+  const hour = date.getUTCHours();
+  const minute = date.getUTCMinutes().toString().padStart(2, "0");
+  const period = hour >= 12 ? "PM" : "AM";
+  const hour12 = hour % 12 || 12;
+  return `${month} ${day} at ${hour12}:${minute} ${period} UTC`;
 }
 
 function normalizeTab(tab: string | undefined): string {
