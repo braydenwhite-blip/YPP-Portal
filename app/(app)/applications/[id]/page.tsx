@@ -24,6 +24,10 @@ import AddToCalendarButton from "@/components/add-to-calendar-button";
 import ReviewerInterviewNoteForm from "@/components/reviewer-interview-note-form";
 import ReviewerDecisionForm from "@/components/reviewer-decision-form";
 import { normalizeRoleList } from "@/lib/authorization";
+import {
+  gradeLabel,
+  parseSocialMediaManagerMetadata,
+} from "@/lib/social-media-manager-application";
 
 function formatStatus(status: string) {
   return status.replace(/_/g, " ");
@@ -247,6 +251,7 @@ export default async function ApplicationWorkspacePage({
         : "Pending";
 
   const chapterProposal = parseChapterProposalMetadata(application.additionalMaterials);
+  const socialMediaApplication = parseSocialMediaManagerMetadata(application.additionalMaterials);
 
   // Build timeline steps - adapt based on whether interview is required
   const timelineSteps = interviewRequired
@@ -458,6 +463,60 @@ export default async function ApplicationWorkspacePage({
                 </div>
               </div>
             ) : null}
+            {socialMediaApplication ? (
+              <div
+                style={{
+                  border: "1px solid var(--border)",
+                  borderRadius: 10,
+                  padding: 12,
+                  background: "var(--surface-alt)",
+                  marginBottom: 14,
+                }}
+              >
+                <p style={{ margin: 0, fontWeight: 600 }}>Social Media Manager Application</p>
+                <div style={{ marginTop: 8, display: "grid", gap: 6, fontSize: 13 }}>
+                  <div>
+                    <strong>School:</strong> {socialMediaApplication.school}
+                  </div>
+                  <div>
+                    <strong>Grade:</strong> {gradeLabel(socialMediaApplication.grade)}
+                  </div>
+                  <div>
+                    <strong>Platforms:</strong> {socialMediaApplication.platforms}
+                  </div>
+                  <div>
+                    <strong>Experience:</strong>{" "}
+                    <span style={{ whiteSpace: "pre-wrap" }}>{socialMediaApplication.experience}</span>
+                  </div>
+                  {socialMediaApplication.portfolioLinks ? (
+                    <div>
+                      <strong>Portfolio / links:</strong>{" "}
+                      <span style={{ whiteSpace: "pre-wrap" }}>
+                        {socialMediaApplication.portfolioLinks}
+                      </span>
+                    </div>
+                  ) : null}
+                  <div>
+                    <strong>Content ideas:</strong>{" "}
+                    <span style={{ whiteSpace: "pre-wrap" }}>
+                      {socialMediaApplication.contentIdeas}
+                    </span>
+                  </div>
+                  <div>
+                    <strong>Weekly availability:</strong>{" "}
+                    {socialMediaApplication.weeklyAvailability}
+                  </div>
+                  {socialMediaApplication.additionalNotes ? (
+                    <div>
+                      <strong>Additional notes:</strong>{" "}
+                      <span style={{ whiteSpace: "pre-wrap" }}>
+                        {socialMediaApplication.additionalNotes}
+                      </span>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
             {application.resumeUrl ? (
               <p style={{ marginTop: 0 }}>
                 <a href={application.resumeUrl} target="_blank" rel="noreferrer" className="link">
@@ -469,7 +528,9 @@ export default async function ApplicationWorkspacePage({
             )}
 
             <div style={{ marginTop: 16 }}>
-              <strong style={{ fontSize: 14 }}>Cover Letter</strong>
+              <strong style={{ fontSize: 14 }}>
+                {socialMediaApplication ? "Why they want to join" : "Cover Letter"}
+              </strong>
               <p style={{ whiteSpace: "pre-wrap", marginTop: 8 }}>
                 {application.coverLetter || "No cover letter provided."}
               </p>
@@ -480,7 +541,9 @@ export default async function ApplicationWorkspacePage({
               <p style={{ whiteSpace: "pre-wrap", marginTop: 8 }}>
                 {chapterProposal
                   ? chapterProposal.additionalContext || "Structured chapter proposal details captured above."
-                  : application.additionalMaterials || "No additional materials provided."}
+                  : socialMediaApplication
+                    ? "Structured Social Media Manager answers captured above."
+                    : application.additionalMaterials || "No additional materials provided."}
               </p>
             </div>
           </div>

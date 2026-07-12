@@ -402,6 +402,21 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 14,
     },
     {
+      href: "/applications/social-media",
+      label: "Social Media Apply",
+      icon: "📣",
+      roles: APPLICANT_ROLES,
+      searchAliases: [
+        "Social Media Manager",
+        "Social Media Application",
+        "Instagram",
+        "TikTok",
+      ],
+      dashboardDescription:
+        "Apply to join YPP’s social media team creating content and growing our community.",
+      dashboardPriority: 13,
+    },
+    {
       href: "/applications",
       label: "My Applications",
       icon: "📨",

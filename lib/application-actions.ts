@@ -29,6 +29,15 @@ import {
   isHiringDecisionReturned,
 } from "@/lib/hiring-decision-utils";
 import { jobApplicationSchema } from "@/lib/application-schemas";
+import {
+  SOCIAL_MEDIA_MANAGER_KIND,
+  SOCIAL_MEDIA_MANAGER_POSITION_DESCRIPTION,
+  SOCIAL_MEDIA_MANAGER_POSITION_REQUIREMENTS,
+  SOCIAL_MEDIA_MANAGER_POSITION_TITLE,
+  SOCIAL_MEDIA_MANAGER_TEAM_SLUG,
+  isSocialMediaManagerPosition,
+  type SocialMediaManagerMetadata,
+} from "@/lib/social-media-manager-application";
 
 const REVIEWABLE_APPLICATION_STATUSES: ApplicationStatus[] = [
   "UNDER_REVIEW",
@@ -142,6 +151,13 @@ const FIELD_LABELS: Record<string, string> = {
   type: "Position type is required.",
   content: "Interview note summary is required. Please provide a written summary of the interview.",
   applicationId: "Application reference",
+  school: "School is required.",
+  grade: "Grade is required (9th–12th).",
+  platforms: "List the platforms you use.",
+  experience: "Share your social media or content experience.",
+  whyJoin: "Tell us why you want to join the Social Media team.",
+  contentIdeas: "Share at least one content idea.",
+  weeklyAvailability: "Share your weekly availability.",
   status: "Status selection",
   scheduledAt: "Interview date and time is required.",
 };
@@ -231,6 +247,7 @@ async function createHiringAudit(
 function revalidateHiringPaths(chapterId?: string | null, applicationId?: string) {
   revalidatePath("/positions");
   revalidatePath("/applications");
+  revalidatePath("/applications/social-media");
   revalidatePath("/chapters");
   revalidatePath("/chapters/propose");
   revalidatePath("/chapter/recruiting");
@@ -388,7 +405,7 @@ async function applyAcceptedCandidateEffects(
   application: {
     id: string;
     applicantId: string;
-    position: { type: PositionType; chapterId: string | null };
+    position: { type: PositionType; chapterId: string | null; title?: string | null };
     interviewSlots: Array<{ status: string; isConfirmed: boolean }>;
     interviewNotes: Array<{ recommendation: HiringRecommendation | null }>;
     additionalMaterials: string | null;
@@ -530,6 +547,56 @@ async function applyAcceptedCandidateEffects(
         reviewNotes: hasCompletedInterviewEvidence
           ? "Auto-passed from accepted instructor application interview evidence."
           : "Accepted instructor application requires native interview gate completion.",
+      },
+    });
+  }
+
+  if (
+    application.position.type === "STAFF" &&
+    isSocialMediaManagerPosition(application.position.title)
+  ) {
+    await tx.user.update({
+      where: { id: application.applicantId },
+      data: {
+        title: SOCIAL_MEDIA_MANAGER_POSITION_TITLE,
+        canonicalTitle: SOCIAL_MEDIA_MANAGER_POSITION_TITLE,
+      },
+    });
+
+    const socialMediaTeam = await tx.team.findUnique({
+      where: { slug: SOCIAL_MEDIA_MANAGER_TEAM_SLUG },
+      select: { id: true },
+    });
+
+    if (socialMediaTeam) {
+      await tx.teamMembership.upsert({
+        where: {
+          teamId_userId: {
+            teamId: socialMediaTeam.id,
+            userId: application.applicantId,
+          },
+        },
+        create: {
+          teamId: socialMediaTeam.id,
+          userId: application.applicantId,
+          role: SOCIAL_MEDIA_MANAGER_POSITION_TITLE,
+          isLead: false,
+        },
+        update: {
+          role: SOCIAL_MEDIA_MANAGER_POSITION_TITLE,
+        },
+      });
+    }
+
+    await tx.analyticsEvent.create({
+      data: {
+        userId: decidedById,
+        eventType: "social_media_manager_accepted",
+        eventData: {
+          applicationId: application.id,
+          applicantId: application.applicantId,
+          teamSlug: SOCIAL_MEDIA_MANAGER_TEAM_SLUG,
+        },
       },
     });
   }
@@ -1380,6 +1447,160 @@ export async function submitChapterProposal(formData: FormData) {
     applicationId: application.id,
     action: existingOpenProposal ? "updated" : "created",
     chapterName,
+  };
+}
+
+export async function ensureSocialMediaManagerPosition() {
+  const existing = await prisma.position.findFirst({
+    where: {
+      type: "STAFF",
+      chapterId: null,
+      title: SOCIAL_MEDIA_MANAGER_POSITION_TITLE,
+    },
+    select: {
+      id: true,
+      title: true,
+      isOpen: true,
+      interviewRequired: true,
+      applicationDeadline: true,
+    },
+  });
+
+  if (existing) {
+    return existing;
+  }
+
+  return prisma.position.create({
+    data: {
+      title: SOCIAL_MEDIA_MANAGER_POSITION_TITLE,
+      type: "STAFF",
+      description: SOCIAL_MEDIA_MANAGER_POSITION_DESCRIPTION,
+      requirements: SOCIAL_MEDIA_MANAGER_POSITION_REQUIREMENTS,
+      chapterId: null,
+      visibility: "NETWORK_WIDE",
+      interviewRequired: true,
+      isOpen: true,
+    },
+    select: {
+      id: true,
+      title: true,
+      isOpen: true,
+      interviewRequired: true,
+      applicationDeadline: true,
+    },
+  });
+}
+
+export async function submitSocialMediaManagerApplication(formData: FormData) {
+  const session = await requireAuth();
+  const applicantId = session.user.id;
+
+  const school = getString(formData, "school");
+  const grade = getString(formData, "grade");
+  const platforms = getString(formData, "platforms");
+  const experience = getString(formData, "experience");
+  const portfolioLinks = getString(formData, "portfolioLinks", false);
+  const whyJoin = getString(formData, "whyJoin");
+  const contentIdeas = getString(formData, "contentIdeas");
+  const weeklyAvailability = getString(formData, "weeklyAvailability");
+  const additionalNotes = getString(formData, "additionalNotes", false);
+  const resumeUrl = getString(formData, "resumeUrl", false);
+
+  if (!["9", "10", "11", "12"].includes(grade)) {
+    throw new Error("Select your grade (9th–12th).");
+  }
+
+  const position = await ensureSocialMediaManagerPosition();
+
+  if (!position.isOpen) {
+    throw new Error("Social Media Manager applications are not open right now. Please try again later.");
+  }
+
+  if (position.applicationDeadline && position.applicationDeadline < new Date()) {
+    throw new Error("Social Media Manager applications are currently closed.");
+  }
+
+  const existingOpen = await prisma.application.findFirst({
+    where: {
+      applicantId,
+      positionId: position.id,
+      status: { notIn: FINAL_APPLICATION_STATUSES },
+    },
+    select: { id: true, status: true },
+  });
+
+  if (existingOpen && existingOpen.status !== "SUBMITTED") {
+    throw new Error("You already have a Social Media Manager application in progress.");
+  }
+
+  const metadata: SocialMediaManagerMetadata = {
+    kind: SOCIAL_MEDIA_MANAGER_KIND,
+    school,
+    grade,
+    platforms,
+    experience,
+    portfolioLinks: portfolioLinks || undefined,
+    contentIdeas,
+    weeklyAvailability,
+    additionalNotes: additionalNotes || undefined,
+  };
+
+  const payload = {
+    resumeUrl: resumeUrl || null,
+    coverLetter: whyJoin,
+    additionalMaterials: JSON.stringify(metadata),
+    status: "SUBMITTED" as const,
+  };
+
+  const application = existingOpen
+    ? await prisma.application.update({
+        where: { id: existingOpen.id },
+        data: {
+          ...payload,
+          submittedAt: new Date(),
+        },
+      })
+    : await prisma.application.create({
+        data: {
+          positionId: position.id,
+          applicantId,
+          ...payload,
+        },
+      });
+
+  const admins = await prisma.user.findMany({
+    where: { roles: { some: { role: "ADMIN" } } },
+    select: { id: true },
+  });
+
+  for (const admin of admins) {
+    await createSystemNotification(
+      admin.id,
+      "SYSTEM",
+      existingOpen ? "Social Media Manager Application Updated" : "New Social Media Manager Application",
+      existingOpen
+        ? `A Social Media Manager application was updated by the applicant.`
+        : `A new Social Media Manager application was submitted.`,
+      `/applications/${application.id}`,
+      { sendEmail: true }
+    );
+  }
+
+  await createHiringAudit(
+    applicantId,
+    existingOpen ? "social_media_manager_application_resubmitted" : "social_media_manager_application_submitted",
+    {
+      applicationId: application.id,
+      school,
+      grade,
+    }
+  );
+
+  revalidateHiringPaths(null, application.id);
+
+  return {
+    applicationId: application.id,
+    action: existingOpen ? "updated" : "created",
   };
 }
 

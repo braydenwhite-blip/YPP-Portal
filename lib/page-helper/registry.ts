@@ -1590,6 +1590,18 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
+    pattern: "/applications/social-media",
+    title: "Social Media Manager Apply",
+    content: {
+      purpose:
+        "Apply to join YPP’s Social Media team — create content, engage the community, and grow our presence across Instagram, TikTok, and more.",
+      firstStep:
+        "Complete each step: school and grade, platforms and experience, why you want to join, then optional resume links.",
+      nextStep:
+        "After you submit, reviewers see your application under Position Applications and will email you as it moves forward.",
+    },
+  },
+  {
     pattern: "/applications/summer-workshop",
     title: "Summer Workshop Instructor",
     content: {
