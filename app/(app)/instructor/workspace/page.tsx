@@ -50,6 +50,12 @@ export default async function InstructorWorkspacePage({
   const roles = session.user.roles ?? [];
   const canAccess = isInstructorSurface(roles);
   if (!canAccess) redirect("/");
+  if (
+    session.user.primaryRole === "INSTRUCTOR" ||
+    (roles.includes("INSTRUCTOR") && !roles.includes("ADMIN") && !roles.includes("CHAPTER_PRESIDENT"))
+  ) {
+    redirect("/");
+  }
 
   const tab = safeTab((await searchParams).tab);
 

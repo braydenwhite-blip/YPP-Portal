@@ -63,12 +63,21 @@ export async function enforceInstructorGate(
   const adminPreview = readAdminPreview(options.adminPreview);
   const pathname = options.pathname ?? null;
 
-  // Only do the subtype lookup when both the path is SW-permitted AND we
-  // have a session — otherwise it's wasted work.
-  const instructorSubtype =
-    pathname && isSummerWorkshopPermittedPath(pathname) && session?.user?.id
+  // Resolve subtype for any approved instructor entering a gated instructor
+  // route. Restricting this lookup to Summer Workshop paths made the documented
+  // STANDARD-instructor bypass impossible on normal teaching routes.
+  const lookedUpInstructorSubtype =
+    pathname &&
+    session?.user?.id &&
+    (roles.includes("INSTRUCTOR") || primaryRole === "INSTRUCTOR")
       ? await lookupInstructorSubtype(session.user.id)
       : null;
+  // Approved instructors that predate the subtype column are standard-track by
+  // definition elsewhere in readiness. Apply the same fallback here so the
+  // rollout gate never locks an existing instructor out of assigned classes.
+  const instructorSubtype =
+    lookedUpInstructorSubtype ??
+    (roles.includes("INSTRUCTOR") || primaryRole === "INSTRUCTOR" ? "STANDARD" : null);
 
   if (
     canBypassInstructorGate({

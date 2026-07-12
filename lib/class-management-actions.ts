@@ -25,6 +25,8 @@ import {
   dropAndPromoteRaceSafe,
 } from "@/lib/class-seat-allocation";
 import { fireEntityStatusChanged } from "@/lib/workflow-engine/triggers";
+import { requireTeachingSessionAccess } from "@/lib/classes/instructor-access";
+import { sessionDateTime } from "@/lib/classes/instructor-state";
 
 type WeeklyTopic = {
   week?: number;
@@ -1387,12 +1389,15 @@ export async function dropClass(offeringId: string) {
 // ============================================
 
 export async function recordClassAttendance(formData: FormData) {
-  const session = await requireInstructor();
-
   const sessionId = getString(formData, "sessionId");
   const studentId = getString(formData, "studentId");
   const status = getString(formData, "status") as "PRESENT" | "ABSENT" | "LATE" | "EXCUSED";
   const notes = getString(formData, "notes", false);
+  const hasNotes = formData.has("notes");
+
+  if (!["PRESENT", "ABSENT", "LATE", "EXCUSED"].includes(status)) {
+    throw new Error("Invalid attendance status");
+  }
 
   // Load the session's offering up front so we can authorize the caller before
   // writing anything. An instructor may only record attendance for a class they
@@ -1402,22 +1407,44 @@ export async function recordClassAttendance(formData: FormData) {
     where: { id: sessionId },
     select: {
       offeringId: true,
-      offering: {
-        select: {
-          instructorId: true,
-        },
-      },
     },
   });
 
   if (!classSession) throw new Error("Session not found");
 
-  const roles = session.user?.roles ?? [];
-  if (
-    classSession.offering.instructorId !== session.user.id &&
-    !roles.includes("ADMIN")
-  ) {
-    throw new Error("Not authorized to record attendance for this class.");
+  const access = await requireTeachingSessionAccess(sessionId, classSession.offeringId);
+  if (access.classSession.isCancelled) {
+    throw new Error("Attendance cannot be recorded for a cancelled session");
+  }
+  const startsAt = sessionDateTime(
+    access.classSession.date,
+    access.classSession.startTime,
+    access.classSession.offering.timezone
+  );
+  const rawEnd = sessionDateTime(
+    access.classSession.date,
+    access.classSession.endTime,
+    access.classSession.offering.timezone
+  );
+  const endsAt = rawEnd.getTime() > startsAt.getTime()
+    ? rawEnd
+    : new Date(rawEnd.getTime() + 24 * 60 * 60 * 1000);
+  if (Date.now() < startsAt.getTime()) {
+    throw new Error("Attendance opens when the session starts");
+  }
+
+  const enrollment = await prisma.classEnrollment.findFirst({
+    where: {
+      studentId,
+      offeringId: classSession.offeringId,
+      status: { not: "WAITLISTED" },
+      enrolledAt: { lte: endsAt },
+      OR: [{ droppedAt: null }, { droppedAt: { gt: startsAt } }],
+    },
+    select: { id: true },
+  });
+  if (!enrollment) {
+    throw new Error("That student was not on this session's roster");
   }
 
   await prisma.classAttendanceRecord.upsert({
@@ -1430,7 +1457,7 @@ export async function recordClassAttendance(formData: FormData) {
     },
     update: {
       status,
-      notes: notes || null,
+      ...(hasNotes ? { notes: notes || null } : {}),
     },
   });
 
@@ -1449,12 +1476,15 @@ export async function recordClassAttendance(formData: FormData) {
     });
   }
 
-  if (classSession.offering.instructorId) {
-    await syncInstructorGrowthSafe(classSession.offering.instructorId);
+  if (access.classSession.offering.instructorId) {
+    await syncInstructorGrowthSafe(access.classSession.offering.instructorId);
   }
 
   revalidatePath(`/curriculum/${classSession.offeringId}`);
   revalidatePath("/instructor/curriculum-builder");
+  revalidatePath("/");
+  revalidatePath("/instructor/classes");
+  revalidatePath(`/instructor/classes/${classSession.offeringId}`);
   return { success: true };
 }
 

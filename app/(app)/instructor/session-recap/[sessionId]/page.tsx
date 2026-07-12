@@ -8,6 +8,14 @@ export default async function SessionRecapPage(props: { params: Promise<{ sessio
   if (!session?.user?.id) {
     redirect("/login");
   }
+  if (
+    session.user.primaryRole === "INSTRUCTOR" ||
+    (session.user.roles.includes("INSTRUCTOR") &&
+      !session.user.roles.includes("ADMIN") &&
+      !session.user.roles.includes("CHAPTER_PRESIDENT"))
+  ) {
+    redirect("/instructor/classes");
+  }
 
   const attendanceSession = await prisma.attendanceSession.findUnique({
     where: { id: params.sessionId },

@@ -21,17 +21,21 @@ vi.mock("@/lib/instructor-growth-service", () => ({
   syncInstructorGrowthSignalsForInstructor: vi.fn(async () => null),
 }));
 
-import { getSession } from "@/lib/auth-supabase";
+vi.mock("@/lib/classes/instructor-access", () => ({
+  requireTeachingSessionAccess: vi.fn(),
+}));
+
+import { requireTeachingSessionAccess } from "@/lib/classes/instructor-access";
 import { recordClassAttendance } from "@/lib/class-management-actions";
 import { prisma } from "@/lib/prisma";
 
-const sessionMock = vi.mocked(getSession);
+const accessMock = vi.mocked(requireTeachingSessionAccess);
 
 type AnyMock = ReturnType<typeof vi.fn>;
 const prismaAny = prisma as unknown as {
   classSession: { findUnique: AnyMock };
   classAttendanceRecord: { upsert: AnyMock; count: AnyMock };
-  classEnrollment: { updateMany: AnyMock };
+  classEnrollment: { findFirst: AnyMock; updateMany: AnyMock };
 };
 
 function ensureMocks() {
@@ -43,6 +47,9 @@ function ensureMocks() {
   }
   if (!prismaAny.classEnrollment.updateMany) {
     prismaAny.classEnrollment.updateMany = vi.fn();
+  }
+  if (!prismaAny.classEnrollment.findFirst) {
+    prismaAny.classEnrollment.findFirst = vi.fn();
   }
 }
 
@@ -59,8 +66,29 @@ beforeEach(() => {
   ensureMocks();
   prismaAny.classSession.findUnique.mockResolvedValue({
     offeringId: "offering-1",
-    offering: { instructorId: "owner-1" },
   });
+  accessMock.mockResolvedValue({
+    viewer: { id: "owner-1", roles: ["INSTRUCTOR"] },
+    assignment: null,
+    managesChapter: false,
+    classSession: {
+      id: "session-1",
+      offeringId: "offering-1",
+      date: new Date("2020-01-01T00:00:00.000Z"),
+      startTime: "09:00",
+      endTime: "10:00",
+      isCancelled: false,
+      offering: {
+        id: "offering-1",
+        instructorId: "owner-1",
+        chapterId: "chapter-1",
+        title: "Design for Good",
+        timezone: "America/Denver",
+        templateId: "template-1",
+      },
+    },
+  } as never);
+  prismaAny.classEnrollment.findFirst.mockResolvedValue({ id: "enrollment-1" });
   prismaAny.classAttendanceRecord.upsert.mockResolvedValue({});
   prismaAny.classAttendanceRecord.count.mockResolvedValue(1);
   prismaAny.classEnrollment.updateMany.mockResolvedValue({ count: 1 });
@@ -68,28 +96,18 @@ beforeEach(() => {
 
 describe("recordClassAttendance authorization", () => {
   it("blocks an instructor who does not own the class and writes nothing", async () => {
-    sessionMock.mockResolvedValue({
-      user: { id: "intruder-1", roles: ["INSTRUCTOR"] },
-    } as never);
+    accessMock.mockRejectedValue(new Error("Not authorized"));
 
     await expect(recordClassAttendance(fd())).rejects.toThrow(/not authorized/i);
     expect(prismaAny.classAttendanceRecord.upsert).not.toHaveBeenCalled();
   });
 
   it("allows the owning instructor", async () => {
-    sessionMock.mockResolvedValue({
-      user: { id: "owner-1", roles: ["INSTRUCTOR"] },
-    } as never);
-
     await expect(recordClassAttendance(fd())).resolves.toEqual({ success: true });
     expect(prismaAny.classAttendanceRecord.upsert).toHaveBeenCalledTimes(1);
   });
 
   it("allows an admin who is not the instructor", async () => {
-    sessionMock.mockResolvedValue({
-      user: { id: "admin-1", roles: ["ADMIN"] },
-    } as never);
-
     await expect(recordClassAttendance(fd("LATE"))).resolves.toEqual({ success: true });
     expect(prismaAny.classAttendanceRecord.upsert).toHaveBeenCalledTimes(1);
   });

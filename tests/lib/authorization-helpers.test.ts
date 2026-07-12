@@ -315,16 +315,40 @@ describe("Authorization Helpers", () => {
       );
     });
 
-    it("should allow chapter presidents to access attendance", async () => {
+    it("should allow chapter presidents to access attendance in their own chapter", async () => {
       vi.mocked(authorization.requireSessionUser).mockResolvedValue({
         id: "lead-123",
         roles: ["CHAPTER_PRESIDENT"],
         primaryRole: "CHAPTER_PRESIDENT",
       });
+      vi.mocked(prisma.course.findUnique).mockResolvedValue({
+        id: "course-123",
+        leadInstructorId: "other-instructor",
+        chapterId: "chapter-1",
+      } as any);
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({ chapterId: "chapter-1" } as any);
 
-      const result = await requireAttendanceAccess();
+      const result = await requireAttendanceAccess(undefined, "course-123");
 
       expect(result.roles).toContain("CHAPTER_PRESIDENT");
+    });
+
+    it("rejects chapter presidents from another chapter", async () => {
+      vi.mocked(authorization.requireSessionUser).mockResolvedValue({
+        id: "lead-123",
+        roles: ["CHAPTER_PRESIDENT"],
+        primaryRole: "CHAPTER_PRESIDENT",
+      });
+      vi.mocked(prisma.course.findUnique).mockResolvedValue({
+        id: "course-123",
+        leadInstructorId: "other-instructor",
+        chapterId: "chapter-2",
+      } as any);
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({ chapterId: "chapter-1" } as any);
+
+      await expect(requireAttendanceAccess(undefined, "course-123")).rejects.toThrow(
+        "You cannot access these attendance records"
+      );
     });
   });
 

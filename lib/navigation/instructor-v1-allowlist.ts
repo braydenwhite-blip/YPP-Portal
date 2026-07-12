@@ -1,39 +1,21 @@
 import type { NavRole } from "@/lib/navigation/types";
 
 /** Bump when the href set changes so dashboard cache partitions stay correct. */
-export const INSTRUCTOR_V1_ALLOWLIST_VERSION = "9";
+export const INSTRUCTOR_V1_ALLOWLIST_VERSION = "10";
 
 /**
- * Default instructor nav: a dedicated Teach section (workspace, curriculum,
- * lesson plans, class settings), training, teaching ops, scheduling, updates,
- * program hub, chapter, account. Awards, interviews, growth, college tools,
- * events, journey, etc. stay off the sidebar unless
- * `INSTRUCTOR_FULL_PORTAL_EXPLORER` is enabled (full catalog within visible nav groups).
+ * Default instructor nav follows the teaching lifecycle instead of the portal's
+ * database/features: one home, assigned classes, actionable students, materials
+ * in session context, and the teaching schedule. Training, builders, history,
+ * profile, and settings remain reachable as secondary destinations from the
+ * relevant workflow, not as competing top-level homes.
  */
 export const INSTRUCTOR_V1_ALLOWED_HREFS: ReadonlySet<string> = new Set([
   "/",
-  "/instructor-onboarding",
-  "/instructor/workspace",
-  "/instructor/curriculum-builder",
-  "/lesson-plans",
-  "/instructor/class-settings",
-  "/instructor-training",
-  "/instructor/lesson-design-studio",
-  "/instructor/workshop-design-studio",
-  "/attendance",
-  "/instructor/parent-feedback",
-  "/feedback/anonymous",
-  "/scheduling",
-  "/announcements",
-  "/notifications",
-  "/calendar",
-  "/mentorship",
-  // Student Operating System centerpiece (gated by `requiresGrowthOs` in the
-  // catalog, so this only applies when ENABLE_GROWTH_OS is on).
-  "/my-growth",
-  "/leadership-pathway",
-  "/chapters",
-  "/settings/personalization",
+  "/instructor/classes",
+  "/instructor/students",
+  "/instructor/materials",
+  "/instructor/schedule",
 ]);
 
 export function isInstructorFullPortalExplorerEnabled(): boolean {

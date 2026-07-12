@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-supabase";
 import CalendarView from "@/components/calendar-view";
 import { normalizeRoleList } from "@/lib/authorization";
+import { redirect } from "next/navigation";
 
 export default async function CalendarPage() {
   const session = await getSession();
@@ -13,6 +14,12 @@ export default async function CalendarPage() {
     : null;
 
   const roles = user ? normalizeRoleList(user.roles, user.primaryRole) : [];
+  if (
+    user?.primaryRole === "INSTRUCTOR" ||
+    (roles.includes("INSTRUCTOR") && !roles.includes("ADMIN") && !roles.includes("CHAPTER_PRESIDENT"))
+  ) {
+    redirect("/instructor/schedule");
+  }
   const isAdmin = roles.includes("ADMIN");
   const chapterId = user?.chapterId ?? null;
 

@@ -33,6 +33,12 @@ export default async function SessionDetailPage({
   }
 
   const roles = session.user.roles ?? [];
+  if (
+    session.user.primaryRole === "INSTRUCTOR" ||
+    (roles.includes("INSTRUCTOR") && !roles.includes("ADMIN") && !roles.includes("CHAPTER_PRESIDENT"))
+  ) {
+    redirect("/instructor/classes");
+  }
   const isStaff =
     roles.includes("ADMIN") ||
     roles.includes("INSTRUCTOR") ||
