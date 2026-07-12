@@ -289,9 +289,14 @@ export default function ExternalApplicantIntakeForm({
                     <input
                       className={inputClass}
                       name="positionTitle"
-                      defaultValue="Technology Manager"
-                      placeholder="Technology Manager"
+                      defaultValue="Social Media Manager"
+                      placeholder="Social Media Manager"
+                      list="staff-position-titles"
                     />
+                    <datalist id="staff-position-titles">
+                      <option value="Social Media Manager" />
+                      <option value="Technology Manager" />
+                    </datalist>
                   </label>
                 </div>
               ) : null}

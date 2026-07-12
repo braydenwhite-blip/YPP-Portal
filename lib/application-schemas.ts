@@ -66,6 +66,60 @@ export const chapterProposalSchema = z.object({
 export type ChapterProposalInput = z.infer<typeof chapterProposalSchema>;
 
 // ============================================
+// SOCIAL MEDIA MANAGER APPLICATION SCHEMA
+// ============================================
+
+export const socialMediaManagerApplicationSchema = z.object({
+  school: z
+    .string()
+    .min(2, "School name is required.")
+    .max(200, "School name should be under 200 characters."),
+  grade: z.enum(["9", "10", "11", "12"], {
+    errorMap: () => ({ message: "Select your grade (9th–12th)." }),
+  }),
+  platforms: z
+    .string()
+    .min(3, "List at least one platform you use (e.g. Instagram, TikTok).")
+    .max(500, "Platforms should be under 500 characters."),
+  experience: z
+    .string()
+    .min(
+      40,
+      "Share at least 40 characters about your social media or content experience. No prior experience is required — tell us what you know."
+    )
+    .max(3000, "Experience should be under 3,000 characters."),
+  portfolioLinks: z
+    .string()
+    .max(2000, "Portfolio links should be under 2,000 characters.")
+    .optional(),
+  whyJoin: z
+    .string()
+    .min(50, "Tell us why you want to join the Social Media team (at least 50 characters).")
+    .max(4000, "This answer should be under 4,000 characters."),
+  contentIdeas: z
+    .string()
+    .min(40, "Share at least one content idea or creative strategy (40+ characters).")
+    .max(3000, "Content ideas should be under 3,000 characters."),
+  weeklyAvailability: z
+    .string()
+    .min(5, "Share roughly how many hours per week you can contribute.")
+    .max(500, "Availability should be under 500 characters."),
+  resumeUrl: z
+    .string()
+    .url("Please enter a valid URL.")
+    .or(z.literal(""))
+    .optional(),
+  additionalNotes: z
+    .string()
+    .max(2000, "Additional notes should be under 2,000 characters.")
+    .optional(),
+});
+
+export type SocialMediaManagerApplicationInput = z.infer<
+  typeof socialMediaManagerApplicationSchema
+>;
+
+// ============================================
 // INCUBATOR APPLICATION SCHEMA
 // ============================================
 
