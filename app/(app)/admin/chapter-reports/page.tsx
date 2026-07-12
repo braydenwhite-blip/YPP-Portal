@@ -1,253 +1,48 @@
-import { redirect } from "next/navigation";
 import Link from "next/link";
+import { redirect } from "next/navigation";
+
+import { PageHeaderV2 } from "@/components/ui-v2";
 import { getSession } from "@/lib/auth-supabase";
+import { formatReportingPeriod } from "@/lib/chapters/operations-model";
 import { prisma } from "@/lib/prisma";
 
-const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
-const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+export const dynamic = "force-dynamic";
 
-export default async function ChapterReportsPage() {
+type Filters = { chapter?: string; type?: string; status?: string };
+
+export default async function AdminChapterReportsPage({ searchParams }: { searchParams: Promise<Filters> }) {
   const session = await getSession();
-  if (!session?.user?.id || !session.user.roles.includes("ADMIN")) {
-    redirect("/");
-  }
+  if (!session?.user?.id || !session.user.roles.includes("ADMIN")) redirect("/");
+  const filters = await searchParams;
+  const type = filters.type === "WEEKLY" || filters.type === "MONTHLY" ? filters.type : undefined;
+  const status = filters.status === "DRAFT" || filters.status === "FINALIZED" ? filters.status : undefined;
+  const [chapters, reports] = await Promise.all([
+    prisma.chapter.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    prisma.chapterOperationsReport.findMany({
+      where: { chapterId: filters.chapter || undefined, type, status },
+      include: { chapter: { select: { name: true } }, createdBy: { select: { name: true } } },
+      orderBy: [{ periodStart: "desc" }, { chapter: { name: "asc" } }],
+      take: 500,
+    }),
+  ]);
+  const finalized = reports.filter((report) => report.status === "FINALIZED").length;
+  const weekly = reports.filter((report) => report.type === "WEEKLY").length;
+  const monthly = reports.filter((report) => report.type === "MONTHLY").length;
 
-  const now = new Date();
-  const ninetyDaysAgo = new Date(now.getTime() - NINETY_DAYS_MS);
-  const thirtyDaysAgo = new Date(now.getTime() - THIRTY_DAYS_MS);
-
-  const chapters = await prisma.chapter.findMany({
-    include: {
-      _count: {
-        select: {
-          users: true,
-          courses: true,
-          events: true,
-        },
-      },
-      events: {
-        where: { startDate: { gte: ninetyDaysAgo } },
-        select: { id: true, startDate: true },
-      },
-      announcements: {
-        where: { isActive: true, createdAt: { gte: thirtyDaysAgo } },
-        select: { id: true },
-      },
-      users: {
-        select: {
-          roles: { select: { role: true } },
-          primaryRole: true,
-        },
-      },
-    },
-    orderBy: { name: "asc" },
-  });
-
-  const enriched = chapters.map((chapter) => {
-    const presidents = chapter.users.filter(
-      (u) =>
-        u.primaryRole === "CHAPTER_PRESIDENT" ||
-        u.roles.some((r) => r.role === "CHAPTER_PRESIDENT")
-    ).length;
-    const recentEvents = chapter.events.filter(
-      (e) => new Date(e.startDate) >= thirtyDaysAgo
-    ).length;
-    const upcomingEvents = chapter.events.filter(
-      (e) => new Date(e.startDate) >= now
-    ).length;
-
-    let health: "healthy" | "warming" | "at-risk" = "at-risk";
-    let healthReason = "No president assigned and little recent activity.";
-    if (
-      presidents > 0 &&
-      chapter._count.users >= 5 &&
-      (recentEvents > 0 || chapter.announcements.length > 0)
-    ) {
-      health = "healthy";
-      healthReason = "President assigned and active in the last 30 days.";
-    } else if (presidents > 0 || chapter._count.users >= 3) {
-      health = "warming";
-      healthReason = "Some signs of life — keep monitoring.";
-    }
-
-    return {
-      id: chapter.id,
-      name: chapter.name,
-      city: chapter.city,
-      region: chapter.region,
-      members: chapter._count.users,
-      courses: chapter._count.courses,
-      events: chapter._count.events,
-      recentEvents,
-      upcomingEvents,
-      presidents,
-      announcements: chapter.announcements.length,
-      health,
-      healthReason,
-    };
-  });
-
-  const totals = {
-    chapters: enriched.length,
-    members: enriched.reduce((s, c) => s + c.members, 0),
-    healthy: enriched.filter((c) => c.health === "healthy").length,
-    atRisk: enriched.filter((c) => c.health === "at-risk").length,
-  };
-
-  return (
-    <div>
-      <div className="topbar">
-        <div>
-          <p className="badge">Admin</p>
-          <h1 className="page-title">Chapter Performance Reports</h1>
-        </div>
-      </div>
-
-      <div className="card" style={{ marginBottom: 20 }}>
-        <h3 style={{ marginTop: 0 }}>Chapter Performance Overview</h3>
-        <p style={{ marginBottom: 0, color: "var(--muted)" }}>
-          Compare activity across chapters at a glance. Health is a
-          rule-of-thumb signal — open a chapter for the full picture before
-          taking action.
-        </p>
-      </div>
-
-      <div className="grid four" style={{ marginBottom: 20 }}>
-        <div className="card">
-          <div className="kpi">{totals.chapters}</div>
-          <div className="kpi-label">Chapters</div>
-        </div>
-        <div className="card">
-          <div className="kpi">{totals.members}</div>
-          <div className="kpi-label">Total Members</div>
-        </div>
-        <div className="card">
-          <div className="kpi" style={{ color: "#16a34a" }}>{totals.healthy}</div>
-          <div className="kpi-label">Healthy</div>
-        </div>
-        <div className="card">
-          <div className="kpi" style={{ color: "#dc2626" }}>{totals.atRisk}</div>
-          <div className="kpi-label">At-Risk</div>
-        </div>
-      </div>
-
-      {enriched.length === 0 ? (
-        <div
-          className="card"
-          style={{
-            textAlign: "center",
-            padding: "32px 24px",
-            color: "var(--muted)",
-          }}
-        >
-          <h3 style={{ marginTop: 0 }}>No chapters yet</h3>
-          <p>
-            Create your first chapter from{" "}
-            <Link href="/admin/chapters" className="link">
-              Admin → Chapters
-            </Link>
-            . Reports will appear here once chapters have members and activity.
-          </p>
-        </div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {enriched.map((chapter) => {
-            const healthColor =
-              chapter.health === "healthy"
-                ? "#16a34a"
-                : chapter.health === "warming"
-                ? "#d97706"
-                : "#dc2626";
-            const healthLabel =
-              chapter.health === "healthy"
-                ? "Healthy"
-                : chapter.health === "warming"
-                ? "Warming"
-                : "At-risk";
-            return (
-              <div key={chapter.id} className="card">
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "flex-start",
-                    gap: 12,
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <div>
-                    <h3 style={{ margin: 0 }}>
-                      <Link href={`/admin/chapters/${chapter.id}`} className="link">
-                        {chapter.name}
-                      </Link>
-                    </h3>
-                    <div
-                      style={{
-                        fontSize: 13,
-                        color: "var(--muted)",
-                        marginTop: 2,
-                      }}
-                    >
-                      {[chapter.city, chapter.region].filter(Boolean).join(", ") || "Location not set"}
-                    </div>
-                  </div>
-                  <div style={{ textAlign: "right" }}>
-                    <span
-                      className="pill"
-                      style={{
-                        background: `${healthColor}1A`,
-                        color: healthColor,
-                        fontWeight: 600,
-                      }}
-                    >
-                      {healthLabel}
-                    </span>
-                    <div
-                      style={{
-                        fontSize: 12,
-                        color: "var(--muted)",
-                        marginTop: 4,
-                        maxWidth: 320,
-                      }}
-                    >
-                      {chapter.healthReason}
-                    </div>
-                  </div>
-                </div>
-                <div
-                  style={{
-                    marginTop: 12,
-                    display: "grid",
-                    gridTemplateColumns: "repeat(5, 1fr)",
-                    gap: 16,
-                  }}
-                >
-                  <div>
-                    <div className="kpi">{chapter.members}</div>
-                    <div className="kpi-label">Members</div>
-                  </div>
-                  <div>
-                    <div className="kpi">{chapter.presidents}</div>
-                    <div className="kpi-label">Presidents</div>
-                  </div>
-                  <div>
-                    <div className="kpi">{chapter.courses}</div>
-                    <div className="kpi-label">Courses</div>
-                  </div>
-                  <div>
-                    <div className="kpi">{chapter.upcomingEvents}</div>
-                    <div className="kpi-label">Upcoming Events</div>
-                  </div>
-                  <div>
-                    <div className="kpi">{chapter.recentEvents}</div>
-                    <div className="kpi-label">Events (30d)</div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
+  return <main className="mx-auto w-full max-w-7xl px-6 py-8">
+    <PageHeaderV2 eyebrow="Global leadership" title="Chapter reporting" subtitle="Saved, deterministic weekly and monthly snapshots across chapters—without an invented health score." />
+    <section className="mt-7 grid border-y border-slate-200 sm:grid-cols-4">
+      {[["Reports shown", reports.length], ["Finalized", finalized], ["Weekly", weekly], ["Monthly", monthly]].map(([label, value]) => <div key={label} className="px-4 py-3 sm:border-r sm:last:border-r-0"><p className="text-xs uppercase tracking-wide text-slate-500">{label}</p><p className="mt-1 text-2xl font-semibold tabular-nums text-slate-950">{value}</p></div>)}
+    </section>
+    <form className="mt-6 flex flex-wrap items-end gap-3" method="get">
+      <label className="text-sm font-medium text-slate-700">Chapter<select name="chapter" defaultValue={filters.chapter ?? ""} className="mt-1 block rounded-md border border-slate-300 bg-white px-3 py-2"><option value="">All chapters</option>{chapters.map((chapter) => <option key={chapter.id} value={chapter.id}>{chapter.name}</option>)}</select></label>
+      <label className="text-sm font-medium text-slate-700">Report type<select name="type" defaultValue={type ?? ""} className="mt-1 block rounded-md border border-slate-300 bg-white px-3 py-2"><option value="">Weekly and monthly</option><option value="WEEKLY">Weekly</option><option value="MONTHLY">Monthly</option></select></label>
+      <label className="text-sm font-medium text-slate-700">Status<select name="status" defaultValue={status ?? ""} className="mt-1 block rounded-md border border-slate-300 bg-white px-3 py-2"><option value="">Draft and finalized</option><option value="FINALIZED">Finalized</option><option value="DRAFT">Draft</option></select></label>
+      <button className="button" type="submit">Apply filters</button>
+      <Link href="/admin/chapter-reports" className="pb-2 text-sm font-medium text-brand-700">Clear</Link>
+    </form>
+    <section className="mt-6"><h2 className="text-base font-semibold text-slate-950">Reporting history</h2><p className="mt-1 text-sm text-slate-600">Each row is a historical snapshot. Open one to inspect its metrics, narratives, and exact source records.</p>
+      {reports.length ? <div className="mt-4 overflow-x-auto"><table className="w-full border-y border-slate-200 text-sm"><thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500"><tr><th className="px-3 py-2">Chapter</th><th className="px-3 py-2">Period</th><th className="px-3 py-2">Type</th><th className="px-3 py-2">Status</th><th className="px-3 py-2">Saved by</th><th className="px-3 py-2">Updated</th></tr></thead><tbody>{reports.map((report) => <tr key={report.id} className="border-t border-slate-100"><td className="px-3 py-2 font-medium text-slate-950">{report.chapter.name}</td><td className="whitespace-nowrap px-3 py-2"><Link href={`/admin/chapter-reports/${report.id}`} className="font-medium text-brand-700">{formatReportingPeriod(report.periodStart, report.periodEnd)}</Link></td><td className="px-3 py-2">{report.type === "WEEKLY" ? "Weekly" : "Monthly"}</td><td className="px-3 py-2">{report.status === "FINALIZED" ? "Finalized" : "Draft"}</td><td className="px-3 py-2 text-slate-600">{report.createdBy.name}</td><td className="whitespace-nowrap px-3 py-2 text-slate-600">{report.updatedAt.toLocaleString()}</td></tr>)}</tbody></table></div> : <p className="mt-4 border-y border-slate-200 py-6 text-sm text-slate-600">No reports match these filters. A report appears after chapter leadership saves its weekly review or monthly report.</p>}
+    </section>
+  </main>;
 }

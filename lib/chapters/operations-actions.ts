@@ -52,11 +52,37 @@ export async function saveChapterOperationsReport(form: FormData) {
   const data = await loadChapterOperations(chapterId);
   if (!data) throw new Error("Chapter not found.");
   const period = type === "WEEKLY" ? data.periods.weekly : data.periods.monthly;
+  const existing = await prisma.chapterOperationsReport.findUnique({ where: { chapterId_type_periodStart: { chapterId, type, periodStart: period.start } }, select: { id: true, status: true } });
+  if (existing?.status === "FINALIZED") redirect(`/chapter/reports/${existing.id}`);
   const weekly = data.weeklyActivity;
-  const metrics = type === "WEEKLY" ? weekly : { ...weekly, sessionsHeld: data.monthlySessions };
+  const metrics = type === "WEEKLY" ? weekly : data.monthlyActivity;
+  const metricRecords = {
+    activeStudents: data.recordRefs.activeStudents,
+    newStudents: type === "WEEKLY" ? data.recordRefs.weeklyNewStudents : data.recordRefs.monthlyNewStudents,
+    activeInstructors: data.recordRefs.activeInstructors,
+    activePartners: data.recordRefs.activePartners,
+    classesRunning: data.recordRefs.classesRunning,
+    sessionsHeld: type === "WEEKLY" ? data.recordRefs.weeklySessions : data.recordRefs.monthlySessions,
+    attendanceRate: type === "WEEKLY" ? data.recordRefs.weeklySessions : data.recordRefs.monthlySessions,
+    outreachAttempts: type === "WEEKLY" ? data.recordRefs.weeklyOutreach : data.recordRefs.monthlyOutreach,
+    meetings: type === "WEEKLY" ? data.recordRefs.weeklyMeetings : data.recordRefs.monthlyMeetings,
+    ...(type === "WEEKLY" ? {
+      instructorPipeline: data.recordRefs.instructorPipeline,
+      partnerMeetings: data.recordRefs.weeklyPartnerMeetings,
+      openTasks: data.recordRefs.openTasks,
+      overdueTasks: data.recordRefs.overdueTasks,
+      blockedTasks: data.recordRefs.blockedTasks,
+      followUpsDue: data.recordRefs.followUpsDue,
+    } : {
+      newInstructors: data.recordRefs.monthlyNewInstructors,
+      newPartners: data.recordRefs.monthlyNewPartners,
+      classesStarted: data.recordRefs.monthlyClassesStarted,
+    }),
+  };
   const sourceRecordRefs = {
     generatedAt: new Date().toISOString(),
-    routes: ["/chapter?lane=students", "/chapter?lane=instructors", "/chapter?lane=partners", "/chapter?lane=meetings", "/chapter?lane=actions"],
+    periodType: type,
+    metricRecords,
     deadlineRecords: data.deadlines.map((d) => ({ id: d.id, type: d.type, href: d.href })),
     nextMeetingId: data.nextMeeting?.id ?? null,
   };

@@ -64,7 +64,7 @@ export type OfferingRow = {
   grandfatheredTrainingExemption: boolean;
   template: { submissionStatus: string | null; targetAgeGroup: string | null; curriculumApproval: { stage: string } | null } | null;
   approval: { status: string } | null;
-  regularInstructorAssignments: { status: string }[];
+  regularInstructorAssignments: { status: RegularInstructorAssignmentStatus }[];
   reminders: { status: string }[];
   partner: { agreements: { status: string }[] } | null;
   sessions: {
@@ -76,7 +76,7 @@ export type OfferingRow = {
     attendance: { status: string; studentId: string }[];
     reflection: { needsCpHelp: boolean } | null;
   }[];
-  enrollments: { studentId: string; status: string; student: { name: string | null } | null }[];
+  enrollments: { studentId: string; status: ClassEnrollmentStatus; student: { name: string | null } | null }[];
   feedback: { studentId: string; rating: number }[];
 };
 

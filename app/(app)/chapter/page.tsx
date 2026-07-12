@@ -10,6 +10,9 @@ import { ChapterOS } from "@/components/chapters/chapter-os";
 import { ChapterOSLaneTabs, activeLaneFromSearchParam } from "@/components/chapters/chapter-os-lane-tabs";
 import { ChapterOperationsOverview } from "@/components/chapters/chapter-operations-overview";
 import { loadChapterOperations } from "@/lib/chapters/operations";
+import { loadChapterInstructorOperations } from "@/lib/chapters/operations";
+import { loadChapterPartnerOperations } from "@/lib/chapters/operations";
+import { loadChapterStudentOperations } from "@/lib/chapters/operations";
 import { LanePartners } from "@/components/chapters/lane-partners";
 import { LaneInstructors } from "@/components/chapters/lane-instructors";
 import { LaneStudents } from "@/components/chapters/lane-students";
@@ -19,12 +22,10 @@ import { partnerLaneFromModel, instructorLaneFromModel, studentLaneFromModel, ty
 import { loadChapterActionsLane } from "@/lib/chapters/actions-lane";
 import { loadChapterMeetingsLane } from "@/lib/chapters/meetings-lane";
 import { EntityWorkflowCard } from "@/components/workflow-engine/entity-workflow-card";
-import { assembleChapterAutomation, chapterFactsFromModel } from "@/lib/automation/build-chapter-automation";
-import { ChapterAutomationSection } from "@/components/automation";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Chapter Home — Pathways Portal" };
+export const metadata = { title: "Chapter Operations — Pathways Portal" };
 
 // THE Chapter Operating System — the single Chapter President cockpit,
 // organized around the five things a chapter actually has to organize:
@@ -89,30 +90,19 @@ export default async function ChapterHomePage(props: {
 
   const showLaunch = workspace.launch.items.length > 0 || isLaunchingStatus(model.chapter.lifecycleStatus);
 
-  // The Automation Brain: playbook pacing, readiness, today's priorities, and
-  // impact-meeting prep — built from the already-loaded `model`, no extra DB
-  // reads. Rendered ONCE on this single merged page (both predecessor pages
-  // rendered it independently, which was the actual duplication — one page
-  // means one automation section, not zero).
-  const automation = assembleChapterAutomation({
-    facts: chapterFactsFromModel(model),
-    blockers: model.blockers,
-    studentNeeds: model.studentCommunity.needsAttention,
-    impactPrep: model.impact,
-    now: new Date(),
-    weekAnchored: model.chapter.weekAnchored,
-  });
-
   // Only the active lane's own data is loaded — Partners/Students/Instructors
   // come free from the already-loaded `model` (no extra reads); Actions and
   // Meetings have their own lightweight, lazily-loaded queries.
   let panel: React.ReactNode;
   if (active === "partners") {
-    panel = <LanePartners chapterId={chapterId} view={partnerLaneFromModel(model)} />;
+    const partnerOperations = await loadChapterPartnerOperations(chapterId);
+    panel = <LanePartners chapterId={chapterId} view={partnerLaneFromModel(model)} operations={partnerOperations} />;
   } else if (active === "instructors") {
-    panel = <LaneInstructors chapterId={chapterId} view={instructorLaneFromModel(model)} />;
+    const instructorOperations = await loadChapterInstructorOperations(chapterId);
+    panel = <LaneInstructors chapterId={chapterId} view={instructorLaneFromModel(model)} operations={instructorOperations} />;
   } else if (active === "students") {
-    panel = <LaneStudents chapterId={chapterId} view={studentLaneFromModel(model)} />;
+    const studentOperations = await loadChapterStudentOperations(chapterId);
+    panel = <LaneStudents chapterId={chapterId} view={studentLaneFromModel(model)} operations={studentOperations} />;
   } else if (active === "actions") {
     const [actionsView] = await Promise.all([
       loadChapterActionsLane(chapterId, ctx.user, searchParams.relatedType && searchParams.relatedId ? { relatedType: searchParams.relatedType, relatedId: searchParams.relatedId } : undefined),
@@ -139,8 +129,8 @@ export default async function ChapterHomePage(props: {
     <div className="mx-auto w-full max-w-6xl px-6 py-8">
       <PageHeaderV2
         eyebrow={`Week ${model.weekNumber}`}
-        title="Chapter Operating System"
-        subtitle="Partners, students, instructors, actions, and meetings — everything to run your chapter, in one place."
+        title="Chapter Operations"
+        subtitle={`Performance, records, deadlines, and reporting for ${model.chapter.name}.`}
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge tone={chapterLifecycleTone(model.chapter.lifecycleStatus)}>{chapterLifecycleLabel(model.chapter.lifecycleStatus)}</StatusBadge>
@@ -166,13 +156,8 @@ export default async function ChapterHomePage(props: {
         </div>
       )}
 
-      {!showOverview && <div className="mt-6"><ChapterAutomationSection automation={automation} showEscalations={ctx.isLeadership} /></div>}
-
       <div className="mt-6">
         {showOverview && operations ? <div className="space-y-6"><ChapterOSLaneTabs active={null} counts={laneCounts} /><ChapterOperationsOverview data={operations} /></div> : <ChapterOS
-          chapterId={chapterId}
-          weekNumber={model.weekNumber}
-          growth={model.growth}
           active={active}
           laneCounts={laneCounts}
           launchBanner={
