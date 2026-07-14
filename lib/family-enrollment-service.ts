@@ -48,7 +48,9 @@ export async function evaluateFamilyEnrollment(studentId: string, offeringId: st
   const grade = gradeFromProfile(student.profile), age = ageFromProfile(student.profile);
   if (config?.minGrade && grade !== null && grade < config.minGrade) return { state: "BLOCKED", explanation: `This opportunity is for students in grades ${config.minGrade}${config.maxGrade ? `–${config.maxGrade}` : " and up"}.`, action: "NONE" as EnrollmentAction, blockingReason: "grade", requiredForms: [], capacityState: "open", existingParticipationState: existing?.status ?? null, guardianRequired: false };
   if (config?.maxGrade && grade !== null && grade > config.maxGrade) return { state: "BLOCKED", explanation: `This opportunity is for students in grades ${config.minGrade ?? "younger"}–${config.maxGrade}.`, action: "NONE" as EnrollmentAction, blockingReason: "grade", requiredForms: [], capacityState: "open", existingParticipationState: existing?.status ?? null, guardianRequired: false };
-  if (config?.minAge && age !== null && age < config.minAge) return { state: "BLOCKED", explanation: `This opportunity is for students age ${config.minAge} and older.`, action: "NONE" as EnrollmentAction, blockingReason: "age", requiredForms: [], capacityState: "open", existingParticipationState: existing?.status ?? null, guardianRequired: false };
+  if ((config?.minAge || config?.maxAge) && age === null) return { state: "BLOCKED", explanation: "Please add the student’s birth date before enrolling so YPP can confirm this opportunity is a good fit.", action: "NONE" as EnrollmentAction, blockingReason: "age_missing", requiredForms: [], capacityState: "open", existingParticipationState: existing?.status ?? null, guardianRequired: false };
+  if (config?.minAge && age !== null && age < config.minAge) return { state: "BLOCKED", explanation: config.maxAge ? `This opportunity is for students ages ${config.minAge}–${config.maxAge}.` : `This opportunity is for students age ${config.minAge} and older.`, action: "NONE" as EnrollmentAction, blockingReason: "age", requiredForms: [], capacityState: "open", existingParticipationState: existing?.status ?? null, guardianRequired: false };
+  if (config?.maxAge && age !== null && age > config.maxAge) return { state: "BLOCKED", explanation: config.minAge ? `This opportunity is for students ages ${config.minAge}–${config.maxAge}.` : `This opportunity is for students age ${config.maxAge} or younger.`, action: "NONE" as EnrollmentAction, blockingReason: "age", requiredForms: [], capacityState: "open", existingParticipationState: existing?.status ?? null, guardianRequired: false };
   if (mode === "CLOSED" || !offering.enrollmentOpen) return { state: "CLOSED", explanation: "Applications are currently closed.", action: "NONE" as EnrollmentAction, blockingReason: "closed", requiredForms: [], capacityState: "closed", existingParticipationState: existing?.status ?? null, guardianRequired: false };
   if (mode === "INVITATION_ONLY") return { state: "INVITATION_REQUIRED", explanation: "This opportunity requires an invitation.", action: "NONE" as EnrollmentAction, blockingReason: "invitation", requiredForms: [], capacityState: "restricted", existingParticipationState: null, guardianRequired: false };
   if (mode === "EXTERNAL_PARTNER_PLACEMENT") return { state: "EXTERNAL_PLACEMENT", explanation: "This opportunity is placed through a YPP partner.", action: "NONE" as EnrollmentAction, blockingReason: "external", requiredForms: [], capacityState: "restricted", existingParticipationState: null, guardianRequired: false };
@@ -106,9 +108,19 @@ export async function joinWaitlist(studentId: string, offeringId: string, actor:
   return entry;
 }
 export async function leaveWaitlist(studentId: string, offeringId: string, actorUserId: string) {
-  const entry = await (prisma as any).familyWaitlistEntry.findUnique({ where: { studentUserId_offeringId: { studentUserId: studentId, offeringId } } });
-  if (!entry || !["ACTIVE", "OFFERED"].includes(entry.status)) throw new Error("There is no active waitlist entry to leave.");
-  return (prisma as any).familyWaitlistEntry.update({ where: { id: entry.id }, data: { status: "LEFT", leftAt: new Date(), audits: { create: { actorUserId, action: "LEFT" } } } });
+  return prisma.$transaction(async (tx: any) => {
+    const entry = await tx.familyWaitlistEntry.findUnique({ where: { studentUserId_offeringId: { studentUserId: studentId, offeringId } } });
+    if (!entry || !["ACTIVE", "OFFERED"].includes(entry.status)) throw new Error("There is no active waitlist entry to leave.");
+    let enrollment = null;
+    if (typeof tx.classEnrollment.findUnique === "function") enrollment = await tx.classEnrollment.findUnique({ where: { studentId_offeringId: { studentId, offeringId } } }).catch(() => null);
+    if (!enrollment && typeof tx.classEnrollment.findFirst === "function") enrollment = await tx.classEnrollment.findFirst({ where: { studentId, offeringId } });
+    const updatedEntry = await tx.familyWaitlistEntry.update({ where: { id: entry.id }, data: { status: "LEFT", leftAt: new Date(), offerExpiresAt: null, decidedById: actorUserId, audits: { create: { actorUserId, action: entry.status === "OFFERED" ? "OFFER_WITHDRAWN" : "LEFT" } } } });
+    if (enrollment?.status === "WAITLISTED") {
+      await tx.classEnrollment.update({ where: { id: enrollment.id }, data: { status: "DROPPED", droppedAt: new Date() } });
+      await tx.classOfferingTimelineEvent.create({ data: { offeringId, actorId: actorUserId, kind: "ENROLLMENT_STATUS_CHANGED", summary: "Family left waitlist", payload: { studentId, previousStatus: "WAITLISTED", newStatus: "DROPPED", waitlistEntryId: entry.id } } }).catch(() => null);
+    }
+    return updatedEntry;
+  });
 }
 export async function acceptWaitlistOffer(studentId: string, offeringId: string, actor: FamilyActor) {
   const entry = await (prisma as any).familyWaitlistEntry.findUnique({ where: { studentUserId_offeringId: { studentUserId: studentId, offeringId } } });
