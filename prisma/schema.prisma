@@ -1077,6 +1077,21 @@ model User {
   alumniProfile                          AlumniProfile?
   collegeAdvisor                         CollegeAdvisor?
   collegeAdviseeships                    CollegeAdvisorship[]            @relation("CollegeAdviseeships")
+  guardianApprovalRequestsAsStudent      GuardianApprovalRequest[] @relation("GuardianApprovalStudents")
+  guardianApprovalRequestsAsGuardian     GuardianApprovalRequest[] @relation("GuardianApprovalGuardians")
+  guardianApprovalRequestsMade           GuardianApprovalRequest[] @relation("GuardianApprovalRequesters")
+  guardianApprovalDecisions              GuardianApprovalRequest[] @relation("GuardianApprovalDeciders")
+  familyWaitlistEntries                  FamilyWaitlistEntry[] @relation("FamilyWaitlistStudents")
+  familyWaitlistEntriesCreated           FamilyWaitlistEntry[] @relation("FamilyWaitlistCreators")
+  familyWaitlistDecisions                FamilyWaitlistEntry[] @relation("FamilyWaitlistDeciders")
+  familySupportRequestsMade              FamilySupportRequest[] @relation("FamilySupportRequesters")
+  familySupportRequestsAsStudent         FamilySupportRequest[] @relation("FamilySupportStudents")
+  familySupportRequestsAsGuardian        FamilySupportRequest[] @relation("FamilySupportGuardians")
+  familyFormRequirements                 FamilyFormRequirement[] @relation("FamilyFormRequirementStudents")
+  familyFormSubmissionsAsStudent         FamilyFormSubmission[] @relation("FamilyFormSubmissionStudents")
+  familyFormSubmissionsAsGuardian        FamilyFormSubmission[] @relation("FamilyFormSubmissionGuardians")
+  familyFormSignaturesAsStudent          FamilyFormSignature[] @relation("FamilyFormSignatureStudents")
+  familyFormSignaturesAsGuardian         FamilyFormSignature[] @relation("FamilyFormSignatureGuardians")
   profile                                UserProfile?
 
   // Mentorship 2.0 (Action Tracker 3.0, Phase M1)
@@ -7695,6 +7710,11 @@ model ClassOffering {
   // Relations
   sessions                     ClassSession[]
   enrollments                  ClassEnrollment[]
+  familyEnrollmentConfig       FamilyEnrollmentConfig?
+  guardianApprovalRequests     GuardianApprovalRequest[]
+  familyWaitlistEntries        FamilyWaitlistEntry[]
+  familySupportRequests        FamilySupportRequest[]
+  familyFormRequirements       FamilyFormRequirement[]
   reminders                    ClassReminder[]
   assignments                  ClassAssignment[]
   announcements                ClassAnnouncement[]
@@ -8055,6 +8075,7 @@ model ClassSession {
   // Post-session instructor reflection (Phase 5) — 1:1, created on submit.
   reflection   ClassSessionReflection?
   preparations InstructorSessionPreparation[]
+  familySupportRequests FamilySupportRequest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -15746,6 +15767,263 @@ model StudentGuardianRelationship {
   @@unique([studentUserId, guardianUserId, revokedAt])
   @@index([guardianUserId, relationshipStatus, revokedAt])
   @@index([studentUserId, relationshipStatus, revokedAt])
+}
+
+enum FamilyEnrollmentMode {
+  DIRECT
+  APPLICATION_REQUIRED
+  INVITATION_ONLY
+  WAITLIST
+  GUARDIAN_APPROVAL_REQUIRED
+  STUDENT_INTEREST
+  CLOSED
+  EXTERNAL_PARTNER_PLACEMENT
+}
+
+enum FamilyApprovalStatus {
+  PENDING
+  APPROVED
+  DECLINED
+  CANCELLED
+}
+
+enum FamilyWaitlistStatus {
+  ACTIVE
+  LEFT
+  OFFERED
+  ACCEPTED
+  DECLINED
+  EXPIRED
+  REMOVED
+}
+
+enum FamilySupportExternalStatus {
+  SENT
+  REVIEWING
+  NEED_MORE_INFORMATION
+  RESOLVED
+  CLOSED
+}
+
+enum FamilyFormRequirementStatus {
+  REQUIRED
+  IN_PROGRESS
+  COMPLETED
+  SUPERSEDED
+  WAIVED
+}
+
+model FamilyEnrollmentConfig {
+  id                       String               @id @default(cuid())
+  offeringId               String               @unique
+  offering                 ClassOffering        @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  mode                     FamilyEnrollmentMode @default(DIRECT)
+  minGrade                 Int?
+  maxGrade                 Int?
+  minAge                   Int?
+  maxAge                   Int?
+  requiresGuardianApproval Boolean              @default(false)
+  applicationUrl           String?
+  interestInstructions     String?              @db.Text
+  externalPlacementNote    String?              @db.Text
+  createdAt                DateTime             @default(now())
+  updatedAt                DateTime             @updatedAt
+}
+
+model GuardianApprovalRequest {
+  id             String               @id @default(cuid())
+  studentUserId  String
+  studentUser    User                 @relation("GuardianApprovalStudents", fields: [studentUserId], references: [id], onDelete: Cascade)
+  guardianUserId String?
+  guardianUser   User?                @relation("GuardianApprovalGuardians", fields: [guardianUserId], references: [id], onDelete: SetNull)
+  offeringId     String
+  offering       ClassOffering        @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  requestedById  String
+  requestedBy    User                 @relation("GuardianApprovalRequesters", fields: [requestedById], references: [id], onDelete: Cascade)
+  status         FamilyApprovalStatus @default(PENDING)
+  decisionById   String?
+  decisionBy     User?                @relation("GuardianApprovalDeciders", fields: [decisionById], references: [id], onDelete: SetNull)
+  decisionNote   String?              @db.Text
+  requestedAt    DateTime             @default(now())
+  decidedAt      DateTime?
+  auditMetadata  Json?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  @@unique([studentUserId, offeringId, status])
+  @@index([guardianUserId, status])
+}
+
+model FamilyWaitlistEntry {
+  id            String               @id @default(cuid())
+  studentUserId String
+  studentUser   User                 @relation("FamilyWaitlistStudents", fields: [studentUserId], references: [id], onDelete: Cascade)
+  offeringId    String
+  offering      ClassOffering        @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  status        FamilyWaitlistStatus @default(ACTIVE)
+  offerExpiresAt DateTime?
+  createdById   String
+  createdBy     User                 @relation("FamilyWaitlistCreators", fields: [createdById], references: [id], onDelete: Cascade)
+  decidedById   String?
+  decidedBy     User?                @relation("FamilyWaitlistDeciders", fields: [decidedById], references: [id], onDelete: SetNull)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  leftAt        DateTime?
+
+  audits FamilyWaitlistAudit[]
+
+  @@unique([studentUserId, offeringId])
+  @@index([offeringId, status])
+}
+
+model FamilyWaitlistAudit {
+  id          String              @id @default(cuid())
+  waitlistId  String
+  waitlist    FamilyWaitlistEntry @relation(fields: [waitlistId], references: [id], onDelete: Cascade)
+  actorUserId String?
+  action      String
+  note        String?             @db.Text
+  createdAt   DateTime            @default(now())
+
+  @@index([waitlistId, createdAt])
+}
+
+model FamilySupportRequest {
+  id             String                      @id @default(cuid())
+  requesterUserId String
+  requesterUser   User                       @relation("FamilySupportRequesters", fields: [requesterUserId], references: [id], onDelete: Cascade)
+  requesterRole String
+  studentUserId String?
+  studentUser   User?                        @relation("FamilySupportStudents", fields: [studentUserId], references: [id], onDelete: SetNull)
+  guardianUserId String?
+  guardianUser   User?                       @relation("FamilySupportGuardians", fields: [guardianUserId], references: [id], onDelete: SetNull)
+  offeringId    String?
+  offering      ClassOffering?               @relation(fields: [offeringId], references: [id], onDelete: SetNull)
+  sessionId     String?
+  session       ClassSession?                @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  programId     String?
+  category      String
+  description   String                       @db.Text
+  externalStatus FamilySupportExternalStatus @default(SENT)
+  internalRoutingTeam String?
+  safetyFlag    Boolean                      @default(false)
+  internalActionItemId String?
+  createdAt     DateTime                     @default(now())
+  resolvedAt    DateTime?
+  updatedAt     DateTime                     @updatedAt
+
+  responses FamilySupportResponse[]
+  histories FamilySupportStatusHistory[]
+
+  @@index([requesterUserId, createdAt])
+  @@index([studentUserId, externalStatus])
+}
+
+model FamilySupportResponse {
+  id        String               @id @default(cuid())
+  requestId String
+  request   FamilySupportRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  authorUserId String?
+  body      String               @db.Text
+  familyVisible Boolean          @default(true)
+  createdAt DateTime             @default(now())
+
+  @@index([requestId, familyVisible])
+}
+
+model FamilySupportStatusHistory {
+  id        String                      @id @default(cuid())
+  requestId String
+  request   FamilySupportRequest        @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  status    FamilySupportExternalStatus
+  actorUserId String?
+  note      String?                     @db.Text
+  createdAt DateTime                    @default(now())
+
+  @@index([requestId, createdAt])
+}
+
+model FamilyFormTemplate {
+  id          String              @id @default(cuid())
+  key         String              @unique
+  title       String
+  formType    String
+  description String?             @db.Text
+  versions    FamilyFormVersion[]
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+}
+
+model FamilyFormVersion {
+  id          String             @id @default(cuid())
+  templateId  String
+  template    FamilyFormTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  version     Int
+  content     Json
+  effectiveAt DateTime           @default(now())
+  retiredAt   DateTime?
+  requirements FamilyFormRequirement[]
+  submissions FamilyFormSubmission[]
+
+  @@unique([templateId, version])
+}
+
+model FamilyFormRequirement {
+  id            String                      @id @default(cuid())
+  versionId     String
+  version       FamilyFormVersion           @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  studentUserId String
+  studentUser   User                        @relation("FamilyFormRequirementStudents", fields: [studentUserId], references: [id], onDelete: Cascade)
+  offeringId    String?
+  offering      ClassOffering?              @relation(fields: [offeringId], references: [id], onDelete: SetNull)
+  programId     String?
+  dueAt         DateTime?
+  reason        String                      @db.Text
+  status        FamilyFormRequirementStatus @default(REQUIRED)
+  completedAt   DateTime?
+  createdAt     DateTime                    @default(now())
+  updatedAt     DateTime                    @updatedAt
+  submissions   FamilyFormSubmission[]
+
+  @@index([studentUserId, status])
+}
+
+model FamilyFormSubmission {
+  id            String                @id @default(cuid())
+  requirementId String
+  requirement   FamilyFormRequirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  versionId     String
+  version       FamilyFormVersion     @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  studentUserId String
+  studentUser   User                  @relation("FamilyFormSubmissionStudents", fields: [studentUserId], references: [id], onDelete: Cascade)
+  guardianUserId String
+  guardianUser   User                 @relation("FamilyFormSubmissionGuardians", fields: [guardianUserId], references: [id], onDelete: Cascade)
+  guardianRelationshipId String?
+  content       Json
+  status        String                @default("SIGNED")
+  staffReviewState String             @default("NOT_REQUIRED")
+  supersededAt  DateTime?
+  createdAt     DateTime              @default(now())
+  signatures    FamilyFormSignature[]
+
+  @@index([requirementId, createdAt])
+}
+
+model FamilyFormSignature {
+  id            String               @id @default(cuid())
+  submissionId  String
+  submission    FamilyFormSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  versionId     String
+  guardianUserId String
+  guardianUser   User                @relation("FamilyFormSignatureGuardians", fields: [guardianUserId], references: [id], onDelete: Cascade)
+  studentUserId String
+  studentUser   User                 @relation("FamilyFormSignatureStudents", fields: [studentUserId], references: [id], onDelete: Cascade)
+  guardianRelationshipId String?
+  signerName    String
+  signedAt      DateTime             @default(now())
+  acknowledgementText String          @db.Text
+
+  @@index([studentUserId, signedAt])
 }
 
 model FamilyInvitation {
