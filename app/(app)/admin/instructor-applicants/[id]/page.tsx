@@ -334,6 +334,7 @@ export default async function ApplicationRecordPage({
     record.applicant.email,
     record.applicant.chapterName,
     record.schoolName,
+    record.graduationYear ? `Class of ${record.graduationYear}` : null,
     [record.city, record.stateProvince].filter(Boolean).join(", ") || null,
   ]
     .filter(Boolean)
