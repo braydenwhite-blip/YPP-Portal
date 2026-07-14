@@ -4652,10 +4652,15 @@ model Notification {
   link      String?
   isRead    Boolean          @default(false)
   dedupeKey String?
+  deliveryState String @default("SENT")
+  eventType String?
+  relatedEntityType String?
+  relatedEntityId String?
   createdAt DateTime         @default(now())
 
   @@index([userId, isRead])
   @@index([createdAt])
+  @@unique([userId, dedupeKey])
   @@index([dedupeKey, createdAt])
 }
 
@@ -10891,6 +10896,14 @@ model ClassAnnouncement {
 
   title    String
   body     String  @db.Text
+  announcementType String @default("CLASS_REMINDER")
+  audience String @default("ADMITTED_FAMILIES")
+  status String @default("DRAFT")
+  approvalRequired Boolean @default(false)
+  approvedById String?
+  approvedAt DateTime?
+  publishedAt DateTime?
+  sessionId String?
   isPinned Boolean @default(false)
 
   createdAt DateTime @default(now())
@@ -13626,6 +13639,10 @@ model ActionItem {
   fileLinks       ActionFileLink[]       @relation("ActionItemFileLinks")
   emailLogs       ActionEmailLog[]       @relation("ActionItemEmailLogs")
 
+  operationalSourceKey String?
+  operationalSourceType String?
+  operationalIssueType String?
+
   // Optional chapter scope so chapter "next steps" are real, queryable actions
   // in the Action Tracker (launch checklist items, support-request follow-ups).
   chapterId String?
@@ -13658,6 +13675,8 @@ model ActionItem {
   @@index([strategicProjectId])
   @@index([nextFollowUpAt])
   @@index([chapterId])
+  @@unique([chapterId, operationalSourceKey])
+  @@index([operationalSourceType, operationalIssueType])
 }
 
 /// Join row assigning a user to an action item in a specific role. The
@@ -15813,6 +15832,98 @@ enum FamilyFormRequirementStatus {
   WAIVED
 }
 
+model InstructorAssignmentHistory {
+  id String @id @default(cuid())
+  offeringId String
+  previousInstructorId String?
+  newInstructorId String?
+  actorUserId String
+  assignedAt DateTime @default(now())
+  removedAt DateTime?
+  reason String @db.Text
+  assignmentSource String @default("CHAPTER_OPERATIONS")
+  active Boolean @default(true)
+  readinessOverride Boolean @default(false)
+  readinessSnapshot Json?
+
+  @@index([offeringId, active])
+  @@index([newInstructorId])
+}
+
+model OperationalAuditEvent {
+  id String @id @default(cuid())
+  actorUserId String?
+  action String
+  sourceType String
+  sourceId String
+  relatedEntityType String?
+  relatedEntityId String?
+  previousState Json?
+  newState Json?
+  reason String? @db.Text
+  correlationId String?
+  createdAt DateTime @default(now())
+
+  @@index([sourceType, sourceId, createdAt])
+  @@index([actorUserId, createdAt])
+  @@index([action, createdAt])
+}
+
+model BiweeklyActionPacket {
+  id String @id @default(cuid())
+  chapterId String
+  periodStart DateTime
+  periodEnd DateTime
+  state String @default("GENERATED")
+  generatedById String?
+  generatedAt DateTime @default(now())
+  acknowledgedById String?
+  acknowledgedAt DateTime?
+  notes String? @db.Text
+  items BiweeklyActionPacketItem[]
+
+  @@unique([chapterId, periodStart, periodEnd])
+  @@index([chapterId, state])
+}
+
+model BiweeklyActionPacketItem {
+  id String @id @default(cuid())
+  packetId String
+  packet BiweeklyActionPacket @relation(fields: [packetId], references: [id], onDelete: Cascade)
+  actionItemId String?
+  sourceKey String
+  ownerId String?
+  dueAt DateTime?
+  state String @default("OPEN")
+  notes String? @db.Text
+  completedAt DateTime?
+
+  @@unique([packetId, sourceKey])
+  @@index([actionItemId])
+  @@index([ownerId, state])
+}
+
+model LeadershipIntervention {
+  id String @id @default(cuid())
+  chapterId String
+  actionItemId String?
+  sourceType String
+  sourceId String
+  createdById String
+  ownerId String?
+  severity String @default("MEDIUM")
+  status String @default("OPEN")
+  note String @db.Text
+  meetingId String?
+  dueAt DateTime?
+  resolvedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([chapterId, status])
+  @@index([actionItemId])
+}
+
 model FamilyEnrollmentConfig {
   id                       String               @id @default(cuid())
   offeringId               String               @unique
@@ -15906,6 +16017,9 @@ model FamilySupportRequest {
   description   String                       @db.Text
   externalStatus FamilySupportExternalStatus @default(SENT)
   internalRoutingTeam String?
+  internalOwnerId String?
+  internalCategory String?
+  internalSeverity String?
   safetyFlag    Boolean                      @default(false)
   internalActionItemId String?
   createdAt     DateTime                     @default(now())
@@ -15925,6 +16039,7 @@ model FamilySupportResponse {
   request   FamilySupportRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
   authorUserId String?
   body      String               @db.Text
+  responseType String @default("FAMILY_VISIBLE")
   familyVisible Boolean          @default(true)
   createdAt DateTime             @default(now())
 
@@ -15978,6 +16093,9 @@ model FamilyFormRequirement {
   offering      ClassOffering?              @relation(fields: [offeringId], references: [id], onDelete: SetNull)
   programId     String?
   dueAt         DateTime?
+  blocksEnrollment Boolean @default(false)
+  blocksAttendance Boolean @default(false)
+  staffReviewRequired Boolean @default(false)
   reason        String                      @db.Text
   status        FamilyFormRequirementStatus @default(REQUIRED)
   completedAt   DateTime?
@@ -16002,6 +16120,9 @@ model FamilyFormSubmission {
   content       Json
   status        String                @default("SIGNED")
   staffReviewState String             @default("NOT_REQUIRED")
+  reviewedById String?
+  reviewedAt DateTime?
+  reviewNote String? @db.Text
   supersededAt  DateTime?
   createdAt     DateTime              @default(now())
   signatures    FamilyFormSignature[]
