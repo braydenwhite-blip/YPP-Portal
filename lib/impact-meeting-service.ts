@@ -1,2 +1,7 @@
-/** Session 5 durable domain facade. Keep domain imports here rather than importing the legacy Session 4 aggregate directly. */
-export { createImpactDecision } from "@/lib/session-4-operations";
+import { prisma } from "@/lib/prisma";
+import { auditOperationalEvent } from "@/lib/operational-audit-service";
+import { notifyOperational } from "@/lib/operational-notification-service";
+import { type Session4Actor } from "@/lib/operational-permissions";
+import { nowPlus } from "@/lib/operation-utils";
+
+export async function createImpactDecision(actor: Session4Actor, meetingId: string, input: any) { const decision = await (prisma as any).meetingDecision.create({ data: { meetingId, decision: input.decision, rationale: input.rationale, decidedById: actor.userId } }); const action = input.ownerId ? await (prisma as any).actionItem.create({ data: { title: input.actionTitle ?? input.decision, description: input.rationale, deadlineStart: input.dueAt ?? nowPlus(7), leadId: input.ownerId, createdById: actor.userId, meetingId, sourceType: "MEETING_DECISION", sourceId: decision.id, relatedEntityType: input.relatedEntityType, relatedEntityId: input.relatedEntityId, chapterId: input.chapterId } }) : null; await auditOperationalEvent({ actorUserId: actor.userId, action: "IMPACT_DECISION_CREATED", sourceType: "MEETING", sourceId: meetingId, relatedEntityType: "ACTION_ITEM", relatedEntityId: action?.id, newState: input }); if (action) await notifyOperational({ userId: input.ownerId, eventType: "MEETING_COMMITMENT_ASSIGNED", title: "Meeting commitment assigned", body: action.title, link: `/my-actions`, relatedEntityType: "ACTION_ITEM", relatedEntityId: action.id, dedupeKey: `meeting-action:${action.id}`, operational: true }); return { decision, action }; }

@@ -35,7 +35,7 @@ export async function getFamilyFormAdminSummary() {
 
 export async function getInstructorClassWorkspace(classId: string) {
   const actor = await requireSessionUser();
-  const offering = await prisma.classOffering.findUnique({ where: { id: classId }, select: { id: true, title: true, instructorId: true, meetingDays: true, meetingTime: true, deliveryMode: true, zoomLink: true, location: true, sessions: { select: { id: true, date: true, title: true, topic: true, isCancelled: true, attendance: { select: { id: true, studentId: true, status: true, notes: true } }, preparations: { select: { id: true, note: true, completedAt: true } } }, orderBy: { date: "asc" }, take: 12 }, enrollments: { where: { status: { in: ["ENROLLED", "COMPLETED"] } }, select: { student: { select: { id: true, name: true, email: true } }, status: true } } } });
+  const offering = await (prisma as any).classOffering.findUnique({ where: { id: classId }, include: { sessions: { include: { attendance: true, preparations: true }, orderBy: { date: "asc" }, take: 12 }, enrollments: { where: { status: { in: ["ENROLLED", "COMPLETED"] } }, include: { student: { select: { id: true, name: true, email: true } } } } } });
   if (!offering) throw new Error("Class not found");
   if (offering.instructorId !== actor.id && !actor.roles.some((r) => ["ADMIN", "STAFF", "CHAPTER_PRESIDENT"].includes(r))) throw new Error("Unauthorized");
   return { actor, offering };
