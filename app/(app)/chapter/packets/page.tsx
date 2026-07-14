@@ -1,1 +1,1 @@
-export { PacketWorkspace as default } from "../operations-workspace-ui";
+export { PacketWorkspace as default } from "@/components/operations/workspaces";

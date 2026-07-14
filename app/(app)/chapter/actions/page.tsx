@@ -1,1 +1,1 @@
-export { ActionWorkspace as default } from "../operations-workspace-ui";
+export { ActionWorkspace as default } from "@/components/operations/workspaces";

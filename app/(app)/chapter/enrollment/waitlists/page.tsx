@@ -1,1 +1,1 @@
-export { WaitlistWorkspace as default } from "../../operations-workspace-ui";
+export { WaitlistWorkspace as default } from "@/components/operations/workspaces";

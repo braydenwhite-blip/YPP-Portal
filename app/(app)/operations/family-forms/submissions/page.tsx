@@ -1,1 +1,1 @@
-export { FormReviewWorkspace as default } from "../../../chapter/operations-workspace-ui";
+export { FormReviewWorkspace as default } from "@/components/operations/workspaces";

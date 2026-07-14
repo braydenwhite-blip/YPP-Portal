@@ -1,0 +1,12 @@
+# Session 7 Cross-Portal Verification
+
+| Workflow | Portals | Route tested | User role | Expected state | Observed state | Test/evidence | Defects found | Fixes applied |
+|---|---|---|---|---|---|---|---|---|
+| Instructor Assignment | chapter, instructor, leadership, actions, notifications, audit | /chapter/instructors/needs | chapter-president | staffing workspace renders class/action context | route matrix asserts main heading and captures screenshot | operational-workflows.spec.ts / chapter-staffing.png | monolithic import | production import moved |
+| Enrollment | student, guardian, chapter, schedule, notifications, audit | /chapter/enrollment | chapter-president | enrollment operations visible | route matrix verifies workspace shell | chapter-enrollment.png | monolithic import | production import moved |
+| Waitlist Offer | student, guardian, chapter, logistics, notifications, audit | /chapter/enrollment/waitlists | chapter-president | waitlist offers visible without unsupported logistics leakage | route matrix verifies workspace shell | chapter-waitlist.png | monolithic import | production import moved |
+| Form Submission | guardian, chapter, readiness, actions, notifications, audit | /operations/family-forms/submissions | chapter-president | immutable form review queue visible | route matrix verifies workspace shell | form-review.png | monolithic import | production import moved |
+| Support Response | family, staff, chapter, actions, notifications, restricted data | /operations/family-support | chapter-president | family-visible and internal lanes separated | route matrix verifies workspace shell | support-triage.png | monolithic import | production import moved |
+| Attendance Finalization | instructor, student, guardian, chapter, actions, audit | /instructor/classes/[id]/attendance | instructor | attendance workspace imports domain module | route import audited | route import diff | deprecated import | production import moved |
+| Announcement Publication | student, guardian, instructor, chapter, ledger, audit | /chapter/announcements | chapter-president | announcement center visible | route matrix verifies workspace shell | announcement-approval.png | monolithic import | production import moved |
+| Impact Decision | chapter, packet, owner, leadership, notifications, audit | /chapter/impact | chapter-president | decision form available | route matrix verifies workspace shell | impact-meeting.png | monolithic import | production import moved |

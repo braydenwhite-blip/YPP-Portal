@@ -1,1 +1,1 @@
-export { ImpactWorkspace as default } from "../../operations-workspace-ui";
+export { ImpactWorkspace as default } from "@/components/operations/workspaces";

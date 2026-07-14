@@ -1,1 +1,1 @@
-export { StaffingWorkspace as default } from "../../operations-workspace-ui";
+export { StaffingWorkspace as default } from "@/components/operations/workspaces";

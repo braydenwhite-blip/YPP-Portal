@@ -60,8 +60,9 @@ export default async function AppLayout({
   const primaryRole = session.user.primaryRole ?? null;
   const userId = session.user.id;
   const hiringDemoMode = isHiringDemoModeEnabled();
+  const isQaSyntheticUser = typeof userId === "string" && userId.startsWith("qa-") && process.env.ENABLE_YPP_QA_AUTH === "true" && process.env.NODE_ENV !== "production";
   const shouldLoadShellMetadata = Boolean(
-    userId && primaryRole !== "APPLICANT" && !hiringDemoMode
+    userId && primaryRole !== "APPLICANT" && !hiringDemoMode && !isQaSyntheticUser
   );
 
   const mentorshipMembership =
@@ -76,7 +77,7 @@ export default async function AppLayout({
 
   const currentPath = (await headers()).get("x-pathname") ?? "";
   const onLaunchpad = currentPath.startsWith("/instructor-onboarding");
-  const checkOnboarding = shouldCheckPortalOnboarding({
+  const checkOnboarding = !isQaSyntheticUser && shouldCheckPortalOnboarding({
     userId,
     primaryRole,
     hiringDemoMode,
@@ -91,7 +92,7 @@ export default async function AppLayout({
   // visitor's localStorage preference and seeds the cookie for next time.
   const initialCommandMode =
     parseCommandMode(cookieStore.get(COMMAND_MODE_COOKIE)?.value) ?? undefined;
-  const loadSubtype = shouldLoadInstructorSubtype(roles, primaryRole);
+  const loadSubtype = !isQaSyntheticUser && shouldLoadInstructorSubtype(roles, primaryRole);
 
   const onboardingTask = checkOnboarding
     ? ensurePortalOnboardingComplete({ userId: userId!, roles, primaryRole })
@@ -112,7 +113,7 @@ export default async function AppLayout({
   const officerBypassesPublicGate = isOfficerTierFromAuth(roles, primaryRole);
   const publicGateActive = publicGateEnabled && !previewActive && !officerBypassesPublicGate;
   const navPrimaryRole = (primaryRole ?? "STUDENT") as NavRole;
-  if (userId) {
+  if (userId && !isQaSyntheticUser) {
     void syncPortalAuthMetadataForPrismaUser(userId).catch((error) => {
       console.error("[layout] Failed to sync Supabase user_metadata:", error);
     });
