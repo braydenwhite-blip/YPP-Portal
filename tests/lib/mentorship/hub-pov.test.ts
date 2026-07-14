@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   availablePovs,
+  isMenteeOnly,
+  needsMentorshipRoleChooser,
   resolvePov,
   type HubViewerFacts,
 } from "@/lib/mentorship/hub-pov";
@@ -30,9 +32,11 @@ describe("availablePovs", () => {
     ]);
   });
 
-  it("chairs and admins get the mentor console even with zero mentees", () => {
+  it("chairs (and committees) get the mentor console for queues; admins alone do not", () => {
     expect(availablePovs(viewer({ isChair: true }))).toContain("mentor");
-    expect(availablePovs(viewer({ isAdmin: true }))).toContain("mentor");
+    expect(availablePovs(viewer({ isCommitteeMember: true }))).toContain("mentor");
+    expect(availablePovs(viewer({ isAdmin: true }))).not.toContain("mentor");
+    expect(availablePovs(viewer({ isAdmin: true, isMentor: true }))).toContain("mentor");
   });
 
   it("admins and command-center access both unlock the admin POV", () => {
@@ -47,6 +51,46 @@ describe("availablePovs", () => {
 
   it("someone with no capabilities still gets their own development view", () => {
     expect(availablePovs(viewer())).toEqual(["me"]);
+  });
+});
+
+describe("isMenteeOnly", () => {
+  it("is true only when mentored and nothing else", () => {
+    expect(isMenteeOnly(viewer({ isMentee: true }))).toBe(true);
+    expect(isMenteeOnly(viewer({ isMentee: true, isMentor: true }))).toBe(false);
+    expect(isMenteeOnly(viewer({ isMentee: true, isChair: true }))).toBe(false);
+    expect(isMenteeOnly(viewer({ isMentee: true, isAdmin: true }))).toBe(false);
+    expect(isMenteeOnly(viewer({ isMentee: true, isCommitteeMember: true }))).toBe(
+      false
+    );
+    expect(
+      isMenteeOnly(viewer({ isMentee: true, hasCommandCenterAccess: true }))
+    ).toBe(false);
+    expect(isMenteeOnly(viewer())).toBe(false);
+  });
+});
+
+describe("needsMentorshipRoleChooser", () => {
+  it("shows for everyone until a view is chosen", () => {
+    expect(
+      needsMentorshipRoleChooser(viewer({ isMentee: true, isMentor: true }), undefined)
+    ).toBe(true);
+    expect(needsMentorshipRoleChooser(viewer({ isMentor: true }), undefined)).toBe(
+      true
+    );
+    expect(needsMentorshipRoleChooser(viewer({ isMentee: true }), undefined)).toBe(
+      true
+    );
+    expect(needsMentorshipRoleChooser(viewer({ isAdmin: true }), undefined)).toBe(
+      true
+    );
+  });
+
+  it("hides once a view is chosen", () => {
+    const dual = viewer({ isMentee: true, isMentor: true });
+    expect(needsMentorshipRoleChooser(dual, "mentor")).toBe(false);
+    expect(needsMentorshipRoleChooser(dual, "me")).toBe(false);
+    expect(needsMentorshipRoleChooser(dual, "admin")).toBe(false);
   });
 });
 

@@ -30,6 +30,7 @@ function fact(overrides: Partial<MentorshipRelationshipFact> = {}): MentorshipRe
     releasedColorStatus: null,
     kickoffCompleted: true,
     reflectionDue: false,
+    meetingDue: false,
     reviewDue: false,
     reviewPendingChairApproval: false,
     reviewChangesRequested: false,
@@ -90,7 +91,7 @@ describe("selectNextFocus", () => {
       NOW
     );
     expect(focus?.kind).toBe("reflection");
-    expect(focus?.ctaHref).toBe("/mentorship?view=me&section=reflection");
+    expect(focus?.ctaHref).toBe("/mentorship/people/u-mentee?section=reviews");
   });
 
   it("prioritizes a due review over a pending kickoff for the mentor", () => {
@@ -150,7 +151,7 @@ describe("buildMentorshipViewModel", () => {
     expect(vm.relationships).toHaveLength(1);
     expect(vm.relationships[0].id).toBe("mine");
     expect(vm.relationships[0].viewerRole).toBe("mentee");
-    expect(vm.relationships[0].href).toBe("/mentorship?view=me");
+    expect(vm.relationships[0].href).toBe("/mentorship/people/u-mentee");
     expect(vm.relationships[0].colorStatus).toBe("ACHIEVED");
   });
 

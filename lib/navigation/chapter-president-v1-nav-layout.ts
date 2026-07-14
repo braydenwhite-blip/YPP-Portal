@@ -4,17 +4,17 @@ import { isLeadershipFullPortalExplorerEnabled } from "@/lib/navigation/leadersh
 /**
  * Chapter President navigation.
  *
- * Default (shipped): Home · People · Actions · Applicants — same four-link
- * leadership sidebar as Admin / Staff / Hiring Chair.
+ * Default (shipped): Home · Mentorship · Actions · Applicants —
+ * same leadership sidebar as Admin / Staff.
  *
  * Full explorer (`LEADERSHIP_FULL_PORTAL_EXPLORER=true`): chapter ops + People ·
  * Programs · Actions sections for local testing.
  */
 
-/** Shipped CP sidebar — four leadership links only. */
+/** Shipped CP sidebar — leadership links only. */
 export const CHAPTER_PRESIDENT_SIMPLE_ALLOWED_HREFS: ReadonlySet<string> = new Set([
   "/",
-  "/people",
+  "/mentorship",
   "/actions",
   "/chapter-lead/instructor-applicants",
 ]);

@@ -120,8 +120,7 @@ function loopsForFact(
   // admin responsibilities — never the mentee's own reflection.
   const mentorSide = role === "mentor" || role === "admin";
   const chairSide = role === "chair" || role === "admin" || viewer.userId === fact.chairId;
-  const detailHref =
-    role === "mentee" ? "/mentorship?view=me" : `/people/${fact.menteeId}`;
+  const detailHref = `/mentorship/people/${fact.menteeId}`;
   const source: QueueEntityRef = {
     type: "mentorship",
     id: fact.id,
@@ -140,15 +139,33 @@ function loopsForFact(
       makeItem({
         ...common,
         id: `${ID_PREFIX}changes_requested:${fact.id}`,
-        title: `Revise ${fact.menteeName}'s review`,
+        title: `Fix feedback for ${fact.menteeName}`,
         severity: "high",
         tone: "danger",
-        why: `The chair requested changes on ${fact.menteeName}'s review.`,
-        recommendedMove: "Revise the review and resubmit it for approval.",
-        resolveLabel: "Open review",
-        href: `/people/${fact.menteeId}?section=review&panel=draft`,
+        why: `The chair asked for a tweak on ${fact.menteeName}'s feedback.`,
+        recommendedMove: "Update the feedback and send it again.",
+        resolveLabel: "Open feedback",
+        href: `/mentorship/people/${fact.menteeId}?section=reviews`,
         signals: baseSignals({ mine: true, missingNextStep: true }),
         statusLabel: "Changes requested",
+      })
+    );
+  }
+
+  if (mentorSide && fact.meetingDue) {
+    out.push(
+      makeItem({
+        ...common,
+        id: `${ID_PREFIX}meeting:${fact.id}`,
+        title: `Log meeting with ${fact.menteeName}`,
+        severity: "high",
+        tone: "warning",
+        why: `${fact.menteeName} sent a note — mark that you talked, then send feedback.`,
+        recommendedMove: "Log the meeting on their Feedback tab.",
+        resolveLabel: "Log meeting",
+        href: `/mentorship/people/${fact.menteeId}?section=reviews`,
+        signals: baseSignals({ mine: true }),
+        statusLabel: "Meeting due",
       })
     );
   }
@@ -158,15 +175,15 @@ function loopsForFact(
       makeItem({
         ...common,
         id: `${ID_PREFIX}review:${fact.id}`,
-        title: `Review ${fact.menteeName}`,
+        title: `Send feedback for ${fact.menteeName}`,
         severity: "high",
         tone: "warning",
-        why: `${fact.menteeName} submitted a reflection — your review is due.`,
-        recommendedMove: "Write this cycle's monthly review.",
-        resolveLabel: "Start review",
-        href: `/people/${fact.menteeId}?section=review&panel=draft`,
+        why: `${fact.menteeName}'s note is ready — write a short update.`,
+        recommendedMove: "Send feedback from their Feedback tab.",
+        resolveLabel: "Send feedback",
+        href: `/mentorship/people/${fact.menteeId}?section=reviews`,
         signals: baseSignals({ mine: true }),
-        statusLabel: "Review due",
+        statusLabel: "Feedback due",
       })
     );
   }
@@ -182,7 +199,7 @@ function loopsForFact(
         why: `A review for ${fact.menteeName} is waiting for chair approval.`,
         recommendedMove: "Review and approve, or request changes.",
         resolveLabel: "Open approvals",
-        href: `/people/${fact.menteeId}?section=review&panel=approve`,
+        href: `/mentorship/people/${fact.menteeId}?section=reviews&panel=approve`,
         signals: baseSignals({ mine: true }),
         statusLabel: "Awaiting approval",
       })
@@ -219,7 +236,7 @@ function loopsForFact(
         why: "Your next mentorship session is coming up — come prepared.",
         recommendedMove: "Review their goals before the session.",
         resolveLabel: "View session",
-        href: "/mentorship/schedule",
+        href: detailHref + "?section=check-ins",
         signals: baseSignals({ mine: true, connectedToMeeting: true, quickWin: true }),
         statusLabel: "Upcoming session",
         dueISO: next.scheduledISO,

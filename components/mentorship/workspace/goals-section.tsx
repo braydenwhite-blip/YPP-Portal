@@ -1,7 +1,6 @@
 import type { GoalRatingColor, GRTimePhase } from "@prisma/client";
 
 import {
-  ButtonLink,
   CardV2,
   EmptyStateV2,
   StatusBadge,
@@ -12,6 +11,7 @@ import type { MentorshipWorkspace } from "@/lib/mentorship/workspace";
 import { prisma } from "@/lib/prisma";
 import { getGoalRatingCopy } from "@/lib/mentorship-rubric-copy";
 
+import { AssignGoalsForm } from "./assign-goals-form";
 import { ProposeChangeForm } from "./propose-change-form";
 
 /**
@@ -24,7 +24,7 @@ import { ProposeChangeForm } from "./propose-change-form";
 
 const TIME_PHASE_LABELS: Record<GRTimePhase, string> = {
   MONTHLY: "This cycle",
-  FIRST_MONTH: "First month",
+  FIRST_MONTH: "First month (Short term)",
   FIRST_QUARTER: "First quarter",
   LONG_TERM: "Long-term",
   FULL_YEAR: "Long-term",
@@ -51,7 +51,6 @@ export async function MenteeGoalsSection({
   workspace: MentorshipWorkspace;
 }) {
   const personId = workspace.person.id;
-  const firstName = workspace.person.name.split(" ")[0];
 
   const doc = await prisma.gRDocument.findFirst({
     where: { userId: personId, status: { in: ["DRAFT", "PENDING_APPROVAL", "ACTIVE"] } },
@@ -76,18 +75,38 @@ export async function MenteeGoalsSection({
   });
 
   if (!doc) {
+    const canAssign =
+      (workspace.pov === "mentor" || workspace.isAdmin) &&
+      !!workspace.activeMentorshipId;
+
+    if (!canAssign) {
+      return (
+        <EmptyStateV2
+          title="No goals yet"
+          body={
+            workspace.isSelf
+              ? "Your mentor will add them here."
+              : "The mentor can add them on this tab."
+          }
+        />
+      );
+    }
+
     return (
-      <EmptyStateV2
-        title="No goals yet"
-        body={`Goals are set at kickoff, when an admin assigns ${firstName}'s Goals & Responsibilities document.`}
-        action={
-          workspace.accessLevel === "leadership" ? (
-            <ButtonLink href="/mentorship?view=admin&tab=templates" size="sm" variant="secondary">
-              Assign G&R goals
-            </ButtonLink>
-          ) : undefined
-        }
-      />
+      <div className="flex flex-col gap-5">
+        <div>
+          <h2 className="m-0 text-[18px] font-bold tracking-[-0.3px] text-ink">
+            Set up goals
+          </h2>
+          <p className="m-0 mt-1 max-w-[52ch] text-[13.5px] leading-relaxed text-ink-muted">
+            Write a few goals for this mentee. Keep them concrete — you can add more later.
+          </p>
+        </div>
+        <AssignGoalsForm
+          personId={personId}
+          mentorshipId={workspace.activeMentorshipId!}
+        />
+      </div>
     );
   }
 
@@ -175,7 +194,7 @@ export async function MenteeGoalsSection({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="min-w-0">
             <h2 className="m-0 text-[16px] font-bold tracking-[-0.2px] text-ink">
-              Goals & Responsibilities
+              Goals
             </h2>
             <p className="m-0 mt-1 text-[13px] text-ink-muted">{doc.template.title}</p>
           </div>
@@ -220,9 +239,7 @@ export async function MenteeGoalsSection({
       {plan ? (
         <CardV2 padding="md" className="flex flex-col gap-1">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <p className="m-0 text-[13px] font-bold text-ink">
-              {firstName}&apos;s plan of action
-            </p>
+            <p className="m-0 text-[13px] font-bold text-ink">Plan</p>
             <span className="text-[12px] text-ink-muted">
               Cycle {plan.cycleNumber} · updated {plan.updatedAt.toLocaleDateString()}
             </span>

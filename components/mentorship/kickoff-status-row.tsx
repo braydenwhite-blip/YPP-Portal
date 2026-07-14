@@ -26,18 +26,18 @@ export function KickoffStatusRow({
     <CardV2 as="section" padding="md" className="flex flex-wrap items-center justify-between gap-4 border-l-4 border-l-progress-700">
       <div className="grid gap-1">
         <div className="flex items-center gap-2">
-          <strong className="text-[14px] text-ink">Kickoff meeting</strong>
+          <strong className="text-[14px] text-ink">First meeting</strong>
           <StatusBadge tone={kickoffCompletedAt ? "success" : "warning"}>
-            {kickoffCompletedAt ? "Complete" : "Required"}
+            {kickoffCompletedAt ? "Done" : "Needed"}
           </StatusBadge>
         </div>
         {kickoffCompletedAt ? (
-          <span className="text-[12.5px] text-ink-muted">Completed {fmtDate(kickoffCompletedAt)}</span>
+          <span className="text-[12.5px] text-ink-muted">Done {fmtDate(kickoffCompletedAt)}</span>
         ) : kickoffScheduledAt ? (
-          <span className="text-[12.5px] text-ink-muted">Scheduled for {fmtDate(kickoffScheduledAt)}</span>
+          <span className="text-[12.5px] text-ink-muted">Set for {fmtDate(kickoffScheduledAt)}</span>
         ) : (
           <span className="text-[12.5px] text-ink-muted">
-            Not scheduled yet. Hold this meeting before reflection and monthly progress work begins.
+            Not set yet. Have this meeting before monthly feedback starts.
           </span>
         )}
       </div>
@@ -48,7 +48,7 @@ export function KickoffStatusRow({
             type="submit"
             className="rounded-lg bg-brand-600 px-4 py-2 text-[13px] font-semibold text-white"
           >
-            Mark kickoff complete
+            Mark first meeting done
           </button>
         </form>
       )}

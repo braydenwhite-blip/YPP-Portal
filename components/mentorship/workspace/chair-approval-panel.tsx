@@ -139,8 +139,7 @@ export async function ChairApprovalPanel({
     <section className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="m-0 text-[15px] font-bold text-ink">
-          Approve {review.mentee.name}&apos;s Monthly Progress Update · Cycle {review.selfReflection.cycleNumber} ·
-          Mentor {review.mentor.name}
+          Share {review.mentee.name}&apos;s feedback
         </h3>
         <StatusBadge tone={STATE_TONE[headlineState.tone]} title={headlineState.description} withDot>
           {headlineState.label}
@@ -151,12 +150,10 @@ export async function ChairApprovalPanel({
         <SectionTitle>Your decision</SectionTitle>
         <ul className="m-0 grid gap-1 pl-4 text-[13px] text-ink">
           <li>
-            <strong>Approve</strong> → points/awards are calculated and the mentor&apos;s summary,
-            ratings, and coaching plan are released to {review.mentee.name}.
+            <strong>Approve</strong> → {review.mentee.name} sees the feedback.
           </li>
           <li>
-            <strong>Request changes</strong> → it goes back to the mentor; nothing is released and no
-            points are awarded yet.
+            <strong>Request changes</strong> → send it back to the mentor.
           </li>
         </ul>
         <LearnMore summary="Privacy — what the mentee sees">
@@ -225,11 +222,11 @@ export async function ChairApprovalPanel({
       ) : null}
 
       {review.selfReflection.mentorCycleCheckIn ? (
-        <LearnMore summary="Mentor Check-in context" hint="conversation recorded before this update">
+        <LearnMore summary="Meeting note" hint="what they talked about">
           <div className="grid gap-2 text-[13px] text-ink">
             {review.selfReflection.mentorCycleCheckIn.discussion ? (
               <p className="m-0 whitespace-pre-wrap">
-                <strong>Discussion:</strong> {review.selfReflection.mentorCycleCheckIn.discussion}
+                {review.selfReflection.mentorCycleCheckIn.discussion}
               </p>
             ) : null}
             {review.selfReflection.mentorCycleCheckIn.decisions ? (

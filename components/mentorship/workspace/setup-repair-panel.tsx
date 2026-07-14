@@ -3,9 +3,10 @@
 import { useMemo, useState } from "react";
 
 import { CardV2, StatusBadge } from "@/components/ui-v2";
-import { assignAndActivateGRDocument } from "@/lib/gr-actions";
 import { assignCommitteeChair } from "@/lib/mentorship-program-actions";
 import { reassignPrimaryMentorFromForm } from "@/lib/mentorship-reassign-actions";
+
+import { AssignGoalsForm } from "./assign-goals-form";
 
 const ADVISORY_MENTOR_CAPACITY = 3;
 
@@ -17,8 +18,6 @@ export type SetupCandidate = {
   activeMenteeCount: number;
 };
 
-export type SetupTemplate = { id: string; title: string; roleType: string };
-
 export type MentorshipSetupData = {
   canManageMentor: boolean;
   canAssignGR: boolean;
@@ -26,7 +25,6 @@ export type MentorshipSetupData = {
   activeMentorshipId: string | null;
   currentMentorId: string | null;
   candidates: SetupCandidate[];
-  templates: SetupTemplate[];
   chairLane: string | null;
   currentChairName: string | null;
 };
@@ -164,48 +162,15 @@ export function SetupRepairPanel({
               Assign a mentor first. The G&amp;R document will attach to that relationship.
             </p>
           ) : setup.canAssignGR ? (
-            setup.templates.length > 0 ? (
-              <form action={assignAndActivateGRDocument} className="mt-3 flex flex-wrap items-end gap-3">
-                <input type="hidden" name="userId" value={personId} />
-                <input type="hidden" name="mentorshipId" value={setup.activeMentorshipId} />
-                <input
-                  type="hidden"
-                  name="roleStartDate"
-                  value={new Date().toISOString().slice(0, 10)}
-                />
-                <label className="grid min-w-[260px] flex-1 gap-1.5 text-[12.5px] font-semibold text-ink">
-                  Approved template
-                  <select
-                    name="templateId"
-                    required
-                    defaultValue=""
-                    className="h-10 rounded-lg border border-subtle bg-white px-3 text-[13px] font-normal outline-none focus:border-brand-600"
-                  >
-                    <option value="" disabled>
-                      Select a template
-                    </option>
-                    {setup.templates.map((template) => (
-                      <option key={template.id} value={template.id}>
-                        {template.title} · {roleLabel(template.roleType)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <button
-                  type="submit"
-                  className="h-10 rounded-lg bg-brand-600 px-4 text-[13px] font-semibold text-white"
-                >
-                  Assign and activate
-                </button>
-              </form>
-            ) : (
-              <p className="m-0 mt-2 text-[13px] text-ink-muted">
-                No approved G&amp;R template is available yet. Approve a template first.
-              </p>
-            )
+            <div className="mt-3">
+              <AssignGoalsForm
+                personId={personId}
+                mentorshipId={setup.activeMentorshipId}
+              />
+            </div>
           ) : (
             <p className="m-0 mt-2 text-[13px] text-ink-muted">
-              A mentorship admin must assign {personName}&apos;s G&amp;R template.
+              {personName}&apos;s mentor (or an admin) can assign goals on the Goals tab.
             </p>
           )}
         </div>

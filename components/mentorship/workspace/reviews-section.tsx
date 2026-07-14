@@ -1,5 +1,4 @@
 import {
-  ButtonLink,
   CardV2,
   EmptyStateV2,
   StatusBadge,
@@ -8,25 +7,23 @@ import {
 import { MenteeReviewAck } from "@/components/gr/mentee-review-ack";
 import { RatingLegend } from "@/components/mentorship/rating-legend";
 import { LearnMore } from "@/components/mentorship/learn-more";
-import ReflectionForm from "@/app/(app)/my-program/reflect/reflection-form";
 import type { MentorshipWorkspace } from "@/lib/mentorship/workspace";
 import { prisma } from "@/lib/prisma";
-import { toMenteeRoleType } from "@/lib/mentee-role-utils";
 import { getGoalRatingCopy } from "@/lib/mentorship-rubric-copy";
-import { resolveReflectionQuestions } from "@/lib/mentorship/reflection-questions";
+import {
+  ensureCurrentMonthForm,
+  pastMonthlyForms,
+  readMonthlyFeedbackStore,
+} from "@/lib/mentorship/feedback-prompts";
+import { Prisma } from "@prisma/client";
 
-import { CycleStrip } from "./cycle-strip";
+import { MonthlyFeedbackPanel } from "./monthly-feedback-panel";
 import { QuarterlyReviewSection } from "./quarterly-review-section";
+import { ReviewDraftPanel } from "./review-draft-panel";
 
 /**
- * Reviews — the monthly loop as one lifecycle, not a set of components:
- * reflection → Mentor Check-in → Monthly Progress Update → approval → release → acknowledgment →
- * what came out of it (next steps + follow-up commitments).
- *
- * Self view: the cycle strip, the reflection composer when it's your move,
- * every review released to you (with your reaction), and the outcomes.
- * Mentor/leadership view: the same strip, the one review action if it's your
- * move, the mentee's reaction once they've read it, and the past record.
+ * Feedback — mentor builds/sends a monthly question list; mentee answers;
+ * past months live in their own section. Meetings stay on Meetings.
  */
 
 const RATING_TONE: Record<string, StatusTone> = {
@@ -53,16 +50,20 @@ function formatMonth(value: Date) {
 
 export async function ReviewsSection({
   workspace,
-  sectionHref,
 }: {
   workspace: MentorshipWorkspace;
   sectionHref: (sectionId: string) => string;
 }) {
-  const { isSelf, lifecycle, cycleStrip, nextAction, person, capabilities } = workspace;
-  const firstName = person.name.split(" ")[0];
+  const {
+    isSelf,
+    lifecycle,
+    nextAction,
+    person,
+    capabilities,
+    commitments,
+    activeMentorshipId,
+  } = workspace;
 
-  // Everything released to this person, plus the mentee's reactions and the
-  // follow-up commitments each review spawned.
   const releasedReviews = await prisma.mentorGoalReview.findMany({
     where: { menteeId: person.id, releasedToMenteeAt: { not: null } },
     orderBy: { releasedToMenteeAt: "desc" },
@@ -87,61 +88,123 @@ export async function ReviewsSection({
   if (!lifecycle.hasActiveMentorship && releasedReviews.length === 0) {
     return (
       <EmptyStateV2
-        title="No reviews yet"
+        title="No feedback yet"
         body={
           isSelf
-            ? "Monthly reviews start once you're paired with a mentor and the kickoff happens."
-            : `Monthly reviews start once ${firstName} has an active mentorship.`
+            ? "Once you have a mentor, monthly questions will show up here."
+            : "Feedback starts after they have a mentor."
         }
       />
     );
   }
 
-  const showReflectionComposer =
-    isSelf && lifecycle.kickoffComplete && lifecycle.cycleStage === "REFLECTION_DUE";
-  const reviewActionKeys = new Set([
-    "record-mentor-check-in",
-    "write-review",
-    "revise-review",
-    "approve-review",
-  ]);
-  const showCycleCta = !isSelf && nextAction.href && reviewActionKeys.has(nextAction.key);
+  const canCompose =
+    !isSelf && (capabilities.canDraftReview || workspace.isAdmin);
+  const canAnswer = isSelf;
+
+  const canWriteInline =
+    !isSelf &&
+    capabilities.canDraftReview &&
+    (nextAction.key === "write-review" ||
+      nextAction.key === "revise-review" ||
+      lifecycle.cycleStage === "CHANGES_REQUESTED");
+
+  const menteeFirst =
+    person.name.trim().split(/\s+/)[0] || (isSelf ? "Your" : "Their");
+
+  let currentForm = null as ReturnType<typeof ensureCurrentMonthForm>["current"] | null;
+  let pastForms: ReturnType<typeof pastMonthlyForms> = [];
+
+  if (activeMentorshipId) {
+    const row = await prisma.mentorship.findUnique({
+      where: { id: activeMentorshipId },
+      select: { customPromptsJson: true, menteeId: true },
+    });
+    const existing = readMonthlyFeedbackStore(row?.customPromptsJson);
+    const ensured = ensureCurrentMonthForm(existing);
+    currentForm = ensured.current;
+    pastForms = pastMonthlyForms(ensured.store, ensured.current.cycleMonthKey);
+    if (ensured.current.status === "ANSWERED") {
+      pastForms = [
+        ensured.current,
+        ...pastForms.filter((f) => f.id !== ensured.current.id),
+      ];
+    }
+
+    // Persist a new current-month draft when the mentor opens Feedback.
+    const alreadyHad = existing.forms.some(
+      (f) => f.cycleMonthKey === ensured.current.cycleMonthKey
+    );
+    if (canCompose && !alreadyHad) {
+      await prisma.mentorship.update({
+        where: { id: activeMentorshipId },
+        data: {
+          customPromptsJson: ensured.store as unknown as Prisma.InputJsonValue,
+        },
+      });
+    }
+  }
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Quarterly Committee Review dominates once due — committee-internal
-          deliberation, never shown to the mentee themselves. */}
-      {capabilities.canRunQuarterlyReview ? <QuarterlyReviewSection workspace={workspace} /> : null}
+    <div className="flex flex-col gap-5">
+      <header className="max-w-[52ch]">
+        <h2 className="m-0 text-[18px] font-bold tracking-[-0.3px] text-ink">
+          Monthly feedback
+        </h2>
+        <p className="m-0 mt-1 text-[13.5px] leading-relaxed text-ink-muted">
+          {isSelf
+            ? "When your mentor sends questions, answer them here. Past months stay available to reopen."
+            : `Build ${menteeFirst}'s question list for this month, send it, then read answers under Past months.`}
+        </p>
+      </header>
 
-      {lifecycle.hasActiveMentorship && lifecycle.kickoffComplete ? (
-        <CycleStrip steps={cycleStrip} cycleLabel={lifecycle.cycleLabel} />
+      {activeMentorshipId && currentForm ? (
+        <MonthlyFeedbackPanel
+          mentorshipId={activeMentorshipId}
+          personId={person.id}
+          current={currentForm}
+          past={pastForms}
+          canCompose={canCompose}
+          canAnswer={canAnswer}
+          menteeFirstName={menteeFirst}
+        />
       ) : null}
 
-      {showCycleCta ? (
-        <div className="flex">
-          <ButtonLink href={nextAction.href!} size="sm">
-            {nextAction.label} →
-          </ButtonLink>
-        </div>
+      {canWriteInline ? (
+        <details className="rounded-[16px] border border-line bg-surface shadow-sm">
+          <summary className="cursor-pointer list-none px-5 py-4 marker:content-none [&::-webkit-details-marker]:hidden">
+            <p className="m-0 text-[15px] font-bold text-ink">
+              Optional: send a written rating
+            </p>
+            <p className="m-0 mt-0.5 text-[12.5px] text-ink-muted">
+              Only if you want a formal note with ratings — not required every month.
+            </p>
+          </summary>
+          <div className="border-t border-line-soft px-5 py-4">
+            <ReviewDraftPanel
+              menteeId={person.id}
+              menteeName={person.name}
+              commitments={commitments}
+            />
+          </div>
+        </details>
       ) : null}
 
-      {showReflectionComposer ? <SelfReflectionComposer personId={person.id} /> : null}
+      {capabilities.canRunQuarterlyReview && lifecycle.quarterlyDue ? (
+        <details className="rounded-[12px] border border-line-soft bg-surface-soft/60 px-3.5 py-2.5">
+          <summary className="cursor-pointer text-[12.5px] font-semibold text-ink-muted">
+            Quarterly review (committee)
+          </summary>
+          <div className="mt-3">
+            <QuarterlyReviewSection workspace={workspace} />
+          </div>
+        </details>
+      ) : null}
 
-      {releasedReviews.length === 0 ? (
-        <CardV2 padding="lg" className="text-center">
-          <p className="m-0 text-[15px] font-semibold text-ink">
-            {isSelf ? "Your progress story starts soon" : "No reviews released yet"}
-          </p>
-          <p className="mx-auto mt-1 max-w-md text-[13px] text-ink-muted">
-            {isSelf
-              ? "After your first monthly review is shared with you, you'll see the feedback and encouragement your mentor wrote here. Nothing here is a grade — it's a picture of your growth."
-              : `Once a monthly review is approved and released, it appears here along with ${firstName}'s reaction.`}
-          </p>
-        </CardV2>
-      ) : (
+      {releasedReviews.length > 0 ? (
         <section className="flex flex-col gap-3">
           <h3 className="m-0 text-[15px] font-bold text-ink">
-            {isSelf ? "Feedback released to you" : "Released reviews"}
+            {isSelf ? "Written feedback from your mentor" : "Written feedback you’ve shared"}
           </h3>
           {releasedReviews.map((review, i) => {
             const cfg = getGoalRatingCopy(review.overallRating);
@@ -176,7 +239,7 @@ export async function ReviewsSection({
                 {review.planOfAction ? (
                   <div className="mt-2.5 rounded-lg bg-surface-soft px-3 py-2.5">
                     <p className="m-0 text-[11.5px] font-bold uppercase tracking-[0.05em] text-ink-muted">
-                      {isSelf ? "Your next steps" : "Plan for next cycle"}
+                      Next steps
                     </p>
                     <p className="m-0 mt-1 text-[13px] text-ink">{review.planOfAction}</p>
                   </div>
@@ -185,7 +248,7 @@ export async function ReviewsSection({
                 {review.followUpActionItems.length > 0 ? (
                   <div className="mt-2.5">
                     <p className="m-0 text-[11.5px] font-bold uppercase tracking-[0.05em] text-ink-muted">
-                      What came out of this review
+                      Follow-ups
                     </p>
                     <ul className="m-0 mt-1 flex list-none flex-col gap-1 p-0">
                       {review.followUpActionItems.map((item) => (
@@ -209,137 +272,29 @@ export async function ReviewsSection({
                   </div>
                 ) : null}
 
-                {/* Acknowledgment closes the loop. */}
                 {isSelf && isLatest ? (
-                  <MenteeReviewAck
-                    reviewId={review.id}
-                    existingAck={review.reviewAck}
-                  />
+                  <MenteeReviewAck reviewId={review.id} existingAck={review.reviewAck} />
                 ) : null}
                 {!isSelf && review.reviewAck ? (
                   <p className="m-0 mt-2.5 text-[12.5px] text-ink-muted">
-                    {firstName}&apos;s reaction:{" "}
+                    Their reaction:{" "}
                     <strong className="text-ink">
                       {review.reviewAck.reaction.toLowerCase().replace(/_/g, " ")}
                     </strong>
                     {review.reviewAck.note ? ` — “${review.reviewAck.note}”` : ""}
                   </p>
                 ) : null}
-                {!isSelf && isLatest && !review.reviewAck ? (
-                  <p className="m-0 mt-2.5 text-[12.5px] italic text-ink-muted">
-                    {firstName} hasn&apos;t reacted to this review yet.
-                  </p>
-                ) : null}
               </CardV2>
             );
           })}
         </section>
-      )}
+      ) : null}
 
       {isSelf && releasedReviews.length > 0 ? (
         <LearnMore summary="What do these status colors mean?">
           <RatingLegend audience="mentee" />
         </LearnMore>
       ) : null}
-
-      {isSelf && !showReflectionComposer && lifecycle.cycleStage === "REFLECTION_SUBMITTED" ? (
-        <p className="m-0 text-[12.5px] text-ink-muted">
-          Your {lifecycle.cycleLabel} reflection is in — {lifecycle.mentorName ?? "your mentor"}{" "}
-          is writing your review.
-        </p>
-      ) : null}
-
-      {!isSelf && capabilities.canDraftReview ? (
-        <p className="m-0 text-[12.5px] text-ink-muted">
-          Need the full review history?{" "}
-          <a
-            href={sectionHref("reviews") + "&panel=draft"}
-            className="font-semibold text-brand-700 hover:underline"
-          >
-            Open the Monthly Progress Update writer →
-          </a>
-        </p>
-      ) : !isSelf ? null : (
-        <p className="m-0 text-[12.5px] text-ink-muted">
-          Your goals and their latest ratings live in{" "}
-          <a href={sectionHref("goals")} className="font-semibold text-brand-700 hover:underline">
-            Goals
-          </a>
-          .
-        </p>
-      )}
     </div>
-  );
-}
-
-/** The monthly reflection composer — inline, only when it's the mentee's move. */
-async function SelfReflectionComposer({ personId }: { personId: string }) {
-  const person = await prisma.user.findUnique({
-    where: { id: personId },
-    select: { primaryRole: true },
-  });
-  const menteeRoleType = toMenteeRoleType(person?.primaryRole ?? "");
-
-  const [mentorship, goals, cycleParticipant] = await Promise.all([
-    prisma.mentorship.findFirst({
-      where: { menteeId: personId, status: "ACTIVE" },
-      select: {
-        id: true,
-        selfReflections: {
-          orderBy: { cycleNumber: "desc" },
-          take: 1,
-          select: { cycleNumber: true },
-        },
-      },
-    }),
-    menteeRoleType
-      ? prisma.mentorshipProgramGoal.findMany({
-          where: { roleType: menteeRoleType, isActive: true },
-          orderBy: { sortOrder: "asc" },
-          select: { id: true, title: true, description: true },
-        })
-      : [],
-    // A Chief of Staff/admin can retune this cycle's reflection prompt
-    // wording (ReviewCycle.reflectionQuestionsJson) without touching the
-    // form itself — falls back to the standard copy when no active cycle
-    // covers this person.
-    prisma.reviewCycleParticipant.findFirst({
-      where: { userId: personId, cycle: { status: "active" } },
-      orderBy: { addedAt: "desc" },
-      select: { cycle: { select: { reflectionQuestionsJson: true } } },
-    }),
-  ]);
-  if (!mentorship) return null;
-
-  const cycleNumber = (mentorship.selfReflections[0]?.cycleNumber ?? 0) + 1;
-  const isQuarterly = cycleNumber % 3 === 0;
-  const questions = resolveReflectionQuestions(
-    cycleParticipant?.cycle.reflectionQuestionsJson as
-      | Parameters<typeof resolveReflectionQuestions>[0]
-      | undefined
-  );
-
-  return (
-    <details className="rounded-[12px] border border-brand-200 bg-brand-50/40 p-4" open>
-      <summary className="cursor-pointer text-[14px] font-bold text-ink">
-        Submit your{" "}
-        {new Date().toLocaleDateString("en-US", { month: "long" })} reflection
-        {isQuarterly ? " (quarterly)" : ""}
-      </summary>
-      <p className="m-0 mt-2 text-[12.5px] text-ink-muted">
-        <strong className="text-ink">This is for you and your mentor.</strong> Be honest
-        about what&apos;s going well and what&apos;s hard — your mentor reads this before
-        writing your monthly review.
-      </p>
-      <div className="mt-3">
-        <ReflectionForm
-          goals={goals}
-          cycleNumber={cycleNumber}
-          isQuarterly={isQuarterly}
-          questions={questions}
-          returnHref={`/mentorship/people/${personId}?section=reviews`}
-        />
-      </div>
-    </details>
   );
 }

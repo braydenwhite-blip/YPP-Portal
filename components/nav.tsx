@@ -161,6 +161,10 @@ export default function Nav({
   studentHasChapter,
   instructorFullPortalExplorer,
   leadershipFullPortalExplorer,
+  regularInstructorEnabled,
+  gamificationEnabled,
+  isActiveMentor,
+  isActiveMentee,
   hiringDemoMode,
   instructorSubtype,
   publicGateActive,
@@ -194,6 +198,14 @@ export default function Nav({
   instructorFullPortalExplorer?: boolean;
   /** Unlock full officer / CP catalog for local testing. */
   leadershipFullPortalExplorer?: boolean;
+  /** Server-resolved ENABLE_REGULAR_INSTRUCTOR (avoids nav hydration mismatch). */
+  regularInstructorEnabled?: boolean;
+  /** Server-resolved ENABLE_GAMIFICATION (avoids nav hydration mismatch). */
+  gamificationEnabled?: boolean;
+  /** Viewer currently mentors someone — show Mentorship even for instructor primary. */
+  isActiveMentor?: boolean;
+  /** Viewer is currently mentored — show Mentorship hub for mentee-only instructors. */
+  isActiveMentee?: boolean;
   hiringDemoMode?: boolean;
   /** SUMMER_WORKSHOP keeps the workshop studio + training links visible. */
   instructorSubtype?: string | null;
@@ -227,6 +239,10 @@ export default function Nav({
         studentHasChapter,
         instructorFullPortalExplorer,
         leadershipFullPortalExplorer,
+        regularInstructorEnabled,
+        gamificationEnabled,
+        isActiveMentor,
+        isActiveMentee,
         hiringDemoMode,
         instructorSubtype,
         publicGateActive,
@@ -251,6 +267,10 @@ export default function Nav({
       studentHasChapter,
       instructorFullPortalExplorer,
       leadershipFullPortalExplorer,
+      regularInstructorEnabled,
+      gamificationEnabled,
+      isActiveMentor,
+      isActiveMentee,
       hiringDemoMode,
       instructorSubtype,
       publicGateActive,

@@ -24,7 +24,7 @@ type Group = {
 
 const URGENT_REASON: Record<string, string> = {
   KICKOFF_PENDING: "Kickoff pending",
-  REFLECTION_SUBMITTED: "Reflection ready for review",
+  REFLECTION_SUBMITTED: "Waiting on you",
   CHANGES_REQUESTED: "Awaiting your revisions",
 };
 

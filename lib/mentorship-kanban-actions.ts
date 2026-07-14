@@ -234,6 +234,8 @@ export type SimplifiedKanbanCard = {
   cycleStage: MentorshipCycleStage;
   mentorTag: string | null;
   reflectionSubmitted: boolean;
+  /** Cycle-bound meeting logged for the latest reflection (when one exists). */
+  mentorCheckInComplete: boolean;
   kickoffPending: boolean;
   latestRatings: string[]; // GoalRatingColor values
   softDeadline: Date | null;
@@ -307,16 +309,25 @@ export async function getSimplifiedMentorKanban(): Promise<{
     ? null
     : (await getMentorshipAccessibleMenteeIds(userId, roles)) ?? [];
 
+  // Mentor home is "my mentees" — never the whole org. Admins still only see
+  // pairings they mentor (or chair); org-wide lives under People / Goals.
   const where =
     accessibleMenteeIds === null
-      ? {}
+      ? {
+          OR: [{ mentorId: userId }, { chairId: userId }],
+        }
       : {
-          menteeId: {
-            in:
-              accessibleMenteeIds.length > 0
-                ? accessibleMenteeIds
-                : ["__none__"],
-          },
+          AND: [
+            { OR: [{ mentorId: userId }, { chairId: userId }] },
+            {
+              menteeId: {
+                in:
+                  accessibleMenteeIds.length > 0
+                    ? accessibleMenteeIds
+                    : ["__none__"],
+              },
+            },
+          ],
         };
 
   const { cycleMonth } = getCurrentCycleMonth();
@@ -343,7 +354,10 @@ export async function getSimplifiedMentorKanban(): Promise<{
       selfReflections: {
         orderBy: { cycleNumber: "desc" },
         take: 1,
-        select: { submittedAt: true },
+        select: {
+          submittedAt: true,
+          mentorCycleCheckIn: { select: { id: true } },
+        },
       },
     },
   });
@@ -357,7 +371,9 @@ export async function getSimplifiedMentorKanban(): Promise<{
     "APPROVED",
   ];
 
-  const allCards: SimplifiedKanbanCard[] = mentorships.map((m) => {
+  const allCards: SimplifiedKanbanCard[] = mentorships
+    .filter((m) => m.mentee.id !== userId)
+    .map((m) => {
     const latestReview = m.goalReviews[0] ?? null;
     const latestReflection = m.selfReflections[0] ?? null;
     return {
@@ -368,6 +384,7 @@ export async function getSimplifiedMentorKanban(): Promise<{
       cycleStage: m.cycleStage,
       mentorTag: m.mentorTag ?? null,
       reflectionSubmitted: !!latestReflection?.submittedAt,
+      mentorCheckInComplete: !!latestReflection?.mentorCycleCheckIn,
       kickoffPending: m.cycleStage === "KICKOFF_PENDING",
       latestRatings: latestReview?.goalRatings.map((gr) => gr.rating) ?? [],
       softDeadline: activeStages.includes(m.cycleStage) ? softDeadline : null,
@@ -376,6 +393,7 @@ export async function getSimplifiedMentorKanban(): Promise<{
         menteeId: m.mentee.id,
         mentorshipId: m.id,
         reviewId: latestReview?.id ?? null,
+        mentorCheckInComplete: !!latestReflection?.mentorCycleCheckIn,
       }),
     };
   });

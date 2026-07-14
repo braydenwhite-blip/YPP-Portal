@@ -226,10 +226,9 @@ export const NAV_CATALOG: NavLink[] = [
       href: "/goals",
       label: "My Goals",
       icon: "🎯",
-      // Instructors/officers/leadership use the Mentorship hub's Goals
-      // section instead (canAccessMentorship redirects them off this route
-      // — see lib/mentorship-access.ts). Students and parents (who fall
-      // outside canAccessMentorship) keep this as their goals home.
+      // Mentors / leadership use Review & G&R on /people (canAccessMentorship
+      // redirects them off this route — see lib/mentorship-access.ts).
+      // Students and parents keep this as their goals home.
       roles: ["STUDENT", "PARENT"] as NavRole[],
       dashboardDescription: "Track progress against your active goals.",
       dashboardPriority: 12,
@@ -714,27 +713,18 @@ export const NAV_CATALOG: NavLink[] = [
       href: "/people",
       label: "People",
       icon: "👥",
-      // Master People database (Knowledge OS V2 front door). Officer-tier:
-      // advisor check-in state and applicant stages are leadership reads.
-      roles: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"] as NavRole[],
+      // Directory / find for Hiring Chair. Leadership performance roster lives
+      // on Mentorship home; `/people` redirects there for those roles.
+      roles: ["HIRING_CHAIR"] as NavRole[],
       searchAliases: [
         "People",
         "People Hub",
-        "People Database",
         "Directory",
         "Find a person",
         "Find people",
-        "People & Performance",
-        "Students",
-        "Instructors",
-        "Advisors",
-        "Members",
-        "Manage classes",
-        "Class operations",
-        "Class review",
       ],
       dashboardDescription:
-        "One hub for the people directory, leadership performance view, and (for admins) class operations.",
+        "People directory and lookup for hiring chairs.",
       dashboardPriority: 3,
     },
     // /people/develop (the Leadership Development cockpit) folded into the
@@ -932,58 +922,36 @@ export const NAV_CATALOG: NavLink[] = [
       // in-hub as on /people/[id]'s Review & G&R block, so their own
       // development is one toggle away, not a separate destination).
       roles: [
-        "INSTRUCTOR",
         "MENTOR",
         "CHAPTER_PRESIDENT",
-        "HIRING_CHAIR",
         "STAFF",
         "ADMIN",
+        "INSTRUCTOR",
       ] as NavRole[],
       searchAliases: [
         "Support Hub",
         "Mentees",
         "Relationships",
-        "My Mentor",
-        "My Development",
-        // From the retired /my-program/gr entry (redirects into /people/[id]).
-        "My Goals",
-        "Goals & Responsibilities",
-        "Review & G&R",
-        // From the retired ADMIN "Mentorship Ops" entry (/admin/mentorship,
-        // now a redirect into the admin POV of this hub).
+        "Coaching",
         "Mentorship Ops",
         "Mentorship admin",
-        "Mentorship health",
-        "Assignments",
-        "Approvals",
-        "Leadership development",
-        "Coaching",
-        "Ready for more",
-        "Needs coach",
-        "My Awards",
-        "Monthly Reflection",
-        "Check-in",
-        "Check-ins",
-        "Growth opportunities",
-        // From the retired "Review Inbox" (/mentorship/reviews) and
-        // "Committee Queue" (/mentorship/committee) entries — both queues now
-        // render directly on this hub's mentor console.
         "Chair Queue",
         "Review Approvals",
-        "Monthly Review Inbox",
-        "Role Committee",
-        "Quarterly Review Queue",
-        "Pathway Decisions",
-        // From the retired "Review Cycles" (/mentorship/cycles) entry — the
-        // page is live but reached from the admin cockpit, not top-level nav.
-        "Cohort review",
-        "Review cycle",
-        "Launch reviews",
-        "Review progress",
+        "People",
+        "People Hub",
+        "People Database",
+        "People & Performance",
+        "People & Reviews",
+        "Workload",
+        "Directory",
+        "Students",
+        "Instructors",
+        "Advisors",
+        "Members",
       ],
       dashboardDescription:
-        "The mentor console, command center, and your own mentee stuff — check-ins, G&R doc, reviews.",
-      dashboardPriority: 4,
+        "Mentorship home — role cards plus people workload for leadership.",
+      dashboardPriority: 3,
     },
     // /my-mentor now redirects to /mentorship?view=me (the mentee POV, which
     // renders natively in-hub). Its old detail subroutes (goals, progress,
@@ -1004,14 +972,6 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardDescription: "Review mentee progress and follow-up needs.",
       dashboardPriority: 5,
       dashboardBadgeKey: "active_mentees",
-    },
-    {
-      href: "/mentorship/schedule",
-      label: "Mentor Schedule",
-      icon: "📅",
-      roles: MENTOR_ROLES,
-      dashboardDescription: "Manage availability and confirm session requests from your mentees.",
-      dashboardPriority: 8,
     },
     {
       href: "/mentorship/feedback",
@@ -1108,9 +1068,8 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardDescription: "Request a meeting with your mentor or manage upcoming sessions.",
     },
     // Removed from nav:
-    //   /mentorship-program/schedule  -> redirects to /mentorship/schedule
-    //   /mentorship/calendar          -> redirects to /mentorship/schedule
-    // The canonical "Mentor Schedule" entry sits above next to "My Mentees".
+    //   /mentorship/schedule, /mentorship/calendar, /mentorship-program/schedule
+    //   — mentorship meetings are logged on /mentorship/people/[id], not scheduled.
     {
       href: "/peer-recognition",
       label: "Peer Recognition",

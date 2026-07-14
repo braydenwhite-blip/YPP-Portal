@@ -1,13 +1,18 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { resolveNavActiveHref, resolveNavModel } from "@/lib/navigation/resolve-nav";
+import {
+  resolveNavActiveHref,
+  resolveNavModel,
+} from "@/lib/navigation/resolve-nav";
 import { INSTRUCTOR_V1_ALLOWED_HREFS } from "@/lib/navigation/instructor-v1-allowlist";
 import { STUDENT_V1_ALLOWED_HREFS } from "@/lib/navigation/student-v1-allowlist";
 
 // The regular Instructor program is paused in production; enable it for the
 // nav-shape tests so the assertions cover the un-gated catalog.
-const ORIGINAL_ENABLE_REGULAR_INSTRUCTOR = process.env.ENABLE_REGULAR_INSTRUCTOR;
+const ORIGINAL_ENABLE_REGULAR_INSTRUCTOR =
+  process.env.ENABLE_REGULAR_INSTRUCTOR;
 const ORIGINAL_PORTAL_SLIM_NAV = process.env.PORTAL_SLIM_NAV;
-const ORIGINAL_LEADERSHIP_FULL_PORTAL_EXPLORER = process.env.LEADERSHIP_FULL_PORTAL_EXPLORER;
+const ORIGINAL_LEADERSHIP_FULL_PORTAL_EXPLORER =
+  process.env.LEADERSHIP_FULL_PORTAL_EXPLORER;
 beforeAll(() => {
   process.env.ENABLE_REGULAR_INSTRUCTOR = "true";
   process.env.PORTAL_SLIM_NAV = "false";
@@ -27,7 +32,8 @@ afterAll(() => {
   if (ORIGINAL_LEADERSHIP_FULL_PORTAL_EXPLORER === undefined) {
     delete process.env.LEADERSHIP_FULL_PORTAL_EXPLORER;
   } else {
-    process.env.LEADERSHIP_FULL_PORTAL_EXPLORER = ORIGINAL_LEADERSHIP_FULL_PORTAL_EXPLORER;
+    process.env.LEADERSHIP_FULL_PORTAL_EXPLORER =
+      ORIGINAL_LEADERSHIP_FULL_PORTAL_EXPLORER;
   }
 });
 
@@ -38,25 +44,41 @@ function hrefs(model: ReturnType<typeof resolveNavModel>) {
 describe("resolveNavActiveHref", () => {
   it("maps /profile to personalization when /profile is not in the nav", () => {
     const candidates = ["/settings/personalization", "/profile/timeline"];
-    expect(resolveNavActiveHref("/profile", candidates)).toBe("/settings/personalization");
-    expect(resolveNavActiveHref("/profile/edit", candidates)).toBe("/settings/personalization");
+    expect(resolveNavActiveHref("/profile", candidates)).toBe(
+      "/settings/personalization",
+    );
+    expect(resolveNavActiveHref("/profile/edit", candidates)).toBe(
+      "/settings/personalization",
+    );
   });
 
   it("does not steal Journey: /profile/timeline stays on Journey", () => {
     const candidates = ["/settings/personalization", "/profile/timeline"];
-    expect(resolveNavActiveHref("/profile/timeline", candidates)).toBe("/profile/timeline");
-    expect(resolveNavActiveHref("/profile/timeline/step", candidates)).toBe("/profile/timeline");
+    expect(resolveNavActiveHref("/profile/timeline", candidates)).toBe(
+      "/profile/timeline",
+    );
+    expect(resolveNavActiveHref("/profile/timeline/step", candidates)).toBe(
+      "/profile/timeline",
+    );
   });
 
   it("highlights Assignments hub when viewing a class assignment under /curriculum/.../assignments", () => {
-    const candidates = ["/my-classes", "/my-classes/assignments", "/curriculum"];
+    const candidates = [
+      "/my-classes",
+      "/my-classes/assignments",
+      "/curriculum",
+    ];
     expect(
       resolveNavActiveHref("/curriculum/offering-1/assignments/a1", candidates),
     ).toBe("/my-classes/assignments");
   });
 
   it("keeps /profile as its own active link when it appears in the nav", () => {
-    const candidates = ["/profile", "/settings/personalization", "/profile/timeline"];
+    const candidates = [
+      "/profile",
+      "/settings/personalization",
+      "/profile/timeline",
+    ];
     expect(resolveNavActiveHref("/profile", candidates)).toBe("/profile");
   });
 });
@@ -111,9 +133,34 @@ describe("resolveNavModel", () => {
       instructorFullPortalExplorer: true,
     });
     expect(hrefs(model)).toContain("/interviews");
-    expect(hrefs(model)).toContain("/mentorship");
+    // Mentorship stays off unless they actively mentor or are mentored.
+    expect(hrefs(model)).not.toContain("/mentorship");
     expect(hrefs(model)).not.toContain("/my-program");
     expect(hrefs(model)).not.toContain("/my-program/awards");
+  });
+
+  it("shows Mentorship for instructors who actively mentor", () => {
+    const model = resolveNavModel({
+      roles: ["INSTRUCTOR", "MENTOR"],
+      primaryRole: "INSTRUCTOR",
+      pathname: "/",
+      enabledFeatureKeys: new Set(),
+      instructorFullPortalExplorer: false,
+      isActiveMentor: true,
+    });
+    expect(hrefs(model)).toContain("/mentorship");
+  });
+
+  it("shows Mentorship for instructors who are actively mentored", () => {
+    const model = resolveNavModel({
+      roles: ["INSTRUCTOR"],
+      primaryRole: "INSTRUCTOR",
+      pathname: "/",
+      enabledFeatureKeys: new Set(),
+      instructorFullPortalExplorer: false,
+      isActiveMentee: true,
+    });
+    expect(hrefs(model)).toContain("/mentorship");
   });
 
   it("unlocks instructor teaching tools only when the feature key is enabled", () => {
@@ -252,7 +299,12 @@ describe("resolveNavModel", () => {
       primaryRole: "STUDENT",
       pathname: "/",
       unlockedSections: new Set(),
-      enabledFeatureKeys: new Set(["ACTIVITY_HUB", "CHALLENGES", "INCUBATOR", "PASSION_WORLD"]),
+      enabledFeatureKeys: new Set([
+        "ACTIVITY_HUB",
+        "CHALLENGES",
+        "INCUBATOR",
+        "PASSION_WORLD",
+      ]),
       studentFullPortalExplorer: false,
     });
 
@@ -269,7 +321,7 @@ describe("resolveNavModel", () => {
     expect(hrefs(model)).not.toContain("/interviews");
   });
 
-  it("keeps admin users on Home, People, Actions, and Applicants only", () => {
+  it("keeps admin users on Home, Mentorship, Actions, and Applicants", () => {
     const model = resolveNavModel({
       roles: ["ADMIN"],
       primaryRole: "ADMIN",
@@ -282,13 +334,13 @@ describe("resolveNavModel", () => {
     const visibleHrefs = hrefs(model);
     expect(visibleHrefs).toEqual([
       "/",
-      "/people",
+      "/mentorship",
       "/actions",
       "/admin/instructor-applicants",
     ]);
     expect(model.core.map((item) => item.href)).toEqual([
       "/",
-      "/people",
+      "/mentorship",
       "/actions",
       "/admin/instructor-applicants",
     ]);
@@ -310,7 +362,7 @@ describe("resolveNavModel", () => {
 
     const visibleHrefs = hrefs(model);
     expect(visibleHrefs).toContain("/");
-    expect(visibleHrefs).toContain("/people");
+    expect(visibleHrefs).toContain("/mentorship");
     expect(visibleHrefs).toContain("/actions");
     expect(visibleHrefs).toContain("/admin/instructor-applicants");
     expect(visibleHrefs).toContain("/admin");
@@ -319,7 +371,7 @@ describe("resolveNavModel", () => {
     expect(model.more.length).toBeGreaterThan(0);
   });
 
-  it("pins Home, People, Actions, and Applicants for staff", () => {
+  it("pins Home, Mentorship, Actions, and Applicants for staff", () => {
     const model = resolveNavModel({
       roles: ["STAFF"],
       primaryRole: "STAFF",
@@ -332,7 +384,7 @@ describe("resolveNavModel", () => {
     const coreHrefs = model.core.map((item) => item.href);
     expect(coreHrefs).toEqual([
       "/",
-      "/people",
+      "/mentorship",
       "/actions",
       "/admin/instructor-applicants",
     ]);
@@ -340,7 +392,7 @@ describe("resolveNavModel", () => {
     expect(hrefs(model)).toEqual(coreHrefs);
   });
 
-  it("pins People and Actions for admins even when publicGateActive is true", () => {
+  it("pins Mentorship and Actions for admins even when publicGateActive is true", () => {
     const model = resolveNavModel({
       roles: ["ADMIN"],
       adminSubtypes: ["SUPER_ADMIN"],
@@ -352,7 +404,7 @@ describe("resolveNavModel", () => {
     });
 
     const coreHrefs = model.core.map((item) => item.href);
-    expect(coreHrefs).toContain("/people");
+    expect(coreHrefs).toContain("/mentorship");
     expect(coreHrefs).toContain("/actions");
     expect(coreHrefs).toContain("/admin/instructor-applicants");
     expect(coreHrefs).not.toContain("/meetings");
@@ -388,7 +440,7 @@ describe("resolveNavModel", () => {
 
     const visibleHrefs = hrefs(model);
     expect(visibleHrefs).toContain("/admin/instructor-applicants");
-    expect(visibleHrefs).toContain("/people");
+    expect(visibleHrefs).toContain("/mentorship");
     expect(visibleHrefs).toContain("/actions");
     expect(visibleHrefs).not.toContain("/admin/bulk-users");
   });
@@ -402,7 +454,7 @@ describe("resolveNavModel", () => {
       process.env.PORTAL_SLIM_NAV = "false";
     });
 
-    it("shows only Home, People, Actions, and Applicants for admins", () => {
+    it("shows Home, Mentorship, Actions, and Applicants for admins", () => {
       const model = resolveNavModel({
         roles: ["ADMIN"],
         adminSubtypes: ["SUPER_ADMIN"],
@@ -418,7 +470,7 @@ describe("resolveNavModel", () => {
       const visibleHrefs = hrefs(model);
       expect(visibleHrefs).toEqual([
         "/",
-        "/people",
+        "/mentorship",
         "/actions",
         "/admin/instructor-applicants",
       ]);
@@ -441,7 +493,9 @@ describe("resolveNavModel", () => {
 
       const visibleHrefs = hrefs(model);
       expect(visibleHrefs).toContain("/admin/instructor-applicants");
-      expect(visibleHrefs).not.toContain("/admin/instructor-applicants/chair-queue");
+      expect(visibleHrefs).not.toContain(
+        "/admin/instructor-applicants/chair-queue",
+      );
       expect(visibleHrefs).not.toContain("/admin/bulk-users");
       expect(visibleHrefs).not.toContain("/admin");
     });
@@ -473,7 +527,9 @@ describe("resolveNavModel", () => {
     });
 
     expect(hrefs(model)).toEqual(["/application-status"]);
-    expect(model.core.map((item) => item.href)).toEqual(["/application-status"]);
+    expect(model.core.map((item) => item.href)).toEqual([
+      "/application-status",
+    ]);
     expect(model.more).toEqual([]);
   });
 
@@ -486,11 +542,13 @@ describe("resolveNavModel", () => {
     });
 
     expect(hrefs(model)).toEqual(["/admin/instructor-applicants"]);
-    expect(model.core.map((item) => item.href)).toEqual(["/admin/instructor-applicants"]);
+    expect(model.core.map((item) => item.href)).toEqual([
+      "/admin/instructor-applicants",
+    ]);
     expect(model.more).toEqual([]);
   });
 
-  it("keeps content admins on the same four leadership links", () => {
+  it("keeps content admins on the same leadership links", () => {
     const model = resolveNavModel({
       roles: ["ADMIN"],
       adminSubtypes: ["CONTENT_ADMIN"],
@@ -502,7 +560,7 @@ describe("resolveNavModel", () => {
 
     expect(hrefs(model)).toEqual([
       "/",
-      "/people",
+      "/mentorship",
       "/actions",
       "/admin/instructor-applicants",
     ]);
@@ -510,7 +568,7 @@ describe("resolveNavModel", () => {
     expect(hrefs(model)).not.toContain("/admin/recruiting");
   });
 
-  it("keeps multi-role admins on the four leadership links (no mentorship sidebar)", () => {
+  it("keeps multi-role admins on the leadership links (hub Mentorship, not admin mentorship)", () => {
     const model = resolveNavModel({
       roles: ["ADMIN", "MENTOR"],
       primaryRole: "ADMIN",
@@ -522,11 +580,10 @@ describe("resolveNavModel", () => {
 
     expect(hrefs(model)).toEqual([
       "/",
-      "/people",
+      "/mentorship",
       "/actions",
       "/admin/instructor-applicants",
     ]);
-    expect(hrefs(model)).not.toContain("/mentorship");
     expect(hrefs(model)).not.toContain("/admin/mentorship");
   });
 });
@@ -544,18 +601,18 @@ describe("officer section navigation (simple leadership IA)", () => {
     });
   }
 
-  it("shows only Home, People, Actions, and Applicants", () => {
+  it("shows only Home, Mentorship, Actions, and Applicants", () => {
     const model = officerModel();
     expect(hrefs(model)).toEqual([
       "/",
-      "/people",
+      "/mentorship",
       "/actions",
       "/admin/instructor-applicants",
     ]);
     expect(model.more).toHaveLength(0);
     expect(model.core.map((item) => item.label)).toEqual([
       "Home",
-      "People",
+      "Mentorship",
       "Actions",
       "Applicants",
     ]);
@@ -602,24 +659,23 @@ describe("chapter-president section navigation", () => {
     const coreHrefs = model.core.map((item) => item.href);
     expect(coreHrefs).toEqual([
       "/",
-      "/people",
+      "/mentorship",
       "/actions",
       "/chapter-lead/instructor-applicants",
     ]);
     expect(coreHrefs).not.toContain("/meetings");
   });
 
-  it("gives chapter presidents only Home, People, Actions, and Applicants", () => {
+  it("gives chapter presidents Home, Mentorship, Actions, and Applicants", () => {
     const model = cpModel();
     const visibleHrefs = model.visible.map((item) => item.href);
     expect(visibleHrefs).toEqual([
       "/",
-      "/people",
+      "/mentorship",
       "/actions",
       "/chapter-lead/instructor-applicants",
     ]);
     expect(visibleHrefs).not.toContain("/meetings");
-    expect(visibleHrefs).not.toContain("/mentorship");
     expect(visibleHrefs).not.toContain("/chapter");
     expect(visibleHrefs).not.toContain("/work");
     expect(visibleHrefs).not.toContain("/command-center");

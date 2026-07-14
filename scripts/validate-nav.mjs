@@ -165,15 +165,20 @@ if (errors.length === 0) {
     }
 
     const available = catalog.filter((item) => hasRoleAccess(item, role) && hasAwardAccess(item, role));
-    // Leadership roles intentionally pin exactly four core links (Home · People ·
-    // Actions · Applicants). Other roles still need a useful core set.
+    // Leadership roles pin a small core set (Home · People · Mentorship ·
+    // Actions · Applicants; Hiring Chair omits Mentorship). Other roles still
+    // need a useful core set of at least 5 when available.
     const leadershipSimpleRoles = new Set([
       "ADMIN",
       "STAFF",
       "HIRING_CHAIR",
       "CHAPTER_PRESIDENT",
     ]);
-    const floor = leadershipSimpleRoles.has(role) ? 4 : 5;
+    const floor = leadershipSimpleRoles.has(role)
+      ? role === "HIRING_CHAIR"
+        ? 4
+        : 5
+      : 5;
     const minRequired = Math.min(floor, available.length);
     if (hrefs.length < minRequired) {
       errors.push(

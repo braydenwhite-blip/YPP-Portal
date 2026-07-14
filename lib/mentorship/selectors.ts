@@ -100,12 +100,17 @@ function candidate(
   };
 }
 
-function detailHref(role: MentorshipRole, menteeId: string): string {
-  // /people/[id] is the canonical person destination. Pass `fact.menteeId`,
-  // never `fact.id` (the mentorship/relation id) — that mismatch 404s every
-  // Calm-mode roster row and focus CTA. Mirrors the canonical builder in
-  // lib/queue/from-mentorship.ts.
-  return role === "mentee" ? "/mentorship?view=me" : `/people/${menteeId}`;
+function workspaceHref(menteeId: string, query?: string): string {
+  // `/mentorship/people/[id]` is the mentee dashboard for both sides —
+  // mentors land with edit/feedback tools; mentees see their own home.
+  // Pass `menteeId`, never the mentorship/relation id.
+  return query
+    ? `/mentorship/people/${menteeId}?${query}`
+    : `/mentorship/people/${menteeId}`;
+}
+
+function detailHref(_role: MentorshipRole, menteeId: string): string {
+  return workspaceHref(menteeId);
 }
 
 function upcomingSession(fact: MentorshipRelationshipFact, now: Date) {
@@ -138,10 +143,24 @@ function candidatesForFact(
       candidate(
         "changes_requested",
         fact.id,
-        "Revise your review",
-        `The chair requested changes on ${fact.menteeName}'s review.`,
-        "Open review",
-        `/people/${fact.menteeId}?section=review&panel=draft`,
+        "Fix and resend feedback",
+        `The chair asked for a tweak on ${fact.menteeName}'s feedback.`,
+        "Open feedback",
+        workspaceHref(fact.menteeId, "section=reviews"),
+        "attention",
+        now
+      )
+    );
+  }
+  if (mentorSide && fact.meetingDue) {
+    out.push(
+      candidate(
+        "session",
+        fact.id,
+        `Log meeting with ${fact.menteeName}`,
+        `${fact.menteeName} sent a note — mark that you talked, then send feedback.`,
+        "Log meeting",
+        workspaceHref(fact.menteeId, "section=reviews"),
         "attention",
         now
       )
@@ -152,10 +171,10 @@ function candidatesForFact(
       candidate(
         "review",
         fact.id,
-        `Review ${fact.menteeName}`,
-        `${fact.menteeName} submitted a reflection — your review is due.`,
-        "Start review",
-        `/people/${fact.menteeId}?section=review&panel=draft`,
+        `Send feedback for ${fact.menteeName}`,
+        `${fact.menteeName}'s note is ready — write a short update.`,
+        "Send feedback",
+        workspaceHref(fact.menteeId, "section=reviews"),
         "attention",
         now
       )
@@ -166,10 +185,10 @@ function candidatesForFact(
       candidate(
         "chair_approval",
         fact.id,
-        `Approve ${fact.mentorName}'s review`,
-        `A review for ${fact.menteeName} is waiting for chair approval.`,
+        `Share ${fact.menteeName}'s feedback`,
+        `Feedback for ${fact.menteeName} is waiting for chair approval.`,
         "Open approvals",
-        `/people/${fact.menteeId}?section=review&panel=approve`,
+        workspaceHref(fact.menteeId, "section=reviews&panel=approve"),
         "attention",
         now
       )
@@ -194,10 +213,10 @@ function candidatesForFact(
       candidate(
         "reflection",
         fact.id,
-        "Submit this month's reflection",
-        "Your reflection opens this cycle's review.",
-        "Open reflection",
-        "/mentorship?view=me&section=reflection",
+        "Share your monthly note",
+        "Three short answers for your mentor.",
+        "Open Feedback",
+        workspaceHref(fact.menteeId, "section=reviews"),
         "brand",
         now
       )
@@ -213,7 +232,9 @@ function candidatesForFact(
         `Session with ${otherName}`,
         "Your next mentorship session is coming up.",
         "View session",
-        menteeSide ? "/mentorship?view=me&section=schedule" : "/mentorship/schedule",
+        menteeSide
+          ? workspaceHref(fact.menteeId, "section=check-ins")
+          : workspaceHref(fact.menteeId, "section=check-ins"),
         "brand",
         now,
         Date.parse(next.scheduledISO)
@@ -321,7 +342,7 @@ function collectSessions(
   const sessions: SessionSummary[] = [];
   for (const fact of facts) {
     const role = viewerRelationshipRole(viewer, fact);
-    const href = role === "mentee" ? "/mentorship?view=me&section=schedule" : "/mentorship/schedule";
+    const href = workspaceHref(fact.menteeId, "section=check-ins");
     for (const session of fact.sessions) {
       if (session.cancelledISO) continue;
       sessions.push({

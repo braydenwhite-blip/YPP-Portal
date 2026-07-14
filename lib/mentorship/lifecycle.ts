@@ -216,7 +216,7 @@ export function defaultLifecycleHrefs(menteeId: string): LifecycleHrefs {
     writeReview: `${base}?section=reviews&panel=draft`,
     recordMentorCheckIn: `${base}?section=check-ins&panel=cycle-check-in`,
     adminMatching: `${base}?panel=setup`,
-    adminGoals: `${base}?panel=setup`,
+    adminGoals: `${base}?section=goals`,
     reviewInbox: `${base}?section=reviews&panel=approve`,
   };
 }
@@ -288,48 +288,46 @@ export function deriveNextAction(
     if (pov === "me") {
       return {
         key: "await-kickoff",
-        label: `Schedule your kickoff with ${mentor}`,
+        label: `Waiting on ${mentor} for your first meeting`,
         href: hrefs.section("check-ins"),
-        reason: "The kickoff meeting starts the review cycle.",
+        reason: null,
         urgent: false,
       };
     }
     if (pov === "committee") {
       return {
         key: "await-kickoff",
-        label: "Kickoff not complete",
+        label: "Waiting on the first meeting",
         href: hrefs.section("overview"),
-        reason: "The mentor owns this setup step.",
+        reason: null,
         urgent: false,
       };
     }
     return {
       key: "schedule-kickoff",
-      label: "Hold the kickoff meeting",
+      label: "Have the first meeting",
       href: hrefs.section("check-ins"),
-      reason: "Kickoff unlocks goals and the monthly review cycle.",
+      reason: null,
       urgent: true,
     };
   }
 
-  // ── Goals (leadership owns G&R assignment) ────────────────────────────────
-  // Nobody begins the monthly reflection loop without the living plan it is
-  // meant to review. Non-leadership viewers see the blocker and exact owner.
+  // ── Goals (mentor or leadership assigns G&R) ──────────────────────────────
   if (snapshot.grDocStatus === "NONE") {
-    if (pov === "leadership") {
+    if (pov === "leadership" || pov === "mentor") {
       return {
         key: "assign-goals",
-        label: "Assign G&R goals",
+        label: "Set up goals",
         href: hrefs.adminGoals,
-        reason: `${personName} has no Goals & Responsibilities document yet.`,
+        reason: `${personName} does not have goals yet.`,
         urgent: false,
       };
     }
     return {
       key: "await-goals",
-      label: "Waiting for Goals & Responsibilities setup",
+      label: "Waiting for goals",
       href: hrefs.section("goals"),
-      reason: "A mentorship admin owns this setup step.",
+      reason: "Your mentor will set these up.",
       urgent: false,
     };
   }
@@ -361,11 +359,11 @@ export function deriveNextAction(
       if (pov === "me") {
         return {
           key: "submit-reflection",
-          label: `Submit your${cycle} reflection`,
+          label: cycle ? `Share your ${snapshot.cycleLabel} note` : "Share your monthly note",
           href: hrefs.section("reviews"),
           reason: snapshot.reflectionOverdue
-            ? "The reflection window is closing."
-            : "Your reflection starts this month's review.",
+            ? "A short note is overdue."
+            : "Three short answers for your mentor.",
           urgent: snapshot.reflectionOverdue,
         };
       }
@@ -377,9 +375,9 @@ export function deriveNextAction(
         if (pov === "mentor") {
           return {
             key: "record-mentor-check-in",
-            label: "Record the Mentor Check-in",
+            label: "Log that you met",
             href: hrefs.recordMentorCheckIn,
-            reason: `${personName}'s reflection is ready to discuss before you write the Monthly Progress Update.`,
+            reason: `${personName} sent a note — mark that you talked, then send feedback.`,
             urgent: true,
           };
         }
@@ -387,26 +385,26 @@ export function deriveNextAction(
           key: "await-mentor-check-in",
           label:
             pov === "me"
-              ? `Meet with ${mentor} for your Mentor Check-in`
-              : "Mentor Check-in not recorded",
+              ? `Meet with ${mentor}`
+              : "Waiting on a meeting",
           href: hrefs.section("check-ins"),
-          reason: "The check-in comes before the Monthly Progress Update.",
+          reason: "Log the meeting before sending feedback.",
           urgent: false,
         };
       }
       if (pov === "mentor") {
         return {
           key: "write-review",
-          label: "Write the Monthly Progress Update",
+          label: "Send feedback",
           href: hrefs.writeReview,
-          reason: `${personName}'s reflection and Mentor Check-in are complete.`,
+          reason: `Write a short note for ${personName}.`,
           urgent: true,
         };
       }
       if (pov === "me") {
         return {
           key: "await-reflection",
-          label: "Reflection in — your mentor is writing your review",
+          label: "Your note is in — waiting on your mentor",
           href: hrefs.section("reviews"),
           reason: null,
           urgent: false,
@@ -417,9 +415,9 @@ export function deriveNextAction(
       if (pov === "mentor") {
         return {
           key: "revise-review",
-          label: "Revise your review",
+          label: "Fix and resend feedback",
           href: hrefs.writeReview,
-          reason: "The chair requested changes.",
+          reason: "The chair asked for a tweak.",
           urgent: true,
         };
       }
@@ -427,26 +425,26 @@ export function deriveNextAction(
         key: "await-review-revision",
         label:
           pov === "me"
-            ? "Your mentor is revising the Monthly Progress Update"
-            : "Waiting for the mentor's revision",
+            ? "Your mentor is updating your feedback"
+            : "Waiting on the mentor to resend",
         href: hrefs.section("reviews"),
-        reason: "The Role Chair requested changes before release.",
+        reason: "The chair asked for changes before sharing.",
         urgent: false,
       };
     case "REVIEW_SUBMITTED":
       if (pov === "leadership") {
         return {
           key: "approve-review",
-        label: "Approve the Monthly Progress Update",
+          label: "Approve and share feedback",
           href: hrefs.reviewInbox,
-          reason: `${personName}'s${cycle} review is waiting on the chair.`,
+          reason: `${personName}'s feedback is ready to share.`,
           urgent: true,
         };
       }
       if (pov === "mentor") {
         return {
           key: "await-approval",
-          label: "Monthly Progress Update is with the Role Chair",
+          label: "Feedback is with the chair",
           href: hrefs.section("reviews"),
           reason: null,
           urgent: false,
@@ -652,20 +650,20 @@ export function buildCycleStrip(
   }
 
   const steps: Array<{ key: CycleStripStep["key"]; label: string; at: StageIndex; detail: string }> = [
-    { key: "reflection", label: "Reflection", at: 0, detail: `Waiting on ${mentee}` },
-    { key: "check-in", label: "Mentor check-in", at: 1, detail: `Waiting on ${mentor}` },
+    { key: "reflection", label: "Their note", at: 0, detail: `Waiting on ${mentee}` },
+    { key: "check-in", label: "Meet", at: 1, detail: `Waiting on ${mentor}` },
     {
       key: "review",
-      label: "Progress update",
+      label: "Feedback",
       at: 2,
       detail:
         snapshot.cycleStage === "CHANGES_REQUESTED"
-          ? `Back with ${mentor} for changes`
+          ? `Back with ${mentor} for a tweak`
           : `Waiting on ${mentor}`,
     },
-    { key: "approval", label: "Chair approval", at: 3, detail: "With the chair for approval" },
-    { key: "released", label: "Released", at: 4, detail: "About to be shared" },
-    { key: "acknowledged", label: "Acknowledged", at: 5, detail: `Waiting on ${mentee} to react` },
+    { key: "approval", label: "Share", at: 3, detail: "Chair is reviewing" },
+    { key: "released", label: "Shared", at: 4, detail: "About to be shared" },
+    { key: "acknowledged", label: "Seen", at: 5, detail: `Waiting on ${mentee}` },
   ];
 
   return steps
@@ -765,11 +763,7 @@ export function deriveCycleState(
     }
   }
 
-  const blockingReason = !snapshot.hasActiveMentorship
-    ? "No active mentorship"
-    : !snapshot.kickoffComplete
-      ? "Kickoff not held"
-      : null;
+  const blockingReason = !snapshot.hasActiveMentorship ? "No mentor yet" : null;
 
   const commentsSubstate: CommentsSubstate | null =
     snapshot.commentsRequested > 0

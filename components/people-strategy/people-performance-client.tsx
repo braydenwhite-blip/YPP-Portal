@@ -25,6 +25,7 @@ export function PeoplePerformanceClient({
   clearFiltersHref,
   page,
   basePath = "/people",
+  personHrefBase = "/people",
   monthLabel,
   monthShortLabel,
   quarter,
@@ -37,6 +38,7 @@ export function PeoplePerformanceClient({
   clearFiltersHref: string;
   page: number;
   basePath?: string;
+  personHrefBase?: string;
   monthLabel: string;
   monthShortLabel: string;
   quarter: string;
@@ -53,6 +55,7 @@ export function PeoplePerformanceClient({
     });
   }, [tableRows, ctx]);
   const pageRows = useMemo(() => paginateRows(sortedRows, page), [sortedRows, page]);
+  const opensMentorshipWorkspace = personHrefBase.startsWith("/mentorship/people");
 
   return (
     <>
@@ -68,8 +71,9 @@ export function PeoplePerformanceClient({
         {pageRows.length > 0 ? (
           <div className="overflow-hidden rounded-[14px] border border-[#ebebf2] bg-white shadow-[0_1px_2px_rgba(20,20,50,0.03)]">
             <p className="border-b border-[#f1f1f6] px-4 py-2 text-[12px] text-[#717189]">
-              Tap any row to open their full profile. Use the purple button to compile a check-in
-              — it turns green when done.
+              {opensMentorshipWorkspace
+                ? "Tap any row to open their mentorship workspace."
+                : "Tap any row to open their full profile."}
             </p>
             <PeoplePerformanceTable
               rows={pageRows}
@@ -77,6 +81,7 @@ export function PeoplePerformanceClient({
               monthShortLabel={monthShortLabel}
               quarter={quarter}
               quarterlyEnabled={quarterlyEnabled}
+              personHrefBase={personHrefBase}
             />
             <PeopleReviewsPagination total={sortedRows.length} page={page} basePath={basePath} />
           </div>

@@ -23,10 +23,10 @@ const ICON_BY_KIND: Record<MentorshipFocusKind, CcIconName> = {
 const EYEBROW_BY_KIND: Record<MentorshipFocusKind, string> = {
   kickoff: "Kickoff",
   reflection: "Your reflection",
-  review: "Review due",
+  review: "Feedback due",
   chair_approval: "Chair approval",
   changes_requested: "Changes requested",
-  session: "Upcoming session",
+  session: "Meeting",
   commitment: "Commitment",
   feedback: "Feedback",
   support: "Support request",

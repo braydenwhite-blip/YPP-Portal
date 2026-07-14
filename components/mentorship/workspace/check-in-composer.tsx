@@ -3,17 +3,11 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
-import { Button, ModalV2, ModalFooterV2, cn } from "@/components/ui-v2";
+import { Button, ModalV2, ModalFooterV2 } from "@/components/ui-v2";
 import { recordCheckIn } from "@/lib/mentorship/check-in-actions";
 import type { RecordCheckInInput } from "@/lib/mentorship/check-in-schema";
 
 type Participant = { id: string; name: string };
-
-const KINDS: Array<{ value: "CHECK_IN" | "MEETING" | "CONVERSATION"; label: string }> = [
-  { value: "CHECK_IN", label: "Check-in" },
-  { value: "MEETING", label: "Meeting" },
-  { value: "CONVERSATION", label: "Conversation" },
-];
 
 const fieldLabel = "text-[12px] font-semibold uppercase tracking-[0.06em] text-ink-muted";
 const fieldInput =
@@ -29,19 +23,17 @@ function todayValue(): string {
 }
 
 /**
- * Log a conversation record inside the Mentorship workspace — the single entry
- * point for a check-in / meeting / conversation. Captures the structured record
- * (wins, challenges, discussion, decisions, commitments, follow-up) and hands it
- * to the `recordCheckIn` server action, which saves it and folds it into the
- * timeline. A follow-up date keeps the next step on the radar.
+ * Simple meeting log — date + optional note. Cycle-bound meetings still
+ * advance the monthly feedback loop under the hood.
  */
 export function CheckInComposer({
   subjectId,
   mentorshipId,
   selfReflectionId,
-  cycleLabel,
+  cycleLabel: _cycleLabel,
   participantOptions,
   personName,
+  isSelf = false,
 }: {
   subjectId: string;
   mentorshipId: string;
@@ -49,6 +41,8 @@ export function CheckInComposer({
   cycleLabel?: string | null;
   participantOptions: Participant[];
   personName: string;
+  /** Viewing own workspace — button copy says "Log a meeting" not "with X". */
+  isSelf?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -56,71 +50,39 @@ export function CheckInComposer({
   const [error, setError] = useState<string | null>(null);
 
   const isCycleCheckIn = Boolean(selfReflectionId);
-  const [kind, setKind] = useState<"CHECK_IN" | "MEETING" | "CONVERSATION">("CHECK_IN");
   const [occurredAt, setOccurredAt] = useState(todayValue);
-  const [participants, setParticipants] = useState<string[]>(
-    participantOptions.map((p) => p.id)
-  );
-  const [wins, setWins] = useState("");
-  const [challenges, setChallenges] = useState("");
-  const [discussion, setDiscussion] = useState("");
-  const [decisions, setDecisions] = useState("");
-  const [commitments, setCommitments] = useState("");
-  const [followUpDate, setFollowUpDate] = useState("");
-  const [rating, setRating] = useState("");
+  const [notes, setNotes] = useState("");
 
   function reset() {
-    setKind("CHECK_IN");
     setOccurredAt(todayValue());
-    setParticipants(participantOptions.map((p) => p.id));
-    setWins("");
-    setChallenges("");
-    setDiscussion("");
-    setDecisions("");
-    setCommitments("");
-    setFollowUpDate("");
-    setRating("");
+    setNotes("");
     setError(null);
-  }
-
-  function toggleParticipant(id: string) {
-    setParticipants((prev) =>
-      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
-    );
   }
 
   function submit() {
     setError(null);
-    const hasContent = [wins, challenges, discussion, decisions, commitments].some(
-      (v) => v.trim().length > 0
-    );
-    if (!hasContent) {
-      setError("Add at least one note — wins, challenges, discussion, decisions, or commitments.");
-      return;
-    }
     const input: RecordCheckInInput = {
       subjectId,
       mentorshipId,
       selfReflectionId: selfReflectionId ?? undefined,
-      kind: isCycleCheckIn ? "CHECK_IN" : kind,
+      kind: isCycleCheckIn ? "CHECK_IN" : "MEETING",
       occurredAt: occurredAt || undefined,
-      participantIds: participants,
-      wins,
-      challenges,
-      discussion,
-      decisions,
-      commitments,
-      followUpDate: followUpDate || undefined,
-      rating: rating ? Number(rating) : undefined,
+      participantIds: participantOptions.map((p) => p.id),
+      discussion: notes.trim() || "Meeting done.",
     };
     startTransition(async () => {
       try {
         await recordCheckIn(input);
         setOpen(false);
         reset();
-        router.refresh();
+        if (isCycleCheckIn) {
+          router.push(`/mentorship/people/${subjectId}?section=reviews`);
+          router.refresh();
+        } else {
+          router.refresh();
+        }
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Could not save the check-in.");
+        setError(e instanceof Error ? e.message : "Could not save the meeting.");
       }
     });
   }
@@ -128,7 +90,7 @@ export function CheckInComposer({
   return (
     <>
       <Button variant="primary" size="sm" onClick={() => setOpen(true)}>
-        {isCycleCheckIn ? "Record Mentor Check-in" : "Log check-in"}
+        Log a meeting
       </Button>
 
       <ModalV2
@@ -136,113 +98,42 @@ export function CheckInComposer({
         onClose={() => setOpen(false)}
         locked={pending}
         accent="brand"
-        labelledBy="checkin-composer-title"
+        labelledBy="meeting-log-title"
       >
         <div>
           <h2
-            id="checkin-composer-title"
+            id="meeting-log-title"
             className="m-0 text-[16px] font-bold text-ink"
           >
-            {isCycleCheckIn ? "Record Mentor Check-in" : `Log a check-in with ${personName}`}
+            {isSelf ? "Log a meeting" : `Log a meeting with ${personName}`}
           </h2>
           <p className="m-0 mt-1 text-[13px] text-ink-muted">
             {isCycleCheckIn
-              ? `Discuss ${personName}'s ${cycleLabel ?? "current"} reflection, capture the conversation, and agree on the next step before writing the Monthly Progress Update.`
-              : "One record for the whole conversation — it joins the timeline. Set a follow-up date to keep the next step on the radar."}
+              ? "Mark that you talked. Then you can send feedback."
+              : "Just mark that you met. Add a short note if you want."}
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <label className="flex flex-col gap-1">
-            <span className={fieldLabel}>Type</span>
-            <select
-              className={fieldInput}
-              value={isCycleCheckIn ? "CHECK_IN" : kind}
-              onChange={(e) => setKind(e.target.value as typeof kind)}
-              disabled={isCycleCheckIn}
-            >
-              {KINDS.map((k) => (
-                <option key={k.value} value={k.value}>
-                  {k.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className={fieldLabel}>Date</span>
-            <input
-              type="date"
-              className={fieldInput}
-              value={occurredAt}
-              onChange={(e) => setOccurredAt(e.target.value)}
-            />
-          </label>
-        </div>
+        <label className="flex flex-col gap-1">
+          <span className={fieldLabel}>When</span>
+          <input
+            type="date"
+            className={fieldInput}
+            value={occurredAt}
+            onChange={(e) => setOccurredAt(e.target.value)}
+          />
+        </label>
 
-        {participantOptions.length > 0 ? (
-          <div className="flex flex-col gap-1.5">
-            <span className={fieldLabel}>Participants</span>
-            <div className="flex flex-wrap gap-2">
-              {participantOptions.map((p) => {
-                const active = participants.includes(p.id);
-                return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => toggleParticipant(p.id)}
-                    className={cn(
-                      "rounded-full border px-3 py-1 text-[12.5px] font-medium transition-colors",
-                      active
-                        ? "border-brand-400 bg-brand-50 text-brand-800"
-                        : "border-line bg-surface text-ink-muted hover:border-brand-300"
-                    )}
-                  >
-                    {p.name}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ) : null}
-
-        <ComposerField label="Wins" value={wins} onChange={setWins} placeholder="What went well since last time?" />
-        <ComposerField label="Challenges" value={challenges} onChange={setChallenges} placeholder="What's getting in the way?" />
-        <ComposerField label="Discussion" value={discussion} onChange={setDiscussion} placeholder="What did you talk through?" rows={3} />
-        <ComposerField label="Decisions" value={decisions} onChange={setDecisions} placeholder="What did you decide?" />
-        <ComposerField
-          label="Commitments"
-          value={commitments}
-          onChange={setCommitments}
-          placeholder="One per line — e.g. 'Avery will shadow a class by next Friday'"
-          rows={3}
-        />
-
-        <div className="grid grid-cols-2 gap-3">
-          <label className="flex flex-col gap-1">
-            <span className={fieldLabel}>Follow-up date</span>
-            <input
-              type="date"
-              className={fieldInput}
-              value={followUpDate}
-              onChange={(e) => setFollowUpDate(e.target.value)}
-            />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className={fieldLabel}>Rating (optional)</span>
-            <select
-              className={fieldInput}
-              value={rating}
-              onChange={(e) => setRating(e.target.value)}
-            >
-              <option value="">—</option>
-              {[1, 2, 3, 4, 5].map((n) => (
-                <option key={n} value={n}>
-                  {n} / 5
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
+        <label className="flex flex-col gap-1">
+          <span className={fieldLabel}>Note (optional)</span>
+          <textarea
+            className={`${fieldInput} resize-y leading-relaxed`}
+            rows={3}
+            value={notes}
+            placeholder="What did you cover?"
+            onChange={(e) => setNotes(e.target.value)}
+          />
+        </label>
 
         {error ? (
           <p className="m-0 text-[12.5px] font-medium text-danger-700">{error}</p>
@@ -253,37 +144,10 @@ export function CheckInComposer({
             Cancel
           </Button>
           <Button variant="primary" size="sm" onClick={submit} loading={pending}>
-            {isCycleCheckIn ? "Complete Mentor Check-in" : "Save check-in"}
+            Save meeting
           </Button>
         </ModalFooterV2>
       </ModalV2>
     </>
-  );
-}
-
-function ComposerField({
-  label,
-  value,
-  onChange,
-  placeholder,
-  rows = 2,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  rows?: number;
-}) {
-  return (
-    <label className="flex flex-col gap-1">
-      <span className={fieldLabel}>{label}</span>
-      <textarea
-        className={cn(fieldInput, "resize-y leading-relaxed")}
-        rows={rows}
-        value={value}
-        placeholder={placeholder}
-        onChange={(e) => onChange(e.target.value)}
-      />
-    </label>
   );
 }

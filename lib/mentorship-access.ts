@@ -1,8 +1,44 @@
 import { prisma } from "@/lib/prisma";
 import { hasRole } from "@/lib/authorization";
 
-export function canAccessMentorship(primaryRole: string): boolean {
-  return primaryRole !== "STUDENT" && primaryRole !== "APPLICANT" && primaryRole !== "PARENT";
+/** Roles that always get the Mentorship hub (nav + /mentorship). */
+export const MENTORSHIP_HUB_ROLES = [
+  "ADMIN",
+  "STAFF",
+  "CHAPTER_PRESIDENT",
+  "MENTOR",
+] as const;
+
+/**
+ * Mentorship hub is for leadership + mentors — not mentee-only instructors.
+ * Pass `roles` when available so a MENTOR secondary role still unlocks access.
+ */
+export function canAccessMentorship(
+  primaryRole: string,
+  roles: string[] = []
+): boolean {
+  if (
+    (MENTORSHIP_HUB_ROLES as readonly string[]).includes(primaryRole)
+  ) {
+    return true;
+  }
+  return roles.some((role) =>
+    (MENTORSHIP_HUB_ROLES as readonly string[]).includes(role)
+  );
+}
+
+/**
+ * Same as {@link canAccessMentorship}, plus anyone in an active mentorship
+ * pairing — as mentor or as mentee — even if their primary role is INSTRUCTOR.
+ */
+export async function canAccessMentorshipHub(
+  userId: string,
+  primaryRole: string,
+  roles: string[] = []
+): Promise<boolean> {
+  if (canAccessMentorship(primaryRole, roles)) return true;
+  const membership = await getInstructorMentorshipMembership(userId);
+  return membership.isMentor || membership.isMentee;
 }
 
 export async function getMentorshipAccessibleMenteeIds(
@@ -92,7 +128,7 @@ export async function getInstructorMentorshipMembership(userId: string) {
     prisma.mentorship.count({
       where: {
         status: "ACTIVE",
-        OR: [{ mentorId: userId }, { chairId: userId }],
+        mentorId: userId,
       },
     }),
   ]);

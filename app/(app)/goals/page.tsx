@@ -23,11 +23,14 @@ export default async function GoalsPage() {
     redirect("/login");
   }
 
-  // For everyone with a Mentorship footprint (instructors, officers,
-  // leadership), the Review & G&R flow on their own /people/[id] IS the goals
-  // product — this legacy page stays only for students, whose goals live on
-  // the older Goal/GoalTemplate stack this page reads.
-  if (canAccessMentorship(session!.user.primaryRole ?? "")) {
+  // Mentors / leadership use Review & G&R on /people/[id]. This legacy page
+  // stays for students (and anyone outside the Mentorship hub roles).
+  if (
+    canAccessMentorship(
+      session!.user.primaryRole ?? "",
+      normalizeRoleList(session!.user.roles ?? [])
+    )
+  ) {
     redirect(`/people/${userId}?section=review`);
   }
 

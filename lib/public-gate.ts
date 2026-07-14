@@ -72,6 +72,10 @@ export const PUBLIC_ALLOWED_PREFIXES: readonly string[] = [
   "/instructor-onboarding",
   "/qa/instructor-onboarding",
 
+  // Mentorship hub — mentors / leadership (and active mentors) need this
+  // without the internal preview passcode. Page still enforces its own gate.
+  "/mentorship",
+
   // Lightweight personal surfaces. Users still need to be able to sign
   // out, manage their basic profile, and verify email. We deliberately
   // do NOT add /messages, /notifications, etc. — those aren't part of

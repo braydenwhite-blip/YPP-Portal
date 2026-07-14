@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import type { KeyboardEvent, MouseEvent } from "react";
 
 import { cn } from "@/components/ui-v2";
-import { PeopleCheckInCell } from "@/components/people-strategy/people-check-in-cell";
 import { initialsFromName } from "@/lib/command-center/shared";
 import { RATING_LABELS } from "@/lib/people-strategy/check-in-rating";
 import { RATING_COLORS } from "@/lib/people-strategy/people-dashboard-selectors";
@@ -15,7 +14,6 @@ import type { PeoplePerformanceRow } from "@/lib/people-strategy/people-performa
 import {
   derivePeopleFlagText,
   feedbackStatusLabel,
-  nextCheckInDisplay,
   peopleChairTier,
   performanceQuickBullets,
   potentialQuickBullets,
@@ -28,10 +26,6 @@ function avatarHue(name: string): string {
   let hash = 0;
   for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
   return AVATAR_HUES[Math.abs(hash) % AVATAR_HUES.length];
-}
-
-function checkInSeed(id: string): number {
-  return id.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0);
 }
 
 function RatingBadge({ rating }: { rating: GoalRatingColor | null | undefined }) {
@@ -247,12 +241,14 @@ const TABLE_COLUMNS = [
   "Actions",
   "Performance",
   "Potential",
-  "Check-in",
   "Feedback",
 ] as const;
 
-function personProfileHref(id: string): string {
-  return `/people/${id}?from=people`;
+function personProfileHref(id: string, personHrefBase = "/people"): string {
+  if (personHrefBase.startsWith("/mentorship/people")) {
+    return `${personHrefBase}/${id}`;
+  }
+  return `${personHrefBase}/${id}?from=people`;
 }
 
 function stopRowNavigation(event: MouseEvent | KeyboardEvent) {
@@ -264,21 +260,21 @@ function stopRowNavigation(event: MouseEvent | KeyboardEvent) {
  */
 export function PeoplePerformanceTable({
   rows,
-  monthLabel,
   monthShortLabel,
-  quarterlyEnabled,
+  personHrefBase = "/people",
 }: {
   rows: PeoplePerformanceRow[];
   monthLabel: string;
   monthShortLabel: string;
   quarter: string;
   quarterlyEnabled: boolean;
+  personHrefBase?: string;
 }) {
   const router = useRouter();
   const tableRows = dedupePeopleRows(rows);
 
   function openPerson(row: PeoplePerformanceRow) {
-    router.push(personProfileHref(row.id));
+    router.push(personProfileHref(row.id, personHrefBase));
   }
 
   function handleRowKeyDown(event: KeyboardEvent<HTMLTableRowElement>, row: PeoplePerformanceRow) {
@@ -289,7 +285,7 @@ export function PeoplePerformanceTable({
   }
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[980px] border-collapse text-left">
+      <table className="w-full min-w-[860px] border-collapse text-left">
         <thead>
           <tr className="border-b border-[#f1f1f6] bg-[#fafafd]">
             {TABLE_COLUMNS.map((label) => (
@@ -305,7 +301,7 @@ export function PeoplePerformanceTable({
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={7} className="px-4 py-12 text-center text-[13px] text-[#9a9ab0]">
+              <td colSpan={6} className="px-4 py-12 text-center text-[13px] text-[#9a9ab0]">
                 No one matches this view.
               </td>
             </tr>
@@ -315,7 +311,6 @@ export function PeoplePerformanceTable({
               const initials = initialsFromName(name);
               const roleTitle = formatRoleLabel(row.role);
               const dept = row.departments[0] ?? null;
-              const next = nextCheckInDisplay(row.facts, monthShortLabel, checkInSeed(row.id));
               const flagText = derivePeopleFlagText(row.facts);
               const chair = peopleChairTier(row.role);
 
@@ -326,7 +321,7 @@ export function PeoplePerformanceTable({
                   tabIndex={0}
                   onClick={() => openPerson(row)}
                   onKeyDown={(event) => handleRowKeyDown(event, row)}
-                  aria-label={`Open profile for ${name}`}
+                  aria-label={`Open workspace for ${name}`}
                   className="group cursor-pointer border-b border-[#f4f4f8] align-top last:border-b-0 hover:bg-[#f5f0ff]/70 focus-visible:bg-[#f5f0ff] focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#6b21c8]"
                 >
                   <td className="px-4 py-4">
@@ -340,7 +335,7 @@ export function PeoplePerformanceTable({
                       </span>
                       <span>
                         <Link
-                          href={personProfileHref(row.id)}
+                          href={personProfileHref(row.id, personHrefBase)}
                           onClick={stopRowNavigation}
                           className="block text-[15px] font-bold text-[#1c1a2e] no-underline group-hover:text-[#5a1da8] hover:underline"
                         >
@@ -388,16 +383,6 @@ export function PeoplePerformanceTable({
                     ) : (
                       <QuickBullets items={potentialQuickBullets(row)} />
                     )}
-                  </td>
-                  <td className="min-w-[148px] px-4 py-4">
-                    <PeopleCheckInCell
-                      row={row}
-                      monthLabel={monthLabel}
-                      monthShortLabel={monthShortLabel}
-                      nextLabel={next.label}
-                      nextUrgent={next.urgent}
-                      quarterlyEnabled={quarterlyEnabled}
-                    />
                   </td>
                   <td className="px-4 py-4">
                     <FeedbackStatusCell row={row} />

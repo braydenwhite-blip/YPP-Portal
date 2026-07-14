@@ -17,6 +17,9 @@ export type PeopleReviewsFilterOptions = {
   feedbackStatuses: PeopleReviewsFeedbackFilter[];
 };
 
+/** Query key for the urgency roster filter (People uses `view`; Mentorship uses `roster`). */
+export type PeopleReviewsFilterParam = "view" | "roster";
+
 export function hasActivePeopleReviewsFilters(filters: PeopleReviewsTableFilters): boolean {
   return Boolean(
     filters.mentor ||
@@ -57,10 +60,16 @@ export function parsePeopleReviewsTableFilters(
 
 export function peopleReviewsClearFiltersHref(
   sp: Record<string, string | string[] | undefined>,
-  basePath = "/people"
+  basePath = "/people",
+  filterParam: PeopleReviewsFilterParam = "view"
 ): string {
   const params = new URLSearchParams();
-  if (typeof sp.view === "string" && sp.view !== "all") params.set("view", sp.view);
+  // When filters use `roster=`, keep the Mentorship hub POV (`view=people`).
+  if (filterParam !== "view" && typeof sp.view === "string") {
+    params.set("view", sp.view);
+  }
+  const filterVal = typeof sp[filterParam] === "string" ? sp[filterParam] : undefined;
+  if (filterVal && filterVal !== "all") params.set(filterParam, filterVal);
   if (typeof sp.q === "string") params.set("q", sp.q);
   const qs = params.toString();
   return qs ? `${basePath}?${qs}` : basePath;

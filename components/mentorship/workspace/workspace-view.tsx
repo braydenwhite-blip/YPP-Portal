@@ -3,46 +3,46 @@ import { ButtonLink, PageHeaderV2 } from "@/components/ui-v2";
 import { prisma } from "@/lib/prisma";
 import type { MentorshipWorkspace } from "@/lib/mentorship/workspace";
 import { SegmentedTabs } from "@/app/(app)/mentorship/_components/segmented-tabs";
-import { MenteeDevelopmentBrief } from "@/app/(app)/mentorship/_components/mentee-development-brief";
-import { ActiveReviewCycleCard } from "@/components/people-strategy/active-review-cycle-card";
 import { KickoffStatusRow } from "@/components/mentorship/kickoff-status-row";
 
-import { OverviewSection, CheckInsSection } from "./sections";
+import { CheckInsSection } from "./sections";
 import { MenteeGoalsSection } from "./goals-section";
 import { ReviewsSection } from "./reviews-section";
-import { ReviewDraftPanel } from "./review-draft-panel";
+import { ProgressUpdateSection } from "./progress-update-section";
 import { ChairApprovalPanel } from "./chair-approval-panel";
 import {
   SetupRepairPanel,
   type MentorshipSetupData,
 } from "./setup-repair-panel";
 import { ManageRelationship } from "./manage-relationship";
-import { MentorToolsPanel } from "./mentor-tools-panel";
-import { SelfGoalsSection, SelfHelpCard, SelfMilestones, SelfRecognitionCard, SelfScheduleExtra } from "./self-sections";
+import { MentorPersonHome } from "./mentor-person-home";
+import { MenteeDashboardHome } from "./mentee-dashboard-home";
+import { SelfGoalsSection, SelfHelpCard, SelfMilestones, SelfRecognitionCard } from "./self-sections";
 
 /**
  * The shared Mentorship workspace body — header, section tabs, and the active
  * section. Rendered from two hosts: `/mentorship/people/[id]` (full header) and
  * the hub's `?view=me` POV (`showHeader={false}`, one header per page).
  *
- * One lifecycle, one workspace: four sections for every viewer — Overview,
- * Goals, Check-ins, Reviews — because Mentorship is one lifecycle
- * (relationship → goals → check-ins → reflection/review → follow-up), not a
- * menu of features. `workspace.isSelf` only changes what each section shows
- * (e.g. Goals renders the mentee's own G&R document vs. the mentor's read
- * view + propose-change form), never which tabs exist.
+ * One lifecycle, one workspace: Overview, Goals, Check-ins, Reviews, and
+ * Progress update — because Mentorship is one lifecycle (relationship → goals →
+ * check-ins → reflection/review → progress update → follow-up), not a menu of
+ * features. `workspace.isSelf` only changes what each section shows (e.g. Goals
+ * renders the mentee's own G&R document vs. the mentor's read view +
+ * propose-change form), never which tabs exist.
  */
 
 const SECTIONS = [
-  { id: "overview", label: "Overview" },
+  { id: "overview", label: "Home" },
   { id: "goals", label: "Goals" },
-  { id: "check-ins", label: "Check-ins" },
-  { id: "reviews", label: "Reviews" },
+  { id: "check-ins", label: "Meetings" },
+  { id: "reviews", label: "Feedback" },
+  { id: "progress", label: "Progress update" },
 ] as const;
 
 type SectionId = (typeof SECTIONS)[number]["id"];
 
-/** Old section ids from the previous seven-tab layout resolve into the four above. */
+/** Old section ids from the previous seven-tab layout resolve into the five above. */
 const SECTION_ALIASES: Record<string, SectionId> = {
   plan: "goals",
   relationships: "overview",
@@ -51,11 +51,14 @@ const SECTION_ALIASES: Record<string, SectionId> = {
   reflection: "reviews",
   schedule: "check-ins",
   recognition: "overview",
+  "progress-update": "progress",
 };
 
 function resolveSection(raw: string | undefined): SectionId {
   if (!raw) return "overview";
-  if (SECTIONS.some((s) => s.id === raw)) return raw as SectionId;
+  if ((SECTIONS as readonly { id: string }[]).some((s) => s.id === raw)) {
+    return raw as SectionId;
+  }
   return SECTION_ALIASES[raw] ?? "overview";
 }
 
@@ -68,9 +71,12 @@ export function MentorshipWorkspaceView({
   sectionHref,
   showHeader = true,
   helpSent = false,
+  alsoMentors = false,
+  progressSent = false,
+  progressPending = false,
 }: {
   workspace: MentorshipWorkspace;
-  /** Raw `?section=` value; unknown or legacy ids resolve to one of the four. */
+  /** Raw `?section=` value; unknown or legacy ids resolve to a known tab. */
   section?: string;
   /** Opens the one stage-specific work surface selected by the lifecycle CTA. */
   panel?: string;
@@ -86,50 +92,31 @@ export function MentorshipWorkspaceView({
   showHeader?: boolean;
   /** Whether the help-request form just submitted (`?sent=1`). */
   helpSent?: boolean;
+  /** Self workspace: viewer also mentors others — show Mentor switch. */
+  alsoMentors?: boolean;
+  /** Mentor just released a progress update (`?progressSent=1`). */
+  progressSent?: boolean;
+  /** Mentor submitted a progress update awaiting chair (`?progressPending=1`). */
+  progressPending?: boolean;
 }) {
   const isSelf = workspace.isSelf;
-  const active = resolveSection(section);
+  const active =
+    panel === "draft" || panel === "approve" ? "reviews" : resolveSection(section);
 
   const tabs = SECTIONS.map((s) => ({
     id: s.id,
     label: s.label,
     href: sectionHref(s.id),
-    count:
-      s.id === "check-ins"
-        ? workspace.checkIns.length || undefined
-        : undefined,
   }));
 
-  const showMentorTools =
-    !!workspace.activeMentorshipId &&
-    workspace.pov === "mentor";
-
-  const canOpenDraft =
-    panel === "draft" &&
-    workspace.capabilities.canDraftReview &&
-    (workspace.lifecycle.cycleStage === "REFLECTION_SUBMITTED" ||
-      workspace.lifecycle.cycleStage === "CHANGES_REQUESTED");
   const canOpenApproval =
     panel === "approve" &&
     workspace.capabilities.canApprove &&
     workspace.lifecycle.cycleStage === "REVIEW_SUBMITTED";
-  const requestedUnavailablePanel =
-    (panel === "draft" || panel === "approve") && !canOpenDraft && !canOpenApproval;
+  const requestedUnavailablePanel = panel === "approve" && !canOpenApproval;
 
   const body = (
     <>
-      <ActiveReviewCycleCard
-        cycleState={workspace.cycleState}
-        canTakeNextAction={
-          workspace.nextAction.key === workspace.cycleState.nextAction.key ||
-          workspace.cycleState.availableActions.includes(workspace.cycleState.nextAction.key) ||
-          (workspace.canManageSetup &&
-            ["assign-mentor", "schedule-kickoff", "assign-goals", "assign-role-chair"].includes(
-              workspace.cycleState.nextAction.key
-            ))
-        }
-      />
-
       {panel === "setup" && setup ? (
         <SetupRepairPanel
           personId={workspace.person.id}
@@ -156,14 +143,8 @@ export function MentorshipWorkspaceView({
         />
       ) : null}
 
-      {canOpenDraft ? (
-        <ReviewDraftPanel
-          menteeId={workspace.person.id}
-          menteeName={workspace.person.name}
-          commitments={workspace.commitments}
-        />
-      ) : null}
-
+      {/* Feedback writing is inline on the Feedback tab. Chair approval still
+          opens via ?panel=approve. */}
       {canOpenApproval ? (
         <ChairApprovalPanel
           menteeId={workspace.person.id}
@@ -175,7 +156,7 @@ export function MentorshipWorkspaceView({
       {requestedUnavailablePanel ? (
         <section className="rounded-[12px] border border-[#ebebf2] bg-[#fafafd] px-4 py-3">
           <p className="m-0 text-[13px] text-[#717189]">
-            That step is not ready for you right now. The current next step is{" "}
+            That step is not ready yet. Right now the next step is{" "}
             <strong className="text-[#1c1a2e]">{workspace.cycleState.nextAction.label}</strong>.
           </p>
         </section>
@@ -188,16 +169,13 @@ export function MentorshipWorkspaceView({
       {active === "overview" ? (
         isSelf ? (
           <>
-            <MenteeDevelopmentBrief
-              userId={workspace.person.id}
-              embedded
-              links={{
-                reflection: sectionHref("reviews"),
-                reviews: sectionHref("reviews"),
-              }}
+            <MenteeDashboardHome
+              workspace={workspace}
+              goalsHref={sectionHref("goals")}
+              checkInsHref={sectionHref("check-ins")}
+              reviewsHref={sectionHref("reviews")}
             />
             <SelfMilestones />
-            <OverviewSection workspace={workspace} />
             <SelfHelpCard
               returnHref={sectionHref("overview")}
               sent={helpSent}
@@ -207,20 +185,21 @@ export function MentorshipWorkspaceView({
             />
           </>
         ) : (
-          <OverviewSection workspace={workspace}>
-            {showMentorTools ? (
-              <MentorToolsPanel
-                menteeId={workspace.person.id}
-                mentorshipId={workspace.activeMentorshipId!}
-              />
-            ) : null}
-            {workspace.accessLevel === "leadership" && workspace.activeMentorshipId ? (
+          <>
+            <MentorPersonHome
+              workspace={workspace}
+              goalsHref={sectionHref("goals")}
+              meetingsHref={sectionHref("check-ins")}
+              feedbackHref={sectionHref("reviews")}
+              progressHref={sectionHref("progress")}
+            />
+            {workspace.isAdmin && workspace.activeMentorshipId ? (
               <ManageRelationshipHost
                 mentorshipId={workspace.activeMentorshipId}
                 menteeId={workspace.person.id}
               />
             ) : null}
-          </OverviewSection>
+          </>
         )
       ) : null}
 
@@ -236,14 +215,19 @@ export function MentorshipWorkspaceView({
       ) : null}
 
       {active === "check-ins" ? (
-        <CheckInsSection
-          workspace={workspace}
-          scheduleExtra={isSelf ? <SelfScheduleExtra reviewsHref={sectionHref("reviews")} /> : null}
-        />
+        <CheckInsSection workspace={workspace} />
       ) : null}
 
       {active === "reviews" ? (
         <ReviewsSection workspace={workspace} sectionHref={sectionHref} />
+      ) : null}
+
+      {active === "progress" ? (
+        <ProgressUpdateSection
+          workspace={workspace}
+          justSent={progressSent}
+          pendingChair={progressPending}
+        />
       ) : null}
     </>
   );
@@ -255,26 +239,20 @@ export function MentorshipWorkspaceView({
   return (
     <div className={`${skin.portalSkin} flex flex-col gap-5`}>
       <PageHeaderV2
-        backHref="/mentorship"
-        backLabel="Mentorship"
-        eyebrow={isSelf ? "Your development" : "Mentorship"}
-        title={workspace.person.name}
-        subtitle={[
-          workspace.person.contextLabel,
-          workspace.overview.mentorName
-            ? `Mentored by ${workspace.overview.mentorName}`
-            : "No mentor assigned",
-        ]
-          .filter(Boolean)
-          .join(" · ")}
+        backHref={isSelf ? undefined : "/mentorship"}
+        backLabel={isSelf ? undefined : "Mentorship"}
+        title={isSelf ? "Your mentorship" : workspace.person.name}
+        subtitle={
+          isSelf
+            ? workspace.overview.mentorName
+              ? `Mentor: ${workspace.overview.mentorName}`
+              : "No mentor yet"
+            : workspace.person.contextLabel ?? undefined
+        }
         actions={
-          workspace.accessLevel === "leadership" ? (
-            <ButtonLink
-              href={`/people/${workspace.person.id}`}
-              variant="secondary"
-              size="sm"
-            >
-              Member profile →
+          alsoMentors && isSelf ? (
+            <ButtonLink href="/mentorship?view=mentor" variant="secondary" size="sm">
+              Open as mentor →
             </ButtonLink>
           ) : undefined
         }

@@ -72,13 +72,14 @@ export async function SelfGoalsSection() {
   if (!doc) {
     return (
       <div className="flex flex-col gap-4">
-        <SectionIntro title="Goals & Responsibilities" />
+        <SectionIntro title="Your goals" />
         {leadership?.stageId && (
           <RoleStrip
             stageId={leadership.stageId}
             nextStageId={leadership.nextStageId}
             mentorName={leadership.primaryMentor?.name ?? null}
             mentorRoleLabel={leadership.primaryMentor?.roleLabel ?? null}
+            showActions={false}
           />
         )}
         <CardV2 padding="lg" className="text-center">
@@ -86,8 +87,8 @@ export async function SelfGoalsSection() {
             Your goals aren&apos;t set up yet.
           </p>
           <p className="mx-auto mt-1 max-w-md text-[13px] text-ink-muted">
-            Once you&apos;re paired with a mentor, the two of you will set goals
-            together here. There&apos;s nothing you need to do yet.
+            After you&apos;re paired with a mentor, you&apos;ll set goals together.
+            Nothing for you to do yet.
           </p>
         </CardV2>
       </div>
@@ -97,17 +98,16 @@ export async function SelfGoalsSection() {
   if (doc.status === "DRAFT" || doc.status === "PENDING_APPROVAL") {
     return (
       <div className="flex flex-col gap-4">
-        <SectionIntro title="Goals & Responsibilities" />
+        <SectionIntro title="Your goals" />
         <CardV2 padding="lg" className="text-center">
           <StatusBadge tone={doc.status === "PENDING_APPROVAL" ? "warning" : "neutral"}>
-            {doc.status === "PENDING_APPROVAL" ? "Being finalized" : "In progress"}
+            {doc.status === "PENDING_APPROVAL" ? "Almost ready" : "Being set up"}
           </StatusBadge>
           <p className="mt-3 text-[15px] font-semibold text-ink">
             Your goals are being prepared.
           </p>
           <p className="mx-auto mt-1 max-w-md text-[13px] text-ink-muted">
-            Your mentor is finalizing your goals. You&apos;ll be notified once
-            they&apos;re ready.
+            Your mentor is finishing your goals. You&apos;ll hear when they&apos;re ready.
           </p>
         </CardV2>
       </div>
@@ -140,6 +140,8 @@ export async function SelfGoalsSection() {
     mentorEmail: doc.mentorship.mentor.email,
     mentorInfo: doc.mentorInfo as Record<string, string> | null,
     officerInfo: doc.officerInfo as Record<string, string> | null,
+    officer: doc.officer ?? null,
+    mentors: doc.mentors ?? [],
     goalsByLifecycle: doc.goalsByLifecycle,
     currentPriorities: doc.currentPriorities
       .sort((a, b) => (PRIORITY_ORDER[a.priority] ?? 2) - (PRIORITY_ORDER[b.priority] ?? 2))
@@ -259,7 +261,7 @@ export async function SelfGoalsSection() {
 
   return (
     <div className="flex flex-col gap-4">
-      <SectionIntro title="Goals & Responsibilities" description={doc.template.title} />
+      <SectionIntro title="Your goals" description={doc.template.title} />
 
       {leadership?.stageId && (
         <RoleStrip
@@ -267,22 +269,23 @@ export async function SelfGoalsSection() {
           nextStageId={leadership.nextStageId}
           mentorName={leadership.primaryMentor?.name ?? null}
           mentorRoleLabel={leadership.primaryMentor?.roleLabel ?? null}
+          showActions={false}
         />
       )}
-
-      <p className="m-0 max-w-[64ch] text-[13px] leading-relaxed text-ink-muted">
-        {getGrowthConnectLine("goals")}
-      </p>
 
       <CalmOnly>
         <GoalsCalm goals={calmGoals} />
       </CalmOnly>
 
-      <CalmCollapse label="Your full goals & resources" hint="every goal, KPIs, and history">
+      <div className="flex flex-col gap-2">
+        <h3 className="m-0 text-[15px] font-bold text-ink">Your Goals &amp; Responsibilities</h3>
+        <p className="m-0 text-[13px] text-ink-muted">
+          Officer info, mentors, mission, goals, resources, and your plan of action.
+        </p>
         <GRDocumentView document={serialized} isOwner={true} />
-      </CalmCollapse>
+      </div>
 
-      <LearnMore summary="What do these goal status colors mean?">
+      <LearnMore summary="What do the goal colors mean?">
         <RatingLegend audience="mentee" />
       </LearnMore>
     </div>
@@ -317,7 +320,7 @@ export async function SelfMilestones() {
 export async function SelfScheduleExtra({ reviewsHref }: { reviewsHref: string }) {
   const data = await getSchedulePageData();
   return (
-    <CalmCollapse label="Book time with your mentor" hint="pick a slot that works">
+    <CalmCollapse label="Book time with your mentor" hint="pick a time">
       <ScheduleSurface data={data} reviewHref={reviewsHref} />
     </CalmCollapse>
   );
@@ -621,22 +624,21 @@ function AwardsBlock({
 /* ------------------------------ Help / support ---------------------------- */
 
 const inputCls =
-  "w-full rounded-lg border border-line bg-surface px-3 py-2 text-[13px] text-ink placeholder:text-ink-muted focus:border-brand-500 focus:outline-none";
+  "w-full rounded-[12px] border border-line bg-white px-3.5 py-2.5 text-[13.5px] text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] placeholder:text-ink-muted/80 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100";
 
-/** The old /my-mentor/help page, folded to the bottom of the self overview. */
+/** Ask-your-mentor form at the bottom of the mentee home. */
 export function SelfHelpCard({
   returnHref,
   sent,
   scheduleHref,
   goalsHref,
-  resourcesHref,
 }: {
-  /** Where to land (with `sent=1`) after the request is submitted. */
   returnHref: string;
   sent: boolean;
   scheduleHref: string;
   goalsHref: string;
-  resourcesHref: string;
+  /** @deprecated kept for call-site compat; unused */
+  resourcesHref?: string;
 }) {
   async function submitHelpRequest(formData: FormData) {
     "use server";
@@ -645,88 +647,76 @@ export function SelfHelpCard({
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <SectionIntro
-        title="Get help"
-        description="Stuck or unsure? Reaching out is always the right move."
-      />
-
-      {sent && (
-        <CardV2 padding="md" className="border-l-4 border-l-complete-700 bg-complete-50">
-          <p className="m-0 text-[13px] font-semibold text-complete-700">
-            Sent to your mentor. They&apos;ll follow up with you — no need to do anything
-            else right now.
-          </p>
-        </CardV2>
-      )}
-
-      <CardV2 padding="md">
-        <h3 className="m-0 text-[15px] font-bold text-ink">Quick ways to get unstuck</h3>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <ButtonLink href={scheduleHref} variant="secondary" size="sm">
-            Schedule time with your mentor
-          </ButtonLink>
-          <ButtonLink href={goalsHref} variant="secondary" size="sm">
-            Review your goals
-          </ButtonLink>
-          <ButtonLink href={resourcesHref} variant="secondary" size="sm">
-            Browse your resources
-          </ButtonLink>
-        </div>
-      </CardV2>
-
-      <CardV2 padding="md">
+    <CardV2
+      padding="lg"
+      className="relative overflow-hidden border-l-[3px] border-l-brand-500"
+    >
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-linear-to-b from-brand-50/60 to-transparent" />
+      <div className="relative flex flex-col gap-4">
         <div>
-          <h3 className="m-0 text-[15px] font-bold text-ink">Ask your mentor a question</h3>
-          <p className="m-0 mt-1 text-[12.5px] text-ink-muted">
-            This goes privately to your mentor. There&apos;s no wrong question — asking
-            early is a sign of a strong instructor, not a struggling one.
+          <h2 className="m-0 text-[16px] font-bold tracking-[-0.2px] text-ink">
+            Need help?
+          </h2>
+          <p className="m-0 mt-1 text-[13px] leading-relaxed text-ink-muted">
+            Send a quick note to your mentor. No wrong questions.
           </p>
         </div>
-        <form action={submitHelpRequest} className="mt-4 grid gap-3">
+
+        {sent ? (
+          <div className="rounded-[12px] border border-complete-200 bg-complete-50 px-3.5 py-3">
+            <p className="m-0 text-[13px] font-semibold text-complete-700">
+              Sent. Your mentor will follow up.
+            </p>
+          </div>
+        ) : null}
+
+        <form action={submitHelpRequest} className="grid gap-3.5">
           <input type="hidden" name="visibility" value="PRIVATE" />
           <input type="hidden" name="kind" value="GENERAL_QNA" />
           <label className="grid gap-1.5">
-            <span className="text-[12.5px] font-semibold text-ink">
-              What do you need help with?
+            <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-ink-muted">
+              What do you need?
             </span>
             <input
               name="title"
               required
               maxLength={140}
-              placeholder="e.g. I'm not sure how to plan my next session"
+              placeholder="e.g. How should I plan my next class?"
               className={inputCls}
             />
           </label>
           <label className="grid gap-1.5">
-            <span className="text-[12.5px] font-semibold text-ink">
-              Add any details (optional)
+            <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-ink-muted">
+              More details{" "}
+              <span className="font-medium normal-case tracking-normal text-ink-muted/80">
+                (optional)
+              </span>
             </span>
             <textarea
               name="details"
-              rows={4}
-              placeholder="The more context you share, the better your mentor can help."
-              className={cn(inputCls, "resize-y")}
+              rows={3}
+              placeholder="Anything that helps your mentor answer."
+              className={cn(inputCls, "resize-y leading-relaxed")}
             />
           </label>
-          <div>
+          <div className="flex flex-wrap items-center gap-2 border-t border-line-soft pt-4">
             <button
               type="submit"
               className={cn(buttonVariants({ variant: "primary", size: "md" }))}
             >
-              Send to my mentor
+              Send to mentor
             </button>
+            <ButtonLink href={scheduleHref} variant="secondary" size="sm">
+              Meetings
+            </ButtonLink>
+            <ButtonLink href={goalsHref} variant="secondary" size="sm">
+              Goals
+            </ButtonLink>
           </div>
         </form>
-      </CardV2>
-
-      <CardV2 padding="md" className="bg-surface-soft">
-        <p className="m-0 text-[12.5px] text-ink-muted">
-          <strong className="text-ink">Who sees this?</strong> Only your mentor (and
-          program admins, if it needs escalation). It is never shown to other instructors
-          or students.
-        </p>
-      </CardV2>
-    </div>
+      </div>
+    </CardV2>
   );
 }
+
+
