@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 
-type NotifyInput = { userId?: string | null; eventType: string; title: string; body: string; link?: string | null; relatedEntityType?: string; relatedEntityId?: string; dedupeKey: string; operational?: boolean };
-export async function notifyOperational(input: NotifyInput) {
+export type OperationalNotificationInput = { userId?: string | null; eventType: string; title: string; body: string; link?: string | null; relatedEntityType?: string; relatedEntityId?: string; dedupeKey: string; operational?: boolean };
+export async function notifyOperational(input: OperationalNotificationInput) {
   if (!input.userId) return null;
   const pref = await (prisma as any).notificationPreference.findUnique({ where: { userId: input.userId } }).catch(()=>null);
   if (pref && pref.inAppEnabled === false && !input.operational) return null;

@@ -8,6 +8,7 @@ import { normalizeRoleValues, normalizeRoleValue } from "@/lib/role-utils";
 import { getLegacySessionFromCookies } from "@/lib/legacy-auth-server";
 import { normalizeAdminSubtypes, type AdminSubtypeValue } from "@/lib/admin-subtypes";
 import { isHiringDemoModeEnabled } from "@/lib/hiring-demo-mode";
+import { getQaRole } from "@/lib/qa-auth-harness";
 
 export type SessionUser = {
   id: string;
@@ -202,6 +203,20 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
           })
         : null;
     }
+  }
+
+  if (!prismaUser) {
+    const qaRole = await getQaRole();
+    const qaEmailByRole: Record<string, string> = {
+      student: "session5-student@ypp.test",
+      guardian: "session5-guardian@ypp.test",
+      instructor: "session5-instructor@ypp.test",
+      "chapter-president": "session5-president@ypp.test",
+      leadership: "session5-leadership@ypp.test",
+      "restricted-safety-staff": "session5-safety@ypp.test",
+    };
+    const qaEmail = qaRole ? qaEmailByRole[qaRole] : null;
+    prismaUser = qaEmail ? await resolvePrismaUserForSession({ email: qaEmail }) : null;
   }
 
   if (!prismaUser) return null;

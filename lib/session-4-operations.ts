@@ -1,9 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { acceptWaitlistOffer as familyAcceptWaitlistOffer } from "@/lib/family-enrollment-service";
 import { deriveClassLifecycle } from "@/lib/class-lifecycle-service";
-import { auditOperationalEvent } from "@/lib/session-4-audit";
-import { notifyOperational } from "@/lib/session-4-notifications";
-import { canOverrideReadiness, canPublishAnnouncement, requireInstructorAssigned, requireOfferingScope, type Session4Actor } from "@/lib/session-4-permissions";
+import { auditOperationalEvent } from "@/lib/operational-audit-service";
+import { notifyOperational } from "@/lib/operational-notification-service";
+import { canOverrideReadiness, canPublishAnnouncement, requireInstructorAssigned, requireOfferingScope, type Session4Actor } from "@/lib/operational-permissions";
 
 const nowPlus = (days: number) => { const d = new Date(); d.setDate(d.getDate() + days); return d; };
 const activeStatuses = ["ENROLLED", "COMPLETED"];
