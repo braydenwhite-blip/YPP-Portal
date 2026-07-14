@@ -35,6 +35,7 @@ export type ApplicationRecord = {
   isReapplication: boolean;
   previousApplicationId: string | null;
   schoolName: string | null;
+  graduationYear: number | null;
   subjectsOfInterest: string | null;
   phoneNumber: string | null;
   teachingExperience: string | null;
@@ -147,6 +148,7 @@ export async function loadApplicationRecord(
       isReapplication: true,
       previousApplicationId: true,
       schoolName: true,
+      graduationYear: true,
       subjectsOfInterest: true,
       phoneNumber: true,
       teachingExperience: true,
@@ -315,6 +317,7 @@ export async function loadApplicationRecord(
     isReapplication: app.isReapplication,
     previousApplicationId: app.previousApplicationId,
     schoolName: app.schoolName,
+    graduationYear: app.graduationYear,
     subjectsOfInterest: app.subjectsOfInterest,
     phoneNumber: app.phoneNumber,
     teachingExperience: app.teachingExperience,
