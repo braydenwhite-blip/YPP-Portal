@@ -2,7 +2,6 @@ import {
   CardV2,
   EmptyStateV2,
   StatusBadge,
-  ButtonLink,
   type StatusTone,
 } from "@/components/ui-v2";
 import { MenteeReviewAck } from "@/components/gr/mentee-review-ack";
@@ -47,10 +46,6 @@ function formatMonth(value: Date) {
     year: "numeric",
     timeZone: "UTC",
   });
-}
-
-function monthKey(value: Date) {
-  return `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
 export async function ReviewsSection({
@@ -152,26 +147,15 @@ export async function ReviewsSection({
 
   return (
     <div className="flex flex-col gap-5">
-      <header className="flex max-w-[52ch] flex-col gap-3 sm:max-w-none sm:flex-row sm:items-end sm:justify-between">
-        <div className="max-w-[52ch]">
-          <h2 className="m-0 text-[18px] font-bold tracking-[-0.3px] text-ink">
-            Monthly feedback
-          </h2>
-          <p className="m-0 mt-1 text-[13.5px] leading-relaxed text-ink-muted">
-            {isSelf
-              ? "When your mentor sends questions, answer them here. Past months stay available to reopen."
-              : `Build ${menteeFirst}'s question list for this month, send it, then read answers under Past months.`}
-          </p>
-        </div>
-        {activeMentorshipId && currentForm ? (
-          <ButtonLink
-            href={`/mentorship/people/${person.id}/monthly-update/print?month=${currentForm.cycleMonthKey}`}
-            variant="secondary"
-            size="sm"
-          >
-            Monthly update PDF
-          </ButtonLink>
-        ) : null}
+      <header className="max-w-[52ch]">
+        <h2 className="m-0 text-[18px] font-bold tracking-[-0.3px] text-ink">
+          Monthly feedback
+        </h2>
+        <p className="m-0 mt-1 text-[13.5px] leading-relaxed text-ink-muted">
+          {isSelf
+            ? "When your mentor sends questions, answer them here. Past months stay available to reopen."
+            : `Build ${menteeFirst}'s question list for this month, send it, then read answers under Past months.`}
+        </p>
       </header>
 
       {activeMentorshipId && currentForm ? (
@@ -237,22 +221,13 @@ export async function ReviewsSection({
                     {formatMonth(review.cycleMonth)}
                     {review.isQuarterly ? " · Quarterly" : ""}
                   </strong>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <StatusBadge
-                      tone={RATING_TONE[rating] ?? "info"}
-                      title={isSelf ? cfg.menteeDescription : cfg.mentorDescription}
-                      withDot
-                    >
-                      {isSelf ? cfg.menteeLabel : cfg.label}
-                    </StatusBadge>
-                    <ButtonLink
-                      href={`/mentorship/people/${person.id}/monthly-update/print?reviewId=${review.id}&month=${monthKey(review.cycleMonth)}`}
-                      variant="secondary"
-                      size="sm"
-                    >
-                      Monthly update PDF
-                    </ButtonLink>
-                  </div>
+                  <StatusBadge
+                    tone={RATING_TONE[rating] ?? "info"}
+                    title={isSelf ? cfg.menteeDescription : cfg.mentorDescription}
+                    withDot
+                  >
+                    {isSelf ? cfg.menteeLabel : cfg.label}
+                  </StatusBadge>
                 </div>
 
                 {review.overallComments ? (

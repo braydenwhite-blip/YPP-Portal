@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 
 import { Button } from "@/components/ui-v2";
 import {
@@ -333,13 +332,6 @@ function PastMonthsSection({
               <strong className="text-[14px] text-ink">{form.cycleLabel}</strong>
               <div className="flex items-center gap-2">
                 <StatusPill status={form.status} />
-                <Link
-                  href={`/mentorship/people/${personId}/monthly-update/print?month=${form.cycleMonthKey}`}
-                  className="text-[12px] font-semibold text-brand-700 no-underline hover:underline"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  PDF
-                </Link>
               </div>
             </div>
           </summary>
