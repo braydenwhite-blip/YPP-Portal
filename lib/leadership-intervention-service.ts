@@ -1,2 +1,5 @@
-/** Session 5 durable domain facade. Keep domain imports here rather than importing the legacy Session 4 aggregate directly. */
-export { createLeadershipIntervention } from "@/lib/session-4-operations";
+import { prisma } from "@/lib/prisma";
+import { auditOperationalEvent } from "@/lib/operational-audit-service";
+import { type Session4Actor } from "@/lib/operational-permissions";
+
+export async function createLeadershipIntervention(actor: Session4Actor, input: any) { if (!actor.roles.some((r) => ["ADMIN", "LEADERSHIP"].includes(r))) throw new Error("Leadership access required"); const row = await (prisma as any).leadershipIntervention.create({ data: { chapterId: input.chapterId, actionItemId: input.actionItemId, sourceType: input.sourceType, sourceId: input.sourceId, createdById: actor.userId, ownerId: input.ownerId, severity: input.severity, note: input.note, meetingId: input.meetingId, dueAt: input.dueAt } }); if (input.actionItemId && input.ownerId) await (prisma as any).actionItem.update({ where: { id: input.actionItemId }, data: { leadId: input.ownerId, deadlineStart: input.dueAt } }); await auditOperationalEvent({ actorUserId: actor.userId, action: "LEADERSHIP_INTERVENTION_CREATED", sourceType: input.sourceType, sourceId: input.sourceId, newState: input }); return row; }

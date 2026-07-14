@@ -1,7 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth-supabase";
-import { assignInstructor, createWaitlistOffer, declineWaitlistOffer, publishAnnouncement, recordAttendance, removeInstructor, syncOperationalActionsForClass, triageSupportRequest, updateEnrollmentOperations, updateSessionReadiness, upsertAnnouncement } from "@/lib/session-4-operations";
+import { assignInstructor, createWaitlistOffer, declineWaitlistOffer, publishAnnouncement, recordAttendance, removeInstructor, syncOperationalActionsForClass, triageSupportRequest, updateEnrollmentOperations, updateSessionReadiness, upsertAnnouncement } from "@/lib/operational-route-services";
 async function actor(){ const s=await getSession(); if(!s?.user?.id) throw new Error("Unauthorized"); return { userId:s.user.id, roles:s.user.roles??[] }; }
 function str(fd:FormData,k:string){ return String(fd.get(k)??"").trim(); }
 export async function assignInstructorAction(classId:string, fd:FormData){ await assignInstructor(await actor(), classId, str(fd,"instructorId"), str(fd,"reason"), fd.get("overrideReadiness")==="on"); revalidatePath(`/chapter/classes/${classId}`); }

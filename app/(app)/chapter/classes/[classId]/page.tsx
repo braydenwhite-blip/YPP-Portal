@@ -1,5 +1,5 @@
 import { getClassOperations } from "@/lib/class-lifecycle-service";
-import { listEligibleInstructorCandidates } from "@/lib/session-4-operations";
+import { listEligibleInstructorCandidates } from "@/lib/instructor-assignment-service";
 import { announcementDraftAction, assignInstructorAction, enrollmentOperationAction, removeInstructorAction, supportTriageAction, syncActionsAction, waitlistDeclineAction, waitlistOfferAction } from "./session-4-actions";
 
 function Submit({children}:{children:string}){return <button className="rounded bg-slate-900 px-3 py-2 text-sm font-semibold text-white" type="submit">{children}</button>}

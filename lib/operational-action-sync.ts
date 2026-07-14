@@ -1,2 +1,2 @@
-/** Session 5 durable domain facade. Keep domain imports here rather than importing the legacy Session 4 aggregate directly. */
-export { syncOperationalActionsForClass, resolveOperationalAction } from "@/lib/session-4-operations";
+/** @deprecated Import from @/lib/operational-action-sync-service. */
+export { syncOperationalActionsForClass, resolveOperationalAction } from "@/lib/operational-action-sync-service";
