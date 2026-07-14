@@ -1600,6 +1600,19 @@ model User {
   reviewCyclesCreated       ReviewCycle[]            @relation("ReviewCyclesCreated")
   reviewCycleParticipations ReviewCycleParticipant[] @relation("ReviewCycleParticipations")
 
+  householdsCreated                  Household[]                   @relation("HouseholdsCreated")
+  householdMemberships               HouseholdMember[]             @relation("HouseholdMembers")
+  guardianProfile                    GuardianProfile?              @relation("GuardianProfileUser")
+  guardianRelationshipsForStudent    StudentGuardianRelationship[] @relation("StudentGuardianStudent")
+  guardianRelationshipsAsGuardian    StudentGuardianRelationship[] @relation("StudentGuardianUser")
+  guardianRelationshipsVerified      StudentGuardianRelationship[] @relation("GuardianRelationshipVerifiers")
+  guardianRelationshipsCreated       StudentGuardianRelationship[] @relation("GuardianRelationshipCreators")
+  familyInvitationsForStudent        FamilyInvitation[]            @relation("FamilyInvitationStudent")
+  emergencyContactsForStudent        EmergencyContact[]            @relation("EmergencyContactStudent")
+  communicationPreferencesForStudent CommunicationPreference[]     @relation("CommunicationPreferenceStudent")
+  consentRecordsForStudent           ConsentRecord[]               @relation("ConsentRecordStudent")
+  consentRecordsAsGuardian           ConsentRecord[]               @relation("ConsentRecordGuardian")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -15622,4 +15635,194 @@ model WorkflowMetric {
   capturedAt  DateTime  @default(now())
 
   @@index([templateId, metricKey, capturedAt])
+}
+
+enum FamilyRelationshipStatus {
+  PENDING
+  ACTIVE
+  REVOKED
+  REJECTED
+  ARCHIVED
+}
+
+enum FamilyVerificationState {
+  UNVERIFIED
+  INVITED
+  VERIFIED
+  NEEDS_REVIEW
+  REJECTED
+}
+
+enum FamilyInvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}
+
+model Household {
+  id            String                        @id @default(cuid())
+  name          String
+  notes         String?
+  createdById   String?
+  createdBy     User?                         @relation("HouseholdsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  members       HouseholdMember[]
+  invitations   FamilyInvitation[]
+  relationships StudentGuardianRelationship[]
+  createdAt     DateTime                      @default(now())
+  updatedAt     DateTime                      @updatedAt
+
+  @@index([createdById])
+}
+
+model HouseholdMember {
+  id          String    @id @default(cuid())
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation("HouseholdMembers", fields: [userId], references: [id], onDelete: Cascade)
+  memberType  String
+  isPrimary   Boolean   @default(false)
+  joinedAt    DateTime  @default(now())
+  leftAt      DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([householdId, userId])
+  @@index([userId, leftAt])
+}
+
+model GuardianProfile {
+  id                       String                        @id @default(cuid())
+  userId                   String                        @unique
+  user                     User                          @relation("GuardianProfileUser", fields: [userId], references: [id], onDelete: Cascade)
+  preferredName            String?
+  preferredLanguage        String?
+  bestContactMethod        String?
+  relationshipsAsGuardian  StudentGuardianRelationship[] @relation("GuardianRelationships")
+  communicationPreferences CommunicationPreference[]
+  emergencyContactsCreated EmergencyContact[]            @relation("EmergencyContactsCreated")
+  invitationsSent          FamilyInvitation[]            @relation("FamilyInvitationsSent")
+  createdAt                DateTime                      @default(now())
+  updatedAt                DateTime                      @updatedAt
+}
+
+model StudentGuardianRelationship {
+  id                                String                   @id @default(cuid())
+  studentUserId                     String
+  studentUser                       User                     @relation("StudentGuardianStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
+  guardianUserId                    String
+  guardianUser                      User                     @relation("StudentGuardianUser", fields: [guardianUserId], references: [id], onDelete: Cascade)
+  guardianProfileId                 String?
+  guardianProfile                   GuardianProfile?         @relation("GuardianRelationships", fields: [guardianProfileId], references: [id], onDelete: SetNull)
+  householdId                       String?
+  household                         Household?               @relation(fields: [householdId], references: [id], onDelete: SetNull)
+  relationshipType                  String                   @default("Guardian")
+  relationshipStatus                FamilyRelationshipStatus @default(PENDING)
+  isPrimaryContact                  Boolean                  @default(false)
+  isEmergencyContact                Boolean                  @default(false)
+  canViewLearning                   Boolean                  @default(true)
+  canManageEnrollment               Boolean                  @default(false)
+  canApproveEnrollment              Boolean                  @default(false)
+  canSignForms                      Boolean                  @default(false)
+  canUpdateContactInformation       Boolean                  @default(false)
+  canManageCommunicationPreferences Boolean                  @default(false)
+  canSubmitSupportRequests          Boolean                  @default(true)
+  canReceiveProgramNotifications    Boolean                  @default(true)
+  legalRestrictionNotes             String?
+  custodyRestrictionNotes           String?
+  verificationState                 FamilyVerificationState  @default(UNVERIFIED)
+  verifiedById                      String?
+  verifiedBy                        User?                    @relation("GuardianRelationshipVerifiers", fields: [verifiedById], references: [id], onDelete: SetNull)
+  verifiedAt                        DateTime?
+  createdById                       String?
+  createdBy                         User?                    @relation("GuardianRelationshipCreators", fields: [createdById], references: [id], onDelete: SetNull)
+  legacyParentStudentId             String?                  @unique
+  legacyParentStudentConnectionId   String?                  @unique
+  createdAt                         DateTime                 @default(now())
+  updatedAt                         DateTime                 @updatedAt
+  revokedAt                         DateTime?
+
+  @@unique([studentUserId, guardianUserId, revokedAt])
+  @@index([guardianUserId, relationshipStatus, revokedAt])
+  @@index([studentUserId, relationshipStatus, revokedAt])
+}
+
+model FamilyInvitation {
+  id                         String                 @id @default(cuid())
+  householdId                String?
+  household                  Household?             @relation(fields: [householdId], references: [id], onDelete: SetNull)
+  studentUserId              String?
+  studentUser                User?                  @relation("FamilyInvitationStudent", fields: [studentUserId], references: [id], onDelete: SetNull)
+  invitedEmail               String
+  invitedName                String?
+  relationshipType           String                 @default("Guardian")
+  invitedByGuardianProfileId String?
+  invitedByGuardianProfile   GuardianProfile?       @relation("FamilyInvitationsSent", fields: [invitedByGuardianProfileId], references: [id], onDelete: SetNull)
+  status                     FamilyInvitationStatus @default(PENDING)
+  tokenHash                  String                 @unique
+  expiresAt                  DateTime?
+  acceptedAt                 DateTime?
+  revokedAt                  DateTime?
+  createdAt                  DateTime               @default(now())
+  updatedAt                  DateTime               @updatedAt
+
+  @@index([invitedEmail, status])
+  @@index([studentUserId, status])
+}
+
+model EmergencyContact {
+  id                 String                  @id @default(cuid())
+  studentUserId      String
+  studentUser        User                    @relation("EmergencyContactStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
+  guardianProfileId  String?
+  guardianProfile    GuardianProfile?        @relation("EmergencyContactsCreated", fields: [guardianProfileId], references: [id], onDelete: SetNull)
+  name               String
+  relationshipType   String
+  phone              String?
+  email              String?
+  priority           Int                     @default(0)
+  isAuthorizedPickup Boolean                 @default(false)
+  verificationState  FamilyVerificationState @default(UNVERIFIED)
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+  archivedAt         DateTime?
+
+  @@index([studentUserId, archivedAt])
+}
+
+model CommunicationPreference {
+  id                String          @id @default(cuid())
+  guardianProfileId String
+  guardianProfile   GuardianProfile @relation(fields: [guardianProfileId], references: [id], onDelete: Cascade)
+  studentUserId     String?
+  studentUser       User?           @relation("CommunicationPreferenceStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
+  channel           String
+  topic             String
+  enabled           Boolean         @default(true)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@unique([guardianProfileId, studentUserId, channel, topic])
+}
+
+model ConsentRecord {
+  id             String    @id @default(cuid())
+  studentUserId  String
+  studentUser    User      @relation("ConsentRecordStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
+  guardianUserId String?
+  guardianUser   User?     @relation("ConsentRecordGuardian", fields: [guardianUserId], references: [id], onDelete: SetNull)
+  consentType    String
+  status         String
+  signedByName   String?
+  signedAt       DateTime?
+  expiresAt      DateTime?
+  source         String    @default("PORTAL")
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  revokedAt      DateTime?
+
+  @@index([studentUserId, status, revokedAt])
+  @@index([guardianUserId])
 }

@@ -1,0 +1,2 @@
+import { requireStudentPortalUser } from "@/lib/family-access"; import { EmptyState } from "@/components/family-portal/portal-shells";
+export default async function Page(){ await requireStudentPortalUser(); return <div><h1 className="text-3xl font-semibold">Work</h1><div className="mt-6"><EmptyState title="A truthful foundation" body="This area is ready for real YPP records and will stay empty until there is something connected to your account." /></div></div> }

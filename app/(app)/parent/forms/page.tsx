@@ -1,0 +1,2 @@
+import { requireGuardianPortalUser } from "@/lib/family-access"; import { EmptyState } from "@/components/family-portal/portal-shells";
+export default async function Page(){ await requireGuardianPortalUser(); return <div><h1 className="text-3xl font-semibold">Forms</h1><div className="mt-6"><EmptyState title="A truthful foundation" body="This parent area is connected to family authorization and will show real records when available." /></div></div> }
