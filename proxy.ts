@@ -48,6 +48,25 @@ function isRecoverableAuthError(error: unknown): boolean {
   return false;
 }
 
+const QA_COOKIE_NAME = "ypp_qa_role";
+const QA_PROXY_ROLES = ["student", "guardian", "instructor", "chapter-president", "leadership", "restricted-safety-staff"] as const;
+
+function getQaAuthMetadata(request: NextRequest) {
+  if (process.env.NODE_ENV === "production" || process.env.ENABLE_YPP_QA_AUTH !== "true") return null;
+  const value = request.cookies.get(QA_COOKIE_NAME)?.value ?? "";
+  const role = value.slice(0, value.lastIndexOf("."));
+  if (!(QA_PROXY_ROLES as readonly string[]).includes(role)) return null;
+  const roleMap: Record<string, { roles: string[]; primaryRole: string; email: string }> = {
+    student: { roles: ["STUDENT"], primaryRole: "STUDENT", email: "session5-student@ypp.test" },
+    guardian: { roles: ["GUARDIAN"], primaryRole: "GUARDIAN", email: "session5-guardian@ypp.test" },
+    instructor: { roles: ["INSTRUCTOR"], primaryRole: "INSTRUCTOR", email: "session5-instructor@ypp.test" },
+    "chapter-president": { roles: ["CHAPTER_PRESIDENT"], primaryRole: "CHAPTER_PRESIDENT", email: "session5-president@ypp.test" },
+    leadership: { roles: ["ADMIN"], primaryRole: "ADMIN", email: "session5-leadership@ypp.test" },
+    "restricted-safety-staff": { roles: ["STAFF"], primaryRole: "STAFF", email: "session5-safety@ypp.test" },
+  };
+  return roleMap[role] ?? null;
+}
+
 const PUBLIC_PATHS = [
   "/login",
   "/signup",
@@ -251,7 +270,8 @@ export async function proxy(request: NextRequest) {
     : fallbackLegacyToken
     ? await verifyLegacySessionToken(fallbackLegacyToken)
     : null;
-  const isAuthenticated = (!!user && !isArchivedPortalUser) || !!legacySession;
+  const qaMetadata = getQaAuthMetadata(request);
+  const isAuthenticated = (!!user && !isArchivedPortalUser) || !!legacySession || !!qaMetadata;
 
   // Unauthenticated users may access public routes only.
   if (!isAuthenticated && !isPublic) {
@@ -300,7 +320,7 @@ export async function proxy(request: NextRequest) {
     const previewValid = previewCookie ? await verifyPreviewToken(previewCookie) : false;
     // Legacy local-password sign-in (roster emails) has no Supabase JWT — use
     // the legacy session email/roles so nav and middleware agree.
-    const authEmail = user?.email ?? legacySession?.email ?? null;
+    const authEmail = user?.email ?? legacySession?.email ?? qaMetadata?.email ?? null;
     const metadata =
       user?.user_metadata ??
       (legacySession
@@ -308,7 +328,9 @@ export async function proxy(request: NextRequest) {
             roles: legacySession.roles,
             primaryRole: legacySession.primaryRole ?? undefined,
           }
-        : undefined);
+        : qaMetadata
+          ? { roles: qaMetadata.roles, primaryRole: qaMetadata.primaryRole }
+          : undefined);
     const leadershipAccess = isLeadershipPreviewAccessFromAuth(metadata, authEmail);
     const actionsOnlyAccess =
       isActionsOnlyPilotEmail(authEmail) ||

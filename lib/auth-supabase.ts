@@ -8,7 +8,7 @@ import { normalizeRoleValues, normalizeRoleValue } from "@/lib/role-utils";
 import { getLegacySessionFromCookies } from "@/lib/legacy-auth-server";
 import { normalizeAdminSubtypes, type AdminSubtypeValue } from "@/lib/admin-subtypes";
 import { isHiringDemoModeEnabled } from "@/lib/hiring-demo-mode";
-import { getQaRole } from "@/lib/qa-auth-harness";
+import { getQaRole, qaHarnessEnabled, QA_EMAIL_BY_ROLE } from "@/lib/qa-auth-harness";
 
 export type SessionUser = {
   id: string;
@@ -26,6 +26,19 @@ export type SessionUser = {
   /** Small sample for nav award tier; avoids a separate layout query. */
   awards?: { type: string | null }[];
 };
+
+
+function syntheticQaUser(role: keyof typeof QA_EMAIL_BY_ROLE): SessionUser {
+  const map: Record<keyof typeof QA_EMAIL_BY_ROLE, SessionUser> = {
+    student: { id: "qa-student", email: QA_EMAIL_BY_ROLE.student, name: "QA Student", roles: ["STUDENT"], primaryRole: "STUDENT", adminSubtypes: [] },
+    guardian: { id: "qa-guardian", email: QA_EMAIL_BY_ROLE.guardian, name: "QA Guardian", roles: ["GUARDIAN"], primaryRole: "GUARDIAN", adminSubtypes: [] },
+    instructor: { id: "qa-instructor", email: QA_EMAIL_BY_ROLE.instructor, name: "QA Instructor", roles: ["INSTRUCTOR"], primaryRole: "INSTRUCTOR", adminSubtypes: [] },
+    "chapter-president": { id: "qa-president", email: QA_EMAIL_BY_ROLE["chapter-president"], name: "QA Chapter President", roles: ["CHAPTER_PRESIDENT"], primaryRole: "CHAPTER_PRESIDENT", adminSubtypes: [] },
+    leadership: { id: "qa-leadership", email: QA_EMAIL_BY_ROLE.leadership, name: "QA Leadership", roles: ["ADMIN"], primaryRole: "ADMIN", adminSubtypes: ["LEADERSHIP"], internalLevel: 6 },
+    "restricted-safety-staff": { id: "qa-safety", email: QA_EMAIL_BY_ROLE["restricted-safety-staff"], name: "QA Safeguarding Staff", roles: ["STAFF"], primaryRole: "STAFF", adminSubtypes: [] },
+  };
+  return map[role];
+}
 
 const sessionUserSelect = {
   id: true,
@@ -62,7 +75,9 @@ function isRecoverablePrismaTimeout(error: unknown): boolean {
     message.includes("canceling statement due to statement timeout") ||
     message.includes("P2024") ||
     message.includes("Connection pool timeout") ||
-    message.includes("connection timeout")
+    message.includes("connection timeout") ||
+    message.includes("Can't reach database server") ||
+    message.includes("PrismaClientInitializationError")
   );
 }
 
@@ -207,16 +222,9 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
 
   if (!prismaUser) {
     const qaRole = await getQaRole();
-    const qaEmailByRole: Record<string, string> = {
-      student: "session5-student@ypp.test",
-      guardian: "session5-guardian@ypp.test",
-      instructor: "session5-instructor@ypp.test",
-      "chapter-president": "session5-president@ypp.test",
-      leadership: "session5-leadership@ypp.test",
-      "restricted-safety-staff": "session5-safety@ypp.test",
-    };
-    const qaEmail = qaRole ? qaEmailByRole[qaRole] : null;
+    const qaEmail = qaRole ? QA_EMAIL_BY_ROLE[qaRole] : null;
     prismaUser = qaEmail ? await resolvePrismaUserForSession({ email: qaEmail }) : null;
+    if (!prismaUser && qaRole && qaHarnessEnabled()) return syntheticQaUser(qaRole);
   }
 
   if (!prismaUser) return null;

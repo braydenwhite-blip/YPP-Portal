@@ -1,1 +1,1 @@
-export { AnnouncementWorkspace as default } from "../../operations-workspace-ui";
+export { AnnouncementWorkspace as default } from "@/components/operations/workspaces";

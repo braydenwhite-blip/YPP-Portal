@@ -1,1 +1,1 @@
-export { EnrollmentWorkspace as default } from "../operations-workspace-ui";
+export { EnrollmentWorkspace as default } from "@/components/operations/workspaces";

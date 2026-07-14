@@ -1,1 +1,1 @@
-export { ApprovalWorkspace as default } from "../../operations-workspace-ui";
+export { ApprovalWorkspace as default } from "@/components/operations/workspaces";

@@ -1,1 +1,1 @@
-export { SupportWorkspace as default } from "../../chapter/operations-workspace-ui";
+export { SupportWorkspace as default } from "@/components/operations/workspaces";

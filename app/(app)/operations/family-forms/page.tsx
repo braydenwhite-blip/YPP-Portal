@@ -1,1 +1,1 @@
-export { FamilyFormsWorkspace as default } from "../../chapter/operations-workspace-ui";
+export { FamilyFormsWorkspace as default } from "@/components/operations/workspaces";

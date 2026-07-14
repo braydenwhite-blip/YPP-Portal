@@ -1,1 +1,1 @@
-export { LeadershipWorkspace as default } from "../../chapter/operations-workspace-ui";
+export { LeadershipWorkspace as default } from "@/components/operations/workspaces";
