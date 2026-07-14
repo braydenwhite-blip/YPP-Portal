@@ -1,10 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { filterGuardianFacingRecord, filterStudentFacingRecord, getAccessibleStudentsForGuardian, requireGuardianAccessToStudent } from "@/lib/family-access";
+import { canAccessSessionDetail, canReceiveSessionRouteLink, FAMILY_ACTIVE_LEARNING_STATUSES, FAMILY_HISTORICAL_LEARNING_STATUSES } from "@/lib/family-enrollment-visibility";
 
 export async function getStudentPortalHome(studentId: string) {
   const [user, classEnrollments, enrollments, intakeCases] = await Promise.all([
     prisma.user.findUnique({ where: { id: studentId }, include: { profile: true } }),
-    prisma.classEnrollment.findMany({ where: { studentId, status: { in: ["ENROLLED", "WAITLISTED"] as any } }, include: { offering: { include: { sessions: { where: { date: { gte: new Date() }, isCancelled: false }, orderBy: { date: "asc" }, take: 1 }, instructors: { include: { instructor: { select: { name: true } } } }, template: true } } }, take: 6 }),
+    prisma.classEnrollment.findMany({ where: { studentId, status: { in: [...FAMILY_ACTIVE_LEARNING_STATUSES] } }, include: { offering: { include: { sessions: { where: { date: { gte: new Date() }, isCancelled: false }, orderBy: { date: "asc" }, take: 1 }, template: true } } }, take: 6 }),
     prisma.enrollment.findMany({ where: { userId: studentId }, include: { course: { include: { leadInstructor: { select: { name: true } } } } }, take: 6 }),
     prisma.studentIntakeCase.findMany({ where: { studentUserId: studentId, status: { notIn: ["ARCHIVED"] as any } }, orderBy: { updatedAt: "desc" }, take: 3 }),
   ]);
@@ -16,7 +17,7 @@ export async function getParentPortalHome(guardianId: string) {
   const relationships = await getAccessibleStudentsForGuardian(guardianId);
   const studentIds = relationships.map((r) => r.studentUserId);
   const [classEnrollments, intakeCases] = await Promise.all([
-    prisma.classEnrollment.findMany({ where: { studentId: { in: studentIds }, status: { in: ["ENROLLED", "WAITLISTED"] as any } }, include: { student: { select: { id: true, name: true } }, offering: { include: { sessions: { where: { date: { gte: new Date() }, isCancelled: false }, orderBy: { date: "asc" }, take: 1 }, instructors: { include: { instructor: { select: { name: true } } } }, template: true } } }, take: 20 }),
+    prisma.classEnrollment.findMany({ where: { studentId: { in: studentIds }, status: { in: [...FAMILY_ACTIVE_LEARNING_STATUSES] } }, include: { student: { select: { id: true, name: true } }, offering: { include: { sessions: { where: { date: { gte: new Date() }, isCancelled: false }, orderBy: { date: "asc" }, take: 1 }, template: true } } }, take: 20 }),
     prisma.studentIntakeCase.findMany({ where: { parentId: guardianId, status: { notIn: ["ARCHIVED"] as any } }, include: { studentUser: { select: { id: true, name: true } } }, orderBy: { updatedAt: "desc" }, take: 10 }),
   ]);
   return { relationships, classEnrollments: classEnrollments.map(filterGuardianFacingRecord), intakeCases: intakeCases.map(filterGuardianFacingRecord) };
@@ -34,14 +35,14 @@ export async function getStudentLearning(studentId: string) {
   const enrollments = await prisma.classEnrollment.findMany({ where: { studentId }, include: { offering: { include: { template: true, instructor: { select: { name: true } }, chapter: { select: { name: true } }, partner: { select: { name: true } }, sessions: { orderBy: [{ date: "asc" }, { startTime: "asc" }] }, announcements: { orderBy: { createdAt: "desc" }, take: 5 } } } }, orderBy: { updatedAt: "desc" } });
   const forms = await (prisma as any).familyFormRequirement.findMany({ where: { studentUserId: studentId, status: { in: ["REQUIRED", "IN_PROGRESS"] } }, include: { version: { include: { template: true } }, offering: true }, take: 10 }).catch(() => []);
   const approvals = await (prisma as any).guardianApprovalRequest.findMany({ where: { studentUserId: studentId, status: "PENDING" }, include: { offering: true }, take: 10 }).catch(() => []);
-  const active = enrollments.filter((e: any) => ["ENROLLED", "WAITLISTED"].includes(e.status));
-  const completed = enrollments.filter((e: any) => e.status === "COMPLETED" || e.completedAt);
-  const upcoming = active.flatMap((e: any) => e.offering.sessions.filter((s: any) => s.date >= now).map((s: any) => ({ enrollment: e, session: s }))).sort((a: any,b: any)=>+a.session.date-+b.session.date).slice(0, 10);
+  const active = enrollments.filter((e: any) => FAMILY_ACTIVE_LEARNING_STATUSES.includes(e.status));
+  const completed = enrollments.filter((e: any) => FAMILY_HISTORICAL_LEARNING_STATUSES.includes(e.status) || e.completedAt);
+  const upcoming = active.flatMap((e: any) => e.offering.sessions.filter((s: any) => s.date >= now && canReceiveSessionRouteLink(e.status)).map((s: any) => ({ enrollment: e, session: s }))).sort((a: any,b: any)=>+a.session.date-+b.session.date).slice(0, 10);
   return { active: active.map(filterStudentFacingRecord), completed: completed.map(filterStudentFacingRecord), upcoming, needsAttention: { forms, approvals } };
 }
 
 export async function getStudentClassDetail(studentId: string, offeringId: string) {
-  const enrollment = await prisma.classEnrollment.findFirst({ where: { studentId, offeringId, status: { in: ["ENROLLED", "WAITLISTED", "COMPLETED"] as any } }, include: { offering: { include: { template: true, instructor: { select: { name: true } }, chapter: { select: { name: true } }, partner: { select: { name: true } }, sessions: { orderBy: [{ date: "asc" }, { startTime: "asc" } ] }, announcements: { orderBy: { createdAt: "desc" } } } } } });
+  const enrollment = await prisma.classEnrollment.findFirst({ where: { studentId, offeringId, status: { in: ["ENROLLED", "WAITLISTED", "COMPLETED"] } }, include: { offering: { include: { template: true, instructor: { select: { name: true } }, chapter: { select: { name: true } }, partner: { select: { name: true } }, sessions: { orderBy: [{ date: "asc" }, { startTime: "asc" } ] }, announcements: { orderBy: { createdAt: "desc" } } } } } });
   if (!enrollment) return null;
   const attendance = await prisma.classAttendanceRecord.findMany({ where: { studentId, session: { offeringId } }, select: { sessionId: true, status: true } });
   return filterStudentFacingRecord({ enrollment, attendance, offering: enrollment.offering });
@@ -49,8 +50,8 @@ export async function getStudentClassDetail(studentId: string, offeringId: strin
 export async function getStudentSessionDetail(studentId: string, sessionId: string) {
   const session = await prisma.classSession.findUnique({ where: { id: sessionId }, include: { offering: { include: { template: true, instructor: { select: { name: true } }, sessions: { orderBy: { date: "asc" } }, announcements: { orderBy: { createdAt: "desc" }, take: 3 } } }, attendance: { where: { studentId } } } });
   if (!session) return null;
-  const enrollment = await prisma.classEnrollment.findFirst({ where: { studentId, offeringId: session.offeringId, status: { in: ["ENROLLED", "WAITLISTED", "COMPLETED"] as any } } });
-  if (!enrollment) return null;
+  const enrollment = await prisma.classEnrollment.findFirst({ where: { studentId, offeringId: session.offeringId, status: { in: ["ENROLLED", "COMPLETED"] } } });
+  if (!enrollment || !canAccessSessionDetail(enrollment.status, session.date)) return null;
   return filterStudentFacingRecord({ session, enrollment });
 }
 
@@ -71,7 +72,7 @@ export async function getFamilySupportRequests(userId: string, role: "STUDENT" |
 export async function getParentSchedule(guardianId: string, studentId?: string) {
   const relationships = await getAccessibleStudentsForGuardian(guardianId); const allowed = relationships.map((r)=>r.studentUserId); const ids = studentId && allowed.includes(studentId) ? [studentId] : allowed;
   const [enrollments, forms, waitlists] = await Promise.all([
-    prisma.classEnrollment.findMany({ where: { studentId: { in: ids }, status: { in: ["ENROLLED", "WAITLISTED"] as any } }, include: { student: { select: { id: true, name: true } }, offering: { include: { instructor: { select: { name: true } }, sessions: { orderBy: { date: "asc" } } } } } }),
+    prisma.classEnrollment.findMany({ where: { studentId: { in: ids }, status: { in: [...FAMILY_ACTIVE_LEARNING_STATUSES] } }, include: { student: { select: { id: true, name: true } }, offering: { include: { instructor: { select: { name: true } }, sessions: { orderBy: { date: "asc" } } } } } }),
     (prisma as any).familyFormRequirement.findMany({ where: { studentUserId: { in: ids }, dueAt: { not: null }, status: { in: ["REQUIRED", "IN_PROGRESS"] } }, include: { studentUser: { select: { id: true, name: true } }, version: { include: { template: true } } } }).catch(() => []),
     (prisma as any).familyWaitlistEntry.findMany({ where: { studentUserId: { in: ids }, offerExpiresAt: { not: null }, status: "OFFERED" }, include: { studentUser: { select: { id: true, name: true } }, offering: { select: { id: true, title: true } } } }).catch(() => []),
   ]);
