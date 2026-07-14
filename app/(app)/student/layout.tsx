@@ -1,0 +1,2 @@
+import { StudentPortalShell } from "@/components/family-portal/portal-shells";
+export default function Layout({ children }: { children: React.ReactNode }) { return <StudentPortalShell>{children}</StudentPortalShell>; }
