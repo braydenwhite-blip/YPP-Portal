@@ -118,9 +118,10 @@ function boardRouteIsActive(route: BoardApprovalReviewRoute, now: Date): boolean
 export function findSelfFinalizeException(
   mentor: PersonRef,
   mentee: PersonRef,
-  now: Date = new Date()
+  now: Date = new Date(),
+  exceptions: SelfFinalizeException[] = SELF_FINALIZE_EXCEPTIONS
 ): SelfFinalizeException | null {
-  for (const exception of SELF_FINALIZE_EXCEPTIONS) {
+  for (const exception of exceptions) {
     if (!exceptionIsActive(exception, now)) continue;
     if (!refsMatch(exception.mentor, mentor)) continue;
     if (exception.mentees.some((m) => refsMatch(m, mentee))) return exception;
@@ -136,9 +137,10 @@ export function findBoardApprovalReviewRoute(
   mentor: PersonRef,
   mentee: PersonRef,
   subjectAuthority?: { ladder?: string | null; internalLevel?: number | null } | null,
-  now: Date = new Date()
+  now: Date = new Date(),
+  routes: BoardApprovalReviewRoute[] = BOARD_APPROVAL_REVIEW_ROUTES
 ): BoardApprovalReviewRoute | null {
-  for (const route of BOARD_APPROVAL_REVIEW_ROUTES) {
+  for (const route of routes) {
     if (!boardRouteIsActive(route, now)) continue;
     if (!refsMatch(route.mentor, mentor)) continue;
     if (route.mentees?.some((m) => refsMatch(m, mentee))) return route;

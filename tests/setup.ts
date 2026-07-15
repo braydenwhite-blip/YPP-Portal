@@ -115,6 +115,7 @@ const prismaMock: any = {
   },
   chapter: {
     findUnique: vi.fn(),
+    findFirst: vi.fn(),
     findMany: vi.fn(),
   },
   portalSetting: {

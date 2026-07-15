@@ -974,6 +974,9 @@ model User {
   cohortId             String?
   cohort               Cohort?               @relation(fields: [cohortId], references: [id])
   committeeMemberships CommitteeMembership[] @relation("CommitteeMembershipUser")
+  reviewRoutingExceptionsAsMentor  ReviewRoutingException[] @relation("ReviewRoutingExceptionMentor")
+  reviewRoutingExceptionsAsMentee  ReviewRoutingException[] @relation("ReviewRoutingExceptionMentee")
+  reviewRoutingExceptionsCreated   ReviewRoutingException[] @relation("ReviewRoutingExceptionCreatedBy")
 
   // Existing relations
   roles                                    UserRole[]
@@ -15196,6 +15199,41 @@ model CommitteeMembership {
   @@unique([committeeId, userId])
   @@index([userId, isActive])
   @@index([committeeId, isActive])
+}
+
+enum ReviewRoutingExceptionKind {
+  SELF_FINALIZE
+  BOARD_APPROVAL
+}
+
+/// Admin-editable review-routing carve-outs (Phase 8 promotion of the plan's
+/// Phase 1 config-file exceptions in lib/org/review-exceptions.ts). Rows here
+/// are loaded and merged with the code-defined defaults at request time — see
+/// lib/org/review-exceptions-store.ts — so routing can be corrected from
+/// /admin/review-routing without a code deploy. `mentorId`/`menteeId` are
+/// preferred; the name fields exist only for entries created before both
+/// people have accounts.
+model ReviewRoutingException {
+  id                    String                     @id @default(cuid())
+  kind                  ReviewRoutingExceptionKind
+  mentorId              String?
+  mentor                User?                      @relation("ReviewRoutingExceptionMentor", fields: [mentorId], references: [id], onDelete: Cascade)
+  mentorName            String?
+  menteeId              String?
+  mentee                User?                      @relation("ReviewRoutingExceptionMentee", fields: [menteeId], references: [id], onDelete: Cascade)
+  menteeName            String?
+  /// BOARD_APPROVAL only: applies to any top-instruction-ladder mentee under this mentor.
+  topInstructionMentees Boolean                    @default(false)
+  note                  String?
+  effectiveFrom         DateTime?
+  isActive              Boolean                    @default(true)
+  createdById           String?
+  createdBy             User?                      @relation("ReviewRoutingExceptionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt             DateTime                   @default(now())
+  updatedAt             DateTime                   @updatedAt
+
+  @@index([kind, isActive])
+  @@index([mentorId, isActive])
 }
 
 /// Explicit, queryable history of who mentored whom (Phase 4 of the

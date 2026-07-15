@@ -326,6 +326,7 @@ describe("Authorization Helpers", () => {
         leadInstructorId: "other-instructor",
         chapterId: "chapter-1",
       } as any);
+      vi.mocked(prisma.chapter.findFirst).mockResolvedValue(null as any);
       vi.mocked(prisma.user.findUnique).mockResolvedValue({ chapterId: "chapter-1" } as any);
 
       const result = await requireAttendanceAccess(undefined, "course-123");
@@ -344,6 +345,7 @@ describe("Authorization Helpers", () => {
         leadInstructorId: "other-instructor",
         chapterId: "chapter-2",
       } as any);
+      vi.mocked(prisma.chapter.findFirst).mockResolvedValue(null as any);
       vi.mocked(prisma.user.findUnique).mockResolvedValue({ chapterId: "chapter-1" } as any);
 
       await expect(requireAttendanceAccess(undefined, "course-123")).rejects.toThrow(

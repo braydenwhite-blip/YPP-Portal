@@ -23,6 +23,8 @@ import {
   findSelfFinalizeException,
   refsMatch,
   type PersonRef,
+  type SelfFinalizeException,
+  type BoardApprovalReviewRoute,
 } from "@/lib/org/review-exceptions";
 
 /**
@@ -79,8 +81,11 @@ export function evaluateReviewApproval(args: {
   author: ReviewParticipant;
   subject: ReviewParticipant;
   now?: Date;
+  /** Overrides for the built-in exception lists — merge in admin-configured rows. */
+  selfFinalizeExceptions?: SelfFinalizeException[];
+  boardApprovalRoutes?: BoardApprovalReviewRoute[];
 }): ApprovalDecision {
-  const { approver, author, subject, now } = args;
+  const { approver, author, subject, now, selfFinalizeExceptions, boardApprovalRoutes } = args;
 
   // Fail open while the org-authority spine is being populated: if either the
   // approver or subject role is unknown we cannot evaluate the comparison,
@@ -101,7 +106,12 @@ export function evaluateReviewApproval(args: {
   const isSelf = refsMatch(approver.ref, author.ref);
 
   if (isSelf) {
-    const exception = findSelfFinalizeException(author.ref, subject.ref, now);
+    const exception = findSelfFinalizeException(
+      author.ref,
+      subject.ref,
+      now,
+      selfFinalizeExceptions
+    );
     if (exception) {
       return {
         allowed: true,
@@ -122,7 +132,8 @@ export function evaluateReviewApproval(args: {
     author.ref,
     subject.ref,
     subject.authority,
-    now
+    now,
+    boardApprovalRoutes
   );
   if (boardRoute || requiresBoardApproval(subject.authority)) {
     if (approver.authority.internalLevel >= TOP_INTERNAL_LEVEL) {
