@@ -23,7 +23,7 @@ export function getPortalRoles(user: Pick<SessionUser, "roles" | "primaryRole">)
 export async function requirePortalUser(): Promise<PortalUser> {
   const user = await requireSessionUser();
   const portalRoles = getPortalRoles(user);
-  if (portalRoles.length === 0) throw new Error("You do not have access to a family portal.");
+  if (portalRoles.length === 0) redirect("/home");
   return { ...user, portalRoles };
 }
 
