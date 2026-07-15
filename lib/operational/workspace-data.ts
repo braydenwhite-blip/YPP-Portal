@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { qaHarnessEnabled } from "@/lib/qa-auth-harness";
 import { requireAnyRole, requireLeadership, requireSessionUser } from "@/lib/authorization";
+import { hasActiveCoInstructorAssignment } from "@/lib/operational-permissions";
 
 export async function requireChapterOperator() {
   return requireAnyRole(["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "LEADERSHIP"]);
@@ -38,9 +39,17 @@ export async function getFamilyFormAdminSummary() {
 
 export async function getInstructorClassWorkspace(classId: string) {
   const actor = await requireSessionUser();
-  const offering = await (prisma as any).classOffering.findUnique({ where: { id: classId }, include: { sessions: { include: { attendance: true, preparations: true }, orderBy: { date: "asc" }, take: 12 }, enrollments: { where: { status: { in: ["ENROLLED", "COMPLETED"] } }, include: { student: { select: { id: true, name: true, email: true } } } } } });
+  const offering = await (prisma as any).classOffering.findUnique({
+    where: { id: classId },
+    include: {
+      sessions: { include: { attendance: true, preparations: true }, orderBy: { date: "asc" }, take: 12 },
+      enrollments: { where: { status: { in: ["ENROLLED", "COMPLETED"] } }, include: { student: { select: { id: true, name: true, email: true } } } },
+      regularInstructorAssignments: { select: { instructorId: true, status: true } },
+    },
+  });
   if (!offering) throw new Error("Class not found");
-  if (offering.instructorId !== actor.id && !actor.roles.some((r) => ["ADMIN", "STAFF", "CHAPTER_PRESIDENT"].includes(r))) throw new Error("Unauthorized");
+  const isCoInstructor = hasActiveCoInstructorAssignment(offering.regularInstructorAssignments, actor.id);
+  if (offering.instructorId !== actor.id && !isCoInstructor && !actor.roles.some((r) => ["ADMIN", "STAFF", "CHAPTER_PRESIDENT"].includes(r))) throw new Error("Unauthorized");
   return { actor, offering };
 }
 

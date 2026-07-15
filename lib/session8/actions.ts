@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireSessionUser, requireOfficer } from "@/lib/authorization";
 import { requireStudentPortalUser } from "@/lib/family-access";
+import { updateSessionReadiness } from "@/lib/session-readiness-service";
 
 const ATTENDANCE_OPEN_STATUSES = ["SENT", "REVIEWING", "NEED_MORE_INFORMATION"] as const;
 
@@ -100,6 +101,36 @@ export async function expressRecommendationInterest(formData: FormData) {
   return { ok: true, recorded: true };
 }
 export async function confirmInstructorAvailability(formData: FormData){ const user=await requireSessionUser(); const note=String(formData.get("note")??"").slice(0,1000); await (prisma as any).instructorGrowthEvent.create({data:{userId:user.id, type:"AVAILABILITY_UPDATED", summary:"Instructor availability updated", details:note}}).catch(()=>null); revalidatePath("/instructor/availability"); }
-export async function confirmSessionReady(formData: FormData){ const user=await requireSessionUser(); const sessionId=String(formData.get("sessionId")??""); const note=String(formData.get("note")??"").slice(0,1000); const session=await prisma.classSession.findFirst({where:{id:sessionId, offering:{instructorId:user.id}}}); if(!session) throw new Error("Unauthorized"); await prisma.instructorSessionPreparation.upsert({where:{sessionId_instructorId:{sessionId,instructorId:user.id}}, create:{sessionId,instructorId:user.id, lessonReviewedAt:new Date(), materialsReviewedAt:new Date(), studentContextReviewedAt:new Date(), completedAt:new Date(), note}, update:{lessonReviewedAt:new Date(), materialsReviewedAt:new Date(), studentContextReviewedAt:new Date(), completedAt:new Date(), note}}); revalidatePath(`/instructor/classes/${session.offeringId}`); }
+/**
+ * Granular per-item session-readiness confirmation. Replaces the old
+ * one-click all-green version: only the items whose checkboxes were
+ * submitted are marked reviewed, and completedAt is only set once all three
+ * are true (mirrors updateSessionReadiness semantics — this delegates to
+ * that service so the attribution/authorization logic lives in one place,
+ * including co-instructor support via requireInstructorAssigned).
+ */
+export async function confirmSessionReady(formData: FormData){
+  const user = await requireSessionUser();
+  const sessionId = String(formData.get("sessionId") ?? "");
+  const note = String(formData.get("note") ?? "").slice(0, 1000);
+  const lessonReviewed = formData.get("lessonReviewed") === "on";
+  const materialsReviewed = formData.get("materialsReviewed") === "on";
+  const studentContextReviewed = formData.get("studentContextReviewed") === "on";
+  const session = await prisma.classSession.findUnique({ where: { id: sessionId }, select: { offeringId: true } });
+  if (!session) throw new Error("Session not found");
+  await updateSessionReadiness(
+    { userId: user.id, roles: user.roles },
+    sessionId,
+    {
+      note,
+      lessonReviewed,
+      materialsReviewed,
+      studentContextReviewed,
+      confirmReady: lessonReviewed && materialsReviewed && studentContextReviewed,
+    },
+  );
+  revalidatePath(`/instructor/classes/${session.offeringId}`);
+  revalidatePath(`/instructor/classes/${session.offeringId}/sessions/${sessionId}`);
+}
 export async function createOperationalAction(formData: FormData){ const user=await requireOfficer(); const title=String(formData.get("title")??"").slice(0,200); if(!title) return; await (prisma as any).actionItem.create({data:{title, description:String(formData.get("description")??""), ownerId:String(formData.get("ownerId")??user.id), createdById:user.id, status:"OPEN", priority:String(formData.get("priority")??"MEDIUM")}}).catch(()=>null); revalidatePath("/chapter/weekly-plan"); revalidatePath("/chapter/workload"); }
 export async function updateLaunchDecision(formData: FormData){ await requireOfficer(); const offeringId=String(formData.get("offeringId")??""); const summary=String(formData.get("summary")??"Launch decision updated"); if(!offeringId) return; await prisma.classOfferingTimelineEvent.create({data:{offeringId, kind:"NOTE", summary, payload:{session8:true}} as any}); revalidatePath(`/chapter/classes/${offeringId}/launch`); }
