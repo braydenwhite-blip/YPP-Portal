@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-const studentNav = [["/student", "Home"], ["/student/learning", "My Learning"], ["/student/schedule", "Schedule"], ["/student/explore", "Explore"], ["/student/progress", "Progress"], ["/student/certificates", "Certificates"], ["/student/recommendations", "Recommendations"], ["/student/support", "Support"], ["/student/profile", "Profile"]];
+const studentNav = [["/student", "Home"], ["/student/learning", "My Learning"], ["/student/schedule", "Schedule"], ["/student/explore", "Explore"], ["/student/forms", "Forms"], ["/student/attendance", "Attendance"], ["/student/progress", "Progress"], ["/student/certificates", "Certificates"], ["/student/recommendations", "Recommendations"], ["/student/support", "Support"], ["/student/profile", "Profile"]];
 const parentNav = [["/parent", "Home"], ["/parent/students", "My Students"], ["/parent/schedule", "Schedule"], ["/parent/explore", "Explore"], ["/parent/forms", "Forms"], ["/parent/attendance", "Attendance"], ["/parent/progress", "Progress"], ["/parent/certificates", "Certificates"], ["/parent/recommendations", "Recommendations"], ["/parent/support", "Support"], ["/parent/settings", "Family Settings"]];
 
 function Shell({ title, nav, children }: { title: string; nav: string[][]; children: React.ReactNode }) {

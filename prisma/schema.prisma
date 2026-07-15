@@ -1289,6 +1289,11 @@ model User {
   regularInstructorAssignmentsUpdated RegularInstructorAssignment[] @relation("RegularInstructorAssignmentsUpdated")
   classEnrollments                    ClassEnrollment[]             @relation("ClassEnrollments")
   classAttendanceRecords              ClassAttendanceRecord[]       @relation("ClassAttendanceRecords")
+  classAttendanceRecordsFinalized     ClassAttendanceRecord[]       @relation("ClassAttendanceRecordsFinalizedBy")
+  instructorStudentFeedbackReceived   InstructorStudentFeedback[]   @relation("InstructorStudentFeedbackForStudent")
+  instructorStudentFeedbackAuthored   InstructorStudentFeedback[]   @relation("InstructorStudentFeedbackByInstructor")
+  instructorAvailability              InstructorAvailability[]      @relation("InstructorAvailabilityForUser")
+  instructorOnboardingTasks           InstructorOnboardingTask[]    @relation("InstructorOnboardingTasksForUser")
   classRemindersReceived              ClassReminder[]               @relation("ClassRemindersReceived")
   classAnnouncements                  ClassAnnouncement[]           @relation("ClassAnnouncementsAuthored")
   ownedChapterPathways                ChapterPathway[]              @relation("ChapterPathwayOwner")
@@ -4547,6 +4552,9 @@ model Certificate {
   course      Course?             @relation(fields: [courseId], references: [id])
   pathwayId   String?
   pathway     Pathway?            @relation(fields: [pathwayId], references: [id])
+  /// Class offering this certificate is linked to (class-completion certificates).
+  offeringId  String?
+  offering    ClassOffering?      @relation("CertificatesForOffering", fields: [offeringId], references: [id], onDelete: SetNull)
 
   title             String
   description       String?
@@ -4554,7 +4562,9 @@ model Certificate {
   certificateNumber String   @unique @default(cuid())
   pdfUrl            String?
 
+  @@unique([recipientId, offeringId])
   @@index([recipientId])
+  @@index([offeringId])
 }
 
 enum CertificateType {
@@ -7729,6 +7739,8 @@ model ClassOffering {
   feedback                     ClassFeedback[]
   outcome                      ClassOutcome?
   regularInstructorAssignments RegularInstructorAssignment[] @relation("RegularInstructorAssignmentsForOffering")
+  certificates                 Certificate[]                 @relation("CertificatesForOffering")
+  instructorStudentFeedback    InstructorStudentFeedback[]
 
   /// Leadership Roles & Contributions — lead-instructor / quality-review
   /// contributions pointing at this offering (ENABLE_LEADERSHIP_ROLES).
@@ -8116,6 +8128,47 @@ model InstructorSessionPreparation {
   @@index([instructorId, completedAt])
 }
 
+/// A recurring weekly availability window for an instructor (one row per
+/// user + weekday). `available:false` rows record a known unavailable
+/// weekday rather than being omitted, so the read side always has an
+/// explicit signal instead of inferring absence from missing rows.
+model InstructorAvailability {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation("InstructorAvailabilityForUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  /// 0 = Sunday … 6 = Saturday.
+  weekday       Int
+  startMinute   Int
+  endMinute     Int
+  available     Boolean   @default(true)
+  note          String?   @db.Text
+  effectiveFrom DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, weekday])
+  @@index([userId])
+}
+
+/// Completion state for a code-defined instructor onboarding step catalog.
+model InstructorOnboardingTask {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation("InstructorOnboardingTasksForUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  stepKey     String
+  completedAt DateTime?
+  note        String?   @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, stepKey])
+  @@index([userId])
+}
+
 // Student enrollment in a class offering
 model ClassEnrollment {
   id         String        @id @default(cuid())
@@ -8163,6 +8216,11 @@ model ClassAttendanceRecord {
   status      AttendanceStatus @default(PRESENT)
   notes       String?
   checkedInAt DateTime         @default(now())
+
+  /// When the instructor finalized this record; null while still a draft.
+  finalizedAt   DateTime?
+  finalizedById String?
+  finalizedBy   User?     @relation("ClassAttendanceRecordsFinalizedBy", fields: [finalizedById], references: [id], onDelete: SetNull)
 
   @@unique([sessionId, studentId])
   @@index([sessionId])
@@ -8290,6 +8348,30 @@ model ClassFeedback {
   @@index([offeringId])
   @@index([studentId])
   @@index([rating])
+}
+
+/// Instructor-authored feedback for a student, released to the family on demand.
+/// Distinct from ClassFeedback (student-authored). Multiple rounds allowed per
+/// (offering, student), so no unique constraint on that pair.
+model InstructorStudentFeedback {
+  id           String        @id @default(cuid())
+  offeringId   String
+  offering     ClassOffering @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  studentId    String
+  student      User          @relation("InstructorStudentFeedbackForStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  instructorId String
+  instructor   User          @relation("InstructorStudentFeedbackByInstructor", fields: [instructorId], references: [id], onDelete: Cascade)
+
+  body               String    @db.Text
+  strengths          String?   @db.Text
+  growthAreas        String?   @db.Text
+  releasedToFamilyAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([offeringId, studentId])
+  @@index([studentId, releasedToFamilyAt])
 }
 
 /// Per-offering completion outcome: instructor reflection (top) + admin
