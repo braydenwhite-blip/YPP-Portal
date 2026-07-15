@@ -1,5 +1,30 @@
 -- Session 4 operational workflow persistence
 ALTER TABLE "Notification" ADD COLUMN IF NOT EXISTS "deliveryState" TEXT NOT NULL DEFAULT 'SENT', ADD COLUMN IF NOT EXISTS "eventType" TEXT, ADD COLUMN IF NOT EXISTS "relatedEntityType" TEXT, ADD COLUMN IF NOT EXISTS "relatedEntityId" TEXT;
+
+-- Existing production data can contain multiple notifications for the same
+-- user/dedupeKey pair because dedupeKey was previously indexed but not unique.
+-- Keep the earliest row as the canonical deduped notification and preserve the
+-- duplicate notifications by clearing only their dedupeKey before adding the
+-- uniqueness guard. This makes the migration safe to re-run after a failed
+-- deploy without deleting user-visible notification history.
+WITH duplicate_notifications AS (
+  SELECT "id"
+  FROM (
+    SELECT
+      "id",
+      ROW_NUMBER() OVER (
+        PARTITION BY "userId", "dedupeKey"
+        ORDER BY "createdAt" ASC, "id" ASC
+      ) AS duplicate_rank
+    FROM "Notification"
+    WHERE "dedupeKey" IS NOT NULL
+  ) ranked_notifications
+  WHERE duplicate_rank > 1
+)
+UPDATE "Notification"
+SET "dedupeKey" = NULL
+WHERE "id" IN (SELECT "id" FROM duplicate_notifications);
+
 CREATE UNIQUE INDEX IF NOT EXISTS "Notification_userId_dedupeKey_key" ON "Notification"("userId", "dedupeKey") WHERE "dedupeKey" IS NOT NULL;
 ALTER TABLE "ActionItem" ADD COLUMN IF NOT EXISTS "operationalSourceKey" TEXT, ADD COLUMN IF NOT EXISTS "operationalSourceType" TEXT, ADD COLUMN IF NOT EXISTS "operationalIssueType" TEXT;
 CREATE UNIQUE INDEX IF NOT EXISTS "ActionItem_chapterId_operationalSourceKey_key" ON "ActionItem"("chapterId", "operationalSourceKey") WHERE "operationalSourceKey" IS NOT NULL;
