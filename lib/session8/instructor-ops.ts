@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { requireSessionUser, requireOfficer } from "@/lib/authorization";
-const includeOffering = { template:true, chapter:{select:{id:true,name:true}}, partner:{select:{id:true,name:true}}, sessions:{orderBy:[{date:"asc" as const},{startTime:"asc" as const}]}, enrollments:{include:{student:{select:{id:true,name:true,email:true,profile:true}}, attendance:true}}, announcements:{orderBy:{createdAt:"desc" as const}, take:5}, outcome:true };
+const includeOffering = { template:true, chapter:{select:{id:true,name:true}}, partner:{select:{id:true,name:true}}, sessions:{orderBy:[{date:"asc" as const},{startTime:"asc" as const}]}, enrollments:{include:{student:{select:{id:true,name:true,email:true,profile:true}}}}, announcements:{orderBy:{createdAt:"desc" as const}, take:5}, outcome:true };
 
 const ATTENDANCE_OPEN_STATUSES = ["SENT", "REVIEWING", "NEED_MORE_INFORMATION"];
 

@@ -3,7 +3,8 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireSessionUser } from "@/lib/authorization";
-import { ONBOARDING_STEPS, SUPPORT_CATEGORIES } from "@/lib/session8/instructor-development";
+import { ONBOARDING_STEPS } from "@/lib/session8/instructor-development";
+import { SUPPORT_CATEGORIES } from "@/lib/session8/instructor-development-shared";
 
 // ---------------------------------------------------------------------------
 // Availability

@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui-v2";
 import { requestInstructorSupport } from "@/lib/session8/instructor-development-actions";
-import { SUPPORT_CATEGORIES, SUPPORT_CATEGORY_LABELS } from "@/lib/session8/instructor-development";
+import { SUPPORT_CATEGORIES, SUPPORT_CATEGORY_LABELS } from "@/lib/session8/instructor-development-shared";
 
 export function SupportRequestForm() {
   const [pending, startTransition] = useTransition();

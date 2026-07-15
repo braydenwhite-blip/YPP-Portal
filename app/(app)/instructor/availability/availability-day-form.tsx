@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Button, StatusBadge } from "@/components/ui-v2";
-import { minutesToClock } from "@/lib/session8/instructor-development";
+import { minutesToClock } from "@/lib/session8/instructor-development-shared";
 import { saveInstructorAvailability } from "@/lib/session8/instructor-development-actions";
 
 function clockToMinutes(value: string): number {
