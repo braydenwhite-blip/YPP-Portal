@@ -1,1 +1,58 @@
-import { getInstructorDevelopment } from "@/lib/session8/instructor-ops";import { confirmInstructorAvailability } from "@/lib/session8/actions";import { S8Page,S8Grid,S8Card,S8List,S8Item } from "@/components/session8/portal-ui";import { shortDate } from "@/lib/session8/format";export default async function Page(){const d=await getInstructorDevelopment();return <S8Page eyebrow="Instructor development" title="Instructor lifecycle" body="Availability, onboarding, training, performance evidence, support, recognition, feedback, follow-up requirements, and teaching history." primaryHref="/instructor/classes" primaryLabel="My classes"><S8Grid><S8Card title="Availability"><form action={confirmInstructorAvailability} className="space-y-3"><label htmlFor="note" className="block text-sm font-semibold">Availability, constraints, preferences, and capacity</label><textarea id="note" name="note" className="w-full rounded-2xl border p-3" placeholder="Recurring availability, unavailable dates, formats, travel constraints, grade bands, subjects, and additional class capacity"/><button className="rounded-full bg-violet-700 px-4 py-2 font-semibold text-white">Save availability update</button></form></S8Card><S8Card title="Onboarding checklist"><S8List items={["Profile","Policies","Forms","Verification requirements","Platform orientation","Availability","Curriculum access","Communication expectations","First class assignment"].map((title,i)=>({id:i,title}))} empty="No onboarding steps." render={(i:any)=><S8Item key={i.id} title={i.title} status="REQUIRED">Complete or verify this requirement before additional assignments.</S8Item>}/></S8Card><S8Card title="Training"><S8List items={d.certs} empty="No training completions yet." render={(c:any)=><S8Item key={c.id} title={c.title??c.name??"Training"} meta={shortDate(c.createdAt)} status={c.status??"COMPLETE"}/>}/></S8Card><S8Card title="Performance evidence"><S8List items={d.growth} empty="No performance evidence recorded yet." render={(g:any)=><S8Item key={g.id} title={g.summary??g.type??"Development event"} meta={shortDate(g.createdAt)} status={g.type}>{g.details}</S8Item>}/></S8Card><S8Card title="Action items"><p className="text-sm text-slate-600">No opaque score is shown. Evidence uses classes taught, attendance completion, preparation completion, retention signals, released family feedback, training status, recognition, and review follow-up.</p></S8Card></S8Grid></S8Page>}
+import Link from "next/link";
+import { PageHeaderV2, CardV2, StatusBadge, EmptyStateV2 } from "@/components/ui-v2";
+import { getInstructorTraining } from "@/lib/session8/instructor-development";
+import { pretty, shortDate } from "@/lib/session8/format";
+
+export default async function InstructorTrainingPage() {
+  const { certifications } = await getInstructorTraining();
+
+  return (
+    <main className="mx-auto max-w-4xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+      <PageHeaderV2
+        eyebrow="Instructor development"
+        title="Training"
+        subtitle="Your certification progress, plus the full coursework subsystem."
+      />
+
+      <CardV2 padding="md">
+        <h2 className="text-base font-semibold text-ink">Instructor training coursework</h2>
+        <p className="mt-1 text-sm text-ink-muted">
+          Required and optional coursework, lessons, and completion tracking live in the training subsystem.
+        </p>
+        <Link href="/instructor-training" className="mt-2 inline-block text-sm font-semibold text-brand-700 hover:underline">
+          Go to instructor training →
+        </Link>
+      </CardV2>
+
+      <div className="space-y-3">
+        <h2 className="text-base font-semibold text-ink">Certifications</h2>
+        {certifications.length === 0 ? (
+          <EmptyStateV2
+            title="No certifications on record"
+            body="Certification progress will appear here once you start a certification track."
+          />
+        ) : (
+          certifications.map((cert) => (
+            <CardV2 key={cert.id} padding="md">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-ink">
+                    {cert.certType}
+                    {cert.passionArea ? ` · ${cert.passionArea}` : ""}
+                  </h3>
+                  <p className="mt-1 text-xs text-ink-muted">
+                    {cert.totalCompleted} of {cert.totalRequired} requirements complete
+                    {cert.certifiedAt ? ` · Certified ${shortDate(cert.certifiedAt)}` : ""}
+                  </p>
+                </div>
+                <StatusBadge tone={cert.status === "CERTIFIED" ? "success" : cert.status === "EXPIRED" ? "danger" : "warning"}>
+                  {pretty(cert.status)}
+                </StatusBadge>
+              </div>
+            </CardV2>
+          ))
+        )}
+      </div>
+    </main>
+  );
+}

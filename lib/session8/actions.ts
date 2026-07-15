@@ -100,7 +100,6 @@ export async function expressRecommendationInterest(formData: FormData) {
   revalidatePath("/student/recommendations");
   return { ok: true, recorded: true };
 }
-export async function confirmInstructorAvailability(formData: FormData){ const user=await requireSessionUser(); const note=String(formData.get("note")??"").slice(0,1000); await (prisma as any).instructorGrowthEvent.create({data:{userId:user.id, type:"AVAILABILITY_UPDATED", summary:"Instructor availability updated", details:note}}).catch(()=>null); revalidatePath("/instructor/availability"); }
 /**
  * Granular per-item session-readiness confirmation. Replaces the old
  * one-click all-green version: only the items whose checkboxes were

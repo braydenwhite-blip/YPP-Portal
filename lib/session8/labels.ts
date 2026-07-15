@@ -58,7 +58,25 @@ function labelFrom(map: Record<string, string>, value?: string | null, fallback 
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+export const ACTION_ITEM_STATUS_LABELS: Record<string, string> = {
+  NOT_STARTED: "Not started",
+  IN_PROGRESS: "In progress",
+  COMPLETE: "Complete",
+  OVERDUE: "Overdue",
+  BLOCKED: "Blocked",
+  DROPPED: "Dropped",
+};
+
+export const CLASS_ANNOUNCEMENT_STATUS_LABELS: Record<string, string> = {
+  DRAFT: "Draft",
+  PENDING_APPROVAL: "Sent for approval",
+  PUBLISHED: "Published",
+  REJECTED: "Not approved",
+};
+
 export const classEnrollmentStatusLabel = (v?: string | null) => labelFrom(CLASS_ENROLLMENT_STATUS_LABELS, v);
+export const actionItemStatusLabel = (v?: string | null) => labelFrom(ACTION_ITEM_STATUS_LABELS, v);
+export const classAnnouncementStatusLabel = (v?: string | null) => labelFrom(CLASS_ANNOUNCEMENT_STATUS_LABELS, v);
 export const attendanceStatusLabel = (v?: string | null) => labelFrom(ATTENDANCE_STATUS_LABELS, v);
 export const familyWaitlistStatusLabel = (v?: string | null) => labelFrom(FAMILY_WAITLIST_STATUS_LABELS, v);
 export const familySupportStatusLabel = (v?: string | null) => labelFrom(FAMILY_SUPPORT_STATUS_LABELS, v);
