@@ -26,7 +26,7 @@ export default async function InstructorAvailabilityPage() {
             ))}
           </ul>
           <p className="mt-2 text-xs text-blocked-700/80">
-            This doesn't remove or reassign the class — reach out to your chapter to resolve the conflict.
+            This does not remove or reassign the class — reach out to your chapter to resolve the conflict.
           </p>
         </CardV2>
       ) : null}

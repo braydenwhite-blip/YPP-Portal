@@ -23,7 +23,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const c: any = await getInstructorClass(id);
   if (!c) notFound();
   const next = c.sessions.find((s: any) => new Date(s.date) >= new Date());
-  const attendanceBySession = new Map(c.sessionAttendanceState.map((a: any) => [a.sessionId, a]));
+  const attendanceBySession = new Map<string, any>(c.sessionAttendanceState.map((a: any) => [a.sessionId, a] as [string, any]));
 
   return (
     <S8Page

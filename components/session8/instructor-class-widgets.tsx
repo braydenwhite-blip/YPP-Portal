@@ -104,7 +104,7 @@ export function StudentFeedbackPanel({ offeringId, students, feedback }: { offer
             {existing && !existing.releasedToFamilyAt && (
               <form action={releaseInstructorFeedback} className="mt-2">
                 <input type="hidden" name="feedbackId" value={existing.id} />
-                <p className="mb-1 text-xs font-semibold text-amber-800">This will be visible to the student's family.</p>
+                <p className="mb-1 text-xs font-semibold text-amber-800">This will be visible to the student&apos;s family.</p>
                 <button className="min-h-11 rounded-full border border-amber-400 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-900 hover:bg-amber-100">
                   Release to family
                 </button>
