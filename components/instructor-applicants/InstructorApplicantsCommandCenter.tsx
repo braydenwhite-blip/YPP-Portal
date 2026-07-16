@@ -21,7 +21,7 @@ type PipelineApp = {
   legalName?: string | null;
   preferredFirstName?: string | null;
   lastName?: string | null;
-  kind?: "instructor" | "cp";
+  kind?: "instructor" | "cp" | "staff";
   applicant: {
     id: string;
     name: string | null;
@@ -123,7 +123,8 @@ export default function InstructorApplicantsCommandCenter({
   }
 
   function openApplicantRecord(app: PipelineApp) {
-    const kind = app.kind === "cp" ? "cp" : "instructor";
+    const kind =
+      app.kind === "cp" ? "cp" : app.kind === "staff" ? "staff" : "instructor";
     startTransition(() => {
       router.push(applicantDetailHref(kind, app.id));
     });
@@ -152,7 +153,10 @@ export default function InstructorApplicantsCommandCenter({
     () =>
       pipelineApps.filter((app) => {
         if (kindFilter === "cp" && app.kind !== "cp") return false;
-        if (kindFilter === "instructor" && app.kind === "cp") return false;
+        if (kindFilter === "staff" && app.kind !== "staff") return false;
+        if (kindFilter === "instructor" && app.kind !== "instructor" && app.kind != null) {
+          return false;
+        }
         return matchesPipelineStatusFilter(app, statusFilter);
       }),
     [pipelineApps, statusFilter, kindFilter]

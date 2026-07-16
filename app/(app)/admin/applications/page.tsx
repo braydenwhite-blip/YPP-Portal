@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { PositionType } from "@prisma/client";
 import { requireAdminPage } from "@/lib/page-guards";
+import { isHiddenStaffPositionTitle } from "@/lib/applicant-board-kind";
 import {
   AdvancedFilters,
   ButtonLink,
@@ -79,7 +80,8 @@ export default async function AdminApplicationsPage({
   // One query scoped by type / chapter-proposal (NOT status), so the summary
   // counts stay a stable overview; the status filter is then applied in memory
   // to the list itself.
-  const baseApplications = await prisma.application.findMany({
+  const baseApplications = (
+    await prisma.application.findMany({
     where: {
       archivedAt: null,
       ...(selectedType ? { position: { type: selectedType } } : {}),
@@ -112,7 +114,8 @@ export default async function AdminApplicationsPage({
       },
     },
     orderBy: { submittedAt: "desc" },
-  });
+  })
+  ).filter((app) => !isHiddenStaffPositionTitle(app.position.title));
 
   const statusCounts = {
     submitted: baseApplications.filter((a) => a.status === "SUBMITTED").length,

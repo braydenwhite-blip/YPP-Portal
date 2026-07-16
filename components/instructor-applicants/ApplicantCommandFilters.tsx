@@ -17,6 +17,7 @@ const KIND_OPTIONS = [
   { value: "", label: "All Roles" },
   { value: "instructor", label: "Instructor" },
   { value: "cp", label: "Chapter President" },
+  { value: "staff", label: "Social Media Manager" },
 ] as const;
 
 const TRACK_OPTIONS = [
@@ -72,7 +73,7 @@ export default function ApplicantCommandFilters({
         params.delete(key);
       }
       // Instructor track only applies to instructor apps.
-      if (key === "kind" && value === "cp") {
+      if (key === "kind" && (value === "cp" || value === "staff")) {
         params.delete("track");
       }
       startTransition(() => {
@@ -86,7 +87,7 @@ export default function ApplicantCommandFilters({
   const kind = getParam("kind").toLowerCase();
   const track = getParam("track").toLowerCase();
   const status = getParam("status");
-  const showTrack = kind !== "cp";
+  const showTrack = kind !== "cp" && kind !== "staff";
 
   const activeFilters = useMemo(() => {
     const entries: Array<{ key: string; value: string }> = [];
@@ -113,7 +114,9 @@ export default function ApplicantCommandFilters({
         <select
           className={cn(selectClass, "sm:min-w-[9rem]")}
           aria-label="Applicant role"
-          value={kind === "instructor" || kind === "cp" ? kind : ""}
+          value={
+            kind === "instructor" || kind === "cp" || kind === "staff" ? kind : ""
+          }
           onChange={(e) => setParam("kind", e.target.value)}
         >
           {KIND_OPTIONS.map((opt) => (

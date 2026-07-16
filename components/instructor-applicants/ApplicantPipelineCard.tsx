@@ -11,8 +11,8 @@ type PipelineCardApp = {
   legalName?: string | null;
   preferredFirstName?: string | null;
   lastName?: string | null;
-  /** When set, card shows Instructor vs CP. */
-  kind?: "instructor" | "cp";
+  /** When set, card shows Instructor / CP / Staff. */
+  kind?: "instructor" | "cp" | "staff";
   applicant: {
     name: string | null;
     email: string;
@@ -170,10 +170,16 @@ export default function ApplicantPipelineCard({
               "inline-flex items-center rounded-full px-2 py-0.5 text-[10.5px] font-bold",
               app.kind === "cp"
                 ? "bg-violet-50 text-violet-800"
-                : "bg-surface-soft text-ink-muted"
+                : app.kind === "staff"
+                  ? "bg-sky-50 text-sky-800"
+                  : "bg-surface-soft text-ink-muted"
             )}
           >
-            {app.kind === "cp" ? "CP" : "Instructor"}
+            {app.kind === "cp"
+              ? "CP"
+              : app.kind === "staff"
+                ? "SMM"
+                : "Instructor"}
           </span>
         ) : null}
         {onFilterStatus ? (

@@ -34,7 +34,7 @@ type ArchiveApp = {
   legalName?: string | null;
   preferredFirstName?: string | null;
   lastName?: string | null;
-  kind?: "instructor" | "cp";
+  kind?: "instructor" | "cp" | "staff";
   applicant: {
     name: string | null;
     email: string;
@@ -222,6 +222,8 @@ export default function ArchiveTable({ applications }: ArchiveTableProps) {
                   <div>{formatApplicantDisplayName(app)}</div>
                   {app.kind === "cp" ? (
                     <div className="text-[11px] font-medium text-violet-700">Chapter President</div>
+                  ) : app.kind === "staff" ? (
+                    <div className="text-[11px] font-medium text-sky-700">Social Media Manager</div>
                   ) : null}
                 </TableCell>
                 <TableCell className="text-ink-muted">
@@ -262,7 +264,9 @@ export default function ArchiveTable({ applications }: ArchiveTableProps) {
                     href={
                       app.kind === "cp"
                         ? `/admin/chapter-president-applicants/${app.id}`
-                        : `/admin/instructor-applicants/${app.id}`
+                        : app.kind === "staff"
+                          ? `/applications/${app.id}`
+                          : `/admin/instructor-applicants/${app.id}`
                     }
                     className="text-[12.5px] font-semibold text-brand-600 hover:text-brand-700"
                   >
