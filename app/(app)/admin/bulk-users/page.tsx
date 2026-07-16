@@ -9,6 +9,7 @@ import {
   normalizeAdminSubtype,
 } from "@/lib/admin-subtypes";
 import { prisma } from "@/lib/prisma";
+import { CreateUserForm } from "@/components/create-user-form";
 
 function readSearchParam(
   params: Record<string, string | string[] | undefined>,
@@ -156,6 +157,16 @@ export default async function BulkUserManagementPage({
             <div className="kpi-label">{role.primaryRole}s</div>
           </div>
         ))}
+      </div>
+
+      <div className="card" style={{ marginBottom: 20 }}>
+        <h3>Create Single User</h3>
+        <p style={{ fontSize: 14, marginTop: 8, marginBottom: 16, color: "var(--text-secondary)" }}>
+          Creates a working login (Supabase auth account) plus the portal profile in one
+          step — set their role, chapter, and canonical title/internal level here. Use this
+          instead of the CSV import when the account needs to sign in right away.
+        </p>
+        <CreateUserForm chapters={chapters} />
       </div>
 
       <div className="grid two" style={{ marginBottom: 20 }}>

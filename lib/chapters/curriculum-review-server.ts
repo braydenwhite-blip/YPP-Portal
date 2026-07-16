@@ -17,6 +17,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireSessionUser } from "@/lib/authorization";
 import { requireChapterManager, requireChapterLeadership } from "@/lib/chapters/access";
+import { isOnInstructionCommittee } from "@/lib/org/committees";
 import type { SessionUser } from "@/lib/authorization-roles";
 import {
   CurriculumReviewActionSchema,
@@ -77,7 +78,16 @@ async function runCurriculumTransition(
   let actorRole: string;
   try {
     if (authority === "global_leadership") {
-      viewer = await requireChapterLeadership();
+      try {
+        viewer = await requireChapterLeadership();
+      } catch (err) {
+        // National leadership isn't the only route to global sign-off: an
+        // active Instruction Committee member can also finalize curricula,
+        // independent of their title/ladder level.
+        const user = await requireSessionUser();
+        if (!(await isOnInstructionCommittee(user.id))) throw err;
+        viewer = user;
+      }
       actorRole = "GLOBAL_LEADERSHIP";
     } else if (authority === "chapter_president") {
       const { user, isLeadership } = await requireChapterManager(input.chapterId);

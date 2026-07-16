@@ -1464,6 +1464,13 @@ export const NAV_CATALOG: NavLink[] = [
     },
     { href: "/admin/bulk-users", label: "Bulk Users", icon: "👥", roles: ADMIN_ONLY },
     {
+      href: "/admin/review-routing",
+      label: "Review Routing Exceptions",
+      icon: "🧭",
+      roles: ADMIN_ONLY,
+      searchAliases: ["Review exceptions", "Self finalize", "Board approval routing"],
+    },
+    {
       href: "/admin/role-management",
       label: "Role Management",
       icon: "🪪",

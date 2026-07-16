@@ -18,6 +18,7 @@ import {
   type ApprovalDecision,
   type ReviewParticipant,
 } from "@/lib/org/review-routing";
+import { loadReviewRoutingExceptions } from "@/lib/org/review-exceptions-store";
 
 /**
  * Whether level/exception-based review approval enforcement is turned on.
@@ -70,10 +71,11 @@ export async function assertReviewApprovalAuthority(args: {
 }): Promise<ApprovalDecision | null> {
   if (!isReviewAuthorityEnforced()) return null;
 
-  const [approver, author, subject] = await Promise.all([
+  const [approver, author, subject, exceptions] = await Promise.all([
     loadParticipant(args.approverId),
     loadParticipant(args.authorId),
     loadParticipant(args.subject.id),
+    loadReviewRoutingExceptions(),
   ]);
 
   // If we cannot resolve participants, fail open (do not block existing
@@ -84,6 +86,8 @@ export async function assertReviewApprovalAuthority(args: {
     approver,
     author,
     subject,
+    selfFinalizeExceptions: exceptions.selfFinalizeExceptions,
+    boardApprovalRoutes: exceptions.boardApprovalRoutes,
   });
 
   if (!decision.allowed) {

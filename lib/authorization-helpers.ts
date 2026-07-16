@@ -1,5 +1,6 @@
 import { requireSessionUser, requireAnyRole, SessionUser } from "./authorization";
 import { prisma } from "./prisma";
+import { isChapterLeadership, getChapterViewerContext, requireChapterManager } from "./chapters/access";
 
 /**
  * Domain-specific authorization helpers
@@ -61,30 +62,17 @@ export async function requireStudent(): Promise<SessionUser> {
 }
 
 /**
- * Require that the user is a chapter president for the specified chapter
- * OR is an admin
+ * Require that the user is a chapter president for the specified chapter, or
+ * national leadership (ADMIN/STAFF/LEADERSHIP-or-SUPER_ADMIN subtype).
+ *
+ * Thin wrapper over `chapters/access.ts#requireChapterManager` — that module
+ * is the single source of truth for "who counts as national leadership vs. a
+ * single-chapter manager" so this helper and the chapter-OS guards can't drift
+ * out of sync with each other.
  */
 export async function requireChapterAccess(chapterId: string): Promise<SessionUser> {
-  const user = await requireSessionUser();
-
-  // Admins can access all chapters
-  if (user.roles.includes("ADMIN")) {
-    return user;
-  }
-
-  // Check if user is a chapter president for this chapter
-  if (user.roles.includes("CHAPTER_PRESIDENT")) {
-    const chapterOwner = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: { chapterId: true }
-    });
-
-    if (chapterOwner?.chapterId === chapterId) {
-      return user;
-    }
-  }
-
-  throw new Error("Unauthorized: You don't have access to this chapter");
+  const { user } = await requireChapterManager(chapterId);
+  return user;
 }
 
 /**
@@ -326,8 +314,10 @@ export async function requireAttendanceAccess(
 ): Promise<SessionUser> {
   const user = await requireSessionUser();
 
-  // Admins can access all attendance
-  if (user.roles.includes("ADMIN")) {
+  // National leadership (ADMIN/STAFF/LEADERSHIP-or-SUPER_ADMIN subtype) can
+  // access all attendance — same definition as chapters/access.ts, so this
+  // can't drift from the chapter-OS guards.
+  if (isChapterLeadership(user)) {
     return user;
   }
 
@@ -359,13 +349,11 @@ export async function requireAttendanceAccess(
     resourceChapterId = course?.chapterId ?? null;
   }
 
-  // Chapter leads can access attendance for their chapter
-  if (user.roles.includes("CHAPTER_PRESIDENT")) {
-    const chapterOwner = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: { chapterId: true },
-    });
-    if (resourceChapterId && chapterOwner?.chapterId === resourceChapterId) {
+  // Chapter leads can access attendance for their chapter (presidentId-first,
+  // same resolution chapters/access.ts uses).
+  if (resourceChapterId) {
+    const { ledChapterId } = await getChapterViewerContext();
+    if (ledChapterId && ledChapterId === resourceChapterId) {
       return user;
     }
   }
@@ -403,19 +391,16 @@ export async function requireApplicationAccess(
     return user;
   }
 
-  // Admins can access all applications
-  if (user.roles.includes("ADMIN")) {
+  // National leadership can access all applications — same definition as
+  // chapters/access.ts.
+  if (isChapterLeadership(user)) {
     return user;
   }
 
-  // Chapter leads can access applications for their chapter
-  if (user.roles.includes("CHAPTER_PRESIDENT") && application.position.chapterId) {
-    const chapterOwner = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: { chapterId: true }
-    });
-
-    if (chapterOwner?.chapterId === application.position.chapterId) {
+  // Chapter leads can access applications for their chapter (presidentId-first).
+  if (application.position.chapterId) {
+    const { ledChapterId } = await getChapterViewerContext();
+    if (ledChapterId && ledChapterId === application.position.chapterId) {
       return user;
     }
   }

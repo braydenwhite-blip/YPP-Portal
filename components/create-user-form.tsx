@@ -8,6 +8,7 @@ import {
   ADMIN_SUBTYPE_LABELS,
   ADMIN_SUBTYPE_VALUES,
 } from "@/lib/admin-subtypes";
+import { INSTRUCTION_TITLES, LEADERSHIP_TITLES } from "@/lib/org/levels";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -110,6 +111,30 @@ export function CreateUserForm({
             </option>
           ))}
         </select>
+      </label>
+      <label className="form-row">
+        Title (internal level)
+        <select className="input" name="canonicalTitle" defaultValue="">
+          <option value="">No title — derive from role/subtypes</option>
+          <optgroup label="Instruction ladder">
+            {INSTRUCTION_TITLES.map((title) => (
+              <option key={title} value={title}>
+                {title}
+              </option>
+            ))}
+          </optgroup>
+          <optgroup label="Leadership ladder">
+            {LEADERSHIP_TITLES.map((title) => (
+              <option key={title} value={title}>
+                {title}
+              </option>
+            ))}
+          </optgroup>
+        </select>
+        <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--muted)" }}>
+          Sets their canonical title and internal level directly. Leave blank to
+          fall back to whatever the primary role/admin subtypes imply.
+        </p>
       </label>
       <div className="form-row">
         Additional Roles

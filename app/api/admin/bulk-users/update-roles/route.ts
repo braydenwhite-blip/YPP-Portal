@@ -1,23 +1,15 @@
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth-supabase";
-import { NextResponse } from "next/server";
 import { redirect } from "next/navigation";
 import { RoleType } from "@prisma/client";
 import {
   buildUserRoleRecords,
   resolveUserAccessSelection,
 } from "@/lib/admin-user-access";
+import { requireApiSession } from "@/lib/api-auth";
 
 export async function POST(request: Request) {
-  const session = await getSession();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const roles = session.user.roles ?? [];
-  if (!roles.includes("ADMIN")) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const auth = await requireApiSession({ roles: ["ADMIN"] });
+  if ("response" in auth) return auth.response;
 
   const formData = await request.formData();
   const emailsText = String(formData.get("emails") || "");
