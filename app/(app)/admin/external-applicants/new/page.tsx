@@ -2,10 +2,15 @@ import { prisma } from "@/lib/prisma";
 import skin from "@/components/ui-v2/portal-skin.module.css";
 import { SimpleActionStrip, SimpleSurface, type SimpleAction } from "@/components/command-center/simple";
 import { PageHeaderV2 } from "@/components/ui-v2";
+import { ensureSocialMediaManagerPosition } from "@/lib/application-actions";
 import { requireApplicationReviewerPage } from "@/lib/page-guards";
+import { SOCIAL_MEDIA_MANAGER_POSITION_TITLE } from "@/lib/social-media-manager-application";
 import ExternalApplicantIntakeForm from "./intake-form";
 
 export const dynamic = "force-dynamic";
+
+/** Legacy staff opening — no longer offered on external intake. */
+const HIDDEN_STAFF_TITLES = new Set(["technology manager"]);
 
 export default async function NewExternalApplicantPage() {
   // Same audience as the Application board: Admin, Hiring Chair, Chapter President.
@@ -34,17 +39,55 @@ export default async function NewExternalApplicantPage() {
     chapters = me?.chapter ? [me.chapter] : [];
   }
 
-  const staffPositions = canAddStaff
-    ? await prisma.position.findMany({
-        where: { type: "STAFF", isOpen: true },
-        select: {
-          id: true,
-          title: true,
-          chapter: { select: { name: true } },
-        },
-        orderBy: { title: "asc" },
-      })
-    : [];
+  let staffPositions: Array<{
+    id: string;
+    title: string;
+    chapterName: string | null;
+  }> = [];
+
+  if (canAddStaff) {
+    // Ensure the Social Media Manager opening exists so Staff intake always lists it.
+    const smm = await ensureSocialMediaManagerPosition();
+
+    const openStaff = await prisma.position.findMany({
+      where: { type: "STAFF", isOpen: true },
+      select: {
+        id: true,
+        title: true,
+        chapter: { select: { name: true } },
+      },
+      orderBy: { title: "asc" },
+    });
+
+    staffPositions = openStaff
+      .filter((position) => !HIDDEN_STAFF_TITLES.has(position.title.trim().toLowerCase()))
+      .map((position) => ({
+        id: position.id,
+        title: position.title,
+        chapterName: position.chapter?.name ?? null,
+      }));
+
+    if (!staffPositions.some((p) => p.id === smm.id)) {
+      staffPositions.unshift({
+        id: smm.id,
+        title: SOCIAL_MEDIA_MANAGER_POSITION_TITLE,
+        chapterName: null,
+      });
+    }
+
+    // Prefer Social Media Manager first in the list.
+    staffPositions.sort((a, b) => {
+      const aSmm = a.title === SOCIAL_MEDIA_MANAGER_POSITION_TITLE ? 0 : 1;
+      const bSmm = b.title === SOCIAL_MEDIA_MANAGER_POSITION_TITLE ? 0 : 1;
+      if (aSmm !== bSmm) return aSmm - bSmm;
+      return a.title.localeCompare(b.title);
+    });
+  }
+
+  const defaultStaffPositionId =
+    staffPositions.find((p) => p.title === SOCIAL_MEDIA_MANAGER_POSITION_TITLE)?.id ??
+    staffPositions[0]?.id ??
+    "";
 
   const strip: SimpleAction[] = [
     { label: "Application board", href: "/admin/instructor-applicants", icon: "list" },
@@ -67,11 +110,8 @@ export default async function NewExternalApplicantPage() {
           <div className="flex flex-col gap-5">
             <ExternalApplicantIntakeForm
               chapters={chapters}
-              staffPositions={staffPositions.map((position) => ({
-                id: position.id,
-                title: position.title,
-                chapterName: position.chapter?.name ?? null,
-              }))}
+              staffPositions={staffPositions}
+              defaultStaffPositionId={defaultStaffPositionId}
               scopedChapterId={scopedChapterId}
               hasNetworkScope={hasNetworkScope}
               canAddChapterPresident={canAddChapterPresident}
