@@ -19,6 +19,8 @@ interface StaffPosition {
 interface Props {
   chapters: Array<{ id: string; name: string }>;
   staffPositions: StaffPosition[];
+  /** Prefills Staff opening — usually Social Media Manager. */
+  defaultStaffPositionId?: string;
   scopedChapterId: string | null;
   hasNetworkScope: boolean;
   canAddChapterPresident: boolean;
@@ -77,6 +79,7 @@ function chipClass(active: boolean) {
 export default function ExternalApplicantIntakeForm({
   chapters,
   staffPositions,
+  defaultStaffPositionId = "",
   scopedChapterId,
   hasNetworkScope,
   canAddChapterPresident,
@@ -271,34 +274,26 @@ export default function ExternalApplicantIntakeForm({
               ) : null}
 
               {isStaff ? (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="space-y-1.5">
-                    <span className="text-[13px] font-semibold text-ink">Staff opening</span>
-                    <select className={selectClass} name="positionId" defaultValue="">
-                      <option value="">Create / match by title →</option>
-                      {staffPositions.map((position) => (
-                        <option key={position.id} value={position.id}>
-                          {position.title}
-                          {position.chapterName ? ` · ${position.chapterName}` : ""}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="space-y-1.5">
-                    <span className="text-[13px] font-semibold text-ink">Position title</span>
-                    <input
-                      className={inputClass}
-                      name="positionTitle"
-                      defaultValue="Social Media Manager"
-                      placeholder="Social Media Manager"
-                      list="staff-position-titles"
-                    />
-                    <datalist id="staff-position-titles">
-                      <option value="Social Media Manager" />
-                      <option value="Technology Manager" />
-                    </datalist>
-                  </label>
-                </div>
+                <label className="block space-y-1.5">
+                  <span className="text-[13px] font-semibold text-ink">Staff opening</span>
+                  <select
+                    className={selectClass}
+                    name="positionId"
+                    defaultValue={defaultStaffPositionId}
+                    required={staffPositions.length > 0}
+                  >
+                    {staffPositions.length === 0 ? (
+                      <option value="">No open staff positions</option>
+                    ) : null}
+                    {staffPositions.map((position) => (
+                      <option key={position.id} value={position.id}>
+                        {position.title}
+                        {position.chapterName ? ` · ${position.chapterName}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <input type="hidden" name="positionTitle" value="Social Media Manager" />
+                </label>
               ) : null}
 
               <label className="block space-y-1.5">
