@@ -4,13 +4,11 @@ import { SimpleActionStrip, SimpleSurface, type SimpleAction } from "@/component
 import { PageHeaderV2 } from "@/components/ui-v2";
 import { ensureSocialMediaManagerPosition } from "@/lib/application-actions";
 import { requireApplicationReviewerPage } from "@/lib/page-guards";
+import { isHiddenStaffPositionTitle } from "@/lib/applicant-board-kind";
 import { SOCIAL_MEDIA_MANAGER_POSITION_TITLE } from "@/lib/social-media-manager-application";
 import ExternalApplicantIntakeForm from "./intake-form";
 
 export const dynamic = "force-dynamic";
-
-/** Legacy staff opening — no longer offered on external intake. */
-const HIDDEN_STAFF_TITLES = new Set(["technology manager"]);
 
 export default async function NewExternalApplicantPage() {
   // Same audience as the Application board: Admin, Hiring Chair, Chapter President.
@@ -60,7 +58,7 @@ export default async function NewExternalApplicantPage() {
     });
 
     staffPositions = openStaff
-      .filter((position) => !HIDDEN_STAFF_TITLES.has(position.title.trim().toLowerCase()))
+      .filter((position) => !isHiddenStaffPositionTitle(position.title))
       .map((position) => ({
         id: position.id,
         title: position.title,
