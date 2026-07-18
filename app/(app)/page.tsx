@@ -27,8 +27,6 @@ import StudentDashboard, {
 } from "@/components/dashboard/student-dashboard";
 import MyActionsCard from "@/components/people-strategy/my-actions-card";
 import type { ActionViewer } from "@/lib/people-strategy/action-permissions";
-import { loadLeadershipHome } from "@/lib/home/leadership-home";
-import { LeadershipHome } from "@/components/home/leadership-home";
 import { APPLICATION_REVIEWER_ROLES } from "@/lib/org/role-sets";
 
 // Roles that work the hiring pipeline and should land on the applicant board.
@@ -60,6 +58,59 @@ function HomeShell({
   );
 }
 
+function greetingForNow(name: string, now: Date): string {
+  const hour = now.getHours();
+  const greeting =
+    hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  return name ? `${greeting}, ${name}.` : `${greeting}.`;
+}
+
+function LeadershipHomeSimple({
+  name,
+  viewer,
+  showPreviewUnlockLink,
+}: {
+  name: string;
+  viewer: ActionViewer;
+  showPreviewUnlockLink: boolean;
+}) {
+  const now = new Date();
+  const dateLabel = new Intl.DateTimeFormat("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  }).format(now);
+
+  return (
+    <main className="mx-auto w-full max-w-[760px] px-5 py-8 sm:py-12">
+      <header className="mb-4 overflow-hidden rounded-[22px] border border-brand-100 bg-gradient-to-br from-brand-50 via-surface to-surface px-6 py-7 shadow-card sm:px-8 sm:py-9">
+        <p className="m-0 text-[11px] font-bold uppercase tracking-[0.14em] text-brand-700">
+          {dateLabel}
+        </p>
+        <h1 className="mt-2 mb-0 text-[30px] font-bold tracking-[-0.035em] text-ink sm:text-[34px]">
+          {greetingForNow(name, now)}
+        </h1>
+        <p className="mt-2 mb-0 max-w-[480px] text-[14px] leading-6 text-ink-muted">
+          Here&rsquo;s what needs your attention next.
+        </p>
+      </header>
+
+      <MyActionsCard viewer={viewer} />
+
+      {showPreviewUnlockLink ? (
+        <p className="mt-4 mb-0 text-center">
+          <Link
+            href="/preview"
+            className="text-[12.5px] font-semibold text-brand-700 no-underline hover:underline"
+          >
+            Enter the preview passcode
+          </Link>
+        </p>
+      ) : null}
+    </main>
+  );
+}
+
 function PrimaryCard({
   href,
   title,
@@ -85,56 +136,6 @@ function PrimaryCard({
         {cta}
       </span>
     </Link>
-  );
-}
-
-function ReviewerHome({
-  name,
-  gateEnabled,
-  actionsCard,
-}: {
-  name: string;
-  gateEnabled: boolean;
-  actionsCard?: ReactNode;
-}) {
-  return (
-    <HomeShell
-      greeting={name ? `Hi, ${name}.` : "Welcome back."}
-      intro="The application board is the one page that's ready to use. The rest of the portal is still being tested."
-    >
-      <PrimaryCard
-        href="/admin/instructor-applicants"
-        title="Application board"
-        body="Review instructor applicants and move them through the hiring pipeline."
-        cta="Open the board"
-      />
-      {actionsCard ? <div style={{ marginTop: 20 }}>{actionsCard}</div> : null}
-      {gateEnabled && (
-        <div style={{ marginTop: 20 }}>
-          <Link
-            href="/preview"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 8,
-              padding: "10px 18px",
-              borderRadius: 8,
-              background: "#6b21c8",
-              color: "#fff",
-              fontSize: 14,
-              fontWeight: 600,
-              textDecoration: "none",
-            }}
-          >
-            <span style={{ fontSize: 16 }}>🔑</span>
-            Enter the preview passcode
-          </Link>
-          <p style={{ marginTop: 8, fontSize: 12, color: "var(--muted)" }}>
-            Unlock the rest of the portal on this device.
-          </p>
-        </div>
-      )}
-    </HomeShell>
   );
 }
 
@@ -338,37 +339,13 @@ export default async function OverviewPage() {
   }
 
   if (isReviewer) {
-    // Leadership Home cockpit (Knowledge OS V2, plan §7/§27.6) — the
-    // executive front door. Falls back to the prior minimal reviewer home if
-    // the cockpit loaders fail, so leadership never lands on an error page.
-    try {
-      const cockpit = await loadLeadershipHome(actionViewer);
-      return (
-        <>
-          <LeadershipHome firstName={name} userId={session.user.id} data={cockpit} />
-          {showPreviewUnlockLink && (
-            <p style={{ maxWidth: 1280, margin: "16px auto 0" }}>
-              <Link
-                href="/preview"
-                style={{ fontSize: 13, fontWeight: 600, color: "#6b21c8" }}
-              >
-                🔑 Enter the preview passcode to unlock the rest of the portal on
-                this device
-              </Link>
-            </p>
-          )}
-        </>
-      );
-    } catch (error) {
-      console.error("[home] leadership cockpit failed, using fallback:", error);
-      return (
-        <ReviewerHome
-          name={name}
-          gateEnabled={showPreviewUnlockLink}
-          actionsCard={<MyActionsCard viewer={actionViewer} />}
-        />
-      );
-    }
+    return (
+      <LeadershipHomeSimple
+        name={name}
+        viewer={actionViewer}
+        showPreviewUnlockLink={showPreviewUnlockLink}
+      />
+    );
   }
 
   if (isInstructor) {
