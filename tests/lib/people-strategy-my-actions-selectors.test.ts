@@ -7,6 +7,7 @@ import {
   effectiveDeadline,
   isActionOverdue,
   selectExecuting,
+  selectUpcoming,
   sortByDeadline,
   summarizeMyActions,
 } from "@/lib/people-strategy/my-actions-selectors";
@@ -149,5 +150,17 @@ describe("bucketByUrgency", () => {
       item({ id: "a", deadlineStart: addDays(NOW, 2), deadlineEnd: null }),
     ];
     expect(bucketByUrgency(items, NOW).thisWeek.map((i) => i.id)).toEqual(["a", "b"]);
+  });
+});
+
+describe("selectUpcoming", () => {
+  it("shows only open actions", () => {
+    const items = [
+      item({ id: "done", status: "COMPLETE" }),
+      item({ id: "dropped", status: "DROPPED" }),
+      item({ id: "open", status: "IN_PROGRESS" }),
+    ];
+
+    expect(selectUpcoming(items).map((action) => action.id)).toEqual(["open"]);
   });
 });

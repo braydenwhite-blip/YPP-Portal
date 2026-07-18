@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { ButtonLink, CardV2, cn } from "@/components/ui-v2";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
 import { formatDueDate } from "@/lib/leadership-action-center/dates";
 import { getMyActionItems } from "@/lib/people-strategy/action-queries";
@@ -7,79 +8,106 @@ import type { ActionViewer } from "@/lib/people-strategy/action-permissions";
 import {
   effectiveDeadline,
   isActionOverdue,
-  sortByDeadline,
-  summarizeMyActions,
+  selectUpcoming,
 } from "@/lib/people-strategy/my-actions-selectors";
 
-const OVERDUE_ACCENT = "var(--error-color)";
+function readableStatus(status: string): string {
+  return status
+    .replaceAll("_", " ")
+    .toLowerCase()
+    .replace(/^./, (letter) => letter.toUpperCase());
+}
 
 /**
  * Compact "My Actions" queue card for the unified home dashboard. Async server
- * component: it self-gates on the ENABLE_ACTION_TRACKER flag and renders
- * nothing when the flag is off or the viewer has no actions, so it can be
- * dropped into any home surface without extra branching. Reuses the `.card`
- * pattern and the shared My Actions selectors.
+ * component: it self-gates on the ENABLE_ACTION_TRACKER flag and shows the
+ * viewer's nearest deadlines using the shared My Actions selectors.
  */
 export default async function MyActionsCard({ viewer }: { viewer: ActionViewer }) {
   if (!isActionTrackerEnabled()) return null;
 
-  const items = sortByDeadline(await getMyActionItems(viewer.id, viewer));
-  if (items.length === 0) return null;
-
+  const items = selectUpcoming(await getMyActionItems(viewer.id, viewer));
   const now = new Date();
-  const summary = summarizeMyActions(items, viewer.id, now);
-  const top = items.slice(0, 3);
+  const top = items.slice(0, 5);
 
   return (
-    <Link
-      href="/actions"
-      className="card"
-      style={{ display: "block", padding: "18px 20px", textDecoration: "none", color: "inherit" }}
-    >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
-        <h2 style={{ margin: 0, fontSize: 16 }}>My Actions</h2>
-        <span style={{ fontSize: 12, color: "var(--muted)" }}>{summary.total} total</span>
-      </div>
-
-      <div style={{ display: "flex", gap: 14, margin: "10px 0 4px", flexWrap: "wrap" }}>
-        {summary.overdue > 0 ? (
-          <span style={{ fontSize: 13, fontWeight: 700, color: OVERDUE_ACCENT }}>
-            {summary.overdue} overdue
-          </span>
+    <CardV2 padding="none" className="overflow-hidden rounded-[18px]">
+      <div className="flex items-center justify-between gap-4 border-b border-line-soft px-5 py-4 sm:px-6">
+        <div>
+          <h2 className="m-0 text-[16px] font-bold tracking-[-0.01em] text-ink">
+            Your actions
+          </h2>
+          <p className="mt-0.5 mb-0 text-[12.5px] text-ink-muted">
+            {items.length === 0
+              ? "Nothing needs you right now"
+              : `${items.length} open ${items.length === 1 ? "item" : "items"}`}
+          </p>
+        </div>
+        {items.length > 0 ? (
+          <ButtonLink href="/actions" variant="ghost" size="sm">
+            View all
+          </ButtonLink>
         ) : null}
-        <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>{summary.inProgress} in progress</span>
-        <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>{summary.executing} executing</span>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
-        {top.map((item) => {
-          const overdue = isActionOverdue(item, now);
-          return (
-            <div
-              key={item.id}
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: 10,
-                fontSize: 13,
-                paddingLeft: 8,
-                borderLeft: overdue ? `3px solid ${OVERDUE_ACCENT}` : "3px solid var(--border)",
-              }}
-            >
-              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {item.title}
-              </span>
-              <span style={{ color: overdue ? OVERDUE_ACCENT : "#64748b", whiteSpace: "nowrap", fontWeight: overdue ? 600 : 400 }}>
-                {formatDueDate(effectiveDeadline(item))}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-
-      <span className="button small" style={{ marginTop: 14, pointerEvents: "none" }}>
-        Open My Actions
-      </span>
-    </Link>
+      {top.length === 0 ? (
+        <div className="flex flex-col items-center px-6 py-10 text-center">
+          <span
+            aria-hidden
+            className="mb-3 flex size-10 items-center justify-center rounded-full bg-emerald-50 text-[18px] font-bold text-emerald-700"
+          >
+            ✓
+          </span>
+          <p className="m-0 text-[14px] font-semibold text-ink">You&rsquo;re all caught up</p>
+          <p className="mt-1 mb-0 text-[12.5px] text-ink-muted">
+            New assignments will appear here.
+          </p>
+        </div>
+      ) : (
+        <div className="divide-y divide-line-soft">
+          {top.map((item) => {
+            const overdue = isActionOverdue(item, now);
+            const department = item.department?.name ?? null;
+            return (
+              <Link
+                key={item.id}
+                href={`/actions/${item.id}`}
+                className="group grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-5 py-4 no-underline transition-colors hover:bg-brand-50/60 sm:px-6"
+              >
+                <span
+                  aria-hidden
+                  className={cn(
+                    "flex size-8 items-center justify-center rounded-full text-[14px] font-bold",
+                    overdue
+                      ? "bg-danger-50 text-danger-700"
+                      : "bg-brand-50 text-brand-700"
+                  )}
+                >
+                  {overdue ? "!" : "✓"}
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate text-[13.5px] font-semibold text-ink group-hover:text-brand-800">
+                    {item.title}
+                  </span>
+                  <span className="mt-0.5 block truncate text-[11.5px] text-ink-muted">
+                    {department
+                      ? `${department} · ${readableStatus(item.status)}`
+                      : readableStatus(item.status)}
+                  </span>
+                </span>
+                <span
+                  className={cn(
+                    "whitespace-nowrap text-[11.5px] font-semibold",
+                    overdue ? "text-danger-700" : "text-ink-muted"
+                  )}
+                >
+                  {overdue ? "Overdue" : formatDueDate(effectiveDeadline(item))}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      )}
+    </CardV2>
   );
 }

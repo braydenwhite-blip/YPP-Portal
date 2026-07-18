@@ -60,11 +60,13 @@ export function selectExecuting(
   return sortByDeadline(items.filter((item) => viewerHasRole(item, userId, "EXECUTING")));
 }
 
-/** Open (not COMPLETE) actions, soonest deadline first. */
+/** Open actions, soonest deadline first. Settled work never appears. */
 export function selectUpcoming(
   items: ActionItemWithRelations[]
 ): ActionItemWithRelations[] {
-  return sortByDeadline(items.filter((item) => item.status !== "COMPLETE"));
+  return sortByDeadline(
+    items.filter((item) => item.status !== "COMPLETE" && item.status !== "DROPPED")
+  );
 }
 
 export type UrgencyBuckets = {
