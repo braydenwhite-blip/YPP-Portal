@@ -150,14 +150,14 @@ export function AttendanceRoster({
             const current = entries[s.id]?.status ?? "PRESENT";
             return (
               <li key={s.id} className="rounded-xl border p-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0">
+                <div className="min-w-0 sm:pr-4">
                   <p className="font-medium text-slate-900 truncate">{s.name ?? s.email ?? s.id}</p>
                   {rowFinalized && <p className="text-xs text-slate-500">Finalized</p>}
                 </div>
                 <div
                   role="radiogroup"
                   aria-label={`Attendance status for ${s.name ?? s.id}`}
-                  className="flex flex-wrap gap-2"
+                  className="flex flex-wrap gap-2 shrink-0"
                 >
                   {STATUSES.map((opt) => {
                     const pressed = current === opt.value;

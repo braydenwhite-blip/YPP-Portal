@@ -52,14 +52,41 @@ async function lookupInstructorSubtype(userId: string | null | undefined) {
  * Redirects non-admin users away from gated routes when the regular
  * Instructor program is disabled. Call from any RSC that should be hidden.
  */
+/** Roles that may ever enter `/instructor/*` (beyond gate-specific bypasses). */
+const INSTRUCTOR_SECTION_ROLES = [
+  "INSTRUCTOR",
+  "ADMIN",
+  "STAFF",
+  "CHAPTER_PRESIDENT",
+  "HIRING_CHAIR",
+  "APPLICANT",
+];
+
+/**
+ * Family-only users (students/parents) never belong under `/instructor/*`,
+ * regardless of the regular-instructor feature flag. Send them back to
+ * their own portal instead of rendering instructor surfaces.
+ */
+function familyOnlyRedirect(roles: readonly string[], primaryRole: string | null): string | null {
+  const all = new Set([...roles, ...(primaryRole ? [primaryRole] : [])]);
+  if ([...all].some((r) => INSTRUCTOR_SECTION_ROLES.includes(r))) return null;
+  if (all.has("STUDENT")) return "/student";
+  if (all.has("PARENT")) return "/parent";
+  return null;
+}
+
 export async function enforceInstructorGate(
   options: InstructorGateOptions = {}
 ): Promise<void> {
-  if (isRegularInstructorEnabled()) return;
-
   const session = await getSession();
   const roles = session?.user?.roles ?? [];
   const primaryRole = session?.user?.primaryRole ?? null;
+
+  const familyRedirect = familyOnlyRedirect(roles, primaryRole);
+  if (familyRedirect) redirect(familyRedirect);
+
+  if (isRegularInstructorEnabled()) return;
+
   const adminPreview = readAdminPreview(options.adminPreview);
   const pathname = options.pathname ?? null;
 

@@ -1,1 +1,58 @@
-import { getInstructorDevelopment } from "@/lib/session8/instructor-ops";import { confirmInstructorAvailability } from "@/lib/session8/actions";import { S8Page,S8Grid,S8Card,S8List,S8Item } from "@/components/session8/portal-ui";import { shortDate } from "@/lib/session8/format";export default async function Page(){const d=await getInstructorDevelopment();return <S8Page eyebrow="Instructor development" title="Instructor lifecycle" body="Availability, onboarding, training, performance evidence, support, recognition, feedback, follow-up requirements, and teaching history." primaryHref="/instructor/classes" primaryLabel="My classes"><S8Grid><S8Card title="Availability"><form action={confirmInstructorAvailability} className="space-y-3"><label htmlFor="note" className="block text-sm font-semibold">Availability, constraints, preferences, and capacity</label><textarea id="note" name="note" className="w-full rounded-2xl border p-3" placeholder="Recurring availability, unavailable dates, formats, travel constraints, grade bands, subjects, and additional class capacity"/><button className="rounded-full bg-violet-700 px-4 py-2 font-semibold text-white">Save availability update</button></form></S8Card><S8Card title="Onboarding checklist"><S8List items={["Profile","Policies","Forms","Verification requirements","Platform orientation","Availability","Curriculum access","Communication expectations","First class assignment"].map((title,i)=>({id:i,title}))} empty="No onboarding steps." render={(i:any)=><S8Item key={i.id} title={i.title} status="REQUIRED">Complete or verify this requirement before additional assignments.</S8Item>}/></S8Card><S8Card title="Training"><S8List items={d.certs} empty="No training completions yet." render={(c:any)=><S8Item key={c.id} title={c.title??c.name??"Training"} meta={shortDate(c.createdAt)} status={c.status??"COMPLETE"}/>}/></S8Card><S8Card title="Performance evidence"><S8List items={d.growth} empty="No performance evidence recorded yet." render={(g:any)=><S8Item key={g.id} title={g.summary??g.type??"Development event"} meta={shortDate(g.createdAt)} status={g.type}>{g.details}</S8Item>}/></S8Card><S8Card title="Action items"><p className="text-sm text-slate-600">No opaque score is shown. Evidence uses classes taught, attendance completion, preparation completion, retention signals, released family feedback, training status, recognition, and review follow-up.</p></S8Card></S8Grid></S8Page>}
+import Link from "next/link";
+import { PageHeaderV2, CardV2, StatusBadge } from "@/components/ui-v2";
+import { getInstructorOnboarding } from "@/lib/session8/instructor-development";
+import { shortDate } from "@/lib/session8/format";
+import { OnboardingStepActions } from "./onboarding-step-actions";
+
+export default async function InstructorOnboardingPage() {
+  const { steps, completedCount, totalCount } = await getInstructorOnboarding();
+
+  return (
+    <main className="mx-auto max-w-4xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+      <PageHeaderV2
+        eyebrow="Instructor development"
+        title="Onboarding checklist"
+        subtitle={`${completedCount} of ${totalCount} steps complete.`}
+      />
+
+      <div className="space-y-3">
+        {steps.map((step) => (
+          <CardV2 key={step.key} padding="md">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-base font-semibold text-ink">{step.title}</h2>
+                  <StatusBadge tone={step.completed ? "success" : "warning"}>
+                    {step.completed ? "Complete" : "Incomplete"}
+                  </StatusBadge>
+                  <span className="text-[11px] font-medium uppercase tracking-wide text-ink-muted">
+                    {step.kind === "derived" ? "Auto-checked" : "Self-attested"}
+                  </span>
+                </div>
+                <p className="mt-1 text-sm text-ink-muted">{step.description}</p>
+                {step.completed && step.completedAt ? (
+                  <p className="mt-1 text-xs text-ink-muted">Completed {shortDate(step.completedAt)}</p>
+                ) : null}
+                {step.kind === "derived" && !step.completed && step.actionHref ? (
+                  <p className="mt-1 text-xs text-ink-muted">
+                    This step completes automatically once the underlying data exists.
+                  </p>
+                ) : null}
+                {step.actionHref ? (
+                  <Link href={step.actionHref} className="mt-2 inline-block text-sm font-semibold text-brand-700 hover:underline">
+                    {step.actionLabel ?? "Go"} →
+                  </Link>
+                ) : null}
+              </div>
+              {step.kind === "self-attest" ? (
+                <div className="shrink-0">
+                  <OnboardingStepActions stepKey={step.key} completed={step.completed} />
+                </div>
+              ) : null}
+            </div>
+          </CardV2>
+        ))}
+      </div>
+    </main>
+  );
+}

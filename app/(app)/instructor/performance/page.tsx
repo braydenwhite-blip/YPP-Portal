@@ -1,1 +1,88 @@
-import { getInstructorDevelopment } from "@/lib/session8/instructor-ops";import { confirmInstructorAvailability } from "@/lib/session8/actions";import { S8Page,S8Grid,S8Card,S8List,S8Item } from "@/components/session8/portal-ui";import { shortDate } from "@/lib/session8/format";export default async function Page(){const d=await getInstructorDevelopment();return <S8Page eyebrow="Instructor development" title="Instructor lifecycle" body="Availability, onboarding, training, performance evidence, support, recognition, feedback, follow-up requirements, and teaching history." primaryHref="/instructor/classes" primaryLabel="My classes"><S8Grid><S8Card title="Availability"><form action={confirmInstructorAvailability} className="space-y-3"><label htmlFor="note" className="block text-sm font-semibold">Availability, constraints, preferences, and capacity</label><textarea id="note" name="note" className="w-full rounded-2xl border p-3" placeholder="Recurring availability, unavailable dates, formats, travel constraints, grade bands, subjects, and additional class capacity"/><button className="rounded-full bg-violet-700 px-4 py-2 font-semibold text-white">Save availability update</button></form></S8Card><S8Card title="Onboarding checklist"><S8List items={["Profile","Policies","Forms","Verification requirements","Platform orientation","Availability","Curriculum access","Communication expectations","First class assignment"].map((title,i)=>({id:i,title}))} empty="No onboarding steps." render={(i:any)=><S8Item key={i.id} title={i.title} status="REQUIRED">Complete or verify this requirement before additional assignments.</S8Item>}/></S8Card><S8Card title="Training"><S8List items={d.certs} empty="No training completions yet." render={(c:any)=><S8Item key={c.id} title={c.title??c.name??"Training"} meta={shortDate(c.createdAt)} status={c.status??"COMPLETE"}/>}/></S8Card><S8Card title="Performance evidence"><S8List items={d.growth} empty="No performance evidence recorded yet." render={(g:any)=><S8Item key={g.id} title={g.summary??g.type??"Development event"} meta={shortDate(g.createdAt)} status={g.type}>{g.details}</S8Item>}/></S8Card><S8Card title="Action items"><p className="text-sm text-slate-600">No opaque score is shown. Evidence uses classes taught, attendance completion, preparation completion, retention signals, released family feedback, training status, recognition, and review follow-up.</p></S8Card></S8Grid></S8Page>}
+import { PageHeaderV2, CardV2, EmptyStateV2 } from "@/components/ui-v2";
+import { getInstructorPerformance } from "@/lib/session8/instructor-development";
+import { pretty, shortDate } from "@/lib/session8/format";
+
+function formatRate(rate: number | null): string {
+  if (rate === null) return "No past sessions yet";
+  return `${Math.round(rate * 100)}%`;
+}
+
+function PerformanceTile({ label, value, detail }: { label: string; value: string; detail: string }) {
+  return (
+    <CardV2 padding="md">
+      <p className="text-[11.5px] font-semibold uppercase tracking-[0.04em] text-ink-muted">{label}</p>
+      <p className="mt-1 text-[28px] font-bold leading-none tracking-[-0.01em] text-ink">{value}</p>
+      <p className="mt-2 text-xs text-ink-muted">{detail}</p>
+    </CardV2>
+  );
+}
+
+export default async function InstructorPerformancePage() {
+  const {
+    pastSessionCount,
+    completedPreparations,
+    preparationRate,
+    sessionsFullyFinalized,
+    attendanceCompletionRate,
+    certificationsEarned,
+    growthEvents,
+  } = await getInstructorPerformance();
+
+  return (
+    <main className="mx-auto max-w-5xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+      <PageHeaderV2
+        eyebrow="Instructor development"
+        title="Performance evidence"
+        subtitle="Each figure below is computed from real records and labeled with its source. No composite score, no ranking."
+      />
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <PerformanceTile
+          label="Preparation completion"
+          value={formatRate(preparationRate)}
+          detail={`${completedPreparations} of ${pastSessionCount} past sessions prepared`}
+        />
+        <PerformanceTile
+          label="Attendance completion"
+          value={formatRate(attendanceCompletionRate)}
+          detail={`${sessionsFullyFinalized} of ${pastSessionCount} past sessions fully finalized`}
+        />
+        <PerformanceTile
+          label="Certifications earned"
+          value={String(certificationsEarned)}
+          detail="From InstructorCertification, status Certified"
+        />
+        <PerformanceTile
+          label="Past sessions"
+          value={String(pastSessionCount)}
+          detail="Across all your assigned classes"
+        />
+      </div>
+
+      <div className="space-y-3">
+        <h2 className="text-base font-semibold text-ink">Recent development events</h2>
+        {growthEvents.length === 0 ? (
+          <EmptyStateV2
+            title="No development events recorded yet"
+            body="Recognition, feedback, and growth events will appear here as they're recorded."
+          />
+        ) : (
+          growthEvents.map((event) => (
+            <CardV2 key={event.id} padding="md">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-ink">{event.title}</h3>
+                  {event.description ? <p className="mt-1 text-sm text-ink-muted">{event.description}</p> : null}
+                </div>
+                <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-ink-muted">
+                  {pretty(event.category)}
+                </span>
+              </div>
+              <p className="mt-2 text-xs text-ink-muted">{shortDate(event.occurredAt)}</p>
+            </CardV2>
+          ))
+        )}
+      </div>
+    </main>
+  );
+}
