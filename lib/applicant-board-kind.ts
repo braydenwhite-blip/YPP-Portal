@@ -14,7 +14,7 @@ export function isHiddenStaffPositionTitle(title: string | null | undefined): bo
 
 /** Staff openings that appear on the Application board (SMM only for now). */
 export function isBoardStaffPositionTitle(title: string | null | undefined): boolean {
-  return (title ?? "").trim() === SOCIAL_MEDIA_MANAGER_POSITION_TITLE;
+  return (title ?? "").trim().toLowerCase() === SOCIAL_MEDIA_MANAGER_POSITION_TITLE.toLowerCase();
 }
 
 /** Map a CP application status onto an instructor-board column status. */
