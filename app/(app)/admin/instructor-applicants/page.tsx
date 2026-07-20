@@ -11,6 +11,7 @@ import {
   mapStaffStatusToBoardStatus,
   parseApplicantKindFilter,
 } from "@/lib/applicant-board-kind";
+import { ensureSocialMediaManagerPosition } from "@/lib/application-actions";
 import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
 import { SOCIAL_MEDIA_MANAGER_POSITION_TITLE } from "@/lib/social-media-manager-application";
 import { ApplicationReviewShell } from "@/components/applications/application-review-shell";
@@ -363,11 +364,13 @@ export default async function AdminInstructorApplicantsPage({
 
   const staffPositionWhere = {
     type: "STAFF" as const,
-    title: SOCIAL_MEDIA_MANAGER_POSITION_TITLE,
+    title: { equals: SOCIAL_MEDIA_MANAGER_POSITION_TITLE, mode: "insensitive" as const },
   };
 
   const loadStaffApps = async () => {
     if (!includeStaffApps) return [] as StaffBoardApp[];
+    // Ensure the Social Media Manager opening exists so title matching always works.
+    await ensureSocialMediaManagerPosition();
     return prisma.application.findMany({
       where: {
         archivedAt: null,

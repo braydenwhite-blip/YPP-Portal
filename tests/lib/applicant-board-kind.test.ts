@@ -49,6 +49,7 @@ describe("applicant-board-kind", () => {
     expect(isHiddenStaffPositionTitle("technology manager")).toBe(true);
     expect(isHiddenStaffPositionTitle("Social Media Manager")).toBe(false);
     expect(isBoardStaffPositionTitle("Social Media Manager")).toBe(true);
+    expect(isBoardStaffPositionTitle("social media manager")).toBe(true);
     expect(isBoardStaffPositionTitle("Technology Manager")).toBe(false);
   });
 });
