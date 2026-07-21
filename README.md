@@ -333,7 +333,7 @@ All routes require `Authorization: Bearer $CRON_SECRET` and no-op unless `ENABLE
 
 | Route | Schedule in `vercel.json` | Purpose |
 |-------|---------------------------|---------|
-| `/api/cron/action-weekly-digest` | `0 8 * * 1` | Monday 8:00 UTC weekly digest of open action items per recipient |
+| `/api/cron/action-weekly-digest` | `0 8 * * 1` | Monday 8:00 UTC officer digest — org-wide priorities, wins to congratulate, and overdue follow-ups, identical for every officer |
 | `/api/cron/action-deadline-warning` | `0 8 * * *` | Daily 8:00 UTC 24-hour deadline warning for assignees and leads |
 | `/api/cron/action-deadline-reached` | `0 23 * * *` | Daily 23:00 UTC due-today notices plus overdue lead notification/sweep |
 

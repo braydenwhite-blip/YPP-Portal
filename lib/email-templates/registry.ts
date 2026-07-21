@@ -479,75 +479,55 @@ export const EMAIL_TEMPLATES: Record<string, EmailTemplateDef> = {
     ],
   },
 
-  "action.weekly_digest": {
-    key: "action.weekly_digest",
-    name: "Weekly action digest",
+  "action.weekly_people_digest": {
+    key: "action.weekly_people_digest",
+    name: "Weekly officer digest",
     category: "People Strategy — actions",
-    description: "Weekly digest of a user's open action items grouped by urgency.",
-    defaultSubject: "Your Weekly Action Digest — {{total}} open {{itemWord}}",
+    description:
+      "Weekly Monday email to every officer: this week's top priorities, who to congratulate, and who has overdue work.",
+    defaultSubject: "Weekly priorities & people to reach out to — {{weekLabel}}",
     defaultBody: `
-    <h2 style="margin: 0 0 16px; color: #1c1917;">Your weekly action digest</h2>
+    <h2 style="margin: 0 0 16px; color: #1c1917;">This week's priorities & people</h2>
     <p>Hi {{firstName}},</p>
-    <p>Here are your open action items for the week, grouped by urgency.</p>
-    {{groupsHtml}}
-    <div style="text-align: center; margin: 28px 0;">
-      <a href="{{myActionsUrl}}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Open My Actions</a>
-    </div>
-    <div style="background: #fffbeb; border-left: 4px solid #d97706; border-radius: 8px; padding: 14px 18px; margin: 0 0 8px;">
-      <p style="margin: 0; font-size: 13px; color: #92400e;">Blocked or at risk of slipping? Flag the item to Leadership from its detail page so leadership can help unblock it.</p>
-    </div>
-    <p style="color: #78716c; font-size: 13px;">You're receiving this because you lead or are assigned to open actions in the YPP Pathways Portal.</p>`,
-    variables: [
-      { key: "firstName", label: "Recipient first name", sample: "Jordan", required: true },
-      { key: "total", label: "Total open items", sample: "3", required: true },
-      { key: "itemWord", label: "Item / items word", sample: "items", required: true },
-      {
-        key: "groupsHtml",
-        label: "Grouped action rows (HTML)",
-        sample:
-          '<p style="margin: 22px 0 10px; color: #dc2626; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;">Overdue (1)</p><div style="border-left: 4px solid #dc2626; background: #fafaf9; border-radius: 6px; padding: 12px 16px; margin: 0 0 10px;"><a href="https://portal.youthpassionproject.org/actions/1" style="color: #1c1917; font-size: 15px; font-weight: 600; text-decoration: none;">Draft Q3 outreach plan</a></div>',
-        raw: true,
-      },
-      {
-        key: "myActionsUrl",
-        label: "My actions URL",
-        sample: "https://portal.youthpassionproject.org/actions",
-        required: true,
-      },
-    ],
-  },
-
-  "action.leadership_briefing": {
-    key: "action.leadership_briefing",
-    name: "Weekly leadership briefing",
-    category: "People Strategy — actions",
-    description: "Weekly People Strategy briefing auto-delivered to leadership.",
-    defaultSubject: "Weekly Leadership Briefing — week of {{weekLabel}}",
-    defaultBody: `
-    <h2 style="margin: 0 0 16px; color: #1c1917;">Weekly Leadership Briefing</h2>
-    <p>Hi {{firstName}},</p>
-    <p>Here's this week's People Strategy read — the pulse, what needs attention, who needs support, and the week's wins. The same summary lives on the Command Center, where every item links through.</p>
-    <div style="background: #fafaf9; border: 1px solid #e7e5e4; border-radius: 10px; padding: 18px 22px; margin: 18px 0;">
-      {{briefingHtml}}
-    </div>
+    <p>Here's this week's read — the top priorities, who to congratulate, and who could use a follow-up nudge. The same signals live on the Command Center, where every item links through.</p>
+    <p style="margin: 24px 0 10px; color: #dc2626; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;">This week's priorities</p>
+    {{prioritiesHtml}}
+    <p style="margin: 24px 0 10px; color: #16a34a; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;">Reach out &amp; congratulate</p>
+    {{congratsHtml}}
+    <p style="margin: 24px 0 10px; color: #d97706; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;">Follow up on overdue work</p>
+    {{overdueHtml}}
     <div style="text-align: center; margin: 28px 0;">
       <a href="{{commandCenterUrl}}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Open the Command Center</a>
     </div>
-    <p style="color: #78716c; font-size: 13px;">You're receiving this because you're part of YPP leadership. It replaces the old weekly action digest with a single shareable read.</p>`,
+    <p style="color: #78716c; font-size: 13px;">You're receiving this because you're part of YPP's officer team. Sent every Monday.</p>`,
     variables: [
       { key: "firstName", label: "Recipient first name", sample: "Jordan", required: true },
       { key: "weekLabel", label: "Week label", sample: "Jun 1", required: true },
       {
-        key: "briefingHtml",
-        label: "Rendered briefing (HTML)",
+        key: "prioritiesHtml",
+        label: "This week's priorities (HTML)",
         sample:
-          '<p style="margin: 16px 0 2px; color: #1c1917; font-size: 14px; font-weight: 700;">Pulse</p><p style="margin: 2px 0; color: #57534e; font-size: 13px;">All departments on track this week.</p>',
+          '<div style="border-left: 4px solid #dc2626; background: #fafaf9; border-radius: 6px; padding: 12px 16px; margin: 0 0 10px;"><a href="https://portal.youthpassionproject.org/actions/1" style="color: #1c1917; font-size: 15px; font-weight: 600; text-decoration: none;">Draft Q3 outreach plan</a></div>',
+        raw: true,
+      },
+      {
+        key: "congratsHtml",
+        label: "Reach out & congratulate (HTML)",
+        sample:
+          '<div style="border-left: 4px solid #16a34a; background: #fafaf9; border-radius: 6px; padding: 12px 16px; margin: 0 0 10px;"><p style="margin: 0; color: #1c1917; font-size: 15px; font-weight: 600;">Alex Rivera</p></div>',
+        raw: true,
+      },
+      {
+        key: "overdueHtml",
+        label: "Follow up on overdue work (HTML)",
+        sample:
+          '<div style="border-left: 4px solid #d97706; background: #fafaf9; border-radius: 6px; padding: 12px 16px; margin: 0 0 10px;"><p style="margin: 0; color: #1c1917; font-size: 15px; font-weight: 600;">Jordan Lee</p></div>',
         raw: true,
       },
       {
         key: "commandCenterUrl",
         label: "Command Center URL",
-        sample: "https://portal.youthpassionproject.org/command-center",
+        sample: "https://portal.youthpassionproject.org/work",
         required: true,
       },
     ],

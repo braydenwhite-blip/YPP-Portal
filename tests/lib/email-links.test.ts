@@ -67,6 +67,43 @@ describe("Instructor applicant email links", () => {
     expect(interviewerHtml).not.toContain("[object Promise]");
   });
 
+  it("renders mailto links for the weekly officer digest's congrats and overdue people", async () => {
+    const { sendWeeklyOfficerDigestEmail } = await import("@/lib/email");
+
+    await sendWeeklyOfficerDigestEmail({
+      to: "officer@example.com",
+      recipientName: "Officer",
+      weekLabel: "Jun 1",
+      priorities: [
+        {
+          title: "Draft Q3 outreach plan",
+          reason: "Overdue 3 days",
+          ownerName: "Alex Rivera",
+          departmentName: "Outreach",
+          dueLabel: "May 29",
+          actionUrl: "https://portal.youthpassionproject.org/actions/1",
+        },
+      ],
+      congrats: [
+        { name: "Alex Rivera", email: "alex@example.com", reasons: ["2 completed actions this week"] },
+      ],
+      overdue: [
+        {
+          name: "Jordan Lee",
+          email: "jordan@example.com",
+          tasks: [{ title: "Submit expense report", dueLabel: "May 30", source: "Weekly impact" }],
+        },
+      ],
+      commandCenterUrl: "https://portal.youthpassionproject.org/work",
+    });
+
+    const html = String(mocks.resendSend.mock.calls[0][0].html);
+    expect(html).toContain('href="mailto:alex@example.com"');
+    expect(html).toContain('href="mailto:jordan@example.com"');
+    expect(html).toContain("https://portal.youthpassionproject.org/actions/1");
+    expect(html).not.toContain("[object Promise]");
+  });
+
   it("uses resolved absolute links for chair emails", async () => {
     const { sendChairDecisionEmail, sendChairDigestEmail } = await import("@/lib/email");
 

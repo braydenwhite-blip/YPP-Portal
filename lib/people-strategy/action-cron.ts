@@ -13,21 +13,29 @@ import {
 import { toAbsoluteAppUrl } from "@/lib/public-app-url";
 import { formatMonthDay } from "@/lib/leadership-action-center/dates";
 import {
-  sendWeeklyActionDigestEmail,
   sendActionDeadlineWarningEmail,
   sendActionDeadlineReachedEmail,
   sendActionOverdueLeadEmail,
   sendLeadershipEscalationEmail,
   sendBoardEscalationRollupEmail,
-  sendLeadershipBriefingEmail,
-  type ActionDigestItem,
+  sendWeeklyOfficerDigestEmail,
+  type OfficerDigestPriority,
+  type OfficerDigestCongratsPerson,
+  type OfficerDigestOverdueTask,
+  type OfficerDigestOverduePerson,
 } from "@/lib/email";
+import { OFFICER_TIER_ROLES } from "@/lib/org/role-sets";
+import { whereUserHasAnyRole } from "@/lib/user-role-where";
+import { weekStartFor } from "@/lib/weekly-meetings/week";
 import { ACTION_STATUS_LABELS } from "./constants";
-import { listAllActionItems } from "./action-queries";
+import { listAllActionItems, type ActionItemWithRelations } from "./action-queries";
 import { composeCommandCenter } from "./command-center";
-import { buildLeadershipBriefing } from "./leadership-briefing";
-import { buildPulseTrend } from "./pulse-trend";
-import { getPriorPulseSnapshot, recordPulseSnapshot } from "./pulse-snapshot";
+import {
+  effectiveDeadline as actionEffectiveDeadline,
+  isActionOverdue,
+} from "./my-actions-selectors";
+import { loadCompletedContributionsByMember } from "./completed-contributions";
+import { recordPulseSnapshot } from "./pulse-snapshot";
 import {
   escalationDeadline,
   escalationReason,
@@ -222,160 +230,271 @@ async function loadOpenItems(): Promise<LoadedItem[]> {
   }) as unknown as Promise<LoadedItem[]>;
 }
 
-// ── 1. Weekly digest (Mondays) ─────────────────────────────────────────────
+// ── 1. Weekly officer digest (Mondays) ─────────────────────────────────────
 
-export type WeeklyDigestResult = {
+export type WeeklyOfficerDigestResult = {
   recipients: number;
   emailsSent: number;
 };
 
-/**
- * Build one digest per recipient, grouping their open items into Overdue / Due
- * This Week / Upcoming, and send it (idempotent per recipient per week). The
- * week key is the Monday the cron runs, so re-running on the same Monday never
- * double-sends.
- */
-export async function runWeeklyActionDigest(now: Date): Promise<WeeklyDigestResult> {
-  if (!isActionTrackerEmailsEnabled()) return { recipients: 0, emailsSent: 0 };
+/** Top N items surfaced in the "This week's priorities" section. */
+const PRIORITY_LIMIT = 6;
 
-  const today = utcDayStart(now);
-  const weekEnd = addDays(today, 7); // Mon..Sun inclusive window
-  const weekKey = dateKey(today);
-  const myActionsUrl = toAbsoluteAppUrl("/actions");
+/** Minimal person shape used while merging wins/overdue work across sources. */
+type PersonRef = { id: string; name: string | null; email: string | null };
 
-  const items = await loadOpenItems();
-
-  // recipientId -> { user, groups }
-  const perRecipient = new Map<
-    string,
-    {
-      user: LoadedRecipient;
-      overdue: ActionDigestItem[];
-      dueThisWeek: ActionDigestItem[];
-      upcoming: ActionDigestItem[];
-    }
-  >();
-
-  for (const item of items) {
-    const due = effectiveDeadline(item);
-    const dueDay = utcDayStart(due);
-    const recipients = recipientsFor(item);
-
-    for (const { user, roles } of recipients.values()) {
-      if (!user.email) continue;
-
-      let bucket = perRecipient.get(user.id);
-      if (!bucket) {
-        bucket = { user, overdue: [], dueThisWeek: [], upcoming: [] };
-        perRecipient.set(user.id, bucket);
-      }
-
-      const row: ActionDigestItem = {
-        title: item.title,
-        role: roleLabel(roles),
-        department: item.department?.name ?? "Unassigned",
-        deadline: formatDeadlineDate(due),
-        actionUrl: toAbsoluteAppUrl(`/actions/${item.id}`),
-      };
-
-      if (item.status === "OVERDUE" || dueDay < today) {
-        bucket.overdue.push(row);
-      } else if (dueDay < weekEnd) {
-        bucket.dueThisWeek.push(row);
-      } else {
-        bucket.upcoming.push(row);
-      }
-    }
-  }
-
-  let emailsSent = 0;
-  for (const bucket of perRecipient.values()) {
-    const sent = await sendOnce({
-      dedupeKey: `digest:${weekKey}:${bucket.user.id}`,
-      type: "WEEKLY_DIGEST",
-      recipientId: bucket.user.id,
-      actionItemId: null,
-      send: () =>
-        sendWeeklyActionDigestEmail({
-          to: bucket.user.email as string,
-          recipientName: bucket.user.name,
-          groups: {
-            overdue: bucket.overdue,
-            dueThisWeek: bucket.dueThisWeek,
-            upcoming: bucket.upcoming,
-          },
-          myActionsUrl,
-        }),
-    });
-    if (sent) emailsSent++;
-  }
-
-  logger.info(
-    { recipients: perRecipient.size, emailsSent, weekKey },
-    "action-cron: weekly digest"
-  );
-  return { recipients: perRecipient.size, emailsSent };
+function toPersonRef(user: { id: string; name: string | null; email: string | null }): PersonRef {
+  return { id: user.id, name: user.name, email: user.email };
 }
 
-// ── 1b. Weekly Leadership Briefing (Mondays) ───────────────────────────────
+/**
+ * Candidate members for the "wins" scan: everyone who leads or executes at
+ * least one action item, deduped by user id. Sourced from the already-loaded
+ * item set rather than a separate query.
+ */
+function collectCandidateMembers(items: ActionItemWithRelations[]): Map<string, PersonRef> {
+  const map = new Map<string, PersonRef>();
+  for (const item of items) {
+    if (item.lead) map.set(item.lead.id, toPersonRef(item.lead));
+    for (const a of item.assignments) {
+      if (a.role === "EXECUTING") map.set(a.user.id, toPersonRef(a.user));
+    }
+  }
+  return map;
+}
 
-export type LeadershipBriefingResult = {
-  recipients: number;
-  emailsSent: number;
-};
+type WinAccumulator = { name: string; email: string; reasons: string[] };
+
+function addWinReason(
+  wins: Map<string, WinAccumulator>,
+  person: { id: string; name: string | null; email: string | null },
+  reason: string
+) {
+  if (!person.email) return;
+  const trimmedReason = reason.trim();
+  if (!trimmedReason) return;
+  let acc = wins.get(person.id);
+  if (!acc) {
+    acc = { name: person.name ?? person.email, email: person.email, reasons: [] };
+    wins.set(person.id, acc);
+  }
+  if (!acc.reasons.includes(trimmedReason)) acc.reasons.push(trimmedReason);
+}
 
 /**
- * Compose the leadership-wide weekly briefing and email it to Leadership once per
- * week (idempotent per recipient via `ActionEmailLog`). This is the automated
- * delivery of the same briefing the Command Center "Copy briefing" control shows,
- * and the replacement for the retired legacy weekly digest's leadership view.
- *
- * Alongside delivery it records a `ActionPulseSnapshot` for the week so the
- * briefing can report week-over-week movement (the prior snapshot is read BEFORE
- * the upsert, so a same-week re-run still compares against the previous week).
- * No-op unless ENABLE_ACTION_TRACKER_EMAILS.
+ * "Reach out & congratulate" — people with a win this week, merged from two
+ * sources: action items they completed this week (via the shared
+ * completed-contributions selector) and Weekly Impact rows they marked done or
+ * sent to the board. Keyed by user id so one person's reasons combine across
+ * both sources.
  */
-export async function runWeeklyLeadershipBriefing(
+async function buildOfficerWins(
+  items: ActionItemWithRelations[],
   now: Date
-): Promise<LeadershipBriefingResult> {
+): Promise<Map<string, WinAccumulator>> {
+  const wins = new Map<string, WinAccumulator>();
+
+  const candidates = collectCandidateMembers(items);
+  const contributions = await loadCompletedContributionsByMember([...candidates.keys()], {
+    now,
+    windowDays: 7,
+  });
+  for (const [id, summary] of contributions) {
+    if (summary.thisWeek <= 0 || !summary.label) continue;
+    const person = candidates.get(id);
+    if (!person) continue;
+    addWinReason(wins, person, summary.label);
+  }
+
+  const impactRows = await prisma.weeklyImpactRow.findMany({
+    where: {
+      OR: [{ rowStatus: "DONE" }, { sendToBoard: true }],
+      entry: { weekStart: weekStartFor(now), status: "SUBMITTED" },
+    },
+    select: {
+      whatGoal: true,
+      entry: { select: { user: { select: { id: true, name: true, email: true } } } },
+    },
+  });
+  for (const row of impactRows) {
+    addWinReason(wins, row.entry.user, row.whatGoal?.trim() || "Weekly impact win");
+  }
+
+  return wins;
+}
+
+type OverdueTaskAccumulator = { title: string; due: Date; source: string };
+type OverdueAccumulator = { name: string; email: string; tasks: OverdueTaskAccumulator[] };
+
+function addOverdueTask(
+  overdue: Map<string, OverdueAccumulator>,
+  person: { id: string; name: string | null; email: string | null },
+  task: OverdueTaskAccumulator
+) {
+  if (!person.email) return;
+  let acc = overdue.get(person.id);
+  if (!acc) {
+    acc = { name: person.name ?? person.email, email: person.email, tasks: [] };
+    overdue.set(person.id, acc);
+  }
+  acc.tasks.push(task);
+}
+
+/**
+ * "Follow up on overdue work" — people with overdue work, merged from three
+ * sources: overdue Action Items (lead + EXECUTING assignees), overdue
+ * MeetingFollowUps (the follow-up's owner), and overdue WeeklyImpactRows (the
+ * entry's user). Keyed by user id so one person's overdue items across sources
+ * land under a single row listing every task.
+ */
+async function buildOfficerOverdue(
+  items: ActionItemWithRelations[],
+  now: Date
+): Promise<Map<string, OverdueAccumulator>> {
+  const overdue = new Map<string, OverdueAccumulator>();
+
+  for (const item of items) {
+    if (!isActionOverdue(item, now)) continue;
+    const due = actionEffectiveDeadline(item);
+    const owners = new Map<string, PersonRef>();
+    if (item.lead) owners.set(item.lead.id, toPersonRef(item.lead));
+    for (const a of item.assignments) {
+      if (a.role === "EXECUTING") owners.set(a.user.id, toPersonRef(a.user));
+    }
+    for (const owner of owners.values()) {
+      addOverdueTask(overdue, owner, { title: item.title, due, source: "Action" });
+    }
+  }
+
+  const followUps = await prisma.meetingFollowUp.findMany({
+    where: {
+      dueDate: { not: null, lt: now },
+      status: { not: "COMPLETED" },
+      ownerId: { not: null },
+    },
+    select: {
+      title: true,
+      dueDate: true,
+      owner: { select: { id: true, name: true, email: true } },
+    },
+  });
+  for (const fu of followUps) {
+    if (!fu.owner || !fu.dueDate) continue;
+    addOverdueTask(overdue, fu.owner, {
+      title: fu.title,
+      due: fu.dueDate,
+      source: "Meeting follow-up",
+    });
+  }
+
+  const impactRows = await prisma.weeklyImpactRow.findMany({
+    where: {
+      due: { not: null, lt: now },
+      rowStatus: { not: "DONE" },
+      entry: { status: "SUBMITTED" },
+    },
+    select: {
+      whatGoal: true,
+      due: true,
+      entry: { select: { user: { select: { id: true, name: true, email: true } } } },
+    },
+  });
+  for (const row of impactRows) {
+    if (!row.due) continue;
+    addOverdueTask(overdue, row.entry.user, {
+      title: row.whatGoal?.trim() || "Weekly impact item",
+      due: row.due,
+      source: "Weekly impact",
+    });
+  }
+
+  return overdue;
+}
+
+/** Active officers with an email: the OFFICER_TIER_ROLES set, org-wide. */
+async function loadOfficerRecipients(): Promise<LoadedRecipient[]> {
+  const officers = await prisma.user.findMany({
+    where: {
+      archivedAt: null,
+      ...whereUserHasAnyRole([...OFFICER_TIER_ROLES]),
+    },
+    select: { id: true, name: true, email: true },
+  });
+  return officers.filter((o) => o.email);
+}
+
+/**
+ * Build one identical, org-wide digest and send it to every officer: this
+ * week's top priorities (the Command Center attention queue), who to
+ * congratulate on a win, and who has overdue work worth a follow-up. Sent
+ * Mondays; replaces the old per-recipient weekly action digest and the emailed
+ * Leadership Briefing with this single email (idempotent per recipient per
+ * week via `ActionEmailLog`).
+ *
+ * Alongside delivery it records an `ActionPulseSnapshot` for the week so
+ * week-over-week trend history keeps accumulating. No-op unless
+ * ENABLE_ACTION_TRACKER_EMAILS.
+ */
+export async function runWeeklyOfficerDigest(now: Date): Promise<WeeklyOfficerDigestResult> {
   if (!isActionTrackerEmailsEnabled()) return { recipients: 0, emailsSent: 0 };
 
   const items = await listAllActionItems();
   const data = composeCommandCenter(items, now);
 
-  // Phase 7 — read prior week first, then persist this week, then diff.
-  const prior = await getPriorPulseSnapshot(data.weekStart);
+  // Record the weekly pulse snapshot so trend history keeps accumulating.
   await recordPulseSnapshot(data.weekStart, data.pulse, data.consideredCount);
-  const trend = prior ? buildPulseTrend(data.pulse, prior) : null;
 
-  const briefing = buildLeadershipBriefing({
-    weekStart: data.weekStart,
-    pulse: data.pulse,
-    attention: data.attention,
-    needsSupport: data.needsSupport,
-    wins: data.wins,
-    consideredCount: data.consideredCount,
-    trend,
-  });
+  const priorities: OfficerDigestPriority[] = data.attention.slice(0, PRIORITY_LIMIT).map((a) => ({
+    title: a.title,
+    reason: a.reason,
+    ownerName: a.ownerName,
+    departmentName: a.departmentName,
+    dueLabel: a.dueLabel,
+    actionUrl: toAbsoluteAppUrl(`/actions/${a.id}`),
+  }));
+
+  const wins = await buildOfficerWins(items, now);
+  const congrats: OfficerDigestCongratsPerson[] = Array.from(wins.values())
+    .map((w) => ({ name: w.name, email: w.email, reasons: w.reasons }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const overdueByPerson = await buildOfficerOverdue(items, now);
+  const overdue: OfficerDigestOverduePerson[] = Array.from(overdueByPerson.values())
+    .map((o) => ({
+      name: o.name,
+      email: o.email,
+      tasks: [...o.tasks]
+        .sort((a, b) => a.due.getTime() - b.due.getTime())
+        .map(
+          (t): OfficerDigestOverdueTask => ({
+            title: t.title,
+            dueLabel: formatDeadlineDate(t.due),
+            source: t.source,
+          })
+        ),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   const weekKey = dateKey(data.weekStart);
   const weekLabel = formatMonthDay(data.weekStart);
-  const recipients = (await loadLeadershipRecipients()).filter((r) => r.email);
   const commandCenterUrl = toAbsoluteAppUrl("/work");
+  const officers = await loadOfficerRecipients();
 
   let emailsSent = 0;
-  for (const recipient of recipients) {
+  for (const officer of officers) {
     const sent = await sendOnce({
-      dedupeKey: `briefing:${weekKey}:${recipient.id}`,
-      type: "LEADERSHIP_BRIEFING",
-      recipientId: recipient.id,
+      dedupeKey: `officerdigest:${weekKey}:${officer.id}`,
+      type: "WEEKLY_DIGEST",
+      recipientId: officer.id,
       actionItemId: null,
       send: () =>
-        sendLeadershipBriefingEmail({
-          to: recipient.email as string,
-          recipientName: recipient.name,
+        sendWeeklyOfficerDigestEmail({
+          to: officer.email as string,
+          recipientName: officer.name,
           weekLabel,
-          briefingMarkdown: briefing,
+          priorities,
+          congrats,
+          overdue,
           commandCenterUrl,
         }),
     });
@@ -383,10 +502,10 @@ export async function runWeeklyLeadershipBriefing(
   }
 
   logger.info(
-    { recipients: recipients.length, emailsSent, weekKey, hadPrior: prior != null },
-    "action-cron: weekly leadership briefing"
+    { recipients: officers.length, emailsSent, weekKey },
+    "action-cron: weekly officer digest"
   );
-  return { recipients: recipients.length, emailsSent };
+  return { recipients: officers.length, emailsSent };
 }
 
 // ── 2. 24-hour warning (daily) ─────────────────────────────────────────────

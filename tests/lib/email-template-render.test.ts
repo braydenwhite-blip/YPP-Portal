@@ -76,6 +76,22 @@ describe("renderEmailTemplate", () => {
     }
   });
 
+  it("renders all three sections of the weekly officer digest", async () => {
+    const out = await renderEmailTemplate("action.weekly_people_digest", {
+      firstName: "Jordan",
+      weekLabel: "Jun 1",
+      prioritiesHtml: '<div class="priority-row">Draft Q3 outreach plan</div>',
+      congratsHtml: '<div class="congrats-row">Alex Rivera</div>',
+      overdueHtml: '<div class="overdue-row">Jordan Lee</div>',
+      commandCenterUrl: "https://portal.youthpassionproject.org/work",
+    });
+    expect(out.html).toContain('<div class="priority-row">Draft Q3 outreach plan</div>');
+    expect(out.html).toContain('<div class="congrats-row">Alex Rivera</div>');
+    expect(out.html).toContain('<div class="overdue-row">Jordan Lee</div>');
+    expect(out.html).toContain("https://portal.youthpassionproject.org/work");
+    expect(out.subject).toContain("Jun 1");
+  });
+
   it("HTML-escapes interpolated values", async () => {
     const out = await renderEmailTemplate("application.approved", {
       applicantName: "<script>alert(1)</script>",
