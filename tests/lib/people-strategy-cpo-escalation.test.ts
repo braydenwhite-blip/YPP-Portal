@@ -17,7 +17,7 @@ vi.mock("@/lib/feature-flags", () => ({
 
 const sendLeadershipEscalationEmail = vi.fn().mockResolvedValue({ ok: true });
 vi.mock("@/lib/email", () => ({
-  sendWeeklyActionDigestEmail: vi.fn(),
+  sendWeeklyOfficerDigestEmail: vi.fn(),
   sendActionDeadlineWarningEmail: vi.fn(),
   sendActionDeadlineReachedEmail: vi.fn(),
   sendActionOverdueLeadEmail: vi.fn(),

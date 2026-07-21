@@ -447,13 +447,16 @@ digest used to provide.
    selectors (pulse, attention queue, needs-support, wins) into a copy-pasteable
    text/markdown summary, surfaced on the Command Center with a one-click "Copy briefing"
    control. Pure + unit-tested.
-2. **Digest delivery:** ✅ (2026-06-05) the briefing is now auto-delivered. The Monday
-   `action-weekly-digest` cron runs `runWeeklyLeadershipBriefing` after the per-recipient
-   digest: it composes the briefing over **all** items (leadership-wide, via
-   `listAllActionItems` + `composeCommandCenter`) and emails it to Leadership
-   (`sendLeadershipBriefingEmail`, rendered from the same markdown — single source of truth),
-   idempotent per recipient per week through a new `LEADERSHIP_BRIEFING` `ActionEmailLog`
-   type (`briefing:<week>:<recipientId>`).
+2. **Digest delivery:** ✅ (2026-06-05), superseded (2026-07-21). The briefing was
+   auto-delivered for a time via a `runWeeklyLeadershipBriefing` email; that email (and the
+   older per-recipient weekly action digest) have since been retired in favor of a single
+   Monday **Weekly Officer Digest** (`runWeeklyOfficerDigest` in `lib/people-strategy/
+   action-cron.ts`, template `action.weekly_people_digest`) sent identically to every officer:
+   this week's top priorities, who to congratulate on a win, and who has overdue work worth a
+   follow-up. It still composes over **all** items (via `listAllActionItems` +
+   `composeCommandCenter`) and still records the weekly `ActionPulseSnapshot` on delivery. The
+   on-screen "Copy briefing" card and `buildLeadershipBriefing` are unaffected — only the
+   emailed briefing was retired.
 3. **Accessibility & responsive polish:** ✅ (2026-06-05) the Command Center grid now stacks
    at tablet width (≤960px) as well as phone, interactive cards (pulse stats, attention
    items, wins) carry a `.cc-focusable` keyboard focus ring, and the pulse trend arrows ship

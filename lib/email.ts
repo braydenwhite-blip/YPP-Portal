@@ -585,71 +585,139 @@ export async function sendActionMentionEmail({
  * the caller (`ActionEmailLog`), not here.
  */
 
-/** One row rendered inside the weekly digest, in any of its three groups. */
-export type ActionDigestItem = {
+/**
+ * People Strategy — weekly officer digest (priorities + people to reach out
+ * to). Replaces the old per-recipient weekly action digest and the emailed
+ * Leadership Briefing with a single Monday email sent identically to every
+ * officer: this week's top priorities, who to congratulate on a recent win,
+ * and who has overdue work worth a check-in. Idempotency / recipient
+ * selection / content composition all live upstream in the cron
+ * (`runWeeklyOfficerDigest`); this is a thin render + send wrapper, like the
+ * other `sendXxxEmail` helpers in this file.
+ */
+
+/** One row in the "This week's priorities" section. */
+export type OfficerDigestPriority = {
   title: string;
-  role: string;
-  department: string;
-  /** Pre-formatted deadline date string. */
-  deadline: string;
+  /** Why it's urgent, e.g. "Overdue 3 days" or "Flagged, needs review". */
+  reason: string;
+  ownerName: string;
+  departmentName: string | null;
+  /** Pre-formatted due date string. */
+  dueLabel: string;
   actionUrl: string;
 };
 
-export type ActionDigestGroups = {
-  overdue: ActionDigestItem[];
-  dueThisWeek: ActionDigestItem[];
-  upcoming: ActionDigestItem[];
+/** One person in the "Reach out & congratulate" section. */
+export type OfficerDigestCongratsPerson = {
+  name: string;
+  email: string;
+  /** One or more reasons they're being congratulated (deduped). */
+  reasons: string[];
 };
 
-function renderDigestItemRow(item: ActionDigestItem, accent: string): string {
+/** One overdue task listed under a person in the "Follow up" section. */
+export type OfficerDigestOverdueTask = {
+  title: string;
+  /** Pre-formatted due date string. */
+  dueLabel: string;
+  /** Where the task comes from, e.g. "Action", "Meeting follow-up", "Weekly impact". */
+  source: string;
+};
+
+/** One person in the "Follow up on overdue work" section. */
+export type OfficerDigestOverduePerson = {
+  name: string;
+  email: string;
+  tasks: OfficerDigestOverdueTask[];
+};
+
+function renderOfficerPriorityRow(item: OfficerDigestPriority): string {
+  const dept = item.departmentName
+    ? ` &nbsp;·&nbsp; <strong>Dept:</strong> ${escapeHtml(item.departmentName)}`
+    : "";
   return `
-    <div style="border-left: 4px solid ${accent}; background: #fafaf9; border-radius: 6px; padding: 12px 16px; margin: 0 0 10px;">
+    <div style="border-left: 4px solid #dc2626; background: #fafaf9; border-radius: 6px; padding: 12px 16px; margin: 0 0 10px;">
       <a href="${escapeHtml(item.actionUrl)}" style="color: #1c1917; font-size: 15px; font-weight: 600; text-decoration: none;">${escapeHtml(item.title)}</a>
       <p style="margin: 6px 0 0; color: #57534e; font-size: 13px;">
-        <strong>Role:</strong> ${escapeHtml(item.role)}
-        &nbsp;·&nbsp; <strong>Dept:</strong> ${escapeHtml(item.department)}
-        &nbsp;·&nbsp; <strong>Due:</strong> ${escapeHtml(item.deadline)}
+        ${escapeHtml(item.reason)} &nbsp;·&nbsp; <strong>Owner:</strong> ${escapeHtml(item.ownerName)}${dept}
+        &nbsp;·&nbsp; <strong>Due:</strong> ${escapeHtml(item.dueLabel)}
       </p>
     </div>`;
 }
 
-function renderDigestGroup(
-  label: string,
-  items: ActionDigestItem[],
-  accent: string
-): string {
-  if (items.length === 0) return "";
-  const rows = items.map((i) => renderDigestItemRow(i, accent)).join("");
-  return `
-    <p style="margin: 22px 0 10px; color: ${accent}; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;">${escapeHtml(label)} (${items.length})</p>
-    ${rows}`;
+function renderOfficerPrioritiesSection(items: OfficerDigestPriority[]): string {
+  if (items.length === 0) {
+    return `<p style="margin: 8px 0 20px; color: #57534e; font-size: 14px;">Nothing urgent or overdue this week — nice and quiet.</p>`;
+  }
+  return items.map(renderOfficerPriorityRow).join("");
 }
 
-export async function sendWeeklyActionDigestEmail({
+function renderOfficerCongratsRow(person: OfficerDigestCongratsPerson): string {
+  const reasons = person.reasons.map((r) => escapeHtml(r)).join("; ");
+  return `
+    <div style="border-left: 4px solid #16a34a; background: #fafaf9; border-radius: 6px; padding: 12px 16px; margin: 0 0 10px;">
+      <p style="margin: 0; color: #1c1917; font-size: 15px; font-weight: 600;">${escapeHtml(person.name)}</p>
+      <p style="margin: 6px 0 10px; color: #57534e; font-size: 13px;">${reasons}</p>
+      <a href="mailto:${escapeHtml(person.email)}" style="color: #6b21c8; font-size: 13px; font-weight: 600; text-decoration: none;">Send a quick "nice work" &rarr;</a>
+    </div>`;
+}
+
+function renderOfficerCongratsSection(people: OfficerDigestCongratsPerson[]): string {
+  if (people.length === 0) {
+    return `<p style="margin: 8px 0 20px; color: #57534e; font-size: 14px;">No wins logged yet this week.</p>`;
+  }
+  return people.map(renderOfficerCongratsRow).join("");
+}
+
+function renderOfficerOverdueRow(person: OfficerDigestOverduePerson): string {
+  const tasks = person.tasks
+    .map(
+      (t) =>
+        `<li style="margin: 4px 0; color: #57534e; font-size: 13px;">${escapeHtml(t.title)} — due ${escapeHtml(t.dueLabel)} <span style="color: #a8a29e;">(${escapeHtml(t.source)})</span></li>`
+    )
+    .join("");
+  return `
+    <div style="border-left: 4px solid #d97706; background: #fafaf9; border-radius: 6px; padding: 12px 16px; margin: 0 0 10px;">
+      <p style="margin: 0; color: #1c1917; font-size: 15px; font-weight: 600;">${escapeHtml(person.name)}</p>
+      <ul style="margin: 6px 0 10px; padding-left: 18px;">${tasks}</ul>
+      <a href="mailto:${escapeHtml(person.email)}" style="color: #6b21c8; font-size: 13px; font-weight: 600; text-decoration: none;">Check in &rarr;</a>
+    </div>`;
+}
+
+function renderOfficerOverdueSection(people: OfficerDigestOverduePerson[]): string {
+  if (people.length === 0) {
+    return `<p style="margin: 8px 0 20px; color: #57534e; font-size: 14px;">Nothing overdue — everyone's on track.</p>`;
+  }
+  return people.map(renderOfficerOverdueRow).join("");
+}
+
+export async function sendWeeklyOfficerDigestEmail({
   to,
   recipientName,
-  groups,
-  myActionsUrl,
+  weekLabel,
+  priorities,
+  congrats,
+  overdue,
+  commandCenterUrl,
 }: {
   to: string;
   recipientName: string | null;
-  groups: ActionDigestGroups;
-  myActionsUrl: string;
+  /** Pre-formatted "Month Day" of the operating week, e.g. "Jun 1". */
+  weekLabel: string;
+  priorities: OfficerDigestPriority[];
+  congrats: OfficerDigestCongratsPerson[];
+  overdue: OfficerDigestOverduePerson[];
+  commandCenterUrl: string;
 }): Promise<EmailResult> {
   const firstName = recipientName?.split(" ")[0] || "there";
-  const total =
-    groups.overdue.length + groups.dueThisWeek.length + groups.upcoming.length;
-  const groupsHtml = [
-    renderDigestGroup("Overdue", groups.overdue, "#dc2626"),
-    renderDigestGroup("Due this week", groups.dueThisWeek, "#d97706"),
-    renderDigestGroup("Upcoming", groups.upcoming, "#2563eb"),
-  ].join("\n");
-  return sendTemplatedEmail("action.weekly_digest", to, {
+  return sendTemplatedEmail("action.weekly_people_digest", to, {
     firstName,
-    total: String(total),
-    itemWord: total === 1 ? "item" : "items",
-    groupsHtml,
-    myActionsUrl,
+    weekLabel,
+    prioritiesHtml: renderOfficerPrioritiesSection(priorities),
+    congratsHtml: renderOfficerCongratsSection(congrats),
+    overdueHtml: renderOfficerOverdueSection(overdue),
+    commandCenterUrl,
   });
 }
 
@@ -712,39 +780,6 @@ function renderBriefingHtml(markdown: string): string {
   }
   closeList();
   return out.join("\n");
-}
-
-/**
- * People Strategy — weekly Leadership Briefing (Phase 6 delivery).
- *
- * Auto-delivers the same shareable briefing that the Command Center "Copy
- * briefing" control produces, so leadership receives the weekly read without
- * opening the portal. Replaces the UX the retired legacy weekly digest provided.
- * The body is rendered from the briefing markdown (single source of truth); the
- * idempotency / recipient selection is owned upstream by the cron. Gated by
- * ENABLE_ACTION_TRACKER_EMAILS at the call site, like the other action emails.
- */
-export async function sendLeadershipBriefingEmail({
-  to,
-  recipientName,
-  weekLabel,
-  briefingMarkdown,
-  commandCenterUrl,
-}: {
-  to: string;
-  recipientName: string | null;
-  /** Pre-formatted "Month Day" of the operating week, e.g. "Jun 1". */
-  weekLabel: string;
-  briefingMarkdown: string;
-  commandCenterUrl: string;
-}): Promise<EmailResult> {
-  const firstName = recipientName?.split(" ")[0] || "there";
-  return sendTemplatedEmail("action.leadership_briefing", to, {
-    firstName,
-    weekLabel,
-    briefingHtml: renderBriefingHtml(briefingMarkdown),
-    commandCenterUrl,
-  });
 }
 
 /**

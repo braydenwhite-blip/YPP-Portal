@@ -13,17 +13,13 @@ vi.mock("@/lib/feature-flags", () => ({
   isActionTrackerEmailsEnabled: () => isActionTrackerEmailsEnabled(),
 }));
 
-const runWeeklyActionDigest = vi.fn().mockResolvedValue({ recipients: 0, emailsSent: 0 });
-const runWeeklyLeadershipBriefing = vi
-  .fn()
-  .mockResolvedValue({ recipients: 0, emailsSent: 0 });
+const runWeeklyOfficerDigest = vi.fn().mockResolvedValue({ recipients: 0, emailsSent: 0 });
 const runDeadlineWarnings = vi.fn().mockResolvedValue({ items: 0, emailsSent: 0 });
 const runDeadlineReached = vi
   .fn()
   .mockResolvedValue({ dueToday: 0, reachedEmailsSent: 0, markedOverdue: 0, leadEmailsSent: 0 });
 vi.mock("@/lib/people-strategy/action-cron", () => ({
-  runWeeklyActionDigest: (d: Date) => runWeeklyActionDigest(d),
-  runWeeklyLeadershipBriefing: (d: Date) => runWeeklyLeadershipBriefing(d),
+  runWeeklyOfficerDigest: (d: Date) => runWeeklyOfficerDigest(d),
   runDeadlineWarnings: (d: Date) => runDeadlineWarnings(d),
   runDeadlineReached: (d: Date) => runDeadlineReached(d),
 }));
@@ -33,7 +29,7 @@ import { GET as warningGET } from "@/app/api/cron/action-deadline-warning/route"
 import { GET as reachedGET } from "@/app/api/cron/action-deadline-reached/route";
 
 const ROUTES: Array<{ name: string; GET: (req: any) => Promise<Response>; url: string; runner: ReturnType<typeof vi.fn> }> = [
-  { name: "weekly-digest", GET: weeklyDigestGET, url: "http://localhost/api/cron/action-weekly-digest", runner: runWeeklyActionDigest },
+  { name: "weekly-digest", GET: weeklyDigestGET, url: "http://localhost/api/cron/action-weekly-digest", runner: runWeeklyOfficerDigest },
   { name: "deadline-warning", GET: warningGET, url: "http://localhost/api/cron/action-deadline-warning", runner: runDeadlineWarnings },
   { name: "deadline-reached", GET: reachedGET, url: "http://localhost/api/cron/action-deadline-reached", runner: runDeadlineReached },
 ];
@@ -45,8 +41,7 @@ function req(url: string, headers: Record<string, string> = {}) {
 beforeEach(() => {
   process.env.CRON_SECRET = "cron-secret";
   isActionTrackerEmailsEnabled.mockReturnValue(true);
-  runWeeklyActionDigest.mockClear();
-  runWeeklyLeadershipBriefing.mockClear();
+  runWeeklyOfficerDigest.mockClear();
   runDeadlineWarnings.mockClear();
   runDeadlineReached.mockClear();
 });
