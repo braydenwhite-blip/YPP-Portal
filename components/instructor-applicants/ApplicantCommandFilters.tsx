@@ -158,11 +158,11 @@ export default function ApplicantCommandFilters({
       {isAdmin && chapters.length > 0 ? (
         <select
           className={cn(selectClass, "sm:min-w-[8rem]")}
-          aria-label="Chapter"
+          aria-label="Chapter or location"
           value={chapterId}
           onChange={(e) => setParam("chapterId", e.target.value)}
         >
-          <option value="">All Chapters</option>
+          <option value="">All chapters / locations</option>
           {chapters.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}

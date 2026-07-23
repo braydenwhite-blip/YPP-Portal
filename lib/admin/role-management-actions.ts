@@ -19,6 +19,7 @@ import {
   subtypesForTitle,
   type CanonicalTitle,
 } from "@/lib/org/levels";
+import { requireOperatingChapterId } from "@/lib/chapters/operating";
 import { prisma } from "@/lib/prisma";
 
 const KEEP = "__KEEP__";
@@ -34,12 +35,10 @@ async function resolveChapterPatch(
 ): Promise<{ chapterId?: string | null }> {
   if (!value || value === KEEP) return {};
   if (value === CLEAR) return { chapterId: null };
-  const chapter = await prisma.chapter.findUnique({
-    where: { id: value },
-    select: { id: true },
+  const chapterId = await requireOperatingChapterId(value, {
+    label: "User chapter",
   });
-  if (!chapter) throw new Error("Selected chapter does not exist.");
-  return { chapterId: value };
+  return { chapterId };
 }
 
 /**

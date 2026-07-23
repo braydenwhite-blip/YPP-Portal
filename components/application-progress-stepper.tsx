@@ -1,5 +1,7 @@
 "use client";
 
+import { cn } from "@/components/ui-v2";
+
 interface StepperStep {
   label: string;
   complete: boolean;
@@ -11,101 +13,63 @@ interface ApplicationProgressStepperProps {
   steps: StepperStep[];
 }
 
-export default function ApplicationProgressStepper({ steps }: ApplicationProgressStepperProps) {
+/**
+ * Compact horizontal progress strip — shows where the application is without
+ * dominating the page. Active step detail sits under the strip.
+ */
+export default function ApplicationProgressStepper({
+  steps,
+}: ApplicationProgressStepperProps) {
+  const active = steps.find((step) => step.active) ?? steps.find((step) => !step.complete);
+  const activeIndex = active ? steps.indexOf(active) : steps.length - 1;
+
   return (
-    <div style={{ position: "relative" }}>
-      {/* Vertical line connector */}
-      <div
-        style={{
-          position: "absolute",
-          left: 15,
-          top: 16,
-          bottom: 16,
-          width: 2,
-          background: "var(--border)",
-          zIndex: 0,
-        }}
-      />
-
-      <div style={{ display: "grid", gap: 0 }}>
+    <div className="flex flex-col gap-3">
+      <ol className="m-0 flex list-none flex-wrap items-center gap-1.5 p-0 sm:gap-2">
         {steps.map((step, idx) => {
-          const isLast = idx === steps.length - 1;
-
+          const isPast = step.complete && !step.active;
+          const isCurrent = step.active || idx === activeIndex;
           return (
-            <div
-              key={step.label}
-              style={{
-                display: "flex",
-                gap: 12,
-                alignItems: "flex-start",
-                padding: "10px 0",
-                position: "relative",
-                zIndex: 1,
-              }}
-            >
-              {/* Step indicator */}
-              <div
-                style={{
-                  width: 30,
-                  height: 30,
-                  borderRadius: "50%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 14,
-                  fontWeight: 700,
-                  flexShrink: 0,
-                  background: step.complete
-                    ? "#16a34a"
-                    : step.active
-                      ? "#6b21c8"
-                      : "var(--surface)",
-                  color: step.complete || step.active ? "#fff" : "var(--muted)",
-                  border: step.complete || step.active
-                    ? "none"
-                    : "2px solid var(--border)",
-                  transition: "all 0.2s ease",
-                }}
-              >
-                {step.complete ? (
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                    <path d="M2 7L5.5 10.5L12 3.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                ) : (
-                  <span>{idx + 1}</span>
+            <li key={step.label} className="flex min-w-0 items-center gap-1.5 sm:gap-2">
+              {idx > 0 ? (
+                <span
+                  aria-hidden
+                  className={cn(
+                    "hidden h-px w-3 shrink-0 sm:block sm:w-5",
+                    isPast || isCurrent ? "bg-brand-300" : "bg-line"
+                  )}
+                />
+              ) : null}
+              <span
+                className={cn(
+                  "inline-flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-1 text-[11.5px] font-semibold",
+                  isPast && "bg-complete-50 text-complete-700",
+                  isCurrent && !isPast && "bg-brand-50 text-brand-800 ring-1 ring-brand-200",
+                  !isPast && !isCurrent && "bg-surface-soft text-ink-muted"
                 )}
-              </div>
-
-              {/* Step content */}
-              <div style={{ flex: 1, paddingBottom: isLast ? 0 : 4 }}>
-                <p
-                  style={{
-                    margin: 0,
-                    fontWeight: 600,
-                    fontSize: 14,
-                    color: step.complete
-                      ? "#166534"
-                      : step.active
-                        ? "#6b21c8"
-                        : "var(--text)",
-                  }}
+                title={step.detail}
+              >
+                <span
+                  className={cn(
+                    "flex size-4 shrink-0 items-center justify-center rounded-full text-[9px] font-bold",
+                    isPast && "bg-complete-600 text-white",
+                    isCurrent && !isPast && "bg-brand-600 text-white",
+                    !isPast && !isCurrent && "bg-line text-ink-muted"
+                  )}
                 >
-                  {step.label}
-                </p>
-                <p
-                  style={{
-                    margin: "2px 0 0",
-                    fontSize: 12,
-                    color: "var(--muted)",
-                  }}
-                >
-                  {step.detail}
-                </p>
-              </div>
-            </div>
+                  {isPast ? "✓" : idx + 1}
+                </span>
+                <span className="truncate">{step.label.replace(/^Application /, "")}</span>
+              </span>
+            </li>
           );
         })}
-      </div>
+      </ol>
+      {active ? (
+        <p className="m-0 text-[13px] leading-snug text-ink-muted">
+          <span className="font-semibold text-ink">{active.label}:</span> {active.detail}
+        </p>
+      ) : null}
     </div>
   );
 }

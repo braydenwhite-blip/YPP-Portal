@@ -18,7 +18,6 @@ import {
   cpStrongestSignal,
 } from "@/lib/chapter-president-lifecycle";
 import {
-  assignCPChapterAction,
   assignCPReviewerAction,
   beginCPInitialReviewAction,
   completeCPInterviewAction,
@@ -31,6 +30,8 @@ import {
   scheduleCPInterviewAction,
   archiveCPApplicationAction,
 } from "@/lib/chapter-president-application-actions";
+import { updateChapterPresidentApplicantChapter } from "@/lib/applicant-chapter-location-actions";
+import { listOperatingChaptersForFilters } from "@/lib/chapters/operating";
 import { CreateChapterFromApplicationButton } from "@/components/chapters/create-chapter-from-application-button";
 
 type PageProps = {
@@ -164,10 +165,7 @@ export default async function CPApplicantWorkspacePage({ params }: PageProps) {
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
-    prisma.chapter.findMany({
-      select: { id: true, name: true, city: true, region: true },
-      orderBy: { name: "asc" },
-    }),
+    listOperatingChaptersForFilters(),
     prisma.user.findMany({
       where: {
         roles: { some: { role: { in: [RoleType.MENTOR, RoleType.ADMIN, RoleType.CHAPTER_PRESIDENT] } } },
@@ -250,12 +248,12 @@ export default async function CPApplicantWorkspacePage({ params }: PageProps) {
                 <button className="button secondary small" type="submit">Save</button>
               </form>
 
-              <form action={assignCPChapterAction} style={{ display: "flex", gap: 8, alignItems: "end" }}>
+              <form action={updateChapterPresidentApplicantChapter} style={{ display: "flex", gap: 8, alignItems: "end" }}>
                 <HiddenId id={app.id} />
                 <label style={{ flex: 1, fontSize: 12, color: "var(--muted)" }}>
                   Chapter
                   <select className="input" name="chapterId" defaultValue={app.chapterId ?? ""} style={{ marginTop: 4 }}>
-                    <option value="">No chapter assigned</option>
+                    <option value="">No chapter yet / new chapter</option>
                     {chapters.map((chapter) => (
                       <option key={chapter.id} value={chapter.id}>
                         {chapter.name}
@@ -264,7 +262,7 @@ export default async function CPApplicantWorkspacePage({ params }: PageProps) {
                     ))}
                   </select>
                 </label>
-                <button className="button secondary small" type="submit">Save</button>
+                <button className="button secondary small" type="submit">Save chapter</button>
               </form>
 
               {!app.chapterId && <CreateChapterFromApplicationButton applicationId={app.id} />}

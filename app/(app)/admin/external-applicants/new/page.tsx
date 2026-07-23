@@ -5,6 +5,7 @@ import { PageHeaderV2 } from "@/components/ui-v2";
 import { ensureSocialMediaManagerPosition } from "@/lib/application-actions";
 import { requireApplicationReviewerPage } from "@/lib/page-guards";
 import { isHiddenStaffPositionTitle } from "@/lib/applicant-board-kind";
+import { listOperatingChaptersForFilters } from "@/lib/chapters/operating";
 import { SOCIAL_MEDIA_MANAGER_POSITION_TITLE } from "@/lib/social-media-manager-application";
 import ExternalApplicantIntakeForm from "./intake-form";
 
@@ -24,10 +25,10 @@ export default async function NewExternalApplicantPage() {
   let chapters: Array<{ id: string; name: string }> = [];
   let scopedChapterId: string | null = null;
   if (hasNetworkScope) {
-    chapters = await prisma.chapter.findMany({
-      select: { id: true, name: true },
-      orderBy: { name: "asc" },
-    });
+    chapters = (await listOperatingChaptersForFilters()).map(({ id, name }) => ({
+      id,
+      name,
+    }));
   } else {
     const me = await prisma.user.findUnique({
       where: { id: sessionUser.id },

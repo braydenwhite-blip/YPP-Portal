@@ -14,8 +14,8 @@ type RoleChooserProps = {
 };
 
 /**
- * Mentorship home — enter as Mentor, Mentee, and/or People depending on
- * what the viewer actually holds.
+ * Mentorship home — pick Mentor workspace, your mentee home, and/or the
+ * leadership People roster depending on what the viewer actually holds.
  */
 export function MentorshipRoleChooser({
   menteeHref,
@@ -28,6 +28,7 @@ export function MentorshipRoleChooser({
     key: string;
     href: string;
     title: string;
+    description: string;
     detail: string | null;
   }[] = [];
 
@@ -35,7 +36,8 @@ export function MentorshipRoleChooser({
     cards.push({
       key: "mentor",
       href: mentorHref,
-      title: "Mentor",
+      title: "My mentees",
+      description: "Check-ins, reviews, and next steps for the people you mentor.",
       detail: formatMenteeDetail(menteeNames),
     });
   }
@@ -43,7 +45,8 @@ export function MentorshipRoleChooser({
     cards.push({
       key: "mentee",
       href: menteeHref,
-      title: "Mentee",
+      title: "My mentorship",
+      description: "Your goals, updates, and work with your mentor.",
       detail: mentorName ? `Mentor: ${mentorName}` : null,
     });
   }
@@ -51,7 +54,8 @@ export function MentorshipRoleChooser({
     cards.push({
       key: "people",
       href: peopleHref,
-      title: "People",
+      title: "Everyone",
+      description: "See who needs a check-in across the mentorship roster.",
       detail: null,
     });
   }
@@ -73,6 +77,7 @@ export function MentorshipRoleChooser({
             key={card.key}
             href={card.href}
             title={card.title}
+            description={card.description}
             detail={card.detail}
           />
         ))}
@@ -91,10 +96,12 @@ function formatMenteeDetail(names: string[]): string | null {
 function RoleCard({
   href,
   title,
+  description,
   detail,
 }: {
   href: string;
   title: string;
+  description: string;
   detail: string | null;
 }) {
   return (
@@ -102,17 +109,15 @@ function RoleCard({
       href={href}
       className="group flex flex-col gap-2 rounded-2xl border border-border bg-surface px-6 py-7 text-ink no-underline shadow-sm transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
     >
-      <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
-        Open as
-      </span>
-      <span className="text-[28px] font-semibold tracking-tight text-ink group-hover:text-brand-800">
+      <span className="text-[24px] font-semibold tracking-tight text-ink group-hover:text-brand-800">
         {title}
       </span>
+      <span className="text-[14px] leading-snug text-ink-muted">{description}</span>
       {detail ? (
-        <span className="text-[14px] text-ink-muted">{detail}</span>
+        <span className="text-[13px] font-medium text-ink">{detail}</span>
       ) : null}
-      <span className="mt-3 text-[13px] font-semibold text-brand-700">
-        Enter →
+      <span className="mt-auto pt-3 text-[13px] font-semibold text-brand-700">
+        Continue →
       </span>
     </Link>
   );

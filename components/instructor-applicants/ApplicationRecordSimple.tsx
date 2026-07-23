@@ -13,6 +13,7 @@ import { DecisionReadinessChecklist } from "@/components/instructor-applicants/D
 import { ApplicantAssignmentHeaderControls } from "@/components/instructor-applicants/ApplicantAssignmentHeaderControls";
 import { ApplicationRecordBoardFilterChips } from "@/components/instructor-applicants/ApplicationRecordBoardFilterChips";
 import { ApplicationRecordInterviewSchedule } from "@/components/instructor-applicants/ApplicationRecordInterviewSchedule";
+import { ApplicantChapterLocationEditor } from "@/components/applications/ApplicantChapterLocationEditor";
 import type { ReviewerCandidate } from "@/components/instructor-applicants/ReviewerAssignDropdown";
 import type { LeadInterviewerCandidate } from "@/components/instructor-applicants/LeadInterviewerAssignDropdown";
 import {
@@ -106,6 +107,8 @@ export function ApplicationRecordSimple({
   secondInterviewerCandidates = [],
   canScheduleInterview = false,
   offeredInterviewSlots = [],
+  chapterOptions = [],
+  canEditChapter = false,
 }: {
   record: ApplicationRecord;
   status: { label: string; tone: StatusTone };
@@ -141,6 +144,9 @@ export function ApplicationRecordSimple({
     meetingUrl: string | null;
     confirmedAt: string | null;
   }>;
+  /** Operating chapters for the chapter editor (Bronx / Scarsdale). */
+  chapterOptions?: Array<{ id: string; name: string }>;
+  canEditChapter?: boolean;
 }) {
   const subjects = parseSubjectsOfInterest(record.subjectsOfInterest);
 
@@ -284,6 +290,16 @@ export function ApplicationRecordSimple({
             empty={!record.phoneNumber?.trim()}
           />
         </div>
+        {canEditChapter && chapterOptions.length > 0 ? (
+          <div className="mt-4">
+            <ApplicantChapterLocationEditor
+              mode="instructor"
+              applicationId={record.id}
+              currentChapterId={record.applicant.chapterId}
+              options={chapterOptions}
+            />
+          </div>
+        ) : null}
       </RecordSection>
 
       {subjects.length > 0 ? (

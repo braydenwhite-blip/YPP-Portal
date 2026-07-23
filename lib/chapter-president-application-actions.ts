@@ -692,8 +692,13 @@ export async function assignCPChapterAction(formData: FormData) {
     if (!chapter) throw new Error("Chapter not found.");
   }
 
-  await prisma.chapterPresidentApplication.update({
+  const application = await prisma.chapterPresidentApplication.update({
     where: { id: applicationId },
+    data: { chapterId: chapterId || null },
+    select: { applicantId: true },
+  });
+  await prisma.user.update({
+    where: { id: application.applicantId },
     data: { chapterId: chapterId || null },
   });
   await syncChapterPresidentApplicationWorkflow(applicationId);

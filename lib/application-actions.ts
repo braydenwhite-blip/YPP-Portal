@@ -19,6 +19,7 @@ import {
   getHiringActor,
   isAdmin,
   isDesignatedInterviewer,
+  isHiringChair,
 } from "@/lib/chapter-hiring-permissions";
 import { createSystemNotification } from "@/lib/notification-actions";
 import { sendApplicationStatusEmail, sendNotificationEmail } from "@/lib/email";
@@ -124,7 +125,12 @@ async function requireAdminOrChapterLead() {
 async function requireHiringReviewer() {
   const session = await requireAuth();
   const actor = await getHiringActor(session.user.id);
-  if (!isAdmin(actor) && !actor.roles.includes("CHAPTER_PRESIDENT") && !isDesignatedInterviewer(actor)) {
+  if (
+    !isAdmin(actor) &&
+    !isHiringChair(actor) &&
+    !actor.roles.includes("CHAPTER_PRESIDENT") &&
+    !isDesignatedInterviewer(actor)
+  ) {
     throw new Error("Unauthorized - Hiring reviewer access required");
   }
   return { session, actor };
@@ -1680,6 +1686,411 @@ export async function updateApplicationStatus(formData: FormData) {
   revalidateHiringPaths(application.position.chapterId, applicationId);
 }
 
+/**
+ * Set / clear a staff applicant's free-text location.
+ * When the text matches The Bronx or Scarsdale, also syncs user.chapterId
+ * so board filters still work for those two.
+ */
+export async function updateStaffApplicantLocation(formData: FormData) {
+  const { actor } = await requireAdminOrChapterLead();
+  const applicationId = getString(formData, "applicationId");
+  const location = getString(formData, "location", false)?.trim() || null;
+
+  const application = await prisma.application.findUnique({
+    where: { id: applicationId },
+    select: {
+      id: true,
+      applicantId: true,
+      additionalMaterials: true,
+      position: { select: { type: true, chapterId: true, title: true } },
+    },
+  });
+
+  if (!application) {
+    throw new Error("Application not found");
+  }
+  if (application.position.type !== "STAFF") {
+    throw new Error("Location editing is only for staff applications.");
+  }
+
+  assertCanManagePosition(actor, application.position.chapterId);
+
+  const {
+    mergeStaffLocationIntoMaterials,
+    matchOperatingChapterName,
+  } = await import("@/lib/staff-applicant-location");
+
+  const nextMaterials = mergeStaffLocationIntoMaterials(
+    application.additionalMaterials,
+    location
+  );
+
+  const matchedName = matchOperatingChapterName(location);
+  let chapterId: string | null = null;
+  if (matchedName) {
+    const chapter = await prisma.chapter.findFirst({
+      where: { name: matchedName, archivedAt: null },
+      select: { id: true },
+    });
+    chapterId = chapter?.id ?? null;
+  }
+
+  await prisma.$transaction([
+    prisma.application.update({
+      where: { id: applicationId },
+      data: { additionalMaterials: nextMaterials },
+    }),
+    prisma.user.update({
+      where: { id: application.applicantId },
+      data: { chapterId },
+    }),
+  ]);
+
+  await createHiringAudit(actor.id, "staff_applicant_location", {
+    applicationId,
+    location,
+    chapterId,
+    positionTitle: application.position.title,
+  });
+
+  revalidateHiringPaths(application.position.chapterId, applicationId);
+  revalidatePath("/admin/instructor-applicants");
+}
+
+export type UpdateHiringApplicationMaterialsResult =
+  | { success: true }
+  | { success: false; error: string };
+
+/**
+ * Staff / CP / designated interviewer can fill or revise written responses
+ * on a hiring application at any time before a final decision.
+ */
+export async function updateHiringApplicationMaterials(input: {
+  applicationId: string;
+  coverLetter?: string | null;
+  additionalMaterials?: string | null;
+  /** Structured Social Media Manager answers (preferred over free-text materials). */
+  socialMedia?: {
+    school: string;
+    grade: string;
+    platforms: string;
+    experience: string;
+    portfolioLinks?: string | null;
+    contentIdeas: string;
+    weeklyAvailability: string;
+    additionalNotes?: string | null;
+    whyJoin: string;
+  } | null;
+  /** Structured chapter proposal answers. */
+  chapterProposal?: {
+    chapterName: string;
+    city?: string | null;
+    region?: string | null;
+    partnerSchool?: string | null;
+    chapterVision?: string | null;
+    launchPlan?: string | null;
+    recruitmentPlan?: string | null;
+    additionalContext?: string | null;
+  } | null;
+}): Promise<UpdateHiringApplicationMaterialsResult> {
+  try {
+    const { actor } = await requireHiringReviewer();
+    const applicationId = input.applicationId?.trim();
+    if (!applicationId) {
+      return { success: false, error: "Application is required." };
+    }
+
+    const application = await prisma.application.findUnique({
+      where: { id: applicationId },
+      select: {
+        id: true,
+        status: true,
+        additionalMaterials: true,
+        resumeUrl: true,
+        decision: { select: { hiringChairStatus: true } },
+        position: {
+          select: {
+            title: true,
+            chapterId: true,
+            type: true,
+          },
+        },
+      },
+    });
+
+    if (!application) {
+      return { success: false, error: "Application not found." };
+    }
+
+    assertCanManageHiringInterviews(actor, application.position.chapterId);
+
+    if (["ACCEPTED", "REJECTED", "WITHDRAWN"].includes(application.status)) {
+      return { success: false, error: "Closed applications cannot be edited." };
+    }
+
+    if (isHiringDecisionApproved(application.decision)) {
+      return { success: false, error: "Cannot edit materials after a final decision." };
+    }
+
+    const { extractStaffLocation } = await import("@/lib/staff-applicant-location");
+    const preservedLocation = extractStaffLocation(application.additionalMaterials);
+
+    let coverLetter: string | null =
+      typeof input.coverLetter === "string" ? input.coverLetter.trim() || null : null;
+    let additionalMaterials: string | null = null;
+
+    if (input.socialMedia) {
+      const sm = input.socialMedia;
+      if (!["9", "10", "11", "12"].includes(sm.grade)) {
+        return { success: false, error: "Select a grade (9th–12th)." };
+      }
+      const required: Array<[string, string]> = [
+        ["school", sm.school],
+        ["platforms", sm.platforms],
+        ["experience", sm.experience],
+        ["whyJoin", sm.whyJoin],
+        ["contentIdeas", sm.contentIdeas],
+        ["weeklyAvailability", sm.weeklyAvailability],
+      ];
+      for (const [label, value] of required) {
+        if (!value?.trim()) {
+          return {
+            success: false,
+            error: FIELD_LABELS[label] || `${label} is required.`,
+          };
+        }
+      }
+
+      const metadata: SocialMediaManagerMetadata & { location?: string } = {
+        kind: SOCIAL_MEDIA_MANAGER_KIND,
+        school: sm.school.trim(),
+        grade: sm.grade.trim(),
+        platforms: sm.platforms.trim(),
+        experience: sm.experience.trim(),
+        portfolioLinks: sm.portfolioLinks?.trim() || undefined,
+        contentIdeas: sm.contentIdeas.trim(),
+        weeklyAvailability: sm.weeklyAvailability.trim(),
+        additionalNotes: sm.additionalNotes?.trim() || undefined,
+      };
+      if (preservedLocation) {
+        metadata.location = preservedLocation;
+      }
+
+      coverLetter = sm.whyJoin.trim();
+      additionalMaterials = JSON.stringify(metadata);
+    } else if (input.chapterProposal) {
+      const cp = input.chapterProposal;
+      if (!cp.chapterName?.trim()) {
+        return { success: false, error: FIELD_LABELS.chapterName };
+      }
+      const metadata: ChapterProposalMetadata & {
+        additionalContext?: string;
+        location?: string;
+      } = {
+        kind: CHAPTER_PROPOSAL_KIND,
+        chapterName: cp.chapterName.trim(),
+        city: cp.city?.trim() || undefined,
+        region: cp.region?.trim() || undefined,
+        partnerSchool: cp.partnerSchool?.trim() || undefined,
+        chapterVision: cp.chapterVision?.trim() || undefined,
+        launchPlan: cp.launchPlan?.trim() || undefined,
+        recruitmentPlan: cp.recruitmentPlan?.trim() || undefined,
+      };
+      if (cp.additionalContext?.trim()) {
+        metadata.additionalContext = cp.additionalContext.trim();
+      }
+      if (preservedLocation) {
+        metadata.location = preservedLocation;
+      }
+      additionalMaterials = JSON.stringify(metadata);
+      if (typeof input.coverLetter === "string") {
+        coverLetter = input.coverLetter.trim() || null;
+      }
+    } else if (typeof input.additionalMaterials === "string") {
+      const trimmed = input.additionalMaterials.trim();
+      if (!trimmed) {
+        additionalMaterials = preservedLocation
+          ? JSON.stringify({ kind: "STAFF_LOCATION_V1", location: preservedLocation })
+          : null;
+      } else {
+        // Preserve location if existing materials were structured JSON.
+        try {
+          const parsed = JSON.parse(trimmed) as Record<string, unknown>;
+          if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+            if (preservedLocation && typeof parsed.location !== "string") {
+              parsed.location = preservedLocation;
+            }
+            additionalMaterials = JSON.stringify(parsed);
+          } else {
+            additionalMaterials = trimmed;
+          }
+        } catch {
+          additionalMaterials = trimmed;
+        }
+      }
+      if (typeof input.coverLetter === "string") {
+        coverLetter = input.coverLetter.trim() || null;
+      }
+    } else if (typeof input.coverLetter === "string") {
+      // Cover-letter-only update — keep existing materials (and location).
+      additionalMaterials = application.additionalMaterials;
+      coverLetter = input.coverLetter.trim() || null;
+    } else {
+      return { success: false, error: "Nothing to save." };
+    }
+
+    await prisma.application.update({
+      where: { id: applicationId },
+      data: {
+        coverLetter,
+        additionalMaterials,
+      },
+    });
+
+    await createHiringAudit(actor.id, "hiring_application_materials_updated", {
+      applicationId,
+      chapterId: application.position.chapterId,
+      positionTitle: application.position.title,
+      kind: input.socialMedia
+        ? "social_media"
+        : input.chapterProposal
+          ? "chapter_proposal"
+          : "generic",
+    });
+
+    revalidateHiringPaths(application.position.chapterId, applicationId);
+    revalidatePath("/admin/instructor-applicants");
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Could not save responses.",
+    };
+  }
+}
+
+export type ScheduleHiringInterviewResult =
+  | { success: true }
+  | { success: false; error: string };
+
+/**
+ * Set (or replace) the interview time inline — same idea as CP / instructor
+ * Application 360 scheduling, for generic hiring applications.
+ */
+export async function scheduleHiringInterviewOnRecord(input: {
+  applicationId: string;
+  scheduledAt: string;
+  meetingLink?: string | null;
+  durationMinutes?: number;
+}): Promise<ScheduleHiringInterviewResult> {
+  try {
+    const { actor } = await requireHiringReviewer();
+    const applicationId = input.applicationId?.trim();
+    if (!applicationId) {
+      return { success: false, error: "Application is required." };
+    }
+
+    const scheduledAt = new Date(input.scheduledAt);
+    if (!Number.isFinite(scheduledAt.getTime())) {
+      return { success: false, error: "Pick a valid date and time." };
+    }
+
+    const duration = Number(input.durationMinutes ?? 30);
+    if (!Number.isFinite(duration) || duration <= 0) {
+      return { success: false, error: "Duration must be a positive number of minutes." };
+    }
+
+    const meetingLink = input.meetingLink?.trim() || null;
+    const application = await getApplicationForReview(applicationId);
+    assertCanManageHiringInterviews(actor, application.position.chapterId);
+    assertDecisionCanBeEdited(application.decision);
+
+    if (["ACCEPTED", "REJECTED", "WITHDRAWN"].includes(application.status)) {
+      return { success: false, error: "Closed applications cannot be scheduled." };
+    }
+
+    const activeSlot = application.interviewSlots.find(
+      (slot) => slot.status === "POSTED" || slot.status === "CONFIRMED"
+    );
+
+    await prisma.$transaction(async (tx) => {
+      if (activeSlot) {
+        await tx.interviewSlot.update({
+          where: { id: activeSlot.id },
+          data: {
+            scheduledAt,
+            duration,
+            meetingLink,
+            status: "POSTED",
+            interviewerId: actor.id,
+          },
+        });
+      } else {
+        await tx.interviewSlot.create({
+          data: {
+            applicationId,
+            status: "POSTED",
+            scheduledAt,
+            duration,
+            meetingLink,
+            interviewerId: actor.id,
+          },
+        });
+      }
+
+      await tx.application.update({
+        where: { id: applicationId },
+        data: { status: "INTERVIEW_SCHEDULED" },
+      });
+    });
+
+    await setApplicationInterviewReadinessInternal(applicationId);
+
+    await createSystemNotification(
+      application.applicantId,
+      "SYSTEM",
+      activeSlot ? "Interview Rescheduled" : "Interview Slot Posted",
+      activeSlot
+        ? `Your interview for ${application.position.title} was updated.`
+        : `A new interview slot was posted for ${application.position.title}.`,
+      `/applications/${applicationId}`,
+      { policyKey: "INTERVIEW_UPDATES" }
+    );
+
+    if (application.applicant?.email) {
+      const baseUrl = process.env.NEXTAUTH_URL || "";
+      const dateStr = scheduledAt.toLocaleString();
+      sendApplicationStatusEmail({
+        to: application.applicant.email,
+        applicantName: application.applicant.name || "Applicant",
+        positionTitle: application.position.title,
+        status: "INTERVIEW_SCHEDULED",
+        message: `Your interview is scheduled for ${dateStr} (${duration} minutes).${
+          meetingLink ? ` Meeting link: ${meetingLink}` : " A meeting link will be shared soon."
+        }`,
+        portalUrl: `${baseUrl}/applications/${applicationId}`,
+      }).catch(() => {});
+    }
+
+    await createHiringAudit(actor.id, "chapter_hiring_interview_slot_posted", {
+      applicationId,
+      chapterId: application.position.chapterId,
+      scheduledAt: scheduledAt.toISOString(),
+      duration,
+      interviewerId: actor.id,
+      updatedExisting: Boolean(activeSlot),
+    });
+
+    revalidateHiringPaths(application.position.chapterId, applicationId);
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Could not save interview time.",
+    };
+  }
+}
+
 export async function postApplicationInterviewSlot(formData: FormData) {
   const { actor } = await requireHiringReviewer();
 
@@ -2198,18 +2609,35 @@ export async function saveStructuredInterviewNote(formData: FormData) {
 
   assertDecisionCanBeEdited(application.decision);
 
-  await prisma.interviewNote.create({
-    data: {
-      applicationId,
-      authorId: actor.id,
-      content,
-      rating: ratingRaw ? Number(ratingRaw) : null,
-      recommendation: parseHiringRecommendation(recommendationRaw),
-      strengths: strengths || null,
-      concerns: concerns || null,
-      nextStepSuggestion: nextStepSuggestion || null,
-    },
+  const noteData = {
+    content,
+    rating: ratingRaw ? Number(ratingRaw) : null,
+    recommendation: parseHiringRecommendation(recommendationRaw),
+    strengths: strengths || null,
+    concerns: concerns || null,
+    nextStepSuggestion: nextStepSuggestion || null,
+  };
+
+  const existing = await prisma.interviewNote.findFirst({
+    where: { applicationId, authorId: actor.id },
+    orderBy: { createdAt: "desc" },
+    select: { id: true },
   });
+
+  if (existing) {
+    await prisma.interviewNote.update({
+      where: { id: existing.id },
+      data: noteData,
+    });
+  } else {
+    await prisma.interviewNote.create({
+      data: {
+        applicationId,
+        authorId: actor.id,
+        ...noteData,
+      },
+    });
+  }
 
   await setApplicationInterviewReadinessInternal(applicationId);
 
@@ -2217,6 +2645,7 @@ export async function saveStructuredInterviewNote(formData: FormData) {
     applicationId,
     chapterId: application.position.chapterId,
     hasRecommendation: Boolean(recommendationRaw),
+    updated: Boolean(existing),
   });
 
   revalidateHiringPaths(application.position.chapterId, applicationId);
@@ -2268,6 +2697,181 @@ export async function makeDecision(formData: FormData) {
     decidedById: session.user.id,
     enforceInterviewReadiness: false,
   });
+}
+
+/**
+ * Staff / org-role decisions finalize immediately — no hiring Chair queue.
+ * Approve / approve-with-conditions → ACCEPTED + role effects.
+ * Reject → REJECTED.
+ * Second interview → back to INTERVIEW_SCHEDULED (no final Decision).
+ */
+export async function finalizeStaffApplicationDecision(formData: FormData) {
+  const { actor } = await requireHiringReviewer();
+
+  const applicationId = getString(formData, "applicationId");
+  const action = getString(formData, "action");
+  const notes = getString(formData, "notes", false)?.trim() || null;
+  const conditions = getString(formData, "conditions", false)?.trim() || null;
+
+  const allowed = new Set([
+    "APPROVE",
+    "APPROVE_WITH_CONDITIONS",
+    "REJECT",
+    "REQUEST_SECOND_INTERVIEW",
+  ]);
+  if (!allowed.has(action)) {
+    throw new Error("Unsupported decision action.");
+  }
+
+  if (action === "APPROVE_WITH_CONDITIONS" && !conditions && !notes) {
+    throw new Error("Add conditions or a note when approving with conditions.");
+  }
+  if (action === "REJECT" && !notes) {
+    throw new Error("Add a short note when rejecting.");
+  }
+
+  const application = await getApplicationForReview(applicationId);
+
+  if (application.position.type !== "STAFF") {
+    throw new Error("This decision flow is only for staff applications.");
+  }
+
+  if (isAdmin(actor) || isHiringChair(actor)) {
+    // network-wide OK
+  } else {
+    assertCanMakeChapterDecision(
+      actor,
+      application.position.type,
+      application.position.chapterId
+    );
+  }
+
+  if (application.status === "WITHDRAWN") {
+    throw new Error("Withdrawn applications cannot be decided.");
+  }
+
+  if (application.decision && isHiringDecisionApproved(application.decision)) {
+    throw new Error("A final decision already exists for this application.");
+  }
+
+  if (action === "REQUEST_SECOND_INTERVIEW") {
+    await prisma.$transaction(async (tx) => {
+      if (application.decision) {
+        await tx.decision.delete({ where: { id: application.decision.id } });
+      }
+      await tx.application.update({
+        where: { id: applicationId },
+        data: { status: "INTERVIEW_SCHEDULED" },
+      });
+    });
+
+    await createHiringAudit(actor.id, "staff_application_second_interview", {
+      applicationId,
+      chapterId: application.position.chapterId,
+      notes,
+    });
+
+    revalidateHiringPaths(application.position.chapterId, applicationId);
+    return;
+  }
+
+  const accepted = action === "APPROVE" || action === "APPROVE_WITH_CONDITIONS";
+  const decisionNotes = [
+    action === "APPROVE_WITH_CONDITIONS" && conditions
+      ? `Conditions: ${conditions}`
+      : null,
+    notes,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+
+  const now = new Date();
+
+  await prisma.$transaction(async (tx) => {
+    const decisionData = {
+      decidedById: actor.id,
+      accepted,
+      notes: decisionNotes || null,
+      decidedAt: now,
+      // Finalize immediately — no Chair review step for staff.
+      hiringChairStatus: "APPROVED" as const,
+      hiringChairNote: null,
+      hiringChairId: actor.id,
+      hiringChairAt: now,
+    };
+
+    if (application.decision) {
+      await tx.decision.update({
+        where: { id: application.decision.id },
+        data: decisionData,
+      });
+    } else {
+      await tx.decision.create({
+        data: {
+          applicationId,
+          ...decisionData,
+        },
+      });
+    }
+
+    await tx.application.update({
+      where: { id: applicationId },
+      data: { status: accepted ? "ACCEPTED" : "REJECTED" },
+    });
+
+    if (accepted) {
+      await applyAcceptedCandidateEffects(
+        tx,
+        {
+          id: application.id,
+          applicantId: application.applicantId,
+          position: application.position,
+          interviewSlots: application.interviewSlots.map((slot) => ({
+            status: slot.status,
+            isConfirmed: slot.isConfirmed,
+          })),
+          interviewNotes: application.interviewNotes.map((note) => ({
+            recommendation: note.recommendation,
+          })),
+          additionalMaterials: application.additionalMaterials || null,
+        },
+        actor.id
+      );
+    }
+  });
+
+  await createSystemNotification(
+    application.applicantId,
+    "SYSTEM",
+    accepted ? "Application Accepted" : "Application Decision Posted",
+    accepted
+      ? `Your application for ${application.position.title} was accepted.`
+      : `Your application for ${application.position.title} has been reviewed.`,
+    `/applications/${applicationId}`,
+    { policyKey: "APPLICATION_DECISIONS" }
+  );
+
+  if (application.applicant?.email) {
+    const baseUrl = process.env.NEXTAUTH_URL || "";
+    sendApplicationStatusEmail({
+      to: application.applicant.email,
+      applicantName: application.applicant.name || "Applicant",
+      positionTitle: application.position.title,
+      status: accepted ? "APPROVED" : "DECLINED",
+      message: decisionNotes || undefined,
+      portalUrl: `${baseUrl}/applications/${applicationId}`,
+    }).catch(() => {});
+  }
+
+  await createHiringAudit(actor.id, "staff_application_decision_finalized", {
+    applicationId,
+    action,
+    accepted,
+    chapterId: application.position.chapterId,
+    positionTitle: application.position.title,
+  });
+
+  revalidateHiringPaths(application.position.chapterId, applicationId);
 }
 
 export async function chapterMakeDecision(formData: FormData) {

@@ -648,6 +648,8 @@ export interface CreateExternalStaffApplicantInput {
   phone?: string | null;
   source: ExternalApplicantSource;
   chapterId?: string | null;
+  /** Free-text staff location (preferred over chapterId for network intake). */
+  location?: string | null;
   /** Existing staff opening. When omitted, `positionTitle` is used to find or create one. */
   positionId?: string | null;
   /** Used when no `positionId` — defaults to "Social Media Manager". */
@@ -690,12 +692,14 @@ async function resolveStaffPosition(opts: {
   }
 
   const title = (opts.positionTitle ?? "").trim() || SOCIAL_MEDIA_MANAGER_POSITION_TITLE;
+  // Prefer the network-wide opening. Staff "location" lives on the applicant,
+  // not on a chapter-scoped Position row.
   const existing = await prisma.position.findFirst({
     where: {
       type: "STAFF",
       title: { equals: title, mode: "insensitive" },
       isOpen: true,
-      ...(opts.chapterId ? { chapterId: opts.chapterId } : {}),
+      chapterId: null,
     },
     select: { id: true, title: true, chapterId: true },
     orderBy: { createdAt: "desc" },
@@ -704,11 +708,24 @@ async function resolveStaffPosition(opts: {
     return existing;
   }
 
+  const anyOpen = await prisma.position.findFirst({
+    where: {
+      type: "STAFF",
+      title: { equals: title, mode: "insensitive" },
+      isOpen: true,
+    },
+    select: { id: true, title: true, chapterId: true },
+    orderBy: { createdAt: "desc" },
+  });
+  if (anyOpen) {
+    return anyOpen;
+  }
+
   return prisma.position.create({
     data: {
       title,
       type: "STAFF",
-      chapterId: opts.chapterId ?? null,
+      chapterId: null,
       openedById: opts.openedById,
       hiringLeadId: opts.openedById,
       visibility: "NETWORK_WIDE",
@@ -777,6 +794,7 @@ export async function createExternalStaffApplicant(
   }
 
   let chapterId = input.chapterId?.trim() || null;
+  const locationLabel = input.location?.trim() || null;
   const hasNetworkScope = isAdmin || isHiringChair;
   if (!hasNetworkScope) {
     const me = await prisma.user.findUnique({
@@ -786,6 +804,19 @@ export async function createExternalStaffApplicant(
     chapterId = me?.chapterId ?? null;
     if (!chapterId) {
       throw new Error("Chapter Presidents must have a chapter assigned before adding applicants.");
+    }
+  } else if (locationLabel) {
+    const { matchOperatingChapterName } = await import("@/lib/staff-applicant-location");
+    const matched = matchOperatingChapterName(locationLabel);
+    if (matched) {
+      const chapter = await prisma.chapter.findFirst({
+        where: { name: matched, archivedAt: null },
+        select: { id: true },
+      });
+      chapterId = chapter?.id ?? null;
+    } else {
+      // Free-text location that isn't an operating chapter — keep user chapter unset.
+      chapterId = null;
     }
   }
 
@@ -820,15 +851,19 @@ export async function createExternalStaffApplicant(
         phone: input.phone?.trim() || null,
         passwordHash: "IMPORTED",
         primaryRole: RoleType.APPLICANT,
-        chapterId: chapterId ?? position.chapterId,
+        chapterId,
       },
     });
     createdNewUser = true;
-  } else if ((chapterId ?? position.chapterId) && !applicantUser.chapterId) {
-    applicantUser = await prisma.user.update({
-      where: { id: applicantUser.id },
-      data: { chapterId: chapterId ?? position.chapterId },
-    });
+  } else if (locationLabel !== null || (chapterId && applicantUser.chapterId !== chapterId)) {
+    // Staff location is explicit — sync chapter FK when location matches an
+    // operating chapter; clear it for free-text locations so filters stay honest.
+    if (applicantUser.chapterId !== chapterId) {
+      applicantUser = await prisma.user.update({
+        where: { id: applicantUser.id },
+        data: { chapterId },
+      });
+    }
   }
 
   const duplicateApplication = await prisma.application.findFirst({
@@ -849,6 +884,9 @@ export async function createExternalStaffApplicant(
     ? "INTERVIEW_SCHEDULED"
     : "SUBMITTED";
 
+  const { mergeStaffLocationIntoMaterials } = await import("@/lib/staff-applicant-location");
+  const additionalMaterials = mergeStaffLocationIntoMaterials(null, locationLabel);
+
   const application = await prisma.application.create({
     data: {
       positionId: position.id,
@@ -861,6 +899,7 @@ export async function createExternalStaffApplicant(
       externalAnswersCopy: input.externalAnswersCopy?.trim() || null,
       internalNotes: input.internalNotes?.trim() || null,
       coverLetter: input.coverLetter?.trim() || null,
+      additionalMaterials,
       status: initialStatus,
     },
     select: { id: true },
@@ -932,6 +971,7 @@ export async function createExternalStaffApplicantFromForm(
       phone: String(formData.get("phone") ?? "") || null,
       source,
       chapterId: String(formData.get("chapterId") ?? "") || null,
+      location: String(formData.get("location") ?? "") || null,
       positionId: String(formData.get("positionId") ?? "") || null,
       positionTitle: String(formData.get("positionTitle") ?? "") || null,
       externalResponseUrl: String(formData.get("externalResponseUrl") ?? "") || null,

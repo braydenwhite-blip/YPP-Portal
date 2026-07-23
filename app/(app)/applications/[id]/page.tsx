@@ -3,7 +3,6 @@ import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
 import { getEnabledFeatureKeysForUser } from "@/lib/feature-gates";
 import {
-  getHiringChairStatus,
   isHiringDecisionApproved,
   isHiringDecisionPending,
   isHiringDecisionReturned,
@@ -11,53 +10,64 @@ import {
 import { prisma } from "@/lib/prisma";
 import {
   cancelApplicationInterviewSlot,
-  chapterMakeDecision,
   confirmInterviewSlot,
-  makeDecision,
   markApplicationInterviewCompleted,
-  saveStructuredInterviewNote,
   updateApplicationStatus,
 } from "@/lib/application-actions";
 import { ApplicationStatus } from "@prisma/client";
-import ApplicationProgressStepper from "@/components/application-progress-stepper";
 import AddToCalendarButton from "@/components/add-to-calendar-button";
-import ReviewerInterviewNoteForm from "@/components/reviewer-interview-note-form";
-import ReviewerDecisionForm from "@/components/reviewer-decision-form";
+import { ApplicationReviewShell } from "@/components/applications/application-review-shell";
+import { HiringApplicationRecordSimple } from "@/components/applications/HiringApplicationRecordSimple";
+import { HiringApplicationMaterialsEditor } from "@/components/applications/HiringApplicationMaterialsEditor";
+import { HiringApplicationInterviewSchedule } from "@/components/applications/HiringApplicationInterviewSchedule";
+import { StaffDecisionPanel } from "@/components/applications/StaffDecisionPanel";
+import { StaffInterviewNotesEditor } from "@/components/applications/StaffInterviewNotesEditor";
+import { StaffLocationEditor } from "@/components/applications/StaffLocationEditor";
+import { RecordSection, StatusBadge, type KeyFact, type StatusTone } from "@/components/ui-v2";
 import { normalizeRoleList } from "@/lib/authorization";
+import { listOperatingChaptersForFilters } from "@/lib/chapters/operating";
 import {
   gradeLabel,
+  isSocialMediaManagerPosition,
   parseSocialMediaManagerMetadata,
 } from "@/lib/social-media-manager-application";
+import { extractStaffLocation } from "@/lib/staff-applicant-location";
 
 function formatStatus(status: string) {
-  return status.replace(/_/g, " ");
+  return status
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .replace(/^./, (c) => c.toUpperCase());
 }
 
-function statusPillClass(status: string) {
+function statusTone(status: string): StatusTone {
   switch (status) {
     case "ACCEPTED":
-      return "pill-success";
+      return "success";
     case "REJECTED":
     case "WITHDRAWN":
-      return "pill-declined";
+      return "danger";
     case "INTERVIEW_SCHEDULED":
     case "INTERVIEW_COMPLETED":
-      return "pill-pathway";
+      return "info";
+    case "UNDER_REVIEW":
+      return "warning";
+    case "SUBMITTED":
+      return "brand";
     default:
-      return "";
+      return "neutral";
   }
 }
 
-function interviewSlotPill(status: string) {
+function interviewSlotTone(status: string): StatusTone {
   switch (status) {
     case "CONFIRMED":
-      return "pill-success";
     case "COMPLETED":
-      return "pill-success";
+      return "success";
     case "CANCELLED":
-      return "pill-declined";
+      return "danger";
     default:
-      return "";
+      return "warning";
   }
 }
 
@@ -132,6 +142,8 @@ export default async function ApplicationWorkspacePage({
           email: true,
           phone: true,
           primaryRole: true,
+          chapterId: true,
+          chapter: { select: { id: true, name: true } },
         },
       },
       position: {
@@ -173,6 +185,7 @@ export default async function ApplicationWorkspacePage({
 
   const roles = normalizeRoleList(currentUser.roles, currentUser.primaryRole);
   const isAdmin = roles.includes("ADMIN");
+  const isHiringChair = roles.includes("HIRING_CHAIR");
   const isChapterLead = roles.includes("CHAPTER_PRESIDENT");
   const enabledFeatureKeys = await getEnabledFeatureKeysForUser({
     userId: currentUser.id,
@@ -186,20 +199,23 @@ export default async function ApplicationWorkspacePage({
     isChapterLead &&
     !!application.position.chapterId &&
     currentUser.chapterId === application.position.chapterId;
+  const isNetworkStaffOpening =
+    application.position.type === "STAFF" && !application.position.chapterId;
   const isInterviewReviewer =
     isAdmin ||
+    isHiringChair ||
     isChapterReviewer ||
     (isDesignatedInterviewer &&
-      !!application.position.chapterId &&
-      currentUser.chapterId === application.position.chapterId);
-  const canManagePipeline = isAdmin || isChapterReviewer;
+      (isNetworkStaffOpening ||
+        (!!application.position.chapterId &&
+          currentUser.chapterId === application.position.chapterId)));
+  const canManagePipeline = isAdmin || isHiringChair || isChapterReviewer;
 
   if (!isApplicant && !isInterviewReviewer) {
     redirect("/applications");
   }
 
   const isClosedApplication = ["ACCEPTED", "REJECTED", "WITHDRAWN"].includes(application.status);
-  const decisionStatus = getHiringChairStatus(application.decision);
   const hasApprovedDecision = isHiringDecisionApproved(application.decision);
   const hasPendingDecision = isHiringDecisionPending(application.decision);
   const hasReturnedDecision = isHiringDecisionReturned(application.decision);
@@ -231,388 +247,458 @@ export default async function ApplicationWorkspacePage({
   const canChapterDecideRole = ["INSTRUCTOR", "MENTOR", "STAFF", "CHAPTER_PRESIDENT"].includes(
     application.position.type
   );
-  const canShowChapterDecision = !isAdmin && isInterviewReviewer && canChapterDecideRole;
-  const canShowAdminDecision = isAdmin;
-
-  const canSubmitDecision =
-    application.status !== "WITHDRAWN" &&
-    !hasPendingDecision &&
+  const canFinalizeStaffDecision =
+    !isClosedApplication &&
     !hasApprovedDecision &&
-    decisionBlockers.length === 0;
+    (isAdmin || isHiringChair || (isChapterReviewer && canChapterDecideRole));
+
+  const staffReadinessChecks = [
+    {
+      id: "notes",
+      label: "Interview notes",
+      done: application.interviewNotes.length > 0,
+      detail:
+        application.interviewNotes.length > 0
+          ? "Notes on file"
+          : "Add interview notes above",
+    },
+    {
+      id: "recommendation",
+      label: "Recommendation",
+      done: !interviewRequired || hasRecommendation,
+      detail: hasRecommendation
+        ? "Recommendation recorded"
+        : interviewRequired
+          ? "Add a recommendation on your notes"
+          : "Not required",
+    },
+    {
+      id: "interview",
+      label: "Interview complete",
+      done: !interviewRequired || hasCompletedInterview,
+      detail: hasCompletedInterview
+        ? "Interview marked complete"
+        : interviewRequired
+          ? "Mark the interview complete"
+          : "Not required",
+    },
+  ];
+  const staffReadinessDone = staffReadinessChecks.filter((c) => c.done).length;
+  const staffReadinessHeadline = `${staffReadinessDone} of ${staffReadinessChecks.length} complete`;
 
   const finalDecisionDetail = hasApprovedDecision
     ? `${application.decision?.accepted ? "Accepted" : "Rejected"} on ${new Date(
         application.decision?.hiringChairAt ?? application.decision?.decidedAt ?? application.submittedAt
       ).toLocaleString()}`
     : hasPendingDecision
-      ? `Submitted on ${new Date(application.decision?.decidedAt ?? application.submittedAt).toLocaleString()} · waiting for Chair approval`
+      ? "A prior Chair recommendation is pending — finalize below to close it out."
       : hasReturnedDecision
-        ? "Returned by Chair for revision"
+        ? "Previously returned — finalize a new decision below."
         : "Pending";
 
   const chapterProposal = parseChapterProposalMetadata(application.additionalMaterials);
   const socialMediaApplication = parseSocialMediaManagerMetadata(application.additionalMaterials);
 
-  // Build timeline steps - adapt based on whether interview is required
-  const timelineSteps = interviewRequired
-    ? [
-        {
-          label: "Application Submitted",
-          complete: true,
-          active: false,
-          detail: new Date(application.submittedAt).toLocaleString(),
-        },
-        {
-          label: "Under Review",
-          complete: application.status !== "SUBMITTED",
-          active: application.status === "SUBMITTED",
-          detail: application.status === "SUBMITTED" ? "Waiting for reviewer" : "Reviewed",
-        },
-        {
-          label: "Interview Scheduled",
-          complete: Boolean(firstPostedSlot),
-          active: !firstPostedSlot && application.status !== "SUBMITTED",
-          detail: firstPostedSlot ? new Date(firstPostedSlot.scheduledAt).toLocaleString() : "Not yet scheduled",
-        },
-        {
-          label: "Interview Confirmed",
-          complete: Boolean(confirmedSlot) || Boolean(completedSlot),
-          active: Boolean(firstPostedSlot) && !confirmedSlot && !completedSlot,
-          detail: confirmedSlot?.confirmedAt
-            ? new Date(confirmedSlot.confirmedAt).toLocaleString()
-            : completedSlot
-              ? "Completed"
-              : "Awaiting confirmation",
-        },
-        {
-          label: "Interview Completed",
-          complete: hasCompletedInterview,
-          active: Boolean(confirmedSlot) && !hasCompletedInterview,
-          detail: completedSlot?.completedAt
-            ? new Date(completedSlot.completedAt).toLocaleString()
-            : "Pending",
-        },
-        {
-          label: "Decision Ready",
-          complete: decisionBlockers.length === 0,
-          active: hasCompletedInterview && decisionBlockers.length > 0,
-          detail: decisionBlockers.length === 0 ? "Ready for final decision" : decisionBlockers[0],
-        },
-        {
-          label: "Final Decision",
-          complete: hasApprovedDecision,
-          active: !hasApprovedDecision && !hasPendingDecision && decisionBlockers.length === 0,
-          detail: finalDecisionDetail,
-        },
-      ]
-    : [
-        {
-          label: "Application Submitted",
-          complete: true,
-          active: false,
-          detail: new Date(application.submittedAt).toLocaleString(),
-        },
-        {
-          label: "Under Review",
-          complete: application.status !== "SUBMITTED",
-          active: application.status === "SUBMITTED",
-          detail: application.status === "SUBMITTED" ? "Waiting for reviewer" : "Materials reviewed",
-        },
-        {
-          label: "Decision Ready",
-          complete: true,
-          active: false,
-          detail: "No interview required for this position",
-        },
-        {
-          label: "Final Decision",
-          complete: hasApprovedDecision,
-          active: !hasApprovedDecision && !hasPendingDecision,
-          detail: finalDecisionDetail,
-        },
-      ];
+  // Interview detail for facts strip (scheduled / confirmed / completed).
+  const interviewFactValue = completedSlot
+    ? "Completed"
+    : confirmedSlot
+      ? "Confirmed"
+      : firstPostedSlot
+        ? new Date(firstPostedSlot.scheduledAt).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          })
+        : interviewRequired
+          ? "Not scheduled"
+          : "Not required";
 
   const backHref = isApplicant
     ? "/applications"
     : isAdmin
-      ? "/admin/applications"
+      ? "/admin/instructor-applicants"
       : isChapterReviewer
         ? "/chapter/recruiting"
         : "/interviews?scope=hiring&view=team&state=needs_action";
 
+  const backLabel = isApplicant
+    ? "My applications"
+    : isAdmin
+      ? "Application board"
+      : "Back";
+
+  const nextStep = (() => {
+    if (isClosedApplication) {
+      return hasApprovedDecision
+        ? {
+            title: application.decision?.accepted ? "Accepted" : "Rejected",
+            detail: finalDecisionDetail,
+          }
+        : { title: "Closed", detail: formatStatus(application.status) };
+    }
+    if (isApplicant) {
+      if (application.status === "SUBMITTED") {
+        return {
+          title: "Under review soon",
+          detail: "A reviewer will look at your materials next.",
+        };
+      }
+      const posted = application.interviewSlots.find((s) => s.status === "POSTED");
+      if (posted) {
+        return {
+          title: "Confirm your interview",
+          detail: `Pick the offered time on ${new Date(posted.scheduledAt).toLocaleString()}.`,
+        };
+      }
+      return {
+        title: "You're all set for now",
+        detail: interviewRequired
+          ? "Interview updates and the final decision will show up here."
+          : "You'll be notified when a decision is made.",
+      };
+    }
+    if (hasApprovedDecision) {
+      return {
+        title: application.decision?.accepted ? "Accepted" : "Rejected",
+        detail: finalDecisionDetail,
+      };
+    }
+    if (canFinalizeStaffDecision && staffReadinessDone === staffReadinessChecks.length) {
+      return {
+        title: "Ready to decide",
+        detail: "Approve or reject below — it finalizes immediately.",
+      };
+    }
+    if (application.status === "SUBMITTED") {
+      return {
+        title: "Start review",
+        detail: "Open the application, then move status to Under Review when ready.",
+      };
+    }
+    if (interviewRequired && !firstPostedSlot) {
+      return {
+        title: "Schedule the interview",
+        detail: "Set a time below, then mark it complete after the call.",
+      };
+    }
+    if (interviewRequired && !hasCompletedInterview) {
+      return {
+        title: "Finish the interview",
+        detail: decisionBlockers[0] ?? "Confirm, complete, and add a recommendation note.",
+      };
+    }
+    return {
+      title: "Keep reviewing",
+      detail: decisionBlockers[0] ?? "Add notes, then decide below.",
+    };
+  })();
+
+  const staffLocationLabel =
+    application.position.type === "STAFF"
+      ? extractStaffLocation(application.additionalMaterials) ??
+        application.applicant.chapter?.name ??
+        null
+      : null;
+
+  const identityLine = [
+    application.applicant.email,
+    application.position.type === "STAFF"
+      ? staffLocationLabel ?? "Location not set"
+      : application.position.chapter?.name ??
+        application.applicant.chapter?.name ??
+        "Global",
+    socialMediaApplication
+      ? `${socialMediaApplication.school} · ${gradeLabel(socialMediaApplication.grade)}`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  const locationOptions =
+    application.position.type === "STAFF" && isInterviewReviewer
+      ? await listOperatingChaptersForFilters()
+      : [];
+
+  const facts: KeyFact[] = [
+    {
+      label: "Position",
+      value: application.position.title,
+      detail: formatStatus(application.position.type),
+    },
+    {
+      label: application.position.type === "STAFF" ? "Location" : "Chapter",
+      value:
+        application.position.type === "STAFF"
+          ? staffLocationLabel ?? "Not set"
+          : application.applicant.chapter?.name ??
+            application.position.chapter?.name ??
+            "Global",
+      tone:
+        application.position.type === "STAFF" && !staffLocationLabel
+          ? "attention"
+          : undefined,
+    },
+    {
+      label: "Interview",
+      value: interviewFactValue,
+      tone:
+        interviewRequired && !firstPostedSlot && !isClosedApplication
+          ? "attention"
+          : undefined,
+      href: interviewRequired ? "#interview" : undefined,
+    },
+    {
+      label: "Applied",
+      value: new Date(application.submittedAt).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }),
+    },
+  ];
+
+  const applicationFields: Array<{ title: string; body: string }> = [];
+  if (chapterProposal) {
+    applicationFields.push(
+      { title: "Proposed chapter", body: chapterProposal.chapterName },
+      {
+        title: "City / region",
+        body: [chapterProposal.city, chapterProposal.region].filter(Boolean).join(", ") || "—",
+      }
+    );
+    if (chapterProposal.partnerSchool) {
+      applicationFields.push({ title: "Partner school", body: chapterProposal.partnerSchool });
+    }
+    if (chapterProposal.chapterVision) {
+      applicationFields.push({ title: "Vision", body: chapterProposal.chapterVision });
+    }
+    if (chapterProposal.launchPlan) {
+      applicationFields.push({ title: "Launch plan", body: chapterProposal.launchPlan });
+    }
+    if (chapterProposal.recruitmentPlan) {
+      applicationFields.push({ title: "Recruitment plan", body: chapterProposal.recruitmentPlan });
+    }
+    if (chapterProposal.additionalContext) {
+      applicationFields.push({
+        title: "Additional context",
+        body: chapterProposal.additionalContext,
+      });
+    }
+  }
+  if (socialMediaApplication) {
+    applicationFields.push(
+      { title: "School", body: socialMediaApplication.school },
+      { title: "Grade", body: gradeLabel(socialMediaApplication.grade) },
+      { title: "Platforms", body: socialMediaApplication.platforms },
+      { title: "Experience", body: socialMediaApplication.experience }
+    );
+    if (socialMediaApplication.portfolioLinks) {
+      applicationFields.push({
+        title: "Portfolio / links",
+        body: socialMediaApplication.portfolioLinks,
+      });
+    }
+    applicationFields.push(
+      { title: "Content ideas", body: socialMediaApplication.contentIdeas },
+      {
+        title: "Weekly availability",
+        body: socialMediaApplication.weeklyAvailability,
+      }
+    );
+    if (socialMediaApplication.additionalNotes) {
+      applicationFields.push({
+        title: "Additional notes",
+        body: socialMediaApplication.additionalNotes,
+      });
+    }
+  }
+  if (application.coverLetter?.trim()) {
+    applicationFields.push({
+      title: socialMediaApplication ? "Why they want to join" : "Cover letter",
+      body: application.coverLetter.trim(),
+    });
+  }
+  if (
+    !chapterProposal &&
+    !socialMediaApplication &&
+    application.additionalMaterials?.trim()
+  ) {
+    applicationFields.push({
+      title: "Additional materials",
+      body: application.additionalMaterials.trim(),
+    });
+  }
+
+  const documents = application.resumeUrl
+    ? [{ label: "Resume", href: application.resumeUrl }]
+    : [];
+
+  const badges: Array<{ label: string; tone: StatusTone }> = [
+    {
+      label: interviewRequired ? "Interview required" : "No interview",
+      tone: interviewRequired ? "info" : "success",
+    },
+  ];
+
+  const materialsMode: "social_media" | "chapter_proposal" | "generic" =
+    socialMediaApplication || isSocialMediaManagerPosition(application.position.title)
+      ? "social_media"
+      : chapterProposal
+        ? "chapter_proposal"
+        : "generic";
+
+  const canEditMaterials =
+    isInterviewReviewer && !isClosedApplication && !hasApprovedDecision;
+
+  const activeInterviewSlot =
+    confirmedSlot ||
+    application.interviewSlots.find((slot) => slot.status === "POSTED") ||
+    null;
+
   return (
-    <div>
-      <div className="topbar">
-        <div>
-          <Link href={backHref} style={{ color: "var(--muted)", fontSize: 13 }}>
-            &larr; Back
-          </Link>
-          <h1 className="page-title">Application Workspace</h1>
-          <p className="page-subtitle">
-            {application.position.title} {"\u00B7"} {application.applicant.name}
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {interviewRequired ? (
-            <span className="pill pill-pathway">Interview Required</span>
-          ) : (
-            <span className="pill pill-success">No Interview</span>
-          )}
-          <span className={`pill ${statusPillClass(application.status)}`}>
-            {formatStatus(application.status)}
-          </span>
-        </div>
-      </div>
-
-      <div className="grid two">
-        <div>
-          {/* Progress Stepper */}
-          <div className="card" style={{ marginBottom: 16 }}>
-            <div className="section-title">
-              {interviewRequired ? "Application Progress" : "Application Progress (Simplified)"}
-            </div>
-            {!interviewRequired && (
-              <div style={{
-                background: "#ecfdf5",
-                border: "1px solid #10b981",
-                borderRadius: 8,
-                padding: "8px 12px",
-                marginBottom: 14,
-                fontSize: 13,
-              }}>
-                This position does not require an interview. Decisions can be made based on application materials.
-              </div>
-            )}
-            <ApplicationProgressStepper steps={timelineSteps} />
-          </div>
-
-          <div className="card">
-            <div className="section-title">Candidate Profile</div>
-            <div style={{ display: "grid", gap: 6, fontSize: 14 }}>
-              <div>
-                <strong>Name:</strong> {application.applicant.name}
-              </div>
-              <div>
-                <strong>Email:</strong> {application.applicant.email}
-              </div>
-              <div>
-                <strong>Phone:</strong> {application.applicant.phone || "Not provided"}
-              </div>
-              <div>
-                <strong>Applied:</strong> {new Date(application.submittedAt).toLocaleString()}
-              </div>
-              <div>
-                <strong>Position:</strong> {application.position.title} ({formatStatus(application.position.type)})
-              </div>
-              <div>
-                <strong>Chapter:</strong> {application.position.chapter?.name || "Global"}
-              </div>
-              <div>
-                <strong>Interview Policy:</strong>{" "}
-                <span className={`pill pill-small ${interviewRequired ? "pill-pathway" : "pill-success"}`}>
-                  {interviewRequired ? "Required" : "Not Required"}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="card" style={{ marginTop: 16 }}>
-            <div className="section-title">Application Materials</div>
-            {chapterProposal ? (
-              <div
-                style={{
-                  border: "1px solid var(--border)",
-                  borderRadius: 10,
-                  padding: 12,
-                  background: "var(--surface-alt)",
-                  marginBottom: 14,
-                }}
-              >
-                <p style={{ margin: 0, fontWeight: 600 }}>Chapter Proposal Details</p>
-                <div style={{ marginTop: 8, display: "grid", gap: 6, fontSize: 13 }}>
-                  <div>
-                    <strong>Proposed Chapter:</strong> {chapterProposal.chapterName}
-                  </div>
-                  <div>
-                    <strong>City / Region:</strong>{" "}
-                    {[chapterProposal.city, chapterProposal.region].filter(Boolean).join(", ") || "-"}
-                  </div>
-                  <div>
-                    <strong>Partner School:</strong> {chapterProposal.partnerSchool || "-"}
-                  </div>
-                  {chapterProposal.chapterVision ? (
-                    <div>
-                      <strong>Vision:</strong> {chapterProposal.chapterVision}
-                    </div>
-                  ) : null}
-                  {chapterProposal.launchPlan ? (
-                    <div>
-                      <strong>Launch Plan:</strong> {chapterProposal.launchPlan}
-                    </div>
-                  ) : null}
-                  {chapterProposal.recruitmentPlan ? (
-                    <div>
-                      <strong>Recruitment Plan:</strong> {chapterProposal.recruitmentPlan}
-                    </div>
-                  ) : null}
-                  {chapterProposal.additionalContext ? (
-                    <div>
-                      <strong>Additional Context:</strong> {chapterProposal.additionalContext}
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-            ) : null}
-            {socialMediaApplication ? (
-              <div
-                style={{
-                  border: "1px solid var(--border)",
-                  borderRadius: 10,
-                  padding: 12,
-                  background: "var(--surface-alt)",
-                  marginBottom: 14,
-                }}
-              >
-                <p style={{ margin: 0, fontWeight: 600 }}>Social Media Manager Application</p>
-                <div style={{ marginTop: 8, display: "grid", gap: 6, fontSize: 13 }}>
-                  <div>
-                    <strong>School:</strong> {socialMediaApplication.school}
-                  </div>
-                  <div>
-                    <strong>Grade:</strong> {gradeLabel(socialMediaApplication.grade)}
-                  </div>
-                  <div>
-                    <strong>Platforms:</strong> {socialMediaApplication.platforms}
-                  </div>
-                  <div>
-                    <strong>Experience:</strong>{" "}
-                    <span style={{ whiteSpace: "pre-wrap" }}>{socialMediaApplication.experience}</span>
-                  </div>
-                  {socialMediaApplication.portfolioLinks ? (
-                    <div>
-                      <strong>Portfolio / links:</strong>{" "}
-                      <span style={{ whiteSpace: "pre-wrap" }}>
-                        {socialMediaApplication.portfolioLinks}
-                      </span>
-                    </div>
-                  ) : null}
-                  <div>
-                    <strong>Content ideas:</strong>{" "}
-                    <span style={{ whiteSpace: "pre-wrap" }}>
-                      {socialMediaApplication.contentIdeas}
-                    </span>
-                  </div>
-                  <div>
-                    <strong>Weekly availability:</strong>{" "}
-                    {socialMediaApplication.weeklyAvailability}
-                  </div>
-                  {socialMediaApplication.additionalNotes ? (
-                    <div>
-                      <strong>Additional notes:</strong>{" "}
-                      <span style={{ whiteSpace: "pre-wrap" }}>
-                        {socialMediaApplication.additionalNotes}
-                      </span>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-            ) : null}
-            {application.resumeUrl ? (
-              <p style={{ marginTop: 0 }}>
-                <a href={application.resumeUrl} target="_blank" rel="noreferrer" className="link">
-                  Open Resume
-                </a>
-              </p>
-            ) : (
-              <p style={{ color: "var(--muted)", marginTop: 0 }}>No resume link provided.</p>
-            )}
-
-            <div style={{ marginTop: 16 }}>
-              <strong style={{ fontSize: 14 }}>
-                {socialMediaApplication ? "Why they want to join" : "Cover Letter"}
-              </strong>
-              <p style={{ whiteSpace: "pre-wrap", marginTop: 8 }}>
-                {application.coverLetter || "No cover letter provided."}
-              </p>
-            </div>
-
-            <div style={{ marginTop: 16 }}>
-              <strong style={{ fontSize: 14 }}>Additional Materials</strong>
-              <p style={{ whiteSpace: "pre-wrap", marginTop: 8 }}>
-                {chapterProposal
-                  ? chapterProposal.additionalContext || "Structured chapter proposal details captured above."
-                  : socialMediaApplication
-                    ? "Structured Social Media Manager answers captured above."
-                    : application.additionalMaterials || "No additional materials provided."}
-              </p>
-            </div>
-          </div>
-
-          {/* Interview Slots - only show if interview required or if there are slots */}
-          {(interviewRequired || application.interviewSlots.length > 0) && (
-            <div className="card" style={{ marginTop: 16 }}>
-              <div className="section-title">Interview Slots</div>
+    <ApplicationReviewShell
+      maxWidth={1100}
+      actions={
+        isAdmin
+          ? [{ label: "Application board", href: "/admin/instructor-applicants", icon: "list" }]
+          : undefined
+      }
+    >
+      <HiringApplicationRecordSimple
+        backHref={backHref}
+        backLabel={backLabel}
+        eyebrow={application.position.title}
+        displayName={application.applicant.name || "Applicant"}
+        identityLine={identityLine}
+        status={{ label: formatStatus(application.status), tone: statusTone(application.status) }}
+        badges={badges}
+        nextStep={nextStep}
+        facts={facts}
+        contact={{
+          email: application.applicant.email,
+          phone: application.applicant.phone,
+        }}
+        locationEditor={
+          application.position.type === "STAFF" && isInterviewReviewer ? (
+            <StaffLocationEditor
+              applicationId={application.id}
+              currentLocation={staffLocationLabel}
+              locations={locationOptions.map(({ id, name }) => ({ id, name }))}
+            />
+          ) : null
+        }
+        applicationFields={applicationFields}
+        applicationEditor={
+          <HiringApplicationMaterialsEditor
+            applicationId={application.id}
+            mode={materialsMode}
+            canEdit={canEditMaterials}
+            coverLetter={application.coverLetter ?? ""}
+            additionalMaterials={
+              !chapterProposal && !socialMediaApplication
+                ? application.additionalMaterials ?? ""
+                : ""
+            }
+            socialMedia={socialMediaApplication}
+            chapterProposal={
+              chapterProposal
+                ? {
+                    chapterName: chapterProposal.chapterName,
+                    city: chapterProposal.city ?? "",
+                    region: chapterProposal.region ?? "",
+                    partnerSchool: chapterProposal.partnerSchool ?? "",
+                    chapterVision: chapterProposal.chapterVision ?? "",
+                    launchPlan: chapterProposal.launchPlan ?? "",
+                    recruitmentPlan: chapterProposal.recruitmentPlan ?? "",
+                    additionalContext: chapterProposal.additionalContext ?? "",
+                    coverLetter: application.coverLetter ?? "",
+                  }
+                : null
+            }
+          />
+        }
+        documents={documents}
+        interviewSection={
+          interviewRequired || application.interviewSlots.length > 0 ? (
+            <RecordSection id="interview" title="Interview" className="scroll-mt-24">
               {application.interviewSlots.length === 0 ? (
-                <p style={{ color: "var(--muted)" }}>No interview slots scheduled yet.</p>
+                <p className="m-0 text-[13px] text-ink-muted">No interview scheduled yet.</p>
               ) : (
-                <div style={{ display: "grid", gap: 12 }}>
+                <div className="flex flex-col gap-3">
                   {application.interviewSlots.map((slot) => (
                     <div
                       key={slot.id}
-                      style={{
-                        border: "1px solid var(--border)",
-                        borderRadius: 10,
-                        padding: 12,
-                        background: "var(--surface-alt)",
-                      }}
+                      className="rounded-[10px] border border-line-soft bg-surface-soft px-3.5 py-3"
                     >
-                      <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "flex-start" }}>
+                      <div className="flex flex-wrap items-start justify-between gap-2">
                         <div>
-                          <strong>{new Date(slot.scheduledAt).toLocaleString()}</strong>
-                          <div style={{ color: "var(--muted)", fontSize: 12, marginTop: 4 }}>
-                            Duration: {slot.duration} minutes
-                            {slot.interviewer?.name ? ` \u00B7 Interviewer: ${slot.interviewer.name}` : ""}
-                          </div>
-                          <div style={{ color: "var(--muted)", fontSize: 12, marginTop: 4 }}>
-                            Confirmed: {slot.confirmedAt ? new Date(slot.confirmedAt).toLocaleString() : "-"} \u00B7 Completed:{" "}
-                            {slot.completedAt ? new Date(slot.completedAt).toLocaleString() : "-"}
-                          </div>
+                          <p className="m-0 text-[14px] font-semibold text-ink">
+                            {new Date(slot.scheduledAt).toLocaleString()}
+                          </p>
+                          <p className="m-0 mt-1 text-[12.5px] text-ink-muted">
+                            {slot.duration} min
+                            {slot.interviewer?.name
+                              ? ` · ${slot.interviewer.name}`
+                              : ""}
+                          </p>
                         </div>
-                        <span className={`pill ${interviewSlotPill(slot.status)}`}>{formatStatus(slot.status)}</span>
+                        <StatusBadge tone={interviewSlotTone(slot.status)}>
+                          {formatStatus(slot.status)}
+                        </StatusBadge>
                       </div>
 
                       {slot.meetingLink ? (
-                        <div style={{ marginTop: 8 }}>
-                          <a href={slot.meetingLink} target="_blank" rel="noreferrer" className="link">
-                            Join Meeting
-                          </a>
-                        </div>
+                        <a
+                          href={slot.meetingLink}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-2 inline-block text-[13px] font-semibold text-brand-700 no-underline hover:underline"
+                        >
+                          Join meeting
+                        </a>
                       ) : null}
 
-                      <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <div className="mt-3 flex flex-wrap gap-2">
                         {isApplicant && slot.status === "POSTED" && !isClosedApplication ? (
                           <form action={confirmInterviewSlot}>
                             <input type="hidden" name="slotId" value={slot.id} />
-                            <button type="submit" className="button small">
-                              Confirm This Slot
+                            <button
+                              type="submit"
+                              className="rounded-[9px] bg-brand-600 px-3 py-1.5 text-[12.5px] font-bold text-white"
+                            >
+                              Confirm this slot
                             </button>
                           </form>
                         ) : null}
 
-                        {isInterviewReviewer && slot.status === "CONFIRMED" && !isClosedApplication && !hasPendingDecision ? (
+                        {isInterviewReviewer &&
+                        slot.status === "CONFIRMED" &&
+                        !isClosedApplication &&
+                        !hasApprovedDecision ? (
                           <form action={markApplicationInterviewCompleted}>
                             <input type="hidden" name="slotId" value={slot.id} />
-                            <button type="submit" className="button small">
-                              Mark Completed
+                            <button
+                              type="submit"
+                              className="rounded-[9px] bg-brand-600 px-3 py-1.5 text-[12.5px] font-bold text-white"
+                            >
+                              Mark completed
                             </button>
                           </form>
                         ) : null}
 
-                        {isInterviewReviewer && slot.status !== "COMPLETED" && slot.status !== "CANCELLED" && !isClosedApplication && !hasPendingDecision ? (
+                        {isInterviewReviewer &&
+                        slot.status !== "COMPLETED" &&
+                        slot.status !== "CANCELLED" &&
+                        !isClosedApplication &&
+                        !hasApprovedDecision ? (
                           <form action={cancelApplicationInterviewSlot}>
                             <input type="hidden" name="slotId" value={slot.id} />
-                            <button type="submit" className="button small ghost">
-                              Cancel Slot
+                            <button
+                              type="submit"
+                              className="rounded-[9px] border border-line px-3 py-1.5 text-[12.5px] font-semibold text-ink-muted"
+                            >
+                              Cancel slot
                             </button>
                           </form>
                         ) : null}
@@ -631,136 +717,60 @@ export default async function ApplicationWorkspacePage({
                   ))}
                 </div>
               )}
-            </div>
-          )}
 
-          {application.decision ? (
-            <div className="card" style={{ marginTop: 16 }}>
-              <div className="section-title">
-                {hasApprovedDecision ? "Final Decision" : "Chair Review Status"}
-              </div>
-              <p style={{ marginTop: 0 }}>
-                <span
-                  className={`pill ${
-                    hasApprovedDecision
-                      ? application.decision.accepted
-                        ? "pill-success"
-                        : "pill-declined"
-                      : hasPendingDecision
-                        ? "pill-pathway"
-                        : "pill-pending"
-                  }`}
-                >
-                  {hasApprovedDecision
-                    ? application.decision.accepted
-                      ? "Accepted"
-                      : "Rejected"
-                    : decisionStatus?.replace(/_/g, " ")}
-                </span>
-              </p>
-              {application.decision.notes ? (
-                <p style={{ whiteSpace: "pre-wrap" }}>{application.decision.notes}</p>
+              {isInterviewReviewer && !isClosedApplication && !hasApprovedDecision ? (
+                <HiringApplicationInterviewSchedule
+                  applicationId={application.id}
+                  scheduledAtISO={
+                    activeInterviewSlot ? activeInterviewSlot.scheduledAt.toISOString() : null
+                  }
+                  meetingLink={activeInterviewSlot?.meetingLink ?? null}
+                  durationMinutes={activeInterviewSlot?.duration ?? 30}
+                  canSchedule
+                />
               ) : null}
-              {application.decision.hiringChairNote ? (
-                <p style={{ whiteSpace: "pre-wrap", fontSize: 13 }}>
-                  <strong>Chair note:</strong> {application.decision.hiringChairNote}
-                </p>
-              ) : null}
-              <p style={{ color: "var(--muted)", fontSize: 13, marginBottom: 0 }}>
-                Submitted by {application.decision.decidedBy.name} on {new Date(application.decision.decidedAt).toLocaleString()}
-                {application.decision.hiringChair
-                  ? ` · Chair: ${application.decision.hiringChair.name} on ${new Date(
-                      application.decision.hiringChairAt ?? application.decision.decidedAt
-                    ).toLocaleString()}`
-                  : ""}
-              </p>
-            </div>
-          ) : null}
-        </div>
-
-        <div>
-          {isInterviewReviewer ? (
-            <>
-              <div className="card">
-                <div className="section-title">Decision Eligibility</div>
-                {application.position.type === "GLOBAL_ADMIN" && !isAdmin ? (
-                  <p style={{ marginTop: 0, color: "#b45309" }}>
-                    This role type is admin-only for final decisions.
-                  </p>
-                ) : null}
-                {!interviewRequired && !application.decision ? (
-                  <div style={{
-                    background: "#ecfdf5",
-                    border: "1px solid #10b981",
-                    borderRadius: 8,
-                    padding: "10px 14px",
-                    marginBottom: 12,
-                    fontSize: 13,
-                  }}>
-                    No interview required. You can make a decision based on the application materials.
-                  </div>
-                ) : null}
-                {hasPendingDecision ? (
-                  <p style={{ marginTop: 0, color: "#1d4ed8" }}>
-                    A recommendation is already in the Chair queue. Wait for approval or a return note before editing it.
-                  </p>
-                ) : null}
-                {hasReturnedDecision && application.decision?.hiringChairNote ? (
-                  <p style={{ marginTop: 0, color: "#b45309" }}>
-                    Chair returned this decision: {application.decision.hiringChairNote}
-                  </p>
-                ) : null}
-                {decisionBlockers.length === 0 ? (
-                  <p style={{ marginTop: 0, color: "#166534" }}>
-                    This candidate is ready for a Chair-reviewed recommendation.
-                  </p>
-                ) : (
-                  <div style={{ marginTop: 0 }}>
-                    <p style={{ marginTop: 0, marginBottom: 8, color: "#b45309" }}>Decision is blocked:</p>
-                    <ul style={{ margin: 0, paddingLeft: 18 }}>
-                      {decisionBlockers.map((blocker) => (
-                        <li key={blocker} style={{ fontSize: 14, marginBottom: 4 }}>
-                          {blocker}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-
-              <div className="card" style={{ marginTop: 16 }}>
-                <div className="section-title">Reviewer Actions</div>
-                <div
-                  style={{
-                    border: "1px solid #c4b5fd",
-                    background: "#faf5ff",
-                    borderRadius: 8,
-                    padding: "10px 12px",
-                    marginBottom: 14,
-                  }}
-                >
-                  <p style={{ margin: "0 0 8px", fontSize: 13 }}>
-                    Use the Interview Command Center for the fastest guided workflow.
-                  </p>
-                  <Link
-                    href={`/interviews?scope=hiring&view=team&state=needs_action`}
-                    className="button small outline"
-                    style={{ textDecoration: "none" }}
-                  >
-                    Open Interview Command Center
-                  </Link>
-                </div>
-
+            </RecordSection>
+          ) : null
+        }
+        notesSection={
+          isInterviewReviewer ? (
+            <RecordSection id="notes" title="Interview notes" className="scroll-mt-24">
+              <StaffInterviewNotesEditor
+                applicationId={application.id}
+                actorId={currentUser.id}
+                disabled={isClosedApplication}
+                notes={application.interviewNotes.map((note) => ({
+                  id: note.id,
+                  content: note.content,
+                  rating: note.rating,
+                  recommendation: note.recommendation,
+                  strengths: note.strengths,
+                  concerns: note.concerns,
+                  nextStepSuggestion: note.nextStepSuggestion,
+                  createdAt: note.createdAt,
+                  author: note.author,
+                }))}
+              />
+            </RecordSection>
+          ) : null
+        }
+        actionsSection={
+          isInterviewReviewer && !isClosedApplication ? (
+            <RecordSection id="actions" title="Reviewer actions" className="scroll-mt-24">
+              <div className="flex flex-col gap-5">
                 {canManagePipeline ? (
-                  <form action={updateApplicationStatus} className="form-grid" style={{ marginBottom: 18 }}>
+                  <form action={updateApplicationStatus} className="flex flex-wrap items-end gap-3">
                     <input type="hidden" name="applicationId" value={application.id} />
-                    <div className="form-row">
-                      <label>Status</label>
+                    <label className="flex min-w-[10rem] flex-1 flex-col gap-1 text-[12px] font-semibold text-ink-muted">
+                      Status
                       <select
                         name="status"
-                        className="input"
-                        defaultValue={reviewStatuses.includes(application.status) ? application.status : "UNDER_REVIEW"}
-                        disabled={isClosedApplication}
+                        className="h-9 rounded-[9px] border border-line bg-surface px-2.5 text-[13px] text-ink"
+                        defaultValue={
+                          reviewStatuses.includes(application.status)
+                            ? application.status
+                            : "UNDER_REVIEW"
+                        }
                       >
                         {reviewStatuses.map((status) => (
                           <option key={status} value={status}>
@@ -768,133 +778,86 @@ export default async function ApplicationWorkspacePage({
                           </option>
                         ))}
                       </select>
-                    </div>
-                    <button type="submit" className="button small" disabled={isClosedApplication}>
-                      Update Status
+                    </label>
+                    <button
+                      type="submit"
+                      className="h-9 rounded-[9px] bg-brand-600 px-3.5 text-[13px] font-bold text-white"
+                    >
+                      Update status
                     </button>
                   </form>
                 ) : null}
 
-                {/* Interview scheduling - show for all positions but label clearly */}
-                <div style={{ marginBottom: 18 }}>
-                  {!interviewRequired && (
-                    <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 8px" }}>
-                      Interview is optional for this position, but you can still schedule one if needed.
-                    </p>
-                  )}
-                  <div className="card" style={{ background: "var(--surface-alt)", padding: 16 }}>
-                    <p style={{ margin: "0 0 8px", fontSize: 13, color: "var(--muted)" }}>
-                      Interview scheduling now lives in the shared scheduler so reminders, reschedules, and calendar invites all stay in one place.
-                    </p>
-                    <Link
-                      href="/interviews/schedule"
-                      className="button small"
-                      style={{
-                        pointerEvents: isClosedApplication || hasPendingDecision ? "none" : "auto",
-                        opacity: isClosedApplication || hasPendingDecision ? 0.6 : 1,
-                        textDecoration: "none",
-                      }}
-                    >
-                      Open Interview Scheduler
-                    </Link>
-                  </div>
+                <div className="flex flex-wrap gap-2">
+                  <Link
+                    href="/interviews/schedule"
+                    className="inline-flex items-center rounded-[9px] border border-line px-3 py-2 text-[12.5px] font-semibold text-ink no-underline hover:border-brand-300 hover:text-brand-800"
+                  >
+                    Interview scheduler
+                  </Link>
+                  <Link
+                    href="/interviews?scope=hiring&view=team&state=needs_action"
+                    className="inline-flex items-center rounded-[9px] border border-line px-3 py-2 text-[12.5px] font-semibold text-ink no-underline hover:border-brand-300 hover:text-brand-800"
+                  >
+                    Interview command center
+                  </Link>
                 </div>
-
-                <ReviewerInterviewNoteForm
-                  applicationId={application.id}
-                  disabled={isClosedApplication || hasPendingDecision}
-                  action={saveStructuredInterviewNote}
-                />
               </div>
-
-              {canShowAdminDecision && (!application.decision || hasReturnedDecision) && application.status !== "WITHDRAWN" ? (
-                <ReviewerDecisionForm
-                  applicationId={application.id}
-                  positionTitle={application.position.title}
-                  action={makeDecision}
-                  label="Admin"
-                  interviewRequired={interviewRequired}
-                  canSubmit={true}
-                />
+            </RecordSection>
+          ) : !isInterviewReviewer ? (
+            <RecordSection title="Updates">
+              <p className="m-0 text-[13px] text-ink-muted">
+                {interviewRequired
+                  ? "Reviewer notes stay internal. Interview scheduling and the final decision will appear here."
+                  : "This role does not require an interview. You'll be notified when a decision is made."}
+              </p>
+            </RecordSection>
+          ) : null
+        }
+        decisionSection={
+          isInterviewReviewer ? (
+            <RecordSection
+              id="decision"
+              title="Decision"
+              className={
+                !hasApprovedDecision
+                  ? "scroll-mt-24 overflow-hidden p-4 sm:p-6 border-brand-200 bg-gradient-to-br from-brand-50/80 via-surface to-surface"
+                  : "scroll-mt-24"
+              }
+            >
+              <StaffDecisionPanel
+                applicationId={application.id}
+                canDecide={canFinalizeStaffDecision}
+                checks={staffReadinessChecks}
+                summaryLine={staffReadinessHeadline}
+                decided={hasApprovedDecision}
+                decidedLabel={
+                  hasApprovedDecision
+                    ? application.decision?.accepted
+                      ? "Accepted"
+                      : "Rejected"
+                    : null
+                }
+              />
+              {hasApprovedDecision && application.decision ? (
+                <div className="mt-4 border-t border-line-soft pt-4">
+                  {application.decision.notes ? (
+                    <p className="m-0 whitespace-pre-wrap text-[14px] text-ink">
+                      {application.decision.notes}
+                    </p>
+                  ) : null}
+                  <p className="m-0 mt-2 text-[12.5px] text-ink-muted">
+                    Decided by {application.decision.decidedBy.name} on{" "}
+                    {new Date(
+                      application.decision.hiringChairAt ?? application.decision.decidedAt
+                    ).toLocaleString()}
+                  </p>
+                </div>
               ) : null}
-
-              {canShowChapterDecision && (!application.decision || hasReturnedDecision) && application.status !== "WITHDRAWN" ? (
-                <ReviewerDecisionForm
-                  applicationId={application.id}
-                  positionTitle={application.position.title}
-                  action={chapterMakeDecision}
-                  label="Chapter"
-                  interviewRequired={interviewRequired}
-                  canSubmit={canSubmitDecision}
-                  isAdmin={isAdmin}
-                />
-              ) : null}
-
-              <div className="card" style={{ marginTop: 16 }}>
-                <div className="section-title">Interview Notes</div>
-                {application.interviewNotes.length === 0 ? (
-                  <p style={{ color: "var(--muted)" }}>No notes recorded yet.</p>
-                ) : (
-                  <div style={{ display: "grid", gap: 12 }}>
-                    {application.interviewNotes.map((note) => (
-                      <div
-                        key={note.id}
-                        style={{
-                          border: "1px solid var(--border)",
-                          borderRadius: 10,
-                          padding: 12,
-                        }}
-                      >
-                        <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                          <strong>{note.author.name}</strong>
-                          <span style={{ color: "var(--muted)", fontSize: 12 }}>
-                            {new Date(note.createdAt).toLocaleString()}
-                          </span>
-                        </div>
-                        <div style={{ marginTop: 6, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                          {note.rating !== null ? <span className="pill">{note.rating}/5</span> : null}
-                          {note.recommendation ? (
-                            <span className="pill pill-pathway">Recommendation: {formatStatus(note.recommendation)}</span>
-                          ) : null}
-                        </div>
-                        <p style={{ margin: "8px 0 0", whiteSpace: "pre-wrap" }}>{note.content}</p>
-                        {note.strengths ? (
-                          <p style={{ margin: "8px 0 0", fontSize: 13 }}>
-                            <strong>Strengths:</strong> {note.strengths}
-                          </p>
-                        ) : null}
-                        {note.concerns ? (
-                          <p style={{ margin: "6px 0 0", fontSize: 13 }}>
-                            <strong>Concerns:</strong> {note.concerns}
-                          </p>
-                        ) : null}
-                        {note.nextStepSuggestion ? (
-                          <p style={{ margin: "6px 0 0", fontSize: 13 }}>
-                            <strong>Next Step:</strong> {note.nextStepSuggestion}
-                          </p>
-                        ) : null}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </>
-          ) : (
-            <div className="card">
-              <div className="section-title">Application Updates</div>
-              {!interviewRequired ? (
-                <p style={{ color: "var(--muted)", marginBottom: 0 }}>
-                  This position does not require an interview. Your application is being reviewed based on your materials. You will be notified when a decision is made.
-                </p>
-              ) : (
-                <p style={{ color: "var(--muted)", marginBottom: 0 }}>
-                  Reviewer notes are internal. You will receive interview scheduling updates and final decisions here.
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+            </RecordSection>
+          ) : null
+        }
+      />
+    </ApplicationReviewShell>
   );
 }

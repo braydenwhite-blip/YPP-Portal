@@ -26,6 +26,8 @@ export interface DecisionButtonsProps {
   pendingAction: ChairDecisionAction | null;
   onChoose: (action: ChairDecisionAction) => void;
   className?: string;
+  /** When set, only these actions are shown (staff simplified flow). */
+  allowedActions?: ChairDecisionAction[];
 }
 
 interface ActionConfig {
@@ -41,7 +43,7 @@ const CONFIG: ActionConfig[] = [
     action: "APPROVE",
     label: "Approve",
     description:
-      "Approve. Grants instructor role, sends approval email, and moves the applicant to APPROVED.",
+      "Approve. Grants the role, sends approval email, and marks the application accepted.",
     icon: CheckIcon,
     baseTone: "primary",
   },
@@ -49,7 +51,7 @@ const CONFIG: ActionConfig[] = [
     action: "APPROVE_WITH_CONDITIONS",
     label: "Approve w/ conditions",
     description:
-      "Approve with conditions. Grants instructor role and records the conditions on the audit chain.",
+      "Approve with conditions. Grants the role and records the conditions on the decision.",
     icon: CheckIcon,
     baseTone: "primary-alt",
   },
@@ -80,7 +82,7 @@ const CONFIG: ActionConfig[] = [
     action: "REJECT",
     label: "Reject",
     description:
-      "Reject. Sets status to REJECTED and sends a rejection email using the chosen reason code.",
+      "Reject. Sets status to REJECTED and sends a rejection email.",
     icon: XIcon,
     baseTone: "destructive",
   },
@@ -95,9 +97,13 @@ export default function DecisionButtons({
   pendingAction,
   onChoose,
   className,
+  allowedActions,
 }: DecisionButtonsProps) {
   const rejectIsPrimary = hasRedFlags || hasMajorityReject;
   const conditionalIsPrimary = !rejectIsPrimary && hasMixedConsensus;
+  const configs = allowedActions?.length
+    ? CONFIG.filter((cfg) => allowedActions.includes(cfg.action))
+    : CONFIG;
 
   function toneFor(cfg: ActionConfig): ActionTone {
     if (cfg.action === "APPROVE") {
@@ -123,9 +129,9 @@ export default function DecisionButtons({
         className
       )}
       role="group"
-      aria-label="Chair decisions"
+      aria-label="Decisions"
     >
-      {CONFIG.map((cfg) => {
+      {configs.map((cfg) => {
         const tone = toneFor(cfg);
         const isLoading = pending && pendingAction === cfg.action;
         const isDisabled = pending && pendingAction !== cfg.action;

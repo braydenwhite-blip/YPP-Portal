@@ -9,6 +9,7 @@ import {
   normalizeAdminSubtype,
 } from "@/lib/admin-subtypes";
 import { prisma } from "@/lib/prisma";
+import { listOperatingChaptersForFilters } from "@/lib/chapters/operating";
 import { CreateUserForm } from "@/components/create-user-form";
 
 function readSearchParam(
@@ -67,10 +68,7 @@ export default async function BulkUserManagementPage({
       by: ["primaryRole"],
       _count: true,
     }),
-    prisma.chapter.findMany({
-      orderBy: { name: "asc" },
-      select: { id: true, name: true, city: true },
-    }),
+    listOperatingChaptersForFilters(),
     manageUser
       ? prisma.user.findUnique({
           where: { email: manageUser },

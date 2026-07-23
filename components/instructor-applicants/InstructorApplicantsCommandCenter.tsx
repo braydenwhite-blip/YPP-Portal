@@ -151,7 +151,8 @@ export default function InstructorApplicantsCommandCenter({
 
   const filteredApps = useMemo(
     () =>
-      pipelineApps.filter((app) => {
+      pipelineApps.filter((app): app is PipelineApp => {
+        if (!app?.id || !app.status) return false;
         if (kindFilter === "cp" && app.kind !== "cp") return false;
         if (kindFilter === "staff" && app.kind !== "staff") return false;
         if (kindFilter === "instructor" && app.kind !== "instructor" && app.kind != null) {
@@ -222,41 +223,34 @@ export default function InstructorApplicantsCommandCenter({
             items={kanbanItems}
             columns={visibleColumns}
             dragEnabled={false}
-            renderCard={(item, { isDragging }) => {
-              const originalApp = filteredApps.find((app) => app.id === item.id)!;
-              return (
-                <ApplicantPipelineCard
-                  app={originalApp}
-                  onClick={() => openApplicantRecord(originalApp)}
-                  isDragging={isDragging}
-                  onFilterStatus={(stage) => setOrToggleParam("status", stage)}
-                  onFilterChapter={
-                    showChapterFilter
-                      ? (chapterId) => setOrToggleParam("chapterId", chapterId)
-                      : undefined
-                  }
-                  activeStatusFilter={statusFilter}
-                  activeChapterId={chapterFilter}
-                />
-              );
-            }}
-            renderDragOverlay={(item) => {
-              const originalApp = filteredApps.find((app) => app.id === item.id)!;
-              return (
-                <ApplicantPipelineCard app={originalApp} onClick={() => {}} isDragging />
-              );
-            }}
-            getSearchText={(item) => {
-              const app = filteredApps.find((candidate) => candidate.id === item.id);
-              return [
-                app ? formatApplicantDisplayName(app) : "",
-                app?.applicant.name ?? "",
-                app?.applicant.email ?? "",
-                app?.applicant.chapter?.name ?? "",
+            renderCard={(item, { isDragging }) => (
+              <ApplicantPipelineCard
+                app={item}
+                onClick={() => openApplicantRecord(item)}
+                isDragging={isDragging}
+                onFilterStatus={(stage) => setOrToggleParam("status", stage)}
+                onFilterChapter={
+                  showChapterFilter
+                    ? (chapterId) => setOrToggleParam("chapterId", chapterId)
+                    : undefined
+                }
+                activeStatusFilter={statusFilter}
+                activeChapterId={chapterFilter}
+              />
+            )}
+            renderDragOverlay={(item) => (
+              <ApplicantPipelineCard app={item} onClick={() => {}} isDragging />
+            )}
+            getSearchText={(item) =>
+              [
+                formatApplicantDisplayName(item),
+                item.applicant?.name ?? "",
+                item.applicant?.email ?? "",
+                item.applicant?.chapter?.name ?? "",
               ]
                 .join(" ")
-                .toLowerCase();
-            }}
+                .toLowerCase()
+            }
             searchPlaceholder="Search…"
             emptyColumnLabel="Empty"
           />

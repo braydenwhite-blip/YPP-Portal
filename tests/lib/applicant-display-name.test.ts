@@ -32,6 +32,11 @@ describe("formatApplicantDisplayName", () => {
       })
     ).toBe("Grace Hopper");
   });
+
+  it("returns Applicant when source is missing", () => {
+    expect(formatApplicantDisplayName(undefined)).toBe("Applicant");
+    expect(formatApplicantDisplayName(null)).toBe("Applicant");
+  });
 });
 
 describe("isApplicantLastNameMissing", () => {

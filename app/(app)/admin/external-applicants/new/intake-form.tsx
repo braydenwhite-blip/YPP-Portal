@@ -208,16 +208,35 @@ export default function ExternalApplicantIntakeForm({
 
           <FormSection
             step={2}
-            title="Which chapter?"
+            title={isStaff ? "Location" : "Which chapter?"}
             hint={
-              isCP
-                ? "Optional — leave blank if they are founding a new chapter."
-                : "Where they would teach, work, or lead."
+              isStaff
+                ? "Type where they are based. Suggestions include The Bronx and Scarsdale — or enter anything else."
+                : isCP
+                  ? "Optional — leave blank if they are founding a new chapter."
+                  : "Chapter they would teach or lead with — must match exactly."
             }
           >
-            {hasNetworkScope ? (
+            {isStaff && hasNetworkScope ? (
+              <>
+                <input
+                  className={inputClass}
+                  name="location"
+                  list="staff-location-suggestions"
+                  placeholder="e.g. The Bronx, Scarsdale, Riverdale…"
+                  autoComplete="off"
+                />
+                <datalist id="staff-location-suggestions">
+                  {chapters.map((chapter) => (
+                    <option key={chapter.id} value={chapter.name} />
+                  ))}
+                </datalist>
+              </>
+            ) : hasNetworkScope ? (
               <select className={selectClass} name="chapterId" defaultValue="">
-                <option value="">{isCP ? "No chapter yet / new chapter" : "No chapter yet"}</option>
+                <option value="">
+                  {isCP ? "No chapter yet / new chapter" : "No chapter yet"}
+                </option>
                 {chapters.map((chapter) => (
                   <option key={chapter.id} value={chapter.id}>
                     {chapter.name}
@@ -229,7 +248,7 @@ export default function ExternalApplicantIntakeForm({
                 <input type="hidden" name="chapterId" value={scopedChapterId ?? ""} />
                 <input
                   className={inputClass}
-                  value={chapters[0]?.name ?? "No chapter assigned"}
+                  value={chapters[0]?.name ?? (isStaff ? "No location assigned" : "No chapter assigned")}
                   disabled
                 />
               </>

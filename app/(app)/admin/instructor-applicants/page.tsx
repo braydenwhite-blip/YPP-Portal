@@ -15,6 +15,7 @@ import { ensureSocialMediaManagerPosition } from "@/lib/application-actions";
 import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
 import { listOperatingChaptersForFilters } from "@/lib/chapters/operating";
 import { SOCIAL_MEDIA_MANAGER_POSITION_TITLE } from "@/lib/social-media-manager-application";
+import { extractStaffLocation } from "@/lib/staff-applicant-location";
 import { ApplicationReviewShell } from "@/components/applications/application-review-shell";
 import InstructorApplicantsCommandCenter from "@/components/instructor-applicants/InstructorApplicantsCommandCenter";
 import { buttonVariants, PageHeaderV2 } from "@/components/ui-v2";
@@ -310,6 +311,7 @@ export default async function AdminInstructorApplicantsPage({
     updatedAt: Date;
     source: string;
     coverLetter: string | null;
+    additionalMaterials: string | null;
     applicant: {
       id: string;
       name: string | null;
@@ -324,12 +326,7 @@ export default async function AdminInstructorApplicantsPage({
   let archivedStaffApps: StaffBoardApp[] = [];
 
   const staffChapterWhere = effectiveChapterId
-    ? {
-        OR: [
-          { position: { chapterId: effectiveChapterId } },
-          { applicant: { chapterId: effectiveChapterId } },
-        ],
-      }
+    ? { applicant: { chapterId: effectiveChapterId } }
     : {};
 
   const staffBoardSelect = {
@@ -339,6 +336,7 @@ export default async function AdminInstructorApplicantsPage({
     updatedAt: true,
     source: true,
     coverLetter: true,
+    additionalMaterials: true,
     applicant: {
       select: {
         id: true,
@@ -573,11 +571,14 @@ export default async function AdminInstructorApplicantsPage({
   }
 
   function serializeStaffApp(app: StaffBoardApp) {
-    const chapter =
-      app.position.chapter ??
-      (app.applicant.chapter
-        ? { id: app.applicant.chapter.id, name: app.applicant.chapter.name }
-        : null);
+    const typedLocation = extractStaffLocation(app.additionalMaterials);
+    const locationName = typedLocation ?? app.applicant.chapter?.name ?? null;
+    const location = locationName
+      ? {
+          id: app.applicant.chapter?.id ?? "",
+          name: locationName,
+        }
+      : null;
     const interviewScheduledAt = app.interviewSlots[0]?.scheduledAt ?? null;
     return {
       id: app.id,
@@ -607,7 +608,7 @@ export default async function AdminInstructorApplicantsPage({
         id: app.applicant.id,
         name: app.applicant.name,
         email: app.applicant.email,
-        chapter,
+        chapter: location,
       },
       reviewer: null as { id: string; name: string | null } | null,
       interviewerAssignments: [] as Array<{

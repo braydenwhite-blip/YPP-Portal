@@ -105,7 +105,15 @@ export function assertCanManageHiringInterviews(actor: HiringActor, chapterId: s
     return;
   }
 
-  if (!actor.chapterId || !chapterId || actor.chapterId !== chapterId) {
+  // Network-wide openings (e.g. staff / SMM with no chapter) — designated interviewers.
+  if (!chapterId) {
+    if (isDesignatedInterviewer(actor)) {
+      return;
+    }
+    throw new Error("Interview access for network-wide openings requires interviewer designation.");
+  }
+
+  if (!actor.chapterId || actor.chapterId !== chapterId) {
     throw new Error("Interview access is limited to your own chapter.");
   }
 

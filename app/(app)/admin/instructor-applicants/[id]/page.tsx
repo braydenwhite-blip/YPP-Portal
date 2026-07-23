@@ -31,6 +31,7 @@ import {
 import { ApplicationReviewShell } from "@/components/applications/application-review-shell";
 import { ApplicationRecordSimple } from "@/components/instructor-applicants/ApplicationRecordSimple";
 import { prisma } from "@/lib/prisma";
+import { listOperatingChaptersForFilters } from "@/lib/chapters/operating";
 import {
   type KeyFact,
   type StatusTone,
@@ -120,7 +121,8 @@ export default async function ApplicationRecordPage({
     notFound();
   }
 
-  const [workspaceRow, activeChair, inlineReviewPanels, offeredSlotRows] = await Promise.all([
+  const [workspaceRow, activeChair, inlineReviewPanels, offeredSlotRows, chapterRows] =
+    await Promise.all([
     !DECIDED_STATUSES.has(record.status)
       ? getApplicationForWorkspace(id)
       : Promise.resolve(null),
@@ -139,6 +141,7 @@ export default async function ApplicationRecordPage({
           orderBy: { scheduledAt: "asc" },
         })
       : Promise.resolve([]),
+    listOperatingChaptersForFilters(),
   ]);
 
   const canMakeFinalDecision = canMakeFinalApplicantDecision(
@@ -146,6 +149,16 @@ export default async function ApplicationRecordPage({
     activeChair
   );
   const decisionApplicant = workspaceRow ? serializeWorkspaceApplicant(workspaceRow) : null;
+
+  const networkScope = isAdmin(actor) || isHiringChair(actor);
+  const chapterOptions = networkScope
+    ? chapterRows.map(({ id: chapterId, name }) => ({ id: chapterId, name }))
+    : actor.chapterId
+      ? chapterRows
+          .filter((row) => row.id === actor.chapterId)
+          .map(({ id: chapterId, name }) => ({ id: chapterId, name }))
+      : [];
+  const canEditChapter = chapterOptions.length > 0;
 
   const isActiveChair = canMakeFinalDecision;
   const currentRound = record.interviewRound ?? 1;
@@ -300,6 +313,11 @@ export default async function ApplicationRecordPage({
     },
     { label: "Track", value: pretty(record.applicationTrack) },
     {
+      label: "Chapter",
+      value: record.applicant.chapterName ?? "Not set",
+      tone: record.applicant.chapterName ? undefined : "attention",
+    },
+    {
       label: "Reviewer",
       value: record.reviewer ? record.reviewer.name : "Unassigned",
       tone: record.reviewer ? undefined : "attention",
@@ -370,6 +388,8 @@ export default async function ApplicationRecordPage({
         secondInterviewerCandidates={secondInterviewerCandidates}
         canScheduleInterview={canScheduleInterview}
         offeredInterviewSlots={offeredInterviewSlots}
+        chapterOptions={chapterOptions}
+        canEditChapter={canEditChapter}
       />
     </ApplicationReviewShell>
   );

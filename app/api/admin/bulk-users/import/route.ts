@@ -5,6 +5,7 @@ import { hash } from "bcryptjs";
 import { randomBytes } from "node:crypto";
 import { RoleType } from "@prisma/client";
 import { requireApiSession } from "@/lib/api-auth";
+import { listOperatingChaptersForFilters } from "@/lib/chapters/operating";
 
 function splitCsvRow(row: string): string[] {
   const result: string[] = [];
@@ -75,11 +76,12 @@ export async function POST(request: Request) {
 
   const chapterByName = new Map(
     (
-      await prisma.chapter.findMany({
-        select: { id: true, name: true },
-      })
+      await listOperatingChaptersForFilters()
     ).map((chapter) => [chapter.name.toLowerCase(), chapter.id])
   );
+  // Accept short "Bronx" as The Bronx for CSV imports.
+  const bronxId = chapterByName.get("the bronx");
+  if (bronxId) chapterByName.set("bronx", bronxId);
 
   let imported = 0;
   let failed = 0;

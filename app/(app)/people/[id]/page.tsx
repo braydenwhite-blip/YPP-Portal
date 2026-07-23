@@ -38,6 +38,7 @@ import { getPersonAccessSummary } from "@/lib/org/access-summary";
 import { AccessSummaryPanel } from "@/components/people-strategy/access-summary-panel";
 import type { AccessFact } from "@/lib/org/access-explainer";
 import { prisma } from "@/lib/prisma";
+import { listOperatingChaptersForFilters } from "@/lib/chapters/operating";
 import {
   getMentorshipAssignmentHistory,
   type MentorshipHistoryEntry,
@@ -157,7 +158,7 @@ export default async function PublicProfilePage({ params, searchParams }: PagePr
         getMentorshipAssignmentHistory(id),
         loadMentorCandidates(id),
         getPersonPromotionHistory(id),
-        prisma.chapter.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" }, take: 300 }),
+        listOperatingChaptersForFilters(),
         prisma.committee.findMany({ where: { archivedAt: null }, select: { name: true }, orderBy: { name: "asc" } }),
       ]);
     opsContext = context;
@@ -167,7 +168,7 @@ export default async function PublicProfilePage({ params, searchParams }: PagePr
     mentorHistory = history;
     mentorCandidates = candidates;
     promotionHistory = promotions;
-    chapterOptions = chapters;
+    chapterOptions = chapters.map(({ id, name }) => ({ id, name }));
     committeeOptions = committeeRows.map((c) => c.name);
     // Person-level People Strategy signals (mentor, kickoff, check-in,
     // provisional) are Leadership/Board-confidential; a scoped officer sees only

@@ -147,16 +147,20 @@ export default function KanbanBoard<TItem extends { id: string; status: string }
   emptyColumnLabel = "No items",
   toolbarExtra,
 }: KanbanBoardProps<TItem>) {
-  const [items, setItems] = useState(initialItems);
+  // When drag is off, always render the parent list — local state lags a frame
+  // behind filter changes and can hand renderCard stale/missing rows.
+  const [dragItems, setDragItems] = useState(initialItems);
   const [selectedItem, setSelectedItem] = useState<TItem | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Sync when parent passes fresh server data.
   useEffect(() => {
-    setItems(initialItems);
-  }, [initialItems]);
+    if (dragEnabled) setDragItems(initialItems);
+  }, [initialItems, dragEnabled]);
+
+  const items = dragEnabled ? dragItems : initialItems;
+  const setItems = setDragItems;
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -166,9 +170,10 @@ export default function KanbanBoard<TItem extends { id: string; status: string }
 
   // Filter by search
   const filteredItems = useMemo(() => {
-    if (!searchQuery.trim()) return items;
+    const source = items.filter(Boolean);
+    if (!searchQuery.trim()) return source;
     const q = searchQuery.toLowerCase();
-    return items.filter((item) => getSearchText(item).toLowerCase().includes(q));
+    return source.filter((item) => getSearchText(item).toLowerCase().includes(q));
   }, [items, searchQuery, getSearchText]);
 
   // Group by column

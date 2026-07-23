@@ -132,6 +132,7 @@ export default function ApplicantPipelineCard({
   activeStatusFilter = "",
   activeChapterId = "",
 }: ApplicantPipelineCardProps): ReactNode {
+  if (!app) return null;
   const displayName = formatApplicantDisplayName(app);
   const statusFilterValue = cardStatusFilterValue(app);
   const stageValue = stageForStatus(app);
@@ -143,7 +144,8 @@ export default function ApplicantPipelineCard({
     STATUS_TONES[statusFilterValue] ??
     STATUS_TONES[app.status] ??
     "bg-surface-soft text-ink-muted";
-  const chapter = app.applicant.chapter;
+  const chapter = app.applicant?.chapter ?? null;
+  const locationLabel = app.kind === "staff" ? "location" : "chapter";
   const statusActive =
     activeStatusFilter === stageValue || activeStatusFilter === statusFilterValue;
   const chapterActive = Boolean(chapter?.id && activeChapterId === chapter.id);
@@ -211,12 +213,16 @@ export default function ApplicantPipelineCard({
             {statusLabel}
           </span>
         )}
-        {chapter ? (
+        {chapter?.name ? (
           onFilterChapter && chapter.id ? (
             <span
               role="button"
               tabIndex={0}
-              title={chapterActive ? "Clear chapter filter" : `Filter: ${chapter.name}`}
+              title={
+                chapterActive
+                  ? `Clear ${locationLabel} filter`
+                  : `Filter: ${chapter.name}`
+              }
               aria-pressed={chapterActive}
               onClick={stopAnd(() => onFilterChapter(chapter.id!))}
               onKeyDown={(event) => {
@@ -238,6 +244,10 @@ export default function ApplicantPipelineCard({
               {chapter.name}
             </span>
           )
+        ) : app.kind === "staff" ? (
+          <span className="inline-flex items-center rounded-full border border-dashed border-line px-2 py-0.5 text-[10.5px] font-semibold text-ink-muted">
+            No location
+          </span>
         ) : null}
       </div>
     </button>

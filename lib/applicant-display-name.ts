@@ -13,7 +13,10 @@ function clean(value: string | null | undefined): string {
   return value?.trim() ?? "";
 }
 
-export function formatApplicantDisplayName(source: ApplicantNameSource): string {
+export function formatApplicantDisplayName(
+  source: ApplicantNameSource | null | undefined
+): string {
+  if (!source) return "Applicant";
   const preferredFirstName = clean(source.preferredFirstName);
   const lastName = clean(source.lastName);
   const legalName = clean(source.legalName);
@@ -29,6 +32,9 @@ export function formatApplicantDisplayName(source: ApplicantNameSource): string 
   return email || fallback;
 }
 
-export function isApplicantLastNameMissing(source: Pick<ApplicantNameSource, "lastName">): boolean {
+export function isApplicantLastNameMissing(
+  source: Pick<ApplicantNameSource, "lastName"> | null | undefined
+): boolean {
+  if (!source) return true;
   return clean(source.lastName) === "";
 }
