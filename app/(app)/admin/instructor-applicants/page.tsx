@@ -13,6 +13,7 @@ import {
 } from "@/lib/applicant-board-kind";
 import { ensureSocialMediaManagerPosition } from "@/lib/application-actions";
 import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
+import { listOperatingChaptersForFilters } from "@/lib/chapters/operating";
 import { SOCIAL_MEDIA_MANAGER_POSITION_TITLE } from "@/lib/social-media-manager-application";
 import { ApplicationReviewShell } from "@/components/applications/application-review-shell";
 import InstructorApplicantsCommandCenter from "@/components/instructor-applicants/InstructorApplicantsCommandCenter";
@@ -174,14 +175,12 @@ export default async function AdminInstructorApplicantsPage({
 
   const filterTake = hiringDemoMode ? 40 : undefined;
 
-  const loadChapters = () =>
-    hasNetworkScope
-      ? prisma.chapter.findMany({
-          select: { id: true, name: true },
-          orderBy: { name: "asc" },
-          take: filterTake,
-        })
-      : Promise.resolve([] as Array<{ id: string; name: string }>);
+  const loadChapters = async () => {
+    if (!hasNetworkScope) return [] as Array<{ id: string; name: string }>;
+    const rows = await listOperatingChaptersForFilters();
+    const mapped = rows.map(({ id, name }) => ({ id, name }));
+    return filterTake ? mapped.slice(0, filterTake) : mapped;
+  };
 
   const loadReviewerUsers = () =>
     prisma.user.findMany({

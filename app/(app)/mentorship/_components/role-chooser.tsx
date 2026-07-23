@@ -28,8 +28,7 @@ export function MentorshipRoleChooser({
     key: string;
     href: string;
     title: string;
-    detail: string;
-    description: string;
+    detail: string | null;
   }[] = [];
 
   if (mentorHref) {
@@ -38,7 +37,6 @@ export function MentorshipRoleChooser({
       href: mentorHref,
       title: "Mentor",
       detail: formatMenteeDetail(menteeNames),
-      description: "Meetings and feedback for your mentees.",
     });
   }
   if (menteeHref) {
@@ -46,8 +44,7 @@ export function MentorshipRoleChooser({
       key: "mentee",
       href: menteeHref,
       title: "Mentee",
-      detail: mentorName ? `Your mentor: ${mentorName}` : "Your own development",
-      description: "Goals, meetings, and your monthly note.",
+      detail: mentorName ? `Mentor: ${mentorName}` : null,
     });
   }
   if (peopleHref) {
@@ -55,8 +52,7 @@ export function MentorshipRoleChooser({
       key: "people",
       href: peopleHref,
       title: "People",
-      detail: "Org-wide workload",
-      description: "Who needs a check-in next — one row per person, sorted by urgency.",
+      detail: null,
     });
   }
 
@@ -78,7 +74,6 @@ export function MentorshipRoleChooser({
             href={card.href}
             title={card.title}
             detail={card.detail}
-            description={card.description}
           />
         ))}
       </div>
@@ -86,23 +81,21 @@ export function MentorshipRoleChooser({
   );
 }
 
-function formatMenteeDetail(names: string[]): string {
-  if (names.length === 0) return "Your mentees";
-  if (names.length === 1) return `Mentee: ${names[0]}`;
-  if (names.length === 2) return `Mentees: ${names[0]} & ${names[1]}`;
-  return `Mentees: ${names[0]}, ${names[1]}, +${names.length - 2} more`;
+function formatMenteeDetail(names: string[]): string | null {
+  if (names.length === 0) return null;
+  if (names.length === 1) return names[0];
+  if (names.length === 2) return `${names[0]} & ${names[1]}`;
+  return `${names.length} mentees`;
 }
 
 function RoleCard({
   href,
   title,
   detail,
-  description,
 }: {
   href: string;
   title: string;
-  detail: string;
-  description: string;
+  detail: string | null;
 }) {
   return (
     <Link
@@ -115,8 +108,9 @@ function RoleCard({
       <span className="text-[28px] font-semibold tracking-tight text-ink group-hover:text-brand-800">
         {title}
       </span>
-      <span className="text-[15px] font-medium text-ink">{detail}</span>
-      <span className="text-[14px] leading-relaxed text-ink-muted">{description}</span>
+      {detail ? (
+        <span className="text-[14px] text-ink-muted">{detail}</span>
+      ) : null}
       <span className="mt-3 text-[13px] font-semibold text-brand-700">
         Enter →
       </span>

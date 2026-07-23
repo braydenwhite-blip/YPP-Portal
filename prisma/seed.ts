@@ -189,6 +189,11 @@ async function main() {
     city: "Scarsdale",
     region: "Northeast",
   });
+  await findOrCreateChapter({
+    name: "The Bronx",
+    city: "Bronx",
+    region: "Northeast",
+  });
 
   await prisma.user.upsert({
     where: { email: "milo.wald@youthpassionproject.org" },

@@ -136,23 +136,9 @@ export default async function MentorshipPage(
     const showMentorCard = asMentor.length > 0;
     const showMenteeCard = Boolean(asMentee);
 
-    const cardCount = [showMentorCard, showMenteeCard, showPeopleCard].filter(Boolean).length;
-    const subtitle =
-      cardCount > 1
-        ? "Pick which side you’re working from."
-        : showMentorCard
-          ? "Your coaching home."
-          : showPeopleCard
-            ? "People workload for your org."
-            : "Your development home.";
-
     return (
       <div className={`${skin.portalSkin} flex flex-col gap-6`}>
-        <PageHeaderV2
-          eyebrow="Mentorship"
-          title="Mentorship"
-          subtitle={subtitle}
-        />
+        <PageHeaderV2 eyebrow="Mentorship" title="Mentorship" />
         <MentorshipRoleChooser
           mentorHref={showMentorCard ? povHref("mentor") : null}
           menteeHref={showMenteeCard ? `/mentorship/people/${userId}` : null}
