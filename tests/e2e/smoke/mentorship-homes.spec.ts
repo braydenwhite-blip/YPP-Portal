@@ -51,10 +51,10 @@ test("@smoke a mentored leader can open their mentee home", async ({ page }) => 
   await expect(page).toHaveURL(/\/mentorship\/people\/[^/?]+/);
   await expect(page.getByText(/Your mentorship|Mentorship/i).first()).toBeVisible();
 
-  // The old /my-mentor/* detail satellites still redirect into /people/[id]
-  // (unchanged by this hub rebuild) — a separate legacy surface, not the hub.
+  // Legacy /my-mentor/* satellites hop through /people/[id]?section=review,
+  // which maps into the Mentorship person workspace reviews section.
   await page.goto("/my-mentor/goals");
-  await expect(page).toHaveURL(/\/people\/[^/]+\?section=review$/);
+  await expect(page).toHaveURL(/\/mentorship\/people\/[^/?]+\?section=reviews$/);
 });
 
 test("@smoke /mentorship?view=me opens the mentee's development workspace", async ({

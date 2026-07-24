@@ -694,7 +694,7 @@ export const NAV_CATALOG: NavLink[] = [
     },
     {
       href: "/data-360",
-      label: "Data 360",
+      label: "Org intelligence",
       icon: "📊",
       // Leadership intelligence surface (mirrors requireLeadership(); everyone
       // who clears that guard carries the ADMIN role). Quantitative, score-free,
@@ -705,6 +705,7 @@ export const NAV_CATALOG: NavLink[] = [
       roles: ["ADMIN"] as NavRole[],
       searchAliases: [
         "Data 360",
+        "Org intelligence",
         "Organizational intelligence",
         "Executive overview",
         "KPIs",
@@ -822,7 +823,7 @@ export const NAV_CATALOG: NavLink[] = [
         "Find",
       ],
       dashboardDescription:
-        "Find any person, partner, class, meeting, or action — and open its 360 preview from anywhere.",
+        "Find any person, partner, class, meeting, or action — and open its record preview from anywhere.",
       dashboardPriority: 7,
     },
     {
@@ -1624,6 +1625,21 @@ export const NAV_CATALOG: NavLink[] = [
       label: "Parent Feedback",
       icon: "💬",
       roles: ADMIN_ONLY,
+    },
+    {
+      href: "/admin/instructor-review-questions",
+      label: "Mentorship review questions",
+      icon: "❓",
+      roles: ADMIN_ONLY,
+      searchAliases: [
+        "Mentorship review questions",
+        "Instructor review questions",
+        "Review questions",
+        "Goal Review questions",
+        "Configurable questions",
+      ],
+      dashboardDescription:
+        "Add, edit, and delete the questions mentors answer on monthly Goal Reviews.",
     },
     {
       href: "/admin/instructor-readiness",

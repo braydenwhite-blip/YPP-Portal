@@ -170,45 +170,53 @@ function workspace(): InstructorTeachingWorkspace {
 }
 
 describe("InstructorTeachingHome", () => {
-  it("puts the next class and one explainable next action first", () => {
-    render(<InstructorTeachingHome name="Taylor" workspace={workspace()} />);
-
-    expect(screen.getByRole("heading", { name: "Design for Good", level: 2 })).toBeInTheDocument();
-    expect(screen.getByText("Session 3: Build and test a prototype")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Finish preparing Session 3" })).toBeInTheDocument();
-    const preparationLinks = screen.getAllByRole("link", { name: "Finish preparation" });
-    expect(preparationLinks).not.toHaveLength(0);
-    expect(preparationLinks[0]).toHaveAttribute(
-      "href",
-      "/instructor/classes/class-1?session=session-1#before"
+  it("lists classes with an open link and shows updates", () => {
+    render(
+      <InstructorTeachingHome
+        name="Taylor"
+        workspace={workspace()}
+        unreadNotifications={1}
+        recentNotifications={[
+          {
+            id: "n1",
+            title: "Class roster updated",
+            body: "A student joined Design for Good.",
+            link: "/instructor/classes/class-1",
+            isRead: false,
+            createdAt: new Date("2026-07-20T12:00:00Z").toISOString(),
+          },
+        ]}
+      />
     );
-    expect(screen.queryByText(/health/i)).not.toBeInTheDocument();
+
+    expect(screen.getByRole("heading", { name: "Your classes" })).toBeInTheDocument();
+    expect(screen.getByText("Design for Good")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open" })).toHaveAttribute(
+      "href",
+      "/instructor/classes/class-1"
+    );
+    expect(screen.getByRole("heading", { name: "Updates" })).toBeInTheDocument();
+    expect(screen.getByText("Class roster updated")).toBeInTheDocument();
+    expect(screen.getByText("1 new")).toBeInTheDocument();
   });
 
-  it("renders an honest first-instructor state without fake metrics", () => {
+  it("renders an empty classes and updates state", () => {
     const empty = workspace();
     empty.classes = [];
     empty.activeClasses = [];
     empty.nextClass = null;
     empty.priorityAction = null;
-    empty.evidence = { sessionsHeld: 0, attendanceComplete: 0, recapsComplete: 0, feedbackCount: 0, recommendCount: 0 };
-    render(<InstructorTeachingHome name="Taylor" workspace={empty} />);
-
-    expect(screen.getByRole("heading", { name: "No class is assigned yet" })).toBeInTheDocument();
-    expect(screen.getByText(/appears after your first recorded class session/i)).toBeInTheDocument();
-  });
-
-  it("keeps an overdue responsibility visible when no future session exists", () => {
-    const noUpcoming = workspace();
-    noUpcoming.nextClass = null;
-    render(<InstructorTeachingHome name="Taylor" workspace={noUpcoming} />);
-
-    expect(screen.getByRole("heading", { name: "One responsibility still needs you" })).toBeInTheDocument();
-    expect(screen.getByText("Do this next: Finish preparing Session 3")).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: "Finish preparation" })[0]).toHaveAttribute(
-      "href",
-      "/instructor/classes/class-1?session=session-1#before"
+    render(
+      <InstructorTeachingHome
+        name="Taylor"
+        workspace={empty}
+        unreadNotifications={0}
+        recentNotifications={[]}
+      />
     );
+
+    expect(screen.getByText(/No classes assigned yet/i)).toBeInTheDocument();
+    expect(screen.getByText(/No updates yet/i)).toBeInTheDocument();
   });
 });
 

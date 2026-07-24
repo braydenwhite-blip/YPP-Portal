@@ -11,12 +11,17 @@ export type ActionDepartmentGroup = {
   overdueCount: number;
 };
 
-const SLUG_ORDER = new Map(STANDING_ACTION_DEPARTMENTS.map((d, i) => [d.slug, i]));
+const SLUG_ORDER = new Map<string, number>(
+  STANDING_ACTION_DEPARTMENTS.map((d, i) => [d.slug, i])
+);
 
 const DEPT_HEADER_COLORS: Record<string, string> = {
+  leadership: "#7c3aed",
   instruction: "#db2777",
   chapters: "#d97706",
+  technology: "#4f46e5",
   tech: "#4f46e5",
+  fundraising: "#0f766e",
   communications: "#059669",
   "social-media": "#e11d48",
   unassigned: "#9a9ab0",

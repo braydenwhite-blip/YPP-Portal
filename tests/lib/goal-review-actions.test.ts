@@ -60,6 +60,7 @@ describe("goal-review-actions", () => {
         },
         mentee: { name: "Mentee One" },
         goalReview: null,
+        mentorCycleCheckIn: { id: "checkin-1" },
       }),
     };
     (prisma as any).mentorGoalReview = {
@@ -102,6 +103,15 @@ describe("goal-review-actions", () => {
     (prisma as any).achievementPointLog = {
       create: vi.fn().mockResolvedValue({}),
     };
+    (prisma as any).reviewRoutingException = {
+      findMany: vi.fn().mockResolvedValue([]),
+    };
+    (prisma as any).$transaction = vi.fn(async (arg: unknown) => {
+      if (typeof arg === "function") {
+        return (arg as (tx: typeof prisma) => Promise<unknown>)(prisma);
+      }
+      return arg;
+    });
   });
 
   it("never mutates GRDocumentGoal at draft/submit time — only approveGoalReview() (release) may", async () => {

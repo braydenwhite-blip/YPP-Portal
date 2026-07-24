@@ -175,6 +175,30 @@ export async function enforceFullProgramMentorCapacity(params: {
   };
 }
 
+/**
+ * Canonical ACTIVE pairing for a mentee. Always newest `startDate` first so
+ * hub, workspace, and review draft agree on who the mentor is.
+ */
+export function findActiveMentorshipForMentee(menteeId: string) {
+  return prisma.mentorship.findFirst({
+    where: { menteeId, status: "ACTIVE" },
+    orderBy: { startDate: "desc" },
+    select: {
+      id: true,
+      mentorId: true,
+      chairId: true,
+      startDate: true,
+      status: true,
+      kickoffCompletedAt: true,
+      cycleStage: true,
+      programGroup: true,
+      governanceMode: true,
+      mentor: { select: { name: true, email: true } },
+      chair: { select: { name: true, email: true } },
+    },
+  });
+}
+
 function slugify(value: string) {
   return value
     .trim()

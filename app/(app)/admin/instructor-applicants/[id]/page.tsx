@@ -28,6 +28,7 @@ import {
   getActiveChair,
   NON_CHAIR_DECISION_MESSAGE,
 } from "@/lib/active-chair";
+import type { WorkspaceApplicant } from "@/components/instructor-applicants/InstructorApplicantsWorkspace";
 import { ApplicationReviewShell } from "@/components/applications/application-review-shell";
 import { ApplicationRecordSimple } from "@/components/instructor-applicants/ApplicationRecordSimple";
 import { prisma } from "@/lib/prisma";
@@ -82,10 +83,25 @@ const DECIDED_STATUSES = new Set([
 /** Deep-serialize Prisma rows for client components (dates → ISO strings). */
 function serializeWorkspaceApplicant(
   app: NonNullable<Awaited<ReturnType<typeof getApplicationForWorkspace>>>
-) {
-  return JSON.parse(
+): WorkspaceApplicant {
+  const raw = JSON.parse(
     JSON.stringify(app, (_key, value) => (value instanceof Date ? value.toISOString() : value))
-  ) as NonNullable<Awaited<ReturnType<typeof getApplicationForWorkspace>>>;
+  ) as Record<string, unknown>;
+
+  const outline = raw.workshopOutline;
+  let workshopOutline: WorkspaceApplicant["workshopOutline"] = null;
+  if (outline && typeof outline === "object" && !Array.isArray(outline)) {
+    const o = outline as Record<string, unknown>;
+    workshopOutline = {
+      title: typeof o.title === "string" ? o.title : undefined,
+      ageRange: typeof o.ageRange === "string" ? o.ageRange : undefined,
+      durationMinutes:
+        typeof o.durationMinutes === "number" ? o.durationMinutes : undefined,
+      description: typeof o.description === "string" ? o.description : undefined,
+    };
+  }
+
+  return { ...raw, workshopOutline } as WorkspaceApplicant;
 }
 
 /**

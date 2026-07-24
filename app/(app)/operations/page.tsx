@@ -132,7 +132,7 @@ const ENTRY_POINTS: Array<{
   },
   {
     href: "/operations/data-360",
-    title: "Data 360",
+    title: "Connected data",
     description:
       "People, classes, partners, meetings, connected into one board of all the work.",
   },

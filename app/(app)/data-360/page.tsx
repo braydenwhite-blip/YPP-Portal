@@ -28,7 +28,7 @@ import { AnalyticsDashboard } from "@/components/operations/analytics-dashboard"
  */
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Data 360 — Pathways Portal" };
+export const metadata = { title: "Org intelligence — Pathways Portal" };
 
 export default async function Data360Page({
   searchParams,

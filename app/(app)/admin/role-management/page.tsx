@@ -1,14 +1,21 @@
 import { PageHeaderV2 } from "@/components/ui-v2";
 import { RoleManagement } from "@/components/admin/role-management";
 import { requireAdmin } from "@/lib/authorization-helpers";
+import { listOperatingChaptersForFilters } from "@/lib/chapters/operating";
+import {
+  ensureOrgFunctionsAndDepartments,
+  listActionDepartmentOptions,
+  listOrgFunctionOptions,
+} from "@/lib/people-strategy/action-departments";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminRoleManagementPage() {
   await requireAdmin();
+  await ensureOrgFunctionsAndDepartments();
 
-  const [users, chapters, cohorts] = await Promise.all([
+  const [users, chapters, cohorts, functions, departments] = await Promise.all([
     prisma.user.findMany({
       orderBy: [{ name: "asc" }],
       select: {
@@ -21,17 +28,18 @@ export default async function AdminRoleManagementPage() {
         internalLevel: true,
         chapter: { select: { id: true, name: true } },
         cohort: { select: { id: true, name: true } },
+        orgFunction: { select: { id: true, name: true } },
+        orgDepartment: { select: { id: true, name: true } },
         roles: { select: { role: true } },
       },
     }),
-    prisma.chapter.findMany({
-      orderBy: { name: "asc" },
-      select: { id: true, name: true, city: true },
-    }),
+    listOperatingChaptersForFilters(),
     prisma.cohort.findMany({
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
+    listOrgFunctionOptions(),
+    listActionDepartmentOptions(),
   ]);
 
   const initialUsers = users.map((user) => ({
@@ -46,6 +54,10 @@ export default async function AdminRoleManagementPage() {
     chapterName: user.chapter?.name ?? null,
     cohortId: user.cohort?.id ?? null,
     cohortName: user.cohort?.name ?? null,
+    orgFunctionId: user.orgFunction?.id ?? null,
+    orgFunctionName: user.orgFunction?.name ?? null,
+    orgDepartmentId: user.orgDepartment?.id ?? null,
+    orgDepartmentName: user.orgDepartment?.name ?? null,
     roles: user.roles.map((r) => r.role),
   }));
 
@@ -54,9 +66,19 @@ export default async function AdminRoleManagementPage() {
       <PageHeaderV2
         eyebrow="Admin"
         title="Role Management"
-        subtitle="Set every user's exact roles, ladder/level, and cohort from one place. Assign a different group inline, or open a user for the full editor."
+        subtitle="Set roles, Function → Department placement, ladder/level, and cohort from one place."
       />
-      <RoleManagement users={initialUsers} chapters={chapters} cohorts={cohorts} />
+      <RoleManagement
+        users={initialUsers}
+        chapters={chapters.map((c) => ({ id: c.id, name: c.name, city: c.city }))}
+        cohorts={cohorts}
+        functions={functions}
+        departments={departments.map((d) => ({
+          id: d.id,
+          name: d.name,
+          functionId: d.functionId,
+        }))}
+      />
     </div>
   );
 }

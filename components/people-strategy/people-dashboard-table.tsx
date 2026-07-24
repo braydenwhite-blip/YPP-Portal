@@ -177,15 +177,18 @@ const headStyle: React.CSSProperties = {
 export function PeopleDashboardTable({
   rows,
   departments,
+  functions = [],
   canRequestFeedback,
 }: {
   rows: PeopleDashboardRow[];
   departments: string[];
+  functions?: string[];
   /** True when ENABLE_PEOPLE_DASHBOARD + ENABLE_ACTION_TRACKER_EMAILS are on. */
   canRequestFeedback: boolean;
 }) {
   const router = useRouter();
   const [search, setSearch] = useState("");
+  const [functionFilter, setFunctionFilter] = useState("");
   const [department, setDepartment] = useState("");
   const [rating, setRating] = useState("");
   const [successionOnly, setSuccessionOnly] = useState(false);
@@ -197,17 +200,32 @@ export function PeopleDashboardTable({
     const q = search.trim().toLowerCase();
     return rows.filter((r) => {
       if (successionOnly && !r.successor) return false;
-      if (department && !r.departments.includes(department)) return false;
+      if (functionFilter && r.functionName !== functionFilter) return false;
+      if (
+        department &&
+        r.departmentName !== department &&
+        !r.departments.includes(department)
+      ) {
+        return false;
+      }
       if (rating && r.quarterly?.performanceRating !== rating) return false;
       if (q) {
-        const haystack = [r.name, r.email, r.role ?? "", ...r.expertise, ...r.departments]
+        const haystack = [
+          r.name,
+          r.email,
+          r.role ?? "",
+          r.functionName ?? "",
+          r.departmentName ?? "",
+          ...r.expertise,
+          ...r.departments,
+        ]
           .join(" ")
           .toLowerCase();
         if (!haystack.includes(q)) return false;
       }
       return true;
     });
-  }, [rows, search, department, rating, successionOnly]);
+  }, [rows, search, functionFilter, department, rating, successionOnly]);
 
   // Selection only ever references visible rows, so filtering can't leave a
   // "ghost" selected id behind the toolbar count.
@@ -280,6 +298,21 @@ export function PeopleDashboardTable({
           border: "1px solid #e2e8f0",
         }}
       >
+        <select
+          value={functionFilter}
+          onChange={(e) => setFunctionFilter(e.target.value)}
+          className="input"
+          style={{ fontSize: 12, padding: "6px 8px" }}
+          aria-label="Filter by function"
+        >
+          <option value="">All Functions</option>
+          {functions.map((fn) => (
+            <option key={fn} value={fn}>
+              {fn}
+            </option>
+          ))}
+        </select>
+
         <select
           value={department}
           onChange={(e) => setDepartment(e.target.value)}
@@ -482,12 +515,35 @@ export function PeopleDashboardTable({
                     </div>
                   </td>
 
-                  {/* Dept / Expertise */}
+                  {/* Function / Department */}
                   <td style={cellStyle}>
                     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                      <span style={{ fontWeight: 600, color: "#334155" }}>
-                        {row.departments.length > 0 ? row.departments.join(", ") : "—"}
-                      </span>
+                      {row.functionName || row.departmentName ? (
+                        <>
+                          {row.functionName ? (
+                            <span style={{ fontSize: 11, color: "#64748b" }}>
+                              Function:{" "}
+                              <span style={{ fontWeight: 600, color: "#334155" }}>
+                                {row.functionName}
+                              </span>
+                            </span>
+                          ) : null}
+                          {row.departmentName ? (
+                            <span style={{ fontSize: 11, color: "#64748b" }}>
+                              Department:{" "}
+                              <span style={{ fontWeight: 600, color: "#334155" }}>
+                                {row.departmentName}
+                              </span>
+                            </span>
+                          ) : null}
+                        </>
+                      ) : row.departments.length > 0 ? (
+                        <span style={{ fontWeight: 600, color: "#334155" }}>
+                          {row.departments.join(", ")}
+                        </span>
+                      ) : (
+                        <span style={{ color: "#94a3b8" }}>—</span>
+                      )}
                       {row.expertise.length > 0 ? (
                         <span style={{ color: "#64748b", fontSize: 11 }}>
                           {row.expertise.slice(0, 3).join(" · ")}

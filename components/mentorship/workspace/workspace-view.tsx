@@ -49,6 +49,7 @@ const SECTION_ALIASES: Record<string, SectionId> = {
   timeline: "overview",
   opportunities: "overview",
   reflection: "reviews",
+  review: "reviews",
   schedule: "check-ins",
   recognition: "overview",
   "progress-update": "progress",
@@ -113,6 +114,11 @@ export function MentorshipWorkspaceView({
     panel === "approve" &&
     workspace.capabilities.canApprove &&
     workspace.lifecycle.cycleStage === "REVIEW_SUBMITTED";
+  const canOpenDraft =
+    panel === "draft" &&
+    !workspace.isSelf &&
+    workspace.capabilities.canDraftReview;
+  const focusedReviewPanel = canOpenApproval || canOpenDraft;
   const requestedUnavailablePanel = panel === "approve" && !canOpenApproval;
 
   const body = (
@@ -149,7 +155,6 @@ export function MentorshipWorkspaceView({
         <ChairApprovalPanel
           menteeId={workspace.person.id}
           mentorshipId={workspace.activeMentorshipId!}
-          commitments={workspace.commitments}
         />
       ) : null}
 
@@ -162,11 +167,14 @@ export function MentorshipWorkspaceView({
         </section>
       ) : null}
 
+      {/* Approve/draft are focused single surfaces — hide the rest of the workspace chrome. */}
+      {!focusedReviewPanel ? (
       <div className="overflow-x-auto pb-1">
         <SegmentedTabs tabs={tabs} activeId={active} ariaLabel="Mentorship section" />
       </div>
+      ) : null}
 
-      {active === "overview" ? (
+      {!focusedReviewPanel && active === "overview" ? (
         isSelf ? (
           <>
             <MenteeDashboardHome
@@ -203,7 +211,7 @@ export function MentorshipWorkspaceView({
         )
       ) : null}
 
-      {active === "goals" ? (
+      {!focusedReviewPanel && active === "goals" ? (
         isSelf ? (
           <>
             <SelfGoalsSection />
@@ -214,15 +222,19 @@ export function MentorshipWorkspaceView({
         )
       ) : null}
 
-      {active === "check-ins" ? (
+      {!focusedReviewPanel && active === "check-ins" ? (
         <CheckInsSection workspace={workspace} />
       ) : null}
 
-      {active === "reviews" ? (
-        <ReviewsSection workspace={workspace} sectionHref={sectionHref} />
+      {(canOpenDraft || (!focusedReviewPanel && active === "reviews")) ? (
+        <ReviewsSection
+          workspace={workspace}
+          sectionHref={sectionHref}
+          forceDraft={panel === "draft" || canOpenDraft}
+        />
       ) : null}
 
-      {active === "progress" ? (
+      {!focusedReviewPanel && active === "progress" ? (
         <ProgressUpdateSection
           workspace={workspace}
           justSent={progressSent}

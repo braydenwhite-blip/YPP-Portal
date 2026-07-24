@@ -51,6 +51,10 @@ import {
 import { PromotionHistoryPanel } from "@/components/people-strategy/promotion-history-panel";
 import { PromotePersonForm } from "@/components/people-strategy/promote-person-form";
 import { INSTRUCTION_TITLES, LEADERSHIP_TITLES } from "@/lib/org/levels";
+import { FunctionDepartmentLabels } from "@/components/org/function-department-labels";
+import { InstructorFeedbackSection } from "@/components/instructor/instructor-feedback-section";
+import { listInstructorReceivedFeedback } from "@/lib/instructor-feedback-actions";
+import { hasRole } from "@/lib/authorization-roles";
 
 const PROMOTION_TITLE_OPTIONS = [...INSTRUCTION_TITLES, ...LEADERSHIP_TITLES];
 
@@ -88,7 +92,11 @@ export default async function PublicProfilePage({ params, searchParams }: PagePr
   // Mentorship work belongs to the canonical Mentorship person workspace.
   if (legacyMentorshipSection || legacyMentorshipPanel) {
     const query = new URLSearchParams();
-    if (legacyMentorshipSection) query.set("section", legacyMentorshipSection);
+    const section =
+      legacyMentorshipSection === "review" || legacyMentorshipSection === "reflection"
+        ? "reviews"
+        : legacyMentorshipSection;
+    if (section) query.set("section", section);
     if (legacyMentorshipPanel) query.set("panel", legacyMentorshipPanel);
     redirect(`/mentorship/people/${id}?${query.toString()}`);
   }
@@ -108,6 +116,19 @@ export default async function PublicProfilePage({ params, searchParams }: PagePr
   // existence of a non-member account).
   const profile = await loadPublicProfile(id, viewer);
   if (!profile) notFound();
+
+  const isInstructorProfile =
+    profile.primaryRole === "INSTRUCTOR" ||
+    profile.classesTaught.length > 0;
+  const canLogFeedback =
+    hasRole(viewer.roles, "ADMIN", viewer.primaryRole) ||
+    hasRole(viewer.roles, "STAFF", viewer.primaryRole) ||
+    hasRole(viewer.roles, "CHAPTER_PRESIDENT", viewer.primaryRole) ||
+    hasRole(viewer.roles, "HIRING_CHAIR", viewer.primaryRole);
+  const instructorFeedback = isInstructorProfile
+    ? await listInstructorReceivedFeedback(id).catch(() => [])
+    : [];
+
   const personMeetingHref = meetingPrefillToQuery({
     relatedType: "USER",
     relatedId: id,
@@ -200,10 +221,25 @@ export default async function PublicProfilePage({ params, searchParams }: PagePr
             {profile.chapterName ? ` · ${profile.chapterName}` : ""}
             {` · ${activeLabel(profile.monthsActive)}`}
           </p>
+          <FunctionDepartmentLabels
+            functionName={profile.functionName}
+            departmentName={profile.departmentName}
+            className="mt-1.5 flex flex-col gap-0.5 text-[13px]"
+          />
         </div>
       </header>
 
       <ProfileBody profile={profile} compact={fromPeopleReviews} />
+
+      {isInstructorProfile ? (
+        <div className="mt-4">
+          <InstructorFeedbackSection
+            instructorId={id}
+            canEdit={canLogFeedback && viewer.id !== id}
+            initialRows={instructorFeedback}
+          />
+        </div>
+      ) : null}
 
       <div className="mt-4">
         <PersonChapterSection userId={id} />

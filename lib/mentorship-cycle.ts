@@ -417,7 +417,9 @@ export async function getReviewSpineForMentee(menteeId: string): Promise<ReviewS
           label: "Monthly Review",
           state: review ? (review.status === "APPROVED" ? "completed" : "active") : "pending",
           timestamp: review?.releasedToMenteeAt ?? null,
-          href: review?.releasedToMenteeAt ? `/people/${menteeId}?section=review` : null,
+          href: review?.releasedToMenteeAt
+            ? `/mentorship/people/${menteeId}?section=reviews`
+            : null,
           detail: review && !review.releasedToMenteeAt ? "Your mentor is writing this." : null,
         },
         {

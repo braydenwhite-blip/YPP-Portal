@@ -5,6 +5,10 @@ import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui-v2";
 import { saveGoalReview } from "@/lib/goal-review-actions";
+import {
+  saveInstructorReviewAnswers,
+  type InstructorReviewQuestionRow,
+} from "@/lib/instructor-feedback-actions";
 import { getGoalRatingCopy } from "@/lib/mentorship-rubric-copy";
 
 type GoalRow = {
@@ -32,9 +36,17 @@ const fieldHint = "mt-0.5 text-[12.5px] font-normal text-ink-muted";
 const fieldInput =
   "mt-2 w-full resize-y rounded-[12px] border border-line bg-surface px-3.5 py-3 text-[15px] leading-relaxed text-ink outline-none placeholder:text-ink-muted/70 focus:border-brand-400";
 
+function ratingFromOption(option: string): number | null {
+  const match = option.match(/^(\d+)/);
+  if (!match) return null;
+  const n = Number(match[1]);
+  return n >= 1 && n <= 5 ? n : null;
+}
+
 /**
- * One-page mentor feedback — pick how they did, write two notes, send.
- * Applies the overall rating to every goal so saveGoalReview stays happy.
+ * One-page mentor feedback — pick how they did, answer admin questions (when
+ * configured), write two notes, send. Applies the overall rating to every goal
+ * so saveGoalReview stays happy.
  */
 export function SimpleFeedbackForm({
   reflectionId,
@@ -45,6 +57,9 @@ export function SimpleFeedbackForm({
   initialComments,
   initialPlan,
   reflectionBlurb,
+  reviewId,
+  questions = [],
+  initialAnswers = [],
 }: {
   reflectionId: string;
   menteeId: string;
@@ -55,6 +70,9 @@ export function SimpleFeedbackForm({
   initialPlan?: string;
   /** Short peek at what the mentee wrote, if any. */
   reflectionBlurb?: string | null;
+  reviewId?: string | null;
+  questions?: InstructorReviewQuestionRow[];
+  initialAnswers?: Array<{ questionId: string; answer: string; rating: number | null }>;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -65,6 +83,11 @@ export function SimpleFeedbackForm({
   );
   const [wentWell, setWentWell] = useState(initialComments ?? "");
   const [whatsNext, setWhatsNext] = useState(initialPlan ?? "");
+  const [answers, setAnswers] = useState<Record<string, string>>(() => {
+    const map: Record<string, string> = {};
+    for (const row of initialAnswers) map[row.questionId] = row.answer;
+    return map;
+  });
   const [error, setError] = useState<string | null>(null);
 
   function submit() {
@@ -75,6 +98,13 @@ export function SimpleFeedbackForm({
     if (!whatsNext.trim()) {
       setError("Tell them one thing to focus on next.");
       return;
+    }
+    if (questions.length > 0) {
+      const missing = questions.find((q) => !answers[q.id]?.trim());
+      if (missing) {
+        setError("Answer each review question before sending.");
+        return;
+      }
     }
     setError(null);
 
@@ -100,7 +130,19 @@ export function SimpleFeedbackForm({
 
     startTransition(async () => {
       try {
-        await saveGoalReview(fd);
+        const result = await saveGoalReview(fd);
+        const persistedReviewId = result?.reviewId ?? reviewId ?? null;
+        if (persistedReviewId && questions.length > 0) {
+          await saveInstructorReviewAnswers({
+            reviewId: persistedReviewId,
+            instructorId: menteeId,
+            answers: questions.map((q) => ({
+              questionId: q.id,
+              answer: answers[q.id]!.trim(),
+              rating: ratingFromOption(answers[q.id]!),
+            })),
+          });
+        }
         router.push(`/mentorship/people/${menteeId}?section=reviews`);
         router.refresh();
       } catch (err) {
@@ -149,6 +191,42 @@ export function SimpleFeedbackForm({
           })}
         </div>
       </div>
+
+      {questions.length > 0 ? (
+        <div className="flex flex-col gap-3 rounded-[12px] border border-line-soft bg-surface-soft/40 px-3.5 py-3.5">
+          <div>
+            <p className={fieldLabel}>Review questions</p>
+            <p className={fieldHint}>Configured by admins — answer each one.</p>
+          </div>
+          {questions.map((q) => (
+            <label key={q.id} className="flex flex-col">
+              <span className="text-[13px] font-semibold text-ink">
+                {q.prompt}
+                {q.category ? (
+                  <span className="ml-1.5 text-[12px] font-medium text-ink-muted">
+                    ({q.category})
+                  </span>
+                ) : null}
+              </span>
+              <select
+                className="mt-2 w-full rounded-[12px] border border-line bg-surface px-3.5 py-2.5 text-[14px] text-ink outline-none focus:border-brand-400"
+                value={answers[q.id] ?? ""}
+                onChange={(e) =>
+                  setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))
+                }
+                disabled={pending}
+              >
+                <option value="">Select an answer…</option>
+                {q.options.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ))}
+        </div>
+      ) : null}
 
       <label className="flex flex-col">
         <span className={fieldLabel}>What should they know?</span>

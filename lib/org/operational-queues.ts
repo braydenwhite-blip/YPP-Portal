@@ -46,7 +46,7 @@ export async function getReviewsToDraftRows(): Promise<OperationalQueueRow[]> {
         m.reviewStatus === "CHANGES_REQUESTED"
           ? "Review returned for revision"
           : "Self-reflection submitted — write the review",
-      href: `/people/${m.menteeId}?section=review&panel=draft`,
+      href: `/mentorship/people/${m.menteeId}?section=reviews&panel=draft`,
       ageLabel: null,
     }));
 }
@@ -64,7 +64,7 @@ export async function getReviewsToApproveRows(
       id: r.id,
       title: mentee?.name ?? "Review",
       subtitle: "Awaiting your approval",
-      href: `/people/${r.menteeId}?section=review&panel=approve`,
+      href: `/mentorship/people/${r.menteeId}?section=reviews&panel=approve`,
       ageLabel: null,
     };
   });

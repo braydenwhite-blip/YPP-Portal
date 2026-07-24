@@ -21,7 +21,7 @@ export function MasterDirectoryBanner({
       <p className="m-0 text-[13.5px] text-ink">
         <span className="font-semibold">People Hub is the master directory now.</span>{" "}
         <span className="text-ink-muted">
-          Browse, search, and open 360s there — this page keeps the admin bulk
+          Browse, search, and open records there — this page keeps the admin bulk
           tools.
         </span>
       </p>

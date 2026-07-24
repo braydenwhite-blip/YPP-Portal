@@ -5,34 +5,33 @@ import {
   sortActionDepartmentOptions,
   STANDING_ACTION_DEPARTMENTS,
 } from "@/lib/people-strategy/action-departments";
+import { ORG_DEPARTMENTS } from "@/lib/org/functions-departments";
 
 describe("action-departments", () => {
-  it("defines exactly five standing teams", () => {
-    expect(STANDING_ACTION_DEPARTMENTS).toHaveLength(5);
-    expect(STANDING_ACTION_DEPARTMENTS.map((d) => d.slug)).toEqual([
-      "instruction",
-      "chapters",
-      "tech",
-      "communications",
-      "social-media",
-    ]);
+  it("defines standing departments under Functions", () => {
+    expect(STANDING_ACTION_DEPARTMENTS.map((d) => d.slug)).toEqual(
+      ORG_DEPARTMENTS.map((d) => d.slug)
+    );
+    expect(STANDING_ACTION_DEPARTMENTS.map((d) => d.slug)).toContain("technology");
+    expect(STANDING_ACTION_DEPARTMENTS.map((d) => d.slug)).toContain("fundraising");
+    expect(STANDING_ACTION_DEPARTMENTS.map((d) => d.slug)).toContain("leadership");
   });
 
   it("sorts standing departments in catalog order", () => {
     const rows = [
       { id: "c", name: "Chapters", slug: "chapters" },
-      { id: "t", name: "Tech", slug: "tech" },
+      { id: "t", name: "Technology", slug: "technology" },
       { id: "i", name: "Instruction", slug: "instruction" },
     ];
 
     expect(sortActionDepartmentOptions(rows).map((d) => d.slug)).toEqual([
       "instruction",
       "chapters",
-      "tech",
+      "technology",
     ]);
   });
 
-  it("groups departments for the picker UI", () => {
+  it("groups departments by Function for the picker UI", () => {
     const departments = sortActionDepartmentOptions(
       STANDING_ACTION_DEPARTMENTS.map((def, index) => ({
         id: `id-${index}`,
@@ -42,15 +41,13 @@ describe("action-departments", () => {
     );
 
     const groups = groupActionDepartments(departments);
-    expect(groups.map((g) => g.key)).toEqual(["core", "org"]);
-    expect(groups.find((g) => g.key === "core")?.items.map((d) => d.name)).toEqual([
-      "Instruction",
-      "Chapters",
-    ]);
-    expect(groups.find((g) => g.key === "org")?.items.map((d) => d.name)).toEqual([
-      "Tech",
-      "Communications",
-      "Social Media",
-    ]);
+    expect(groups.map((g) => g.key)).toEqual(["core-instruction", "operations"]);
+    expect(groups.find((g) => g.key === "core-instruction")?.label).toBe(
+      "Core Instruction"
+    );
+    expect(groups.find((g) => g.key === "operations")?.label).toBe("Operations");
+    expect(
+      groups.find((g) => g.key === "operations")?.items.map((d) => d.name)
+    ).toEqual(["Technology", "Fundraising", "Communications", "Social Media"]);
   });
 });

@@ -25,7 +25,7 @@ export const metadata = {
  *    structured answer blocks built deterministically from the portal's data,
  *    with an OPTIONAL AI-written summary on top.
  *  - Search: the same deterministic entity search behind ⌘K — find any person,
- *    partner, class, meeting, action, or initiative and open its 360 preview.
+ *    partner, class, meeting, action, or initiative and open its record preview.
  */
 export default async function HelpAgentPage({
   searchParams,

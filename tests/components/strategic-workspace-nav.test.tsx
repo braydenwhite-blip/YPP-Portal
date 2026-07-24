@@ -13,7 +13,7 @@ describe("StrategicWorkspaceNav", () => {
     const nav = screen.getByRole("navigation", { name: "Strategic workspace" });
     const expected: Array<[string, string]> = [
       ["Overview", "/operations/command-center"],
-      ["Data 360", "/operations/data-360"],
+      ["Connected data", "/operations/data-360"],
       ["Weekly Execution", "/operations/weekly-execution"],
       ["Initiatives", "/operations/initiatives"],
       ["Actions", "/actions"],
@@ -44,7 +44,7 @@ describe("StrategicWorkspaceNav", () => {
     render(<StrategicWorkspaceNav current="command-center" showStrategic={false} />);
     // Always-available destinations stay.
     expect(screen.getByRole("link", { name: "Overview" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Data 360" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Connected data" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Weekly Execution" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Actions" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Meetings" })).toBeInTheDocument();

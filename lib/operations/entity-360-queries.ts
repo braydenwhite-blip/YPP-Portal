@@ -320,6 +320,12 @@ async function loadPerson360(
   if (profile.chapterName) {
     facts.push({ label: "Chapter", value: profile.chapterName });
   }
+  if (profile.functionName) {
+    facts.push({ label: "Function", value: profile.functionName });
+  }
+  if (profile.departmentName) {
+    facts.push({ label: "Department", value: profile.departmentName });
+  }
   facts.push({ label: "Role", value: roleLabel });
   if (profile.phone) {
     facts.push({

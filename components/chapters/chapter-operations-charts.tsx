@@ -9,7 +9,12 @@ export function ChapterOperationsCharts({ metrics, trend, attendance }: {
   trend: { week: string; outreach: number; sessions: number; tasksCreated: number; tasksCompleted: number }[];
   attendance: { range: string; sessions: number }[];
 }) {
-  const scorecardData = metrics.map((metric) => ({ ...metric, shortLabel: metric.key === "pipeline" ? "Pipeline" : metric.label.replace(/^Active /, "").replace(" running", "") }));
+  const scorecardData = metrics.map((metric) => ({
+    ...metric,
+    shortLabel: /pipeline/i.test(metric.label)
+      ? "Pipeline"
+      : metric.label.replace(/^Active /, "").replace(" running", ""),
+  }));
   return (
     <div className="grid gap-5 lg:grid-cols-3">
       <ChartFrame title="Current versus target">
@@ -52,7 +57,7 @@ export function ChapterTaskTrendChart({ data }: { data: { week: string; tasksCre
 }
 
 export function ChapterClassCharts({ data }: { data: { name: string; capacity: number; enrolled: number; attendance: number }[] }) {
-  return <div className="grid gap-5 lg:grid-cols-2"><ChartFrame title="Enrollment versus capacity"><BarChart data={data} margin={{ left: -22, right: 8, top: 8 }}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" /><XAxis dataKey="name" tick={AXIS} /><YAxis tick={AXIS} allowDecimals={false} /><Tooltip /><Legend /><Bar dataKey="enrolled" name="Enrolled" fill="#0f4c81" /><Bar dataKey="capacity" name="Capacity" fill="#94a3b8" /></BarChart></ChartFrame><ChartFrame title="Attendance by class"><BarChart data={data} margin={{ left: -12, right: 8, top: 8 }}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" /><XAxis dataKey="name" tick={AXIS} /><YAxis tick={AXIS} domain={[0, 100]} tickFormatter={(v) => `${v}%`} /><Tooltip formatter={(value) => `${value}%`} /><Bar dataKey="attendance" name="Average attendance" fill="#0f766e" /></BarChart></ChartFrame></div>;
+  return <div className="grid gap-5 lg:grid-cols-2"><ChartFrame title="Enrollment versus capacity"><BarChart data={data} margin={{ left: -22, right: 8, top: 8 }}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" /><XAxis dataKey="name" tick={AXIS} /><YAxis tick={AXIS} allowDecimals={false} /><Tooltip /><Legend /><Bar dataKey="enrolled" name="Enrolled" fill="#0f4c81" /><Bar dataKey="capacity" name="Capacity" fill="#94a3b8" /></BarChart></ChartFrame><ChartFrame title="Attendance by class"><BarChart data={data} margin={{ left: -12, right: 8, top: 8 }}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" /><XAxis dataKey="name" tick={AXIS} /><YAxis tick={AXIS} domain={[0, 100]} tickFormatter={(v: number) => `${v}%`} /><Tooltip formatter={(value) => [`${value}%`, "Attendance"]} /><Bar dataKey="attendance" name="Average attendance" fill="#0f766e" /></BarChart></ChartFrame></div>;
 }
 
 export function ChapterMonthlyTrendChart({ data }: { data: { month: string; students: number; instructors: number; partners: number; classes: number }[] }) {

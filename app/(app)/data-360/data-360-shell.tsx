@@ -142,7 +142,7 @@ export function Data360Shell({
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <div className="flex items-center gap-2.5">
-                <h1 className="text-[24px] font-bold tracking-tight text-white">Data 360</h1>
+                <h1 className="text-[24px] font-bold tracking-tight text-white">Org intelligence</h1>
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-[#34d399]/30 bg-[#34d399]/10 px-2 py-0.5 text-[10.5px] font-semibold text-[#34d399]">
                   <span className="h-1.5 w-1.5 rounded-full bg-[#34d399]" />
                   Live
@@ -166,7 +166,7 @@ export function Data360Shell({
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search students, instructors, chapters, programs, partners…"
                 className="h-9 w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 text-[13px] text-[#e6edf3] placeholder:text-[#5f6b80] outline-none transition-colors focus:border-[#8b3fe8]/60"
-                aria-label="Search Data 360"
+                aria-label="Search org intelligence"
               />
               {query.trim().length > 0 ? (
                 <div className="absolute z-20 mt-1.5 w-full overflow-hidden rounded-lg border border-white/10 bg-[#0f1420] shadow-xl">

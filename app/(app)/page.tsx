@@ -21,6 +21,7 @@ import {
   getUnreadDirectMessageCountCached,
   getUnreadNotificationCountCached,
 } from "@/lib/server-request-cache";
+import { getRecentNotifications } from "@/lib/request-cache";
 import type { ActivePathwaySummary } from "@/lib/dashboard/types";
 import StudentDashboard, {
   type StudentHomeNextSession,
@@ -349,8 +350,27 @@ export default async function OverviewPage() {
   }
 
   if (isInstructor) {
-    const teachingWorkspace = await loadInstructorTeachingWorkspace(session.user.id);
-    return <InstructorTeachingHome name={name} workspace={teachingWorkspace} />;
+    const [teachingWorkspace, unreadNotifications, recentNotifications] =
+      await Promise.all([
+        loadInstructorTeachingWorkspace(session.user.id),
+        getUnreadNotificationCountCached(session.user.id).catch(() => 0),
+        getRecentNotifications(session.user.id, 8).catch(() => []),
+      ]);
+    return (
+      <InstructorTeachingHome
+        name={name}
+        workspace={teachingWorkspace}
+        unreadNotifications={unreadNotifications}
+        recentNotifications={recentNotifications.map((notification) => ({
+          id: notification.id,
+          title: notification.title,
+          body: notification.body,
+          link: notification.link,
+          isRead: notification.isRead,
+          createdAt: notification.createdAt.toISOString(),
+        }))}
+      />
+    );
   }
 
   if (roles.includes("STUDENT")) {

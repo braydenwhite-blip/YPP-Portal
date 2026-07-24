@@ -100,10 +100,12 @@ function buildAdminProgramSelect(): Prisma.SpecialProgramSelect {
   return {
     id: true,
     name: true,
+    description: true,
     interestArea: true,
     type: true,
     isVirtual: true,
     isActive: true,
+    templateCategory: true,
     leader: {
       select: { id: true, name: true },
     },
@@ -424,4 +426,32 @@ export async function getAllProgramsAdmin() {
     select: buildAdminProgramSelect(),
     orderBy: { createdAt: "desc" },
   });
+}
+
+/** Persist summer-program style tags on a SpecialProgram (stored in interestArea extras when column absent). */
+export async function updateProgramTags(programId: string, tags: string[]) {
+  const session = await getSession();
+  if (!session?.user?.id) throw new Error("Unauthorized");
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    include: { roles: true },
+  });
+
+  if (!user?.roles.some((r) => r.role === "ADMIN")) {
+    throw new Error("Only admins can update program tags");
+  }
+
+  const cleaned = tags.map((t) => t.trim()).filter(Boolean).slice(0, 40);
+
+  // SpecialProgram has no dedicated tags column yet — keep the latest tag list in
+  // templateCategory as a lightweight durable store until a real column ships.
+  await prisma.specialProgram.update({
+    where: { id: programId },
+    data: { templateCategory: cleaned.length > 0 ? cleaned.join(",") : null },
+  });
+
+  revalidatePath("/admin/programs");
+  revalidatePath("/admin/classes");
+  return { ok: true as const, tags: cleaned };
 }

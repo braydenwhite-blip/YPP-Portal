@@ -600,7 +600,13 @@ export async function listActionDepartments(): Promise<ActionDepartmentOption[]>
 
   const rows = await prisma.department.findMany({
     where: { archivedAt: null },
-    select: { id: true, name: true, slug: true },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      functionId: true,
+      function: { select: { id: true, name: true, slug: true } },
+    },
   });
 
   return sortActionDepartmentOptions(rows);

@@ -26,7 +26,7 @@ import { LegacySurfaceBanner } from "@/components/ui-v2";
 import { AnalyticsDashboard } from "@/components/operations/analytics-dashboard";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Data 360 · Operations" };
+export const metadata = { title: "Connected data · Operations" };
 
 /**
  * Data 360 — the connected-data control center. Where the Command Center asks
@@ -84,7 +84,7 @@ export default async function Data360Page() {
       <StrategicWorkspaceHeader
         current="data-360"
         eyebrow="Operations · YPP OS"
-        title="Data 360"
+        title="Connected data"
         subtitle="Every person, class, partner, meeting, and action — one connected picture, one queue of what needs attention, one board of all the work."
         meta={`${openWork} open work item${openWork === 1 ? "" : "s"} across every tracker · generated ${now.toLocaleDateString(
           "en-US",
@@ -234,7 +234,7 @@ export default async function Data360Page() {
         >
           <CommandCenterSection
             title="Connected data"
-            hint="Click any card to open its 360 panel"
+            hint="Click any card to open its record preview"
           >
             <ConnectedExplorer entities={data.explorer} initiatives={data.initiatives} />
           </CommandCenterSection>

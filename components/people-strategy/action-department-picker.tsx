@@ -4,11 +4,15 @@ import { type CSSProperties } from "react";
 
 import { cn } from "@/components/ui-v2/cn";
 import type { ActionDepartmentOption } from "@/lib/people-strategy/action-departments";
+import { groupActionDepartments } from "@/lib/people-strategy/action-departments";
 
 const DEPT_CHIP_COLORS: Record<string, string> = {
+  leadership: "#7c3aed",
   instruction: "#6b21c8",
   chapters: "#d97706",
+  technology: "#4f46e5",
   tech: "#4f46e5",
+  fundraising: "#0f766e",
   communications: "#db2777",
   "social-media": "#e11d48",
 };
@@ -67,7 +71,7 @@ function departmentById(
 function SimpleDepartmentPicker(props: SinglePickerProps | MultiPickerProps) {
   const {
     id,
-    label = "Team",
+    label = "Department",
     hint,
     departments,
     allowEmpty = true,
@@ -102,6 +106,7 @@ function SimpleDepartmentPicker(props: SinglePickerProps | MultiPickerProps) {
   }
 
   if (!props.multiple) {
+    const groups = groupActionDepartments(departments);
     return (
       <div className="ps-field" id={id}>
         <label className="ps-label" htmlFor={id ? `${id}-select` : undefined}>
@@ -115,11 +120,15 @@ function SimpleDepartmentPicker(props: SinglePickerProps | MultiPickerProps) {
           value={props.value}
           onChange={(e) => props.onChange(e.target.value)}
         >
-          {allowEmpty ? <option value="">No team</option> : null}
-          {departments.map((department) => (
-            <option key={department.id} value={department.id}>
-              {department.name}
-            </option>
+          {allowEmpty ? <option value="">No department</option> : null}
+          {groups.map((group) => (
+            <optgroup key={group.key} label={`Function: ${group.label}`}>
+              {group.items.map((department) => (
+                <option key={department.id} value={department.id}>
+                  {department.name}
+                </option>
+              ))}
+            </optgroup>
           ))}
         </select>
       </div>
@@ -198,8 +207,8 @@ function SimpleDepartmentPicker(props: SinglePickerProps | MultiPickerProps) {
 function ChipDepartmentPicker(props: SinglePickerProps | MultiPickerProps) {
   const {
     id,
-    label = "Team / department",
-    hint = "Pick a team — Instruction, Chapters, Tech, Comms, or Social Media.",
+    label = "Department",
+    hint = "Pick a department under its Function (e.g. Operations → Technology).",
     departments,
     allowEmpty = true,
     required = false,

@@ -61,6 +61,11 @@ export interface PeopleDashboardRow {
   avatarUrl: string | null;
   mentorName: string | null;
   mentorId: string | null;
+  /** Person's org Function (e.g. Operations). */
+  functionName: string | null;
+  /** Person's org Department (e.g. Technology). */
+  departmentName: string | null;
+  /** Action-derived department names (fallback / multi-team signals). */
   departments: string[];
   expertise: string[];
   leadActions: DashboardActionView[];
@@ -148,6 +153,8 @@ export async function loadPeopleDashboard(
       name: true,
       email: true,
       primaryRole: true,
+      orgFunction: { select: { name: true } },
+      orgDepartment: { select: { name: true } },
       profile: { select: { avatarUrl: true, interests: true } },
       menteePairs: {
         where: { status: "ACTIVE" },
@@ -201,6 +208,15 @@ export async function loadPeopleDashboard(
       )
     ).sort();
 
+    const functionName = user.orgFunction?.name ?? null;
+    const departmentName = user.orgDepartment?.name ?? null;
+    // Prefer assigned placement; still surface action teams for search/filter.
+    const departmentLabels = Array.from(
+      new Set(
+        [departmentName, ...departments].filter((d): d is string => Boolean(d))
+      )
+    ).sort();
+
     const review = user.quarterlyReviews[0] ?? null;
     const quarterly: DashboardQuarterlyView | null = review
       ? {
@@ -231,7 +247,9 @@ export async function loadPeopleDashboard(
       avatarUrl: user.profile?.avatarUrl ?? null,
       mentorName: user.menteePairs[0]?.mentor?.name ?? user.menteePairs[0]?.mentor?.email ?? null,
       mentorId: user.menteePairs[0]?.mentor?.id ?? null,
-      departments,
+      functionName,
+      departmentName,
+      departments: departmentLabels,
       expertise: user.profile?.interests ?? [],
       leadActions: split.lead.map((a) => toActionView(a, today)),
       executingActions: split.executing
@@ -247,7 +265,20 @@ export async function loadPeopleDashboard(
   });
 }
 
+/** Distinct Function names across rows. */
+export function collectFunctions(rows: PeopleDashboardRow[]): string[] {
+  return Array.from(
+    new Set(rows.map((r) => r.functionName).filter((v): v is string => Boolean(v)))
+  ).sort();
+}
+
 /** Distinct department names across all rows, for the "All Departments" filter. */
 export function collectDepartments(rows: PeopleDashboardRow[]): string[] {
-  return Array.from(new Set(rows.flatMap((r) => r.departments))).sort();
+  return Array.from(
+    new Set(
+      rows.flatMap((r) =>
+        [r.departmentName, ...r.departments].filter((v): v is string => Boolean(v))
+      )
+    )
+  ).sort();
 }

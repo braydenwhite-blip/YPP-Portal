@@ -52,7 +52,9 @@ function workspaceApplicantToReadinessRecord(
     },
     infoRequest: app.infoRequest,
     applicantResponse: app.applicantResponse,
-    reviewer: app.reviewer?.id ? { id: app.reviewer.id, name: app.reviewer.name } : null,
+    reviewer: app.reviewer?.id
+      ? { id: app.reviewer.id, name: app.reviewer.name ?? "Reviewer" }
+      : null,
     applicationReviews: app.applicationReviews.map((review, index) => ({
       reviewerName: app.reviewer?.name ?? `Reviewer ${index + 1}`,
       isLeadReview: index === 0,

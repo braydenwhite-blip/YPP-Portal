@@ -366,7 +366,7 @@ export async function getInterviewCommandCenterData(
           ...(isAdmin
             ? [
                 {
-                  label: "Application 360",
+                  label: "Application record",
                   href: `/admin/instructor-applicants/${app.id}`,
                 },
               ]

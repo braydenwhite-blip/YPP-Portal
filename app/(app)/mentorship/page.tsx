@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
 import skin from "@/components/ui-v2/portal-skin.module.css";
-import { ButtonLink, CardV2, PageHeaderV2 } from "@/components/ui-v2";
+import { ButtonLink, PageHeaderV2 } from "@/components/ui-v2";
 import { AdminMentorshipCockpit } from "@/app/(app)/admin/mentorship/_components/admin-cockpit";
 import { getSession } from "@/lib/auth-supabase";
 import {
@@ -119,6 +119,7 @@ export default async function MentorshipPage(
     const [asMentee, asMentor] = await Promise.all([
       prisma.mentorship.findFirst({
         where: { menteeId: userId, status: "ACTIVE" },
+        orderBy: { startDate: "desc" },
         select: { mentor: { select: { name: true } } },
       }),
       prisma.mentorship.findMany({
@@ -189,10 +190,10 @@ export default async function MentorshipPage(
   const header = (
     <PageHeaderV2
       eyebrow="Mentorship"
-      title={pov === "mentor" ? "Mentor" : pov === "admin" ? "Goals" : "Mentorship"}
+      title={pov === "mentor" ? "Your mentees" : pov === "admin" ? "Goals" : "Mentorship"}
       subtitle={
         pov === "mentor"
-          ? "Your mentees and the coaching work you owe."
+          ? "Coach them, write reviews, approve when you’re the chair."
           : pov === "admin"
             ? "Create and assign Goals & Responsibilities."
             : "One place to run development — yours, your mentees', and the whole org's."
@@ -208,7 +209,7 @@ export default async function MentorshipPage(
             variant="secondary"
             size="sm"
           >
-            {pov === "mentor" ? "Open as mentee →" : "Open as mentor →"}
+            {pov === "mentor" ? "Your own mentorship →" : "Open as mentor →"}
           </ButtonLink>
         ) : undefined
       }
@@ -271,27 +272,7 @@ export default async function MentorshipPage(
   const showChairQueue = isAdmin || chairLanes.length > 0;
 
   const allMentorCards = mentorBlock.columns.flatMap((c) => c.cards);
-  const pendingReview =
-    mentorBlock.columns.find((c) => c.key === "READY_FOR_REVIEW")?.cards.length ?? 0;
-  const needsKickoff = allMentorCards.filter((c) => c.kickoffPending).length;
   const needsYouCount = allMentorCards.filter(mentorCardNeedsAttention).length;
-
-  // Render only the more urgent of the two top alerts — stacked alerts is
-  // noise; one is signal.
-  let urgentAlert: { tone: "blue" | "amber"; title: string; detail: string } | null = null;
-  if (needsKickoff > 0) {
-    urgentAlert = {
-      tone: "amber",
-      title: `${needsKickoff} instructor${needsKickoff !== 1 ? "s" : ""} need a kickoff meeting`,
-      detail: "Schedule and mark the kickoff to unlock the monthly review cycle.",
-    };
-  } else if (pendingReview > 0) {
-    urgentAlert = {
-      tone: "blue",
-      title: `${pendingReview} instructor${pendingReview !== 1 ? "s" : ""} ready for your review`,
-      detail: "Their reflections have been submitted and are waiting on your feedback.",
-    };
-  }
 
   const vm = buildMentorHomeViewModel({
     viewerId: userId,
@@ -320,51 +301,28 @@ export default async function MentorshipPage(
     <div className={`${skin.portalSkin} flex flex-col gap-6`}>
       {header}
 
-      {/* The approval queues live here now — chairs and committee members see
-          who needs them without a separate Review Inbox / Committee Queue
-          destination. Both self-hide when empty. */}
-      {showChairQueue ? <MonthlyApprovalQueue /> : null}
-      <QuarterlyCommitteeQueue
-        viewerId={userId}
-        isAdminOrLeadership={isAdmin || commandAccess}
-        chairedLanes={chairLanes}
-        committeeProgramGroups={committeeProgramGroups}
-      />
-
-      {mentorBlock.total === 0 ? (
-        <EmptyStateEditorial
-          title="Ready when they arrive."
-          body="You'll see your mentees here as soon as chapter leadership pairs you with one. In the meantime, the leadership pathway is the same rubric you'll use to support them."
-          link={{
-            label: "See the leadership pathway",
-            href: "/leadership-pathway",
-          }}
+      <div className="mx-auto flex w-full max-w-2xl flex-col gap-5">
+        {showChairQueue ? <MonthlyApprovalQueue /> : null}
+        <QuarterlyCommitteeQueue
+          viewerId={userId}
+          isAdminOrLeadership={isAdmin || commandAccess}
+          chairedLanes={chairLanes}
+          committeeProgramGroups={committeeProgramGroups}
         />
-      ) : (
-        <div className="grid gap-6">
-          {urgentAlert ? (
-            <CardV2
-              padding="md"
-              className={
-                urgentAlert.tone === "amber"
-                  ? "border-l-4 border-l-warning-700"
-                  : "border-l-4 border-l-brand-600"
-              }
-            >
-              <strong className="text-[14px] text-ink">{urgentAlert.title}</strong>
-              <p className="m-0 mt-1 text-[13px] text-ink-muted">{urgentAlert.detail}</p>
-            </CardV2>
-          ) : null}
 
+        {mentorBlock.total === 0 ? (
+          <EmptyStateEditorial
+            title="Ready when they arrive"
+            body="Your mentees will show up here once chapter leadership pairs you. Same rubric you'll use to support them."
+            link={{
+              label: "See the leadership pathway",
+              href: "/leadership-pathway",
+            }}
+          />
+        ) : (
           <MentorHomeCalm vm={vm} needsYouCount={needsYouCount} />
-
-          <div className="flex flex-wrap gap-2">
-            <ButtonLink href="/mentorship/mentees" variant="secondary" size="sm">
-              All mentees →
-            </ButtonLink>
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

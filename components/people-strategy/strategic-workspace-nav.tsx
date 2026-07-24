@@ -34,7 +34,7 @@ type NavItem = { key: StrategicNavKey; label: string; href: string };
  * The unified leadership OS, in leadership-reading order:
  *
  *   Command Center   — what matters right now
- *   Data 360         — how everything connects (people, partners, classes, work)
+ *   Connected data   — how everything connects (people, partners, classes, work)
  *   Weekly Execution — run the weekly officer meeting
  *   Initiatives      — the plan (each initiative lists its actions)
  *   Actions          — all concrete work across initiatives
@@ -47,7 +47,7 @@ type NavItem = { key: StrategicNavKey; label: string; href: string };
  */
 const NAV_ITEMS: readonly NavItem[] = [
   { key: "command-center", label: "Overview", href: "/operations/command-center" },
-  { key: "data-360", label: "Data 360", href: "/operations/data-360" },
+  { key: "data-360", label: "Connected data", href: "/operations/data-360" },
   { key: "weekly-execution", label: "Weekly Execution", href: "/operations/weekly-execution" },
   { key: "initiatives", label: "Initiatives", href: "/operations/initiatives" },
   { key: "actions", label: "Actions", href: "/actions" },

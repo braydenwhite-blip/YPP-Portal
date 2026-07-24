@@ -293,7 +293,6 @@ export function HiringApplicationMaterialsEditor({
                         onChange={(e) =>
                           setProposal((prev) => ({ ...prev, [key]: e.target.value }))
                         }
-                        required={key === "chapterName"}
                       />
                     ) : (
                       <input

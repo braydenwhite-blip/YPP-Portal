@@ -132,7 +132,7 @@ export function TrendChart({
               fontSize: 12,
               color: surface.text,
             }}
-            labelFormatter={(t) => labelByT.get(String(t)) ?? String(t)}
+            labelFormatter={(label) => labelByT.get(String(label)) ?? String(label)}
             cursor={{ stroke: surface.axis, strokeDasharray: "3 3" }}
           />
           {legend ? (

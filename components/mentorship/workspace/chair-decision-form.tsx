@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Button, CardV2 } from "@/components/ui-v2";
 import { approveGoalReview, requestReviewChanges } from "@/lib/goal-review-actions";
 
 interface Props {
@@ -14,10 +15,8 @@ interface Props {
 }
 
 /**
- * The chair's approve / request-changes control, rendered inline on
- * /people/[id] (?panel=approve). Approval == release: points are awarded and
- * the review becomes visible to the mentee in one step. On success we refresh
- * in place — the panel becomes the released/returned state card on its own.
+ * Approve / request-changes — inline on ?panel=approve.
+ * Approval releases the review and awards points in one step.
  */
 export function ChairDecisionForm({
   reviewId,
@@ -32,7 +31,7 @@ export function ChairDecisionForm({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [chairComments, setChairComments] = useState("");
-  const [chairAdjustedBonus, setChairAdjustedBonus] = useState<string>("");
+  const [chairAdjustedBonus, setChairAdjustedBonus] = useState("");
   const [mode, setMode] = useState<"idle" | "approve" | "changes">("idle");
 
   const effectiveBonus =
@@ -43,22 +42,23 @@ export function ChairDecisionForm({
 
   if (currentStatus === "APPROVED") {
     return (
-      <div className="rounded-[12px] border border-line-soft bg-success-100 p-4 shadow-card">
-        <p className="m-0 text-[14px] font-bold text-success-700">Review approved &amp; released</p>
-        <p className="m-0 mt-1 text-[0.85rem] text-ink-muted">
-          This review has been approved and released to the mentee.
+      <CardV2 padding="md" className="border-l-4 border-l-complete-700">
+        <p className="m-0 text-[14px] font-semibold text-ink">Approved &amp; released</p>
+        <p className="m-0 mt-1 text-[13px] text-ink-muted">
+          {menteeName} can see this feedback now.
         </p>
-      </div>
+      </CardV2>
     );
   }
 
   function handleApprove() {
     if (
       !confirm(
-        `Approve this review and release it to ${menteeName}? This will award ${totalPoints} achievement points.`
+        `Approve and release to ${menteeName}? Awards ${totalPoints} achievement points.`
       )
-    )
+    ) {
       return;
+    }
     setError(null);
     setSuccess(null);
     const formData = new FormData();
@@ -70,8 +70,8 @@ export function ChairDecisionForm({
     startTransition(async () => {
       try {
         await approveGoalReview(formData);
-        setSuccess(`Approved! ${totalPoints} points awarded to ${menteeName}. Review released.`);
-        setTimeout(() => router.refresh(), 1200);
+        setSuccess(`Released. ${totalPoints} points awarded.`);
+        setTimeout(() => router.refresh(), 1000);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to approve");
       }
@@ -80,7 +80,7 @@ export function ChairDecisionForm({
 
   function handleRequestChanges() {
     if (!chairComments.trim()) {
-      setError("Please add comments explaining what changes are needed.");
+      setError("Add a short note on what needs to change.");
       return;
     }
     setError(null);
@@ -91,8 +91,8 @@ export function ChairDecisionForm({
     startTransition(async () => {
       try {
         await requestReviewChanges(formData);
-        setSuccess("Changes requested. The mentor has been notified.");
-        setTimeout(() => router.refresh(), 1200);
+        setSuccess("Sent back to the mentor.");
+        setTimeout(() => router.refresh(), 1000);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to request changes");
       }
@@ -100,31 +100,24 @@ export function ChairDecisionForm({
   }
 
   return (
-    <div className="rounded-[12px] border border-line-soft bg-surface p-4 shadow-card">
-      <p style={{ fontWeight: 700, marginBottom: "1rem" }}>Chair Decision</p>
+    <CardV2 padding="md" className="grid gap-4 border-l-4 border-l-brand-600">
+      <div>
+        <h3 className="m-0 text-[15px] font-semibold text-ink">Your decision</h3>
+        <p className="m-0 mt-1 text-[13px] text-ink-muted">
+          Approve releases feedback to {menteeName}. Request changes sends it back to the mentor.
+        </p>
+      </div>
 
-      {/* Mentor's bonus points */}
       {(bonusPoints > 0 || bonusReason) && (
-        <div
-          style={{
-            padding: "0.75rem 1rem",
-            background: "#fefce8",
-            border: "1px solid #fde68a",
-            borderRadius: "var(--radius-sm)",
-            marginBottom: "1rem",
-            fontSize: "0.85rem",
-          }}
-        >
-          <p style={{ fontWeight: 700, color: "#92400e", marginBottom: "0.3rem", fontSize: "0.82rem" }}>
-            Mentor&apos;s Character & Culture Bonus: {bonusPoints} pts
+        <div className="rounded-[10px] bg-surface-soft px-3 py-2.5 text-[13px]">
+          <p className="m-0 font-semibold text-ink">
+            Bonus suggested: {bonusPoints} pts
           </p>
-          {bonusReason && (
-            <p style={{ color: "var(--text)", fontSize: "0.82rem", margin: 0 }}>{bonusReason}</p>
-          )}
-          <div style={{ marginTop: "0.5rem" }}>
-            <label style={{ fontWeight: 600, fontSize: "0.78rem", color: "var(--muted)" }}>
-              Adjust bonus (leave blank to keep mentor&apos;s value):
-            </label>
+          {bonusReason ? (
+            <p className="m-0 mt-1 text-ink-muted">{bonusReason}</p>
+          ) : null}
+          <label className="mt-2 flex items-center gap-2 text-[12.5px] text-ink-muted">
+            Adjust
             <input
               type="number"
               min={0}
@@ -133,49 +126,40 @@ export function ChairDecisionForm({
               onChange={(e) => setChairAdjustedBonus(e.target.value)}
               placeholder={String(bonusPoints)}
               disabled={isPending}
-              style={{ width: "80px", marginLeft: "0.5rem" }}
+              className="w-16 rounded-md border border-line-soft bg-surface px-2 py-1 text-ink"
             />
-          </div>
+          </label>
         </div>
       )}
 
-      {/* Comments field */}
-      <div style={{ marginBottom: "1rem" }}>
-        <label style={{ fontWeight: 600, fontSize: "0.88rem" }}>
-          Chair Comments {mode === "changes" && <span style={{ color: "#ef4444" }}>*</span>}
+      <div className="grid gap-1.5">
+        <label className="text-[13px] font-medium text-ink">
+          Notes {mode === "changes" ? <span className="text-danger-700">*</span> : null}
         </label>
-        <p style={{ fontSize: "0.78rem", color: "var(--muted)", marginBottom: "0.4rem" }}>
-          {mode === "changes"
-            ? "Required — explain what changes the mentor needs to make."
-            : "Optional — add any notes for the mentor or mentee."}
-        </p>
         <textarea
           value={chairComments}
           onChange={(e) => setChairComments(e.target.value)}
           rows={3}
           placeholder={
             mode === "changes"
-              ? "Describe the specific changes needed…"
-              : "Optional feedback for the mentor…"
+              ? "What should the mentor change?"
+              : "Optional note…"
           }
-          style={{ width: "100%", resize: "vertical" }}
           disabled={isPending}
+          className="w-full resize-y rounded-[10px] border border-line-soft bg-surface px-3 py-2 text-[14px] text-ink outline-none focus:border-brand-400"
         />
       </div>
 
-      {error && (
-        <p style={{ color: "var(--color-error)", marginBottom: "0.75rem", fontWeight: 600 }}>{error}</p>
-      )}
-      {success && (
-        <p style={{ color: "var(--color-success)", marginBottom: "0.75rem", fontWeight: 600 }}>
-          {success}
-        </p>
-      )}
+      {error ? (
+        <p className="m-0 text-[13px] font-medium text-danger-700">{error}</p>
+      ) : null}
+      {success ? (
+        <p className="m-0 text-[13px] font-medium text-complete-700">{success}</p>
+      ) : null}
 
-      {/* Action buttons */}
-      <div style={{ display: "flex", gap: "0.75rem" }}>
-        <button
-          className="inline-flex items-center justify-center rounded-full bg-brand-600 px-4 py-2 text-[13.5px] font-semibold text-white transition-[filter] hover:brightness-95 disabled:opacity-60"
+      <div className="flex flex-wrap gap-2">
+        <Button
+          type="button"
           disabled={isPending}
           onClick={() => {
             setMode("approve");
@@ -183,19 +167,19 @@ export function ChairDecisionForm({
           }}
         >
           {isPending && mode === "approve" ? "Approving…" : "Approve & release"}
-        </button>
-        <button
-          className="inline-flex items-center justify-center rounded-full border border-line-soft bg-surface px-4 py-2 text-[13.5px] font-semibold text-ink transition-colors hover:bg-surface-soft disabled:opacity-60"
+        </Button>
+        <Button
+          type="button"
+          variant="secondary"
           disabled={isPending}
-          style={{ color: "#c2410c", borderColor: "#fed7aa" }}
           onClick={() => {
             setMode("changes");
             handleRequestChanges();
           }}
         >
-          {isPending && mode === "changes" ? "Requesting…" : "Request Changes"}
-        </button>
+          {isPending && mode === "changes" ? "Sending…" : "Request changes"}
+        </Button>
       </div>
-    </div>
+    </CardV2>
   );
 }

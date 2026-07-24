@@ -43,11 +43,17 @@ type UserRow = {
   chapterName: string | null;
   cohortId: string | null;
   cohortName: string | null;
+  orgFunctionId: string | null;
+  orgFunctionName: string | null;
+  orgDepartmentId: string | null;
+  orgDepartmentName: string | null;
   roles: string[];
 };
 
 type ChapterOption = { id: string; name: string; city: string | null };
 type CohortOption = { id: string; name: string };
+type FunctionOption = { id: string; name: string; slug: string };
+type DepartmentOption = { id: string; name: string; functionId: string | null };
 
 const ROLE_VALUES = Object.values(RoleType);
 
@@ -99,10 +105,14 @@ export function RoleManagement({
   users: initialUsers,
   chapters,
   cohorts: initialCohorts,
+  functions = [],
+  departments = [],
 }: {
   users: UserRow[];
   chapters: ChapterOption[];
   cohorts: CohortOption[];
+  functions?: FunctionOption[];
+  departments?: DepartmentOption[];
 }) {
   const [users, setUsers] = useState<UserRow[]>(initialUsers);
   const [cohorts, setCohorts] = useState<CohortOption[]>(initialCohorts);
@@ -121,7 +131,9 @@ export function RoleManagement({
         u.email.toLowerCase().includes(q) ||
         u.primaryRole.toLowerCase().includes(q) ||
         (u.canonicalTitle ?? "").toLowerCase().includes(q) ||
-        (u.cohortName ?? "").toLowerCase().includes(q)
+        (u.cohortName ?? "").toLowerCase().includes(q) ||
+        (u.orgFunctionName ?? "").toLowerCase().includes(q) ||
+        (u.orgDepartmentName ?? "").toLowerCase().includes(q)
     );
   }, [query, users]);
 
@@ -194,6 +206,8 @@ export function RoleManagement({
           user={editing}
           chapters={chapters}
           cohorts={cohorts}
+          functions={functions}
+          departments={departments}
           onClose={() => setEditing(null)}
           onSaved={(patch) => {
             patchUser(editing.id, patch);
@@ -399,6 +413,8 @@ function EditAccessModal({
   user,
   chapters,
   cohorts,
+  functions,
+  departments,
   onClose,
   onSaved,
   onError,
@@ -406,6 +422,8 @@ function EditAccessModal({
   user: UserRow;
   chapters: ChapterOption[];
   cohorts: CohortOption[];
+  functions: FunctionOption[];
+  departments: DepartmentOption[];
   onClose: () => void;
   onSaved: (patch: Partial<UserRow>) => void;
   onError: (message: string) => void;
@@ -415,7 +433,19 @@ function EditAccessModal({
   const [title, setTitle] = useState<string>(user.canonicalTitle ?? "");
   const [cohortId, setCohortId] = useState<string>(user.cohortId ?? NONE);
   const [chapterChoice, setChapterChoice] = useState<string>(KEEP);
+  const [orgFunctionId, setOrgFunctionId] = useState<string>(user.orgFunctionId ?? CLEAR);
+  const [orgDepartmentId, setOrgDepartmentId] = useState<string>(
+    user.orgDepartmentId ?? CLEAR
+  );
   const [pending, startTransition] = useTransition();
+
+  const departmentsForFunction = departments.filter(
+    (d) =>
+      !orgFunctionId ||
+      orgFunctionId === CLEAR ||
+      orgFunctionId === KEEP ||
+      d.functionId === orgFunctionId
+  );
 
   function toggleRole(value: string) {
     setRoles((prev) => {
@@ -436,6 +466,8 @@ function EditAccessModal({
           chapterId: chapterChoice,
           title: title ? title : CLEAR,
           cohortId,
+          orgFunctionId,
+          orgDepartmentId,
         });
         const meta = title ? TITLE_AUTHORITY[title as keyof typeof TITLE_AUTHORITY] : null;
         const cohort = cohorts.find((c) => c.id === cohortId) ?? null;
@@ -445,6 +477,14 @@ function EditAccessModal({
             : chapterChoice === KEEP
               ? { id: user.chapterId, name: user.chapterName }
               : chapters.find((c) => c.id === chapterChoice) ?? null;
+        const fn =
+          orgFunctionId === CLEAR
+            ? null
+            : functions.find((f) => f.id === orgFunctionId) ?? null;
+        const dept =
+          orgDepartmentId === CLEAR
+            ? null
+            : departments.find((d) => d.id === orgDepartmentId) ?? null;
         onSaved({
           primaryRole,
           roles: Array.from(roles),
@@ -455,6 +495,10 @@ function EditAccessModal({
           cohortName: cohortId === NONE ? null : cohort?.name ?? null,
           chapterId: chapter?.id ?? null,
           chapterName: chapter?.name ?? null,
+          orgFunctionId: fn?.id ?? null,
+          orgFunctionName: fn?.name ?? null,
+          orgDepartmentId: dept?.id ?? null,
+          orgDepartmentName: dept?.name ?? null,
         });
       } catch (error) {
         onError(error instanceof Error ? error.message : "Could not update access.");
@@ -573,6 +617,43 @@ function EditAccessModal({
             ))}
           </select>
         </label>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="font-medium">Function</span>
+            <select
+              className="rounded-lg border border-line bg-surface px-3 py-2"
+              value={orgFunctionId}
+              onChange={(e) => {
+                setOrgFunctionId(e.target.value);
+                setOrgDepartmentId(CLEAR);
+              }}
+            >
+              <option value={CLEAR}>— No function —</option>
+              {functions.map((fn) => (
+                <option key={fn.id} value={fn.id}>
+                  {fn.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="font-medium">Department</span>
+            <select
+              className="rounded-lg border border-line bg-surface px-3 py-2"
+              value={orgDepartmentId}
+              onChange={(e) => setOrgDepartmentId(e.target.value)}
+              disabled={!orgFunctionId || orgFunctionId === CLEAR}
+            >
+              <option value={CLEAR}>— No department —</option>
+              {departmentsForFunction.map((dept) => (
+                <option key={dept.id} value={dept.id}>
+                  {dept.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
       </div>
 
       <ModalFooterV2>

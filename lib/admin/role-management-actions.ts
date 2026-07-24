@@ -127,7 +127,39 @@ const SetUserAccessSchema = z.object({
   // Ladder/level expressed as a canonical title (e.g. "Senior Instructor").
   title: z.string().optional().default(KEEP),
   cohortId: z.string().optional().default(KEEP),
+  orgFunctionId: z.string().optional().default(KEEP),
+  orgDepartmentId: z.string().optional().default(KEEP),
 });
+
+async function resolveOrgFunctionPatch(
+  value: string
+): Promise<{ orgFunctionId?: string | null }> {
+  if (!value || value === KEEP) return {};
+  if (value === CLEAR || value === NONE) return { orgFunctionId: null };
+  const row = await prisma.orgFunction.findFirst({
+    where: { id: value, archivedAt: null },
+    select: { id: true },
+  });
+  if (!row) throw new Error("Selected function does not exist.");
+  return { orgFunctionId: value };
+}
+
+async function resolveOrgDepartmentPatch(
+  value: string,
+  functionId: string | null | undefined
+): Promise<{ orgDepartmentId?: string | null }> {
+  if (!value || value === KEEP) return {};
+  if (value === CLEAR || value === NONE) return { orgDepartmentId: null };
+  const row = await prisma.department.findFirst({
+    where: { id: value, archivedAt: null },
+    select: { id: true, functionId: true },
+  });
+  if (!row) throw new Error("Selected department does not exist.");
+  if (functionId && row.functionId && row.functionId !== functionId) {
+    throw new Error("Department must belong to the selected function.");
+  }
+  return { orgDepartmentId: value };
+}
 
 /**
  * Full save from the Role Management editor modal: primary role, the role list,
@@ -174,10 +206,23 @@ export async function setUserAccess(input: unknown) {
     adminSubtypeValues,
   });
 
-  const [chapterPatch, cohortPatch] = await Promise.all([
+  const [chapterPatch, cohortPatch, functionPatch] = await Promise.all([
     resolveChapterPatch(data.chapterId),
     resolveCohortPatch(data.cohortId),
+    resolveOrgFunctionPatch(data.orgFunctionId),
   ]);
+  const nextFunctionId =
+    functionPatch.orgFunctionId !== undefined
+      ? functionPatch.orgFunctionId
+      : undefined;
+  // When function is cleared, also clear department unless explicitly set.
+  const departmentPatch = await resolveOrgDepartmentPatch(
+    data.orgDepartmentId,
+    nextFunctionId ?? null
+  );
+  if (functionPatch.orgFunctionId === null && data.orgDepartmentId === KEEP) {
+    departmentPatch.orgDepartmentId = null;
+  }
   const ladderPatch = resolveLadderPatch(data.title);
 
   const ops: Prisma.PrismaPromise<unknown>[] = [
@@ -187,6 +232,8 @@ export async function setUserAccess(input: unknown) {
         primaryRole: access.primaryRole,
         ...chapterPatch,
         ...cohortPatch,
+        ...functionPatch,
+        ...departmentPatch,
         ...ladderPatch,
       },
     }),

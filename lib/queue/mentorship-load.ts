@@ -40,6 +40,8 @@ function cycleSignals(stage: MentorshipCycleStage, kickoffCompleted: boolean) {
   return {
     kickoffCompleted: kickoffCompleted || stage !== "KICKOFF_PENDING",
     reflectionDue: stage === "REFLECTION_DUE",
+    /** Meeting log is due after reflection, before feedback is written. */
+    meetingDue: stage === "REFLECTION_SUBMITTED",
     reviewDue: stage === "REFLECTION_SUBMITTED",
     reviewPendingChairApproval: stage === "REVIEW_SUBMITTED",
     reviewChangesRequested: stage === "CHANGES_REQUESTED",
@@ -175,6 +177,7 @@ export async function loadMentorshipQueueItems(
         releasedColorStatus: null,
         kickoffCompleted: sig.kickoffCompleted,
         reflectionDue: sig.reflectionDue,
+        meetingDue: sig.meetingDue,
         reviewDue: sig.reviewDue,
         reviewPendingChairApproval: sig.reviewPendingChairApproval,
         reviewChangesRequested: sig.reviewChangesRequested,

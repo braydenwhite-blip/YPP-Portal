@@ -67,12 +67,19 @@ export async function LinkedWorkEvidence({
 
   const openCommitments = commitments.filter((c) => !c.completed);
 
-  if (actions.length === 0 && openCommitments.length === 0) return null;
+  if (actions.length === 0 && openCommitments.length === 0) {
+    return (
+      <p className="m-0 text-[13px] text-ink-muted">
+        No open actions or follow-ups on file yet. Check Goals and Meetings for more.
+      </p>
+    );
+  }
 
   return (
-    <section className="rounded-[12px] border border-line-soft bg-surface-soft px-4 py-3">
-      <p className="m-0 text-[11.5px] font-bold uppercase tracking-[0.05em] text-ink-muted">
-        Their open work this cycle
+    <section className="rounded-[12px] border border-line-soft bg-surface px-3.5 py-3">
+      <p className="m-0 text-[13px] font-semibold text-ink">Open work</p>
+      <p className="m-0 mt-0.5 text-[12.5px] text-ink-muted">
+        Use this when deciding how they&apos;re doing
       </p>
       {actions.length > 0 ? (
         <ul className="m-0 mt-2 flex list-none flex-col gap-1.5 p-0">
@@ -93,8 +100,8 @@ export async function LinkedWorkEvidence({
       ) : null}
       {openCommitments.length > 0 ? (
         <>
-          <p className="m-0 mt-3 text-[11.5px] font-bold uppercase tracking-[0.05em] text-ink-muted">
-            Follow-up commitments
+          <p className="m-0 mt-3 text-[12px] font-semibold text-ink-muted">
+            Follow-ups from past reviews
           </p>
           <ul className="m-0 mt-1.5 flex list-none flex-col gap-1.5 p-0">
             {openCommitments.map((c) => (
@@ -105,9 +112,6 @@ export async function LinkedWorkEvidence({
                     {c.overdue ? "overdue — " : "due "}
                     {c.dueLabel}
                   </span>
-                ) : null}
-                {c.fromReviewLabel ? (
-                  <span className="text-[12px] text-ink-muted">· {c.fromReviewLabel}</span>
                 ) : null}
               </li>
             ))}

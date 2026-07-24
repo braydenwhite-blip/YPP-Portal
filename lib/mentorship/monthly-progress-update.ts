@@ -113,6 +113,7 @@ export async function loadMonthlyProgressUpdate(input: {
       id: true,
       startDate: true,
       mentorId: true,
+      menteeId: true,
       mentor: {
         select: { id: true, name: true },
       },
@@ -310,7 +311,14 @@ export async function loadMonthlyProgressUpdate(input: {
 
   return {
     leaderName: mentorship.mentee.name,
-    position: getUserTitle(mentorship.mentee),
+    position: getUserTitle({
+      title: mentorship.mentee.title,
+      primaryRole: mentorship.mentee.primaryRole,
+      canonicalTitle: mentorship.mentee.canonicalTitle,
+      internalLevel: mentorship.mentee.internalLevel,
+      ladder: mentorship.mentee.ladder,
+      adminSubtypes: mentorship.mentee.adminSubtypes.map((row) => row.subtype),
+    }),
     classOf,
     mentorName: mentorship.mentor.name,
     startMonthLabel: formatMonthLabel(mentorship.startDate),

@@ -1,104 +1,105 @@
 import { prisma } from "@/lib/prisma";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
+import {
+  ORG_DEPARTMENTS,
+  ORG_FUNCTIONS,
+  type OrgFunctionSlug,
+} from "@/lib/org/functions-departments";
 
 /**
- * Standing teams for the Action Tracker picker — five categories only.
- * Synced to the `Department` table via migration + `ensureStandingActionDepartments`.
+ * Standing Action Tracker departments — nested under Org Functions.
+ * Display as Function + Department (never "Operations - Technology").
  */
-export type ActionDepartmentGroup = "core" | "org";
-
-export type StandingActionDepartmentDef = {
-  name: string;
-  slug: string;
-  group: ActionDepartmentGroup;
-  description: string;
-};
-
-export const ACTION_DEPARTMENT_GROUP_LABELS: Record<ActionDepartmentGroup, string> = {
-  core: "Programs",
-  org: "Org",
-};
-
-/** Retired slugs — remapped or archived by migration; kept for reference in tests. */
-export const RETIRED_ACTION_DEPARTMENT_SLUGS = [
-  "mentorship",
-  "recruitment-hiring",
-  "partnerships",
-  "operations",
-  "fundraising",
-  "officers",
-  "board",
-  "instructional-affairs",
-  "community-partnerships",
-  "platform-operations",
-] as const;
-
-export const STANDING_ACTION_DEPARTMENTS: StandingActionDepartmentDef[] = [
-  {
-    name: "Instruction",
-    slug: "instruction",
-    group: "core",
-    description: "Classes, curriculum, teaching quality, and mentorship.",
-  },
-  {
-    name: "Chapters",
-    slug: "chapters",
-    group: "core",
-    description: "Local chapters, hiring, and community partnerships.",
-  },
-  {
-    name: "Tech",
-    slug: "tech",
-    group: "org",
-    description: "Portal, tooling, automation, and technical delivery.",
-  },
-  {
-    name: "Communications",
-    slug: "communications",
-    group: "org",
-    description: "Org messaging, announcements, fundraising outreach, and comms.",
-  },
-  {
-    name: "Social Media",
-    slug: "social-media",
-    group: "org",
-    description: "Social content, campaigns, and channel management.",
-  },
-];
-
-const SLUG_ORDER = new Map(STANDING_ACTION_DEPARTMENTS.map((d, index) => [d.slug, index]));
-const SLUG_TO_GROUP = new Map(STANDING_ACTION_DEPARTMENTS.map((d) => [d.slug, d.group]));
-const STANDING_SLUGS = STANDING_ACTION_DEPARTMENTS.map((d) => d.slug);
 
 export type ActionDepartmentOption = {
   id: string;
   name: string;
   slug: string | null;
-  group: ActionDepartmentGroup | null;
+  functionId: string | null;
+  functionName: string | null;
+  functionSlug: OrgFunctionSlug | null;
 };
 
-/** Upsert standing departments and archive retired teams so the picker stays at five. */
-export async function ensureStandingActionDepartments(): Promise<void> {
-  if (!isActionTrackerEnabled()) return;
+/** @deprecated use functionName — kept for older callers during transition */
+export type ActionDepartmentGroup = OrgFunctionSlug;
 
-  await Promise.all(
-    STANDING_ACTION_DEPARTMENTS.map((def) =>
-      prisma.department.upsert({
-        where: { slug: def.slug },
-        create: {
-          name: def.name,
-          slug: def.slug,
-          description: def.description,
-        },
-        update: {
-          name: def.name,
-          description: def.description,
-          archivedAt: null,
-        },
-      })
-    )
-  );
+export const ACTION_DEPARTMENT_GROUP_LABELS: Record<string, string> = {
+  "core-instruction": "Core Instruction",
+  operations: "Operations",
+  core: "Core Instruction",
+  org: "Operations",
+};
 
+/** Retired slugs — remapped or archived by migration; kept for tests. */
+export const RETIRED_ACTION_DEPARTMENT_SLUGS = [
+  "mentorship",
+  "recruitment-hiring",
+  "partnerships",
+  "operations",
+  "officers",
+  "board",
+  "instructional-affairs",
+  "community-partnerships",
+  "platform-operations",
+  "tech", // renamed to technology
+] as const;
+
+/** @deprecated Prefer ORG_DEPARTMENTS — standing list for Action Tracker. */
+export const STANDING_ACTION_DEPARTMENTS = ORG_DEPARTMENTS.map((d) => ({
+  name: d.name,
+  slug: d.slug,
+  group: d.functionSlug === "core-instruction" ? ("core" as const) : ("org" as const),
+  description: d.description,
+  functionSlug: d.functionSlug,
+}));
+
+const SLUG_ORDER = new Map(ORG_DEPARTMENTS.map((d, index) => [d.slug, index]));
+
+/** Ensure OrgFunction + Department rows exist and are linked. */
+export async function ensureOrgFunctionsAndDepartments(): Promise<void> {
+  for (const fn of ORG_FUNCTIONS) {
+    await prisma.orgFunction.upsert({
+      where: { slug: fn.slug },
+      create: {
+        name: fn.name,
+        slug: fn.slug,
+        description: fn.description,
+      },
+      update: {
+        name: fn.name,
+        description: fn.description,
+        archivedAt: null,
+      },
+    });
+  }
+
+  const functions = await prisma.orgFunction.findMany({
+    where: { slug: { in: ORG_FUNCTIONS.map((f) => f.slug) } },
+    select: { id: true, slug: true },
+  });
+  const functionIdBySlug = new Map(functions.map((f) => [f.slug, f.id]));
+
+  for (const dept of ORG_DEPARTMENTS) {
+    const functionId = functionIdBySlug.get(dept.functionSlug);
+    if (!functionId) continue;
+    await prisma.department.upsert({
+      where: { slug: dept.slug },
+      create: {
+        name: dept.name,
+        slug: dept.slug,
+        description: dept.description,
+        functionId,
+      },
+      update: {
+        name: dept.name,
+        description: dept.description,
+        functionId,
+        archivedAt: null,
+      },
+    });
+  }
+
+  // Archive renamed / retired teams
   await prisma.department.updateMany({
     where: {
       slug: { in: [...RETIRED_ACTION_DEPARTMENT_SLUGS] },
@@ -108,66 +109,125 @@ export async function ensureStandingActionDepartments(): Promise<void> {
   });
 }
 
+/** Upsert standing departments (Action Tracker). Also ensures Functions. */
+export async function ensureStandingActionDepartments(): Promise<void> {
+  if (!isActionTrackerEnabled()) {
+    // Still ensure taxonomy for people placement even if actions are off.
+    await ensureOrgFunctionsAndDepartments();
+    return;
+  }
+  await ensureOrgFunctionsAndDepartments();
+}
+
 export function enrichActionDepartmentOption(row: {
   id: string;
   name: string;
   slug: string | null;
+  functionId?: string | null;
+  function?: { id: string; name: string; slug: string } | null;
 }): ActionDepartmentOption {
+  const fn = row.function ?? null;
+  const catalog = row.slug
+    ? ORG_DEPARTMENTS.find((d) => d.slug === row.slug)
+    : undefined;
+  const functionSlug =
+    (fn?.slug as OrgFunctionSlug | undefined) ??
+    catalog?.functionSlug ??
+    null;
+  const functionName =
+    fn?.name ??
+    (functionSlug
+      ? ORG_FUNCTIONS.find((f) => f.slug === functionSlug)?.name ?? null
+      : null);
+
   return {
-    ...row,
-    group: row.slug ? (SLUG_TO_GROUP.get(row.slug) ?? null) : null,
+    id: row.id,
+    name: row.name,
+    slug: row.slug,
+    functionId: row.functionId ?? fn?.id ?? null,
+    functionName,
+    functionSlug,
   };
 }
 
 export function sortActionDepartmentOptions(
-  rows: Array<{ id: string; name: string; slug: string | null }>
+  rows: Array<{
+    id: string;
+    name: string;
+    slug: string | null;
+    functionId?: string | null;
+    function?: { id: string; name: string; slug: string } | null;
+  }>
 ): ActionDepartmentOption[] {
   return rows.map(enrichActionDepartmentOption).sort((a, b) => {
-    const ai = a.slug != null ? (SLUG_ORDER.get(a.slug) ?? 999) : 999;
-    const bi = b.slug != null ? (SLUG_ORDER.get(b.slug) ?? 999) : 999;
+    const ai = a.slug != null ? (SLUG_ORDER.get(a.slug as never) ?? 999) : 999;
+    const bi = b.slug != null ? (SLUG_ORDER.get(b.slug as never) ?? 999) : 999;
     if (ai !== bi) return ai - bi;
     return a.name.localeCompare(b.name);
   });
 }
 
 export function groupActionDepartments(departments: ActionDepartmentOption[]): Array<{
-  key: ActionDepartmentGroup | "other";
+  key: string;
   label: string;
   items: ActionDepartmentOption[];
 }> {
-  const buckets: Record<ActionDepartmentGroup | "other", ActionDepartmentOption[]> = {
-    core: [],
-    org: [],
-    other: [],
-  };
+  const buckets = new Map<string, ActionDepartmentOption[]>();
 
   for (const department of departments) {
-    const key =
-      department.slug && STANDING_SLUGS.includes(department.slug)
-        ? (SLUG_TO_GROUP.get(department.slug) ?? "other")
-        : "other";
-    buckets[key].push(department);
+    const key = department.functionSlug ?? "other";
+    const list = buckets.get(key) ?? [];
+    list.push(department);
+    buckets.set(key, list);
   }
 
-  const groups: Array<{
-    key: ActionDepartmentGroup | "other";
-    label: string;
-    items: ActionDepartmentOption[];
-  }> = [];
+  const groups: Array<{ key: string; label: string; items: ActionDepartmentOption[] }> = [];
 
-  for (const key of ["core", "org"] as const) {
-    if (buckets[key].length > 0) {
-      groups.push({
-        key,
-        label: ACTION_DEPARTMENT_GROUP_LABELS[key],
-        items: buckets[key],
-      });
+  for (const fn of ORG_FUNCTIONS) {
+    const items = buckets.get(fn.slug);
+    if (items?.length) {
+      groups.push({ key: fn.slug, label: fn.name, items });
+      buckets.delete(fn.slug);
     }
   }
 
-  if (buckets.other.length > 0) {
-    groups.push({ key: "other", label: "Other", items: buckets.other });
+  for (const [key, items] of buckets) {
+    if (items.length === 0) continue;
+    groups.push({
+      key,
+      label: ACTION_DEPARTMENT_GROUP_LABELS[key] ?? "Other",
+      items,
+    });
   }
 
   return groups;
+}
+
+export async function listActionDepartmentOptions(): Promise<ActionDepartmentOption[]> {
+  await ensureStandingActionDepartments();
+  const rows = await prisma.department.findMany({
+    where: {
+      archivedAt: null,
+      slug: { in: ORG_DEPARTMENTS.map((d) => d.slug) },
+    },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      functionId: true,
+      function: { select: { id: true, name: true, slug: true } },
+    },
+  });
+  return sortActionDepartmentOptions(rows);
+}
+
+export async function listOrgFunctionOptions(): Promise<
+  Array<{ id: string; name: string; slug: string }>
+> {
+  await ensureOrgFunctionsAndDepartments();
+  return prisma.orgFunction.findMany({
+    where: { archivedAt: null, slug: { in: ORG_FUNCTIONS.map((f) => f.slug) } },
+    select: { id: true, name: true, slug: true },
+    orderBy: { name: "asc" },
+  });
 }

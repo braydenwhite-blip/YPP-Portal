@@ -1,10 +1,9 @@
 import Link from "next/link";
 
-import { CardV2, StatusBadge, type StatusTone } from "@/components/ui-v2";
+import { StatusBadge, type StatusTone } from "@/components/ui-v2";
 import { formatEnum } from "@/lib/format-utils";
 import { getChairQueue } from "@/lib/goal-review-actions";
 import { getGoalRatingCopy } from "@/lib/mentorship-rubric-copy";
-import { getReviewHeadlineState, type ReviewStateTone } from "@/lib/mentorship-review-state";
 import {
   loadQuarterlyCommitteeQueue,
   scopeQuarterlyQueueForViewer,
@@ -12,10 +11,8 @@ import {
 import type { MenteeRoleType, MentorshipProgramGroup } from "@prisma/client";
 
 /**
- * The approval queues, folded into the Mentorship home — "who needs me and
- * why" lives on one page instead of separate Review Inbox / Committee Queue
- * destinations. Both sections render nothing when empty and every row
- * deep-links straight into the matching inline step on /people/[id].
+ * Approval queues on Mentorship home — compact rows, deep-link to the person.
+ * Self-hide when empty.
  */
 
 const RATING_TONE: Record<string, StatusTone> = {
@@ -25,19 +22,11 @@ const RATING_TONE: Record<string, StatusTone> = {
   BEHIND_SCHEDULE: "danger",
 };
 
-const STATE_TONE: Record<ReviewStateTone, StatusTone> = {
-  neutral: "neutral",
-  info: "info",
-  pending: "warning",
-  success: "success",
-  warning: "danger",
-};
-
 const QUARTERLY_STATUS_LABEL: Record<string, string> = {
   DRAFT: "Draft",
-  PENDING_CHAIR_APPROVAL: "Pending committee approval",
+  PENDING_CHAIR_APPROVAL: "Needs committee",
   CHANGES_REQUESTED: "Changes requested",
-  PENDING_BOARD_APPROVAL: "Pending Board approval",
+  PENDING_BOARD_APPROVAL: "Needs board",
 };
 
 const QUARTERLY_STATUS_TONE: Record<string, StatusTone> = {
@@ -51,77 +40,60 @@ function ratingLabel(rating: string): string {
   return getGoalRatingCopy(rating).label ?? formatEnum(rating);
 }
 
+function monthLabel(value: Date | string) {
+  return new Date(value).toLocaleDateString("en-US", {
+    month: "short",
+    year: "numeric",
+  });
+}
+
 /** Monthly reviews waiting on the viewer's chair approval. */
 export async function MonthlyApprovalQueue() {
-  // getChairQueue() authorizes internally — non-chairs get an empty list.
   const reviews = (await getChairQueue()) ?? [];
   if (reviews.length === 0) return null;
 
   return (
-    <section className="flex flex-col gap-3">
-      <div>
-        <h2 className="m-0 text-[16px] font-bold text-ink">
-          Waiting on your approval ({reviews.length})
+    <section className="overflow-hidden rounded-[16px] border border-line bg-surface">
+      <div className="border-b border-line-soft px-5 py-4">
+        <h2 className="m-0 text-[15px] font-semibold text-ink">
+          Approve reviews
+          <span className="ml-2 font-normal text-ink-muted">{reviews.length}</span>
         </h2>
         <p className="m-0 mt-0.5 text-[13px] text-ink-muted">
-          Approving releases the review to the mentee and awards points; returning it sends it back
-          to the mentor.
+          Release feedback to the mentee, or send it back.
         </p>
       </div>
-      {reviews.map((review) => {
-        const state = getReviewHeadlineState({ status: review.status });
-        return (
-          <Link
-            key={review.id}
-            href={`/mentorship/people/${review.menteeId}?section=reviews&panel=approve`}
-            className="group no-underline"
-          >
-            <CardV2
-              as="article"
-              padding="md"
-              className="flex flex-wrap items-center justify-between gap-4 border-l-4 border-l-brand-600 transition-shadow group-hover:shadow-overlay"
+      <ul className="m-0 list-none divide-y divide-line-soft p-0">
+        {reviews.map((review) => (
+          <li key={review.id}>
+            <Link
+              href={`/mentorship/people/${review.menteeId}?section=reviews&panel=approve`}
+              className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 no-underline transition-colors hover:bg-surface-soft"
             >
-              <div className="min-w-[260px] flex-1">
-                <div className="mb-1.5 flex flex-wrap items-center gap-2">
-                  <span className="text-[15px] font-bold text-ink">{review.menteeName}</span>
-                  <StatusBadge tone="neutral">{formatEnum(review.menteeRole ?? "")}</StatusBadge>
-                  {review.isQuarterly && <StatusBadge tone="brand">Quarterly</StatusBadge>}
-                </div>
-                <p className="m-0 text-[13px] text-ink-muted">
-                  Mentor: {review.mentorName} &middot; Cycle {review.cycleNumber} &middot;{" "}
-                  {new Date(review.cycleMonth).toLocaleDateString("en-US", {
-                    month: "long",
-                    year: "numeric",
-                  })}
+              <div className="min-w-0">
+                <p className="m-0 text-[14.5px] font-semibold text-ink">{review.menteeName}</p>
+                <p className="m-0 mt-0.5 text-[12.5px] text-ink-muted">
+                  {review.mentorName} · {monthLabel(review.cycleMonth)}
+                  {review.isQuarterly ? " · Quarterly" : ""}
                 </p>
               </div>
-
-              <div className="flex flex-wrap items-center gap-2.5">
+              <div className="flex items-center gap-2">
                 <StatusBadge tone={RATING_TONE[review.overallRating] ?? "neutral"}>
                   {ratingLabel(review.overallRating)}
                 </StatusBadge>
-                <StatusBadge tone={STATE_TONE[state.tone]} title={state.description}>
-                  {state.label}
-                </StatusBadge>
-                <span className="text-[13px] text-ink-muted">
-                  Submitted {new Date(review.submittedAt).toLocaleDateString()}
-                </span>
-                <span
-                  aria-hidden
-                  className="text-[18px] text-ink-muted transition-colors group-hover:text-brand-700"
-                >
-                  &rsaquo;
+                <span className="text-[16px] text-ink-muted" aria-hidden>
+                  →
                 </span>
               </div>
-            </CardV2>
-          </Link>
-        );
-      })}
+            </Link>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
 
-/** Everyone due for (or mid-) quarterly committee review, viewer-scoped. */
+/** Quarterly committee reviews due for this viewer. */
 export async function QuarterlyCommitteeQueue({
   viewerId,
   isAdminOrLeadership,
@@ -143,52 +115,41 @@ export async function QuarterlyCommitteeQueue({
   if (visible.length === 0) return null;
 
   return (
-    <section className="flex flex-col gap-3">
-      <div>
-        <h2 className="m-0 text-[16px] font-bold text-ink">
-          Quarterly committee reviews due ({visible.length})
+    <section className="overflow-hidden rounded-[16px] border border-line bg-surface">
+      <div className="border-b border-line-soft px-5 py-4">
+        <h2 className="m-0 text-[15px] font-semibold text-ink">
+          Quarterly reviews
+          <span className="ml-2 font-normal text-ink-muted">{visible.length}</span>
         </h2>
         <p className="m-0 mt-0.5 text-[13px] text-ink-muted">
-          Every third cycle the Role Committee reviews the last three months and may record a
-          Pathway Decision — the packet lives on each person&apos;s page.
+          Committee packets live on each person&apos;s page.
         </p>
       </div>
-      {visible.map((entry) => (
-        <Link
-          key={entry.mentorshipId}
-          href={`/mentorship/people/${entry.menteeId}?section=reviews`}
-          className="group no-underline"
-        >
-          <CardV2
-            as="article"
-            padding="md"
-            className="flex flex-wrap items-center justify-between gap-4 border-l-4 border-l-brand-600 transition-shadow group-hover:shadow-overlay"
-          >
-            <div className="min-w-[260px] flex-1">
-              <div className="mb-1.5 flex flex-wrap items-center gap-2">
-                <span className="text-[15px] font-bold text-ink">{entry.menteeName}</span>
-                {entry.menteeRole && (
-                  <StatusBadge tone="neutral">{entry.menteeRole.replace(/_/g, " ")}</StatusBadge>
-                )}
+      <ul className="m-0 list-none divide-y divide-line-soft p-0">
+        {visible.map((entry) => (
+          <li key={entry.mentorshipId}>
+            <Link
+              href={`/mentorship/people/${entry.menteeId}?section=reviews`}
+              className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 no-underline transition-colors hover:bg-surface-soft"
+            >
+              <div className="min-w-0">
+                <p className="m-0 text-[14.5px] font-semibold text-ink">{entry.menteeName}</p>
+                <p className="m-0 mt-0.5 text-[12.5px] text-ink-muted">
+                  {entry.mentorName ?? "Unassigned"} · {entry.quarter}
+                </p>
               </div>
-              <p className="m-0 text-[13px] text-ink-muted">
-                Mentor: {entry.mentorName ?? "Unassigned"} &middot; {entry.quarter}
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2.5">
-              <StatusBadge tone={entry.status ? QUARTERLY_STATUS_TONE[entry.status] : "warning"}>
-                {entry.status ? QUARTERLY_STATUS_LABEL[entry.status] : "Not started"}
-              </StatusBadge>
-              <span
-                aria-hidden
-                className="text-[18px] text-ink-muted transition-colors group-hover:text-brand-700"
-              >
-                &rsaquo;
-              </span>
-            </div>
-          </CardV2>
-        </Link>
-      ))}
+              <div className="flex items-center gap-2">
+                <StatusBadge tone={entry.status ? QUARTERLY_STATUS_TONE[entry.status] : "warning"}>
+                  {entry.status ? QUARTERLY_STATUS_LABEL[entry.status] : "Not started"}
+                </StatusBadge>
+                <span className="text-[16px] text-ink-muted" aria-hidden>
+                  →
+                </span>
+              </div>
+            </Link>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

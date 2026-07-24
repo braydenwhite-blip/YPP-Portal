@@ -971,6 +971,12 @@ model User {
   internalLevel        Int?
   ladder               OrgLadder?
   canonicalTitle       String?
+  /// Org Function (e.g. Operations, Core Instruction) — parent of Department.
+  orgFunctionId        String?
+  orgFunction          OrgFunction?          @relation("UserOrgFunction", fields: [orgFunctionId], references: [id], onDelete: SetNull)
+  /// Org Department within the Function (e.g. Technology, Fundraising, Leadership).
+  orgDepartmentId      String?
+  orgDepartment        Department?           @relation("UserOrgDepartment", fields: [orgDepartmentId], references: [id], onDelete: SetNull)
   cohortId             String?
   cohort               Cohort?               @relation(fields: [cohortId], references: [id])
   committeeMemberships CommitteeMembership[] @relation("CommitteeMembershipUser")
@@ -1636,12 +1642,22 @@ model User {
   consentRecordsForStudent           ConsentRecord[]               @relation("ConsentRecordStudent")
   consentRecordsAsGuardian           ConsentRecord[]               @relation("ConsentRecordGuardian")
 
+  // Manually logged instructor feedback (parent/student/partner email → portal)
+  instructorReceivedFeedback         InstructorReceivedFeedback[]  @relation("InstructorReceivedFeedbackSubject")
+  instructorReceivedFeedbackLogged   InstructorReceivedFeedback[]  @relation("InstructorReceivedFeedbackLoggedBy")
+  instructorReviewQuestionsUpdated   InstructorReviewQuestion[]    @relation("InstructorReviewQuestionUpdatedBy")
+  instructorReviewAnswersAuthored    InstructorReviewAnswer[]      @relation("InstructorReviewAnswerAuthor")
+  mentorshipNotesAbout               MentorshipNote[]              @relation("MentorshipNoteSubject")
+  mentorshipNotesAuthored            MentorshipNote[]              @relation("MentorshipNoteAuthor")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([archivedAt])
   @@index([provisionalStart])
   @@index([chapterId])
+  @@index([orgFunctionId])
+  @@index([orgDepartmentId])
 }
 
 model TwoFactorRecovery {
@@ -10299,6 +10315,8 @@ model MentorGoalReview {
   peopleCheckIns      CheckIn[]                      @relation("CheckInMentorGoalReview")
   /// Follow-up commitments created from this review's outcomes.
   followUpActionItems MentorshipActionItem[]         @relation("ActionItemsFromReview")
+  /// Configurable instructor review question answers (when mentee is an instructor).
+  reviewAnswers       InstructorReviewAnswer[]
 
   /// Draft next-month goal proposals persisted between form saves. Cleared on submit.
   nextMonthGoalDraftsJson Json?
@@ -10822,6 +10840,90 @@ model ChapterPresidentOnboarding {
 // ============================================
 // PARENT FEEDBACK & SURVEYS
 // ============================================
+
+/// Manually logged feedback an instructor received (e.g. forwarded email from
+/// a parent/student/partner). Admins and mentors add these; instructors cannot.
+enum InstructorFeedbackSource {
+  PARENT
+  OFFICER
+  STUDENT
+  PARTNER
+}
+
+model InstructorReceivedFeedback {
+  id           String                    @id @default(cuid())
+  instructorId String
+  instructor   User                      @relation("InstructorReceivedFeedbackSubject", fields: [instructorId], references: [id], onDelete: Cascade)
+  source       InstructorFeedbackSource
+  /// When the feedback was received (not when it was logged).
+  feedbackDate DateTime
+  category     String
+  rating       Int
+  comment      String?                   @db.Text
+  createdById  String
+  createdBy    User                      @relation("InstructorReceivedFeedbackLoggedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
+
+  @@index([instructorId, feedbackDate])
+  @@index([source, category])
+  @@index([createdById])
+}
+
+/// Admin-configurable questions mentors answer on monthly Goal Reviews (all mentee roles).
+model InstructorReviewQuestion {
+  id          String                         @id @default(cuid())
+  prompt      String
+  category    String?
+  sortOrder   Int                            @default(0)
+  isActive    Boolean                        @default(true)
+  /// JSON array of answer option strings, e.g. ["1","2","3","4","5"] or labels.
+  optionsJson String                         @db.Text
+  updatedById String?
+  updatedBy   User?                          @relation("InstructorReviewQuestionUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  answers     InstructorReviewAnswer[]
+  createdAt   DateTime                       @default(now())
+  updatedAt   DateTime                       @updatedAt
+
+  @@index([isActive, sortOrder])
+}
+
+model InstructorReviewAnswer {
+  id           String                   @id @default(cuid())
+  questionId   String
+  question     InstructorReviewQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  reviewId     String
+  review       MentorGoalReview         @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  instructorId String
+  /// Selected option label/value.
+  answer       String
+  /// Optional numeric rating derived from the selected option (for analytics).
+  rating       Int?
+  authorId     String
+  author       User                     @relation("InstructorReviewAnswerAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+
+  @@unique([reviewId, questionId])
+  @@index([instructorId, createdAt])
+  @@index([questionId])
+  @@index([authorId])
+}
+
+/// Ongoing mentorship notes attached to a mentee — visible while writing reviews.
+model MentorshipNote {
+  id        String   @id @default(cuid())
+  menteeId  String
+  mentee    User     @relation("MentorshipNoteSubject", fields: [menteeId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation("MentorshipNoteAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  body      String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([menteeId, createdAt])
+  @@index([authorId])
+}
 
 model ParentChapterFeedback {
   id             String             @id @default(cuid())
@@ -13562,6 +13664,27 @@ enum ActionCommentType {
 /// which the geographic `Chapter` model does not represent, so a small
 /// dedicated model is used here (permitted by the task's "otherwise minimal
 /// Department model" fallback). Kept intentionally light for v1.
+/// Top-level org Function (e.g. Operations, Core Instruction).
+/// Departments nest under a Function — never display as "Function - Department".
+model OrgFunction {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  slug        String    @unique
+  description String?   @db.Text
+  archivedAt  DateTime?
+
+  departments Department[] @relation("OrgFunctionDepartments")
+  users       User[]       @relation("UserOrgFunction")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([archivedAt])
+}
+
+/// Department within an Org Function (e.g. Technology under Operations,
+/// Leadership under Core Instruction). Used by Action Tracker teams and
+/// person org placement.
 model Department {
   id          String    @id @default(cuid())
   name        String    @unique
@@ -13569,13 +13692,19 @@ model Department {
   description String?   @db.Text
   archivedAt  DateTime?
 
+  /// Parent Function. Nullable only for legacy rows pending repair.
+  functionId String?
+  function   OrgFunction? @relation("OrgFunctionDepartments", fields: [functionId], references: [id], onDelete: SetNull)
+
   actionItems     ActionItem[]           @relation("DepartmentActionItems")
   actionItemLinks ActionItemDepartment[]
+  users           User[]                 @relation("UserOrgDepartment")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([archivedAt])
+  @@index([functionId])
 }
 
 /// Many-to-many link when an action spans more than one team. `ActionItem.departmentId`

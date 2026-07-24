@@ -36,9 +36,19 @@ async function requireMentor() {
   const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
   const roles = session.user.roles ?? [];
-  if (!roles.includes("MENTOR") && !roles.includes("ADMIN") && !roles.includes("CHAPTER_PRESIDENT")) {
-    throw new Error("Unauthorized");
+  if (
+    roles.includes("MENTOR") ||
+    roles.includes("ADMIN") ||
+    roles.includes("CHAPTER_PRESIDENT")
+  ) {
+    return session as typeof session & { user: { id: string } };
   }
+  // Assigned active mentors may write reviews even without the MENTOR role flag.
+  const activeMentorship = await prisma.mentorship.findFirst({
+    where: { mentorId: session.user.id, status: "ACTIVE" },
+    select: { id: true },
+  });
+  if (!activeMentorship) throw new Error("Unauthorized");
   return session as typeof session & { user: { id: string } };
 }
 
@@ -647,6 +657,7 @@ export async function saveGoalReview(formData: FormData) {
   revalidatePath("/mentorship/chair");
   revalidatePath(`/people/${reflection.mentorship.menteeId}`);
   revalidatePath(`/mentorship/people/${reflection.mentorship.menteeId}`);
+  return { ok: true as const, reviewId };
 }
 
 // ============================================
@@ -1397,7 +1408,7 @@ export async function requestReviewChanges(formData: FormData) {
     userId: review.mentor.id,
     title: "Review Changes Requested",
     body: `The chair has requested changes on your review for ${review.mentee.name}. Please review the feedback and update.`,
-    link: `/people/${review.menteeId}?section=review&panel=draft`,
+    link: `/mentorship/people/${review.menteeId}?section=reviews&panel=draft`,
   });
 
   revalidatePath("/mentorship/chair");

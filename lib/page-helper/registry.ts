@@ -3970,9 +3970,9 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
   },
   {
     pattern: "/operations/data-360",
-    title: "Data 360 · Operations",
+    title: "Connected data · Operations",
     content: {
-      purpose: "This page brings together the main tools and details for the data 360 · operations.",
+      purpose: "This page brings together the main tools and details for connected data in operations.",
       firstStep: "Start with the top section or first card so you can understand what is available before opening a deeper workspace.",
       nextStep: "Once you choose an item, use the linked page or tool to finish the next step and then return here if you need another option."
     }
@@ -4988,7 +4988,7 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
   },
   {
     pattern: "/data-360",
-    title: "Data 360",
+    title: "Org intelligence",
     content: {
       purpose: "This page gives you a clear cross-portal view of the data so you can spot what needs attention first.",
       firstStep: "Scan the top summary or first section, then open the item with the closest deadline or biggest blocker.",

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { hasRole } from "@/lib/authorization";
+import { findActiveMentorshipForMentee } from "@/lib/mentorship-canonical";
 
 /** Roles that always get the Mentorship hub (nav + /mentorship). */
 export const MENTORSHIP_HUB_ROLES = [
@@ -121,10 +122,7 @@ export async function hasMentorshipMenteeAccess(
  */
 export async function getInstructorMentorshipMembership(userId: string) {
   const [activeMenteePairing, activeMentorPairings] = await Promise.all([
-    prisma.mentorship.findFirst({
-      where: { menteeId: userId, status: "ACTIVE" },
-      select: { id: true },
-    }),
+    findActiveMentorshipForMentee(userId),
     prisma.mentorship.count({
       where: {
         status: "ACTIVE",

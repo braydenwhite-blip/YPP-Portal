@@ -26,7 +26,13 @@ function readableStatus(status: string): string {
 export default async function MyActionsCard({ viewer }: { viewer: ActionViewer }) {
   if (!isActionTrackerEnabled()) return null;
 
-  const items = selectUpcoming(await getMyActionItems(viewer.id, viewer));
+  let items: Awaited<ReturnType<typeof getMyActionItems>> = [];
+  try {
+    items = selectUpcoming(await getMyActionItems(viewer.id, viewer));
+  } catch (error) {
+    console.error("[MyActionsCard] failed to load action items", error);
+    return null;
+  }
   const now = new Date();
   const top = items.slice(0, 5);
 

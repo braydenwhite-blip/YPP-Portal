@@ -31,7 +31,7 @@ export default async function GoalsPage() {
       normalizeRoleList(session!.user.roles ?? [])
     )
   ) {
-    redirect(`/people/${userId}?section=review`);
+    redirect(`/mentorship/people/${userId}?section=reviews`);
   }
 
   const currentMonth = new Date();

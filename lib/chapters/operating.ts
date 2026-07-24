@@ -27,9 +27,9 @@ export const CHAPTER_REQUIRED_ROLES = [
  * and unarchived so it appears in filters and applicant dropdowns.
  */
 export async function ensureOperatingChapters(): Promise<
-  Array<{ id: string; name: string }>
+  Array<{ id: string; name: string; isPublic: boolean }>
 > {
-  const results: Array<{ id: string; name: string }> = [];
+  const results: Array<{ id: string; name: string; isPublic: boolean }> = [];
 
   for (const chapter of OPERATING_CHAPTERS) {
     const existing = await prisma.chapter.findFirst({
@@ -52,7 +52,7 @@ export async function ensureOperatingChapters(): Promise<
           isPublic: true,
           lifecycleStatus: "ACTIVE",
         },
-        select: { id: true, name: true },
+        select: { id: true, name: true, isPublic: true },
       });
       results.push(created);
       continue;
@@ -74,11 +74,15 @@ export async function ensureOperatingChapters(): Promise<
           archivedAt: null,
           archivedById: null,
         },
-        select: { id: true, name: true },
+        select: { id: true, name: true, isPublic: true },
       });
       results.push(updated);
     } else {
-      results.push({ id: existing.id, name: existing.name });
+      results.push({
+        id: existing.id,
+        name: existing.name,
+        isPublic: existing.isPublic,
+      });
     }
   }
 

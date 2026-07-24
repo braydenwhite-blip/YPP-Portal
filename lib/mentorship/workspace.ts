@@ -9,7 +9,7 @@ import {
   type DevelopmentRecord,
 } from "@/lib/development/record";
 import { loadPersonGrowthTimeline } from "@/lib/growth/queries";
-import { mentorshipRequiresChairApproval } from "@/lib/mentorship-canonical";
+import { findActiveMentorshipForMentee, mentorshipRequiresChairApproval } from "@/lib/mentorship-canonical";
 import {
   computeCycleStage,
   getCurrentCycleMonth,
@@ -286,23 +286,7 @@ export async function resolveWorkspaceAccess(
   const isAdmin = viewer.roles.includes("ADMIN");
   const [leadership, activeMentorship, personForLane] = await Promise.all([
     hasMentorshipCommandAccess(viewer),
-    prisma.mentorship.findFirst({
-      where: { menteeId: personId, status: "ACTIVE" },
-      orderBy: { startDate: "desc" },
-      select: {
-        id: true,
-        mentorId: true,
-        chairId: true,
-        startDate: true,
-        status: true,
-        kickoffCompletedAt: true,
-        cycleStage: true,
-        programGroup: true,
-        governanceMode: true,
-        mentor: { select: { name: true, email: true } },
-        chair: { select: { name: true, email: true } },
-      },
-    }),
+    findActiveMentorshipForMentee(personId),
     prisma.user.findUnique({ where: { id: personId }, select: { primaryRole: true } }),
   ]);
 

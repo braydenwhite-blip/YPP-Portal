@@ -159,7 +159,7 @@ export default async function InterviewerWorkspacePage({
               href={`/admin/instructor-applicants/${id}`}
               className="whitespace-nowrap text-[12.5px] font-semibold text-brand-700 hover:underline"
             >
-              Application 360 →
+              Application record →
             </Link>
           ) : null}
           <Link

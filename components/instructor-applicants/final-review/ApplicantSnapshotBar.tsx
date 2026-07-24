@@ -84,7 +84,7 @@ export default function ApplicantSnapshotBar({
           href={`/admin/instructor-applicants/${application.id}`}
           className="whitespace-nowrap text-[12.5px] font-semibold text-brand-700 hover:underline"
         >
-          Application 360 →
+          Application record →
         </Link>
         <QueueNavigator
           currentId={application.id}

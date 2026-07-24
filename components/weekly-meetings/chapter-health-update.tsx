@@ -191,7 +191,7 @@ export function ChapterHealthUpdateTable({ update }: { update: ChapterHealthUpda
           href="/data-360?tab=chapters"
           className="text-[12px] font-semibold text-brand-700 hover:underline"
         >
-          Open in Data 360 →
+          Open in Connected data →
         </Link>
       </div>
       <p className="m-0 mb-3 text-[12.5px] text-ink-muted">

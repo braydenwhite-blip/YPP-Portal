@@ -27,7 +27,7 @@ const ADMIN_DOMAINS: AdminDomain[] = [
       {
         href: "/people",
         label: "People Hub",
-        description: "Find people, open 360s, manage classes, and (for leadership) performance check-ins",
+        description: "Find people, open records, manage classes, and (for leadership) performance check-ins",
       },
       { href: "/admin/classes", label: "Manage Classes", description: "Class review queue, publishing, rosters, and logistics gaps" },
       { href: "/admin/bulk-users", label: "Users & Roles", description: "Import, export, and edit accounts, roles, and access" },

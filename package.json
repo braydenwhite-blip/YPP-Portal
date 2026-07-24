@@ -59,6 +59,7 @@
     "migrate:users:validate-csv": "node scripts/import-users-from-csv.mjs",
     "cleanup:non-scarsdale-chapters": "tsx scripts/cleanup-non-scarsdale-chapters.ts",
     "repair:user-chapters": "tsx scripts/repair-user-chapters.ts",
+    "repair:portal-labels": "tsx scripts/repair-portal-labels.ts",
     "archive:all-applications": "tsx scripts/archive-all-applications.ts",
     "backfill:weekly-impact-rows": "node scripts/backfill-weekly-impact-rows.mjs"
   },
@@ -103,7 +104,7 @@
     "qrcode": "^1.5.4",
     "react": "18.2.0",
     "react-dom": "18.2.0",
-    "recharts": "^3.9.1",
+    "recharts": "^3.10.0",
     "resend": "^6.9.1",
     "tailwind-merge": "^3.6.0",
     "tailwindcss": "^4.3.0",

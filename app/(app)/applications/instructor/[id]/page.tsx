@@ -483,7 +483,7 @@ export default async function ApplicantCockpitPage({
               href={`/admin/instructor-applicants/${application.id}`}
               className="text-[13px] font-semibold text-brand-700 hover:underline"
             >
-              Application 360 →
+              Application record →
             </Link>
           ) : null}
         </div>

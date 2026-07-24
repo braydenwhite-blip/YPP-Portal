@@ -88,6 +88,10 @@ export interface PublicProfile {
   title: string;
   primaryRole: string | null;
   chapterName: string | null;
+  /** Org Function (e.g. Operations) — separate from Department. */
+  functionName: string | null;
+  /** Org Department (e.g. Technology) — nested under Function. */
+  departmentName: string | null;
   bio: string | null;
   avatarUrl: string | null;
   location: string | null;
@@ -244,6 +248,8 @@ export async function loadPublicProfile(
       createdAt: true,
       adminSubtypes: { select: { subtype: true } },
       chapter: { select: { name: true } },
+      orgFunction: { select: { name: true } },
+      orgDepartment: { select: { name: true } },
       profile: {
         select: {
           bio: true,
@@ -389,6 +395,8 @@ export async function loadPublicProfile(
     title: profileTitle,
     primaryRole: user.primaryRole,
     chapterName,
+    functionName: user.orgFunction?.name ?? null,
+    departmentName: user.orgDepartment?.name ?? null,
     bio: user.profile?.bio ?? null,
     avatarUrl: user.profile?.avatarUrl ?? null,
     location: locationLabel(user.profile?.city, user.profile?.stateProvince),

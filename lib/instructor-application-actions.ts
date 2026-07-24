@@ -718,13 +718,13 @@ export async function scheduleInstructorInterviewOnRecord(input: {
     });
     if (!application) return { success: false, error: "Application not found." };
 
-    const terminal = [
+    const terminal = new Set<InstructorApplicationStatus>([
       InstructorApplicationStatus.APPROVED,
       InstructorApplicationStatus.REJECTED,
       InstructorApplicationStatus.WITHDRAWN,
       InstructorApplicationStatus.WAITLISTED,
-    ];
-    if (terminal.includes(application.status)) {
+    ]);
+    if (terminal.has(application.status)) {
       return { success: false, error: "This application can no longer be scheduled." };
     }
 
