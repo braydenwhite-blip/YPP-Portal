@@ -155,7 +155,7 @@ export type UserChapterRepairRow = {
   name: string | null;
   primaryRole: string;
   fromChapter: string | null;
-  toChapter: string;
+  toChapter: string | null;
   reason: string;
 };
 
@@ -209,10 +209,10 @@ export async function planUserChapterRepairs(): Promise<{
       continue;
     }
 
-    const inferred =
-      inferOperatingChapterName(current?.name) ??
-      ("Scarsdale" as OperatingChapterName);
-    const targetName = byName.has(inferred) ? inferred : "Scarsdale";
+    const inferred = inferOperatingChapterName(current?.name);
+    const targetName = inferred && byName.has(inferred) ? inferred : null;
+
+    if (!targetName) continue;
 
     repairs.push({
       userId: user.id,
@@ -237,7 +237,9 @@ export async function applyUserChapterRepairs(
 
   let updated = 0;
   for (const row of repairs) {
-    const chapterId = byName.get(row.toChapter);
+    const targetName = row.toChapter;
+    if (!targetName) continue;
+    const chapterId = byName.get(targetName);
     if (!chapterId) continue;
     await prisma.user.update({
       where: { id: row.userId },

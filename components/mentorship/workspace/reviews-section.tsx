@@ -38,10 +38,10 @@ const RATING_TONE: Record<string, StatusTone> = {
 };
 
 const RATING_ACCENT: Record<string, string> = {
-  ABOVE_AND_BEYOND: "border-l-brand-600",
-  ACHIEVED: "border-l-complete-700",
-  GETTING_STARTED: "border-l-progress-700",
-  BEHIND_SCHEDULE: "border-l-blocked-700",
+  ABOVE_AND_BEYOND: "border-l-purple-600",
+  ACHIEVED: "border-l-green-600",
+  GETTING_STARTED: "border-l-yellow-600",
+  BEHIND_SCHEDULE: "border-l-red-600",
 };
 
 function formatMonth(value: Date) {
