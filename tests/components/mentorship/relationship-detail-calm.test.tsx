@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { RelationshipDetailCalm } from "@/components/mentorship/calm";
+import { RelationshipDetailCalm } from "@/components/mentorship/calm/relationship-detail-calm";
 
 describe("RelationshipDetailCalm", () => {
   it("leads with the status, the focus, and the active goals", () => {
