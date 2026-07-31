@@ -15,6 +15,7 @@ import {
   type PublicClassInput,
   type SignupAvailability,
 } from "@/lib/classes/public-catalog";
+import { formatClassScheduleLabel } from "@/lib/classes/format-schedule-label";
 
 type CatalogRow = {
   id: string;
@@ -23,6 +24,7 @@ type CatalogRow = {
   startDate: Date | null;
   meetingDays: string[];
   meetingTime: string | null;
+  timezone: string | null;
   deliveryMode: string;
   locationName: string | null;
   room: string | null;
@@ -43,6 +45,7 @@ const CATALOG_SELECT = {
   startDate: true,
   meetingDays: true,
   meetingTime: true,
+  timezone: true,
   deliveryMode: true,
   locationName: true,
   room: true,
@@ -58,7 +61,12 @@ const CATALOG_SELECT = {
 
 function scheduleLabel(o: CatalogRow): string {
   if (o.meetingDays.length === 0 || !o.meetingTime) return "Schedule TBD";
-  return `${o.meetingDays.join(", ")} · ${o.meetingTime}`;
+  return formatClassScheduleLabel({
+    meetingDays: o.meetingDays,
+    meetingTime: o.meetingTime,
+    timezone: o.timezone,
+    emptyScheduleLabel: "Schedule TBD",
+  });
 }
 function locationLabel(o: CatalogRow): string {
   if (o.deliveryMode === "VIRTUAL") return "Online";

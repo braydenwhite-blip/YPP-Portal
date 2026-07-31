@@ -22,7 +22,6 @@ import {
 import { mentorCardNeedsAttention } from "./_components/mentor-priority-list";
 import { MonthlyApprovalQueue, QuarterlyCommitteeQueue } from "./_components/approval-queues";
 import { MentorHomeCalm } from "./_components/mentor-home-calm";
-import { SegmentedTabs } from "./_components/segmented-tabs";
 import { EmptyStateEditorial } from "./_components/empty-state-editorial";
 import { AdminMentorshipHome } from "./_components/admin-home-calm";
 import { MentorshipRoleChooser } from "./_components/role-chooser";
@@ -40,15 +39,9 @@ import { prisma } from "@/lib/prisma";
  *   (home)  → role cards for whatever sides the viewer holds
  *   people  → org-wide People & workload roster
  *   mentor  → coaching console
- *   admin   → goals / G&R setup
+ *   admin   → G&R templates
  *   me      → own development workspace (/mentorship/people/[id])
  */
-
-const POV_LABELS: Record<HubPov, string> = {
-  me: "Mentee",
-  mentor: "Mentor",
-  admin: "Goals",
-};
 
 function povHref(pov: HubPov): string {
   return `/mentorship?view=${pov}`;
@@ -185,73 +178,73 @@ export default async function MentorshipPage(
   }
 
   const pov = resolvePov(facts, requestedView);
-  const dualRole = facts.isMentee && (facts.isMentor || facts.isChair || facts.isAdmin);
 
   const header = (
     <PageHeaderV2
       eyebrow="Mentorship"
-      title={pov === "mentor" ? "Your mentees" : pov === "admin" ? "Goals" : "Mentorship"}
+      title={pov === "mentor" ? "Your mentees" : pov === "admin" ? "G&R templates" : "Mentorship"}
       subtitle={
         pov === "mentor"
           ? "Coach them, write reviews, approve when you’re the chair."
           : pov === "admin"
-            ? "Create and assign Goals & Responsibilities."
-            : "One place to run development — yours, your mentees', and the whole org's."
+            ? "Create templates and assign Current G&R."
+            : undefined
       }
+      backHref={pov === "admin" ? "/mentorship" : undefined}
+      backLabel={pov === "admin" ? "Mentorship" : undefined}
       actions={
-        dualRole ? (
-          <ButtonLink
-            href={
-              pov === "mentor"
-                ? `/mentorship/people/${userId}`
-                : povHref("mentor")
-            }
-            variant="secondary"
-            size="sm"
-          >
-            {pov === "mentor" ? "Your own mentorship →" : "Open as mentor →"}
+        pov === "mentor" && facts.isMentee ? (
+          <ButtonLink href={`/mentorship/people/${userId}`} variant="secondary" size="sm">
+            Your own mentorship →
           </ButtonLink>
         ) : undefined
       }
-    >
-      {povs.includes("admin") && povs.length > 1 ? (
-        <SegmentedTabs
-          ariaLabel="Mentorship view"
-          activeId={pov}
-          tabs={povs
-            .filter((p) => p !== "me")
-            .map((p) => ({
-              id: p,
-              label: POV_LABELS[p],
-              href: povHref(p),
-            }))}
-        />
-      ) : null}
-    </PageHeaderV2>
+    />
   );
 
-  // ── Admin POV — the full admin cockpit. ────────────────────────────────────
-  // Available to any ADMIN (parity with the old /admin/mentorship gate) and to
-  // leadership with command-center access; the leadership-only overview blocks
-  // (review cycles + lifecycle lanes) stay behind commandAccess.
+  // ── Admin POV — simple G&R templates (not the oversight cockpit). ─────────
   if (pov === "admin") {
-    return (
-      <div className={`${skin.portalSkin} flex flex-col gap-6`}>
-        {header}
-        {spString(searchParams, "tab") ? (
+    const tab = spString(searchParams, "tab");
+    const advancedCockpitTabs = new Set([
+      "overview",
+      "needs-attention",
+      "assignments",
+      "capacity",
+      "approvals",
+      "committees",
+      "analytics",
+    ]);
+
+    // Goals / templates / bare admin → simple G&R page.
+    // Other tab values keep the legacy oversight cockpit for power users.
+    if (tab && advancedCockpitTabs.has(tab)) {
+      return (
+        <div className={`${skin.portalSkin} flex flex-col gap-6`}>
+          <PageHeaderV2
+            eyebrow="Mentorship"
+            title="Mentorship admin"
+            subtitle="Program oversight."
+            backHref="/mentorship?view=admin"
+            backLabel="G&R templates"
+          />
           <AdminMentorshipCockpit
             showLeadershipOverview={commandAccess}
             searchParams={{
-              tab: spString(searchParams, "tab"),
+              tab,
               lane: spString(searchParams, "lane"),
               who: spString(searchParams, "who"),
               menteeId: spString(searchParams, "menteeId"),
               supportRole: spString(searchParams, "supportRole"),
             }}
           />
-        ) : (
-          <AdminMentorshipHome viewer={session.user} />
-        )}
+        </div>
+      );
+    }
+
+    return (
+      <div className={`${skin.portalSkin} flex flex-col gap-6`}>
+        {header}
+        <AdminMentorshipHome />
       </div>
     );
   }

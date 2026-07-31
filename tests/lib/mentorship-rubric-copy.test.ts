@@ -9,20 +9,35 @@ import {
 } from "@/lib/mentorship-rubric-copy";
 
 describe("mentorship rubric copy", () => {
-  it("uses supportive mentee-facing red copy while preserving admin severity", () => {
-    const copy = getGoalRatingCopy("BEHIND_SCHEDULE");
+  it("uses the Leadership Goals & Rubric rating labels", () => {
+    expect(getGoalRatingCopy("ABOVE_AND_BEYOND").label).toBe("Above & Beyond");
+    expect(getGoalRatingCopy("ABOVE_AND_BEYOND").mentorDescription).toContain(
+      "Dramatically exceeds"
+    );
+    expect(getGoalRatingCopy("ACHIEVED").label).toBe("On Track");
+    expect(getGoalRatingCopy("ACHIEVED").mentorDescription).toBe("All bullets met.");
+    expect(getGoalRatingCopy("GETTING_STARTED").label).toBe("Needs Attention");
+    expect(getGoalRatingCopy("GETTING_STARTED").mentorDescription).toContain(
+      "Some bullets met"
+    );
+    expect(getGoalRatingCopy("BEHIND_SCHEDULE").label).toBe("At Risk");
+    expect(getGoalRatingCopy("BEHIND_SCHEDULE").mentorDescription).toBe(
+      "Major deficiencies present."
+    );
+  });
 
+  it("keeps At Risk as the admin-attention flag", () => {
+    const copy = getGoalRatingCopy("BEHIND_SCHEDULE");
     expect(copy.shortLabel).toBe("Red");
-    expect(copy.menteeLabel).toBe("Needs focused support");
+    expect(copy.menteeLabel).toBe("At Risk");
     expect(copy.adminDescription).toContain("requires admin attention");
     expect(ratingRequiresAdminAttention("BEHIND_SCHEDULE")).toBe(true);
   });
 
-  it("maps ProgressStatus ON_TRACK to the green meaning", () => {
+  it("maps ProgressStatus ON_TRACK to On Track", () => {
     const copy = getProgressStatusCopy("ON_TRACK");
-
     expect(copy.shortLabel).toBe("Green");
-    expect(copy.menteeLabel).toBe("On track");
+    expect(copy.label).toBe("On Track");
     expect(copy.adminAttention).toBe(false);
   });
 
@@ -40,12 +55,10 @@ describe("mentorship rubric copy", () => {
     const mentor = getRatingCopyForAudience("BEHIND_SCHEDULE", "mentor");
     const admin = getRatingCopyForAudience("BEHIND_SCHEDULE", "admin");
 
-    // Mentee copy stays supportive; operator copy stays operationally blunt.
-    expect(mentee.label).toBe("Needs focused support");
-    expect(mentor.label).toBe("Serious Concern");
+    expect(mentee.label).toBe("At Risk");
+    expect(mentor.label).toBe("At Risk");
     expect(admin.description).toContain("requires admin attention");
 
-    // The shared color/flag metadata is preserved across audiences.
     expect(mentee.color).toBe(admin.color);
     expect(admin.adminAttention).toBe(true);
   });

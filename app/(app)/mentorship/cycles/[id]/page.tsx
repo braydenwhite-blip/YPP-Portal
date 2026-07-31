@@ -64,7 +64,7 @@ function rowCta(
         ? { label: "Record review", href: "/people/quarterly-reviews" }
         : {
             label: "Write progress update",
-            href: `/mentorship/people/${p.userId}?section=reviews&panel=draft`,
+            href: `/mentorship/people/${p.userId}?section=progress`,
           };
     case "ready-for-chair":
       return {

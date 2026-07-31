@@ -1408,7 +1408,7 @@ export async function requestReviewChanges(formData: FormData) {
     userId: review.mentor.id,
     title: "Review Changes Requested",
     body: `The chair has requested changes on your review for ${review.mentee.name}. Please review the feedback and update.`,
-    link: `/mentorship/people/${review.menteeId}?section=reviews&panel=draft`,
+    link: `/mentorship/people/${review.menteeId}?section=progress`,
   });
 
   revalidatePath("/mentorship/chair");

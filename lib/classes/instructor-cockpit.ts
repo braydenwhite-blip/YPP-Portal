@@ -31,6 +31,7 @@ import {
   type CockpitSession,
   type InstructorCockpit,
 } from "@/lib/classes/cockpit";
+import { formatClassScheduleLabel } from "@/lib/classes/format-schedule-label";
 
 const CONFIRMED_RIA: RegularInstructorAssignmentStatus[] = [
   "INSTRUCTOR_CONFIRMED",
@@ -52,6 +53,7 @@ export type OfferingRow = {
   startDate: Date | null;
   meetingDays: string[];
   meetingTime: string | null;
+  timezone: string | null;
   deliveryMode: string;
   locationName: string | null;
   room: string | null;
@@ -87,6 +89,7 @@ export const OFFERING_SELECT = {
   startDate: true,
   meetingDays: true,
   meetingTime: true,
+  timezone: true,
   deliveryMode: true,
   locationName: true,
   room: true,
@@ -120,7 +123,12 @@ export const OFFERING_SELECT = {
 
 function scheduleLabel(o: OfferingRow): string {
   if (o.meetingDays.length === 0 || !o.meetingTime) return "Schedule TBD";
-  return `${o.meetingDays.join(", ")} · ${o.meetingTime}`;
+  return formatClassScheduleLabel({
+    meetingDays: o.meetingDays,
+    meetingTime: o.meetingTime,
+    timezone: o.timezone,
+    emptyScheduleLabel: "Schedule TBD",
+  });
 }
 
 function locationLabel(o: OfferingRow): string {

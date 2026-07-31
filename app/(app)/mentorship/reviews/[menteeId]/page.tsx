@@ -1,10 +1,8 @@
 import { redirect } from "next/navigation";
 
 /**
- * Retired: writing a monthly review now happens as an in-page panel on
- * /people/[id] (the "Draft review" control inside the Active Review Cycle
- * flow), not a separate route. See components/mentorship/goal-review-form.tsx
- * for the reused form.
+ * Retired: writing a monthly progress update happens on Progress
+ * (`?section=progress`), not a separate route.
  */
 export default async function MonthlyReviewEditorRedirect({
   params,
@@ -12,5 +10,5 @@ export default async function MonthlyReviewEditorRedirect({
   params: Promise<{ menteeId: string }>;
 }) {
   const { menteeId } = await params;
-  redirect(`/mentorship/people/${menteeId}?section=reviews&panel=draft`);
+  redirect(`/mentorship/people/${menteeId}?section=progress`);
 }

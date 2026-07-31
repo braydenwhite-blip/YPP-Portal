@@ -16,11 +16,19 @@ type GoalLifecycleStatus = "ACTIVE" | "COMPLETED" | "ARCHIVED";
 type GRTimePhase = "FIRST_MONTH" | "FIRST_QUARTER" | "FULL_YEAR" | "LONG_TERM" | "MONTHLY";
 
 interface KPIValue { value: string; measuredAt: string; notes: string | null }
+interface KPITarget {
+  definitionId: string;
+  label: string;
+  targetValue: string | null;
+  unit: string | null;
+}
 interface Goal {
   id: string; title: string; description: string; timePhase: GRTimePhase;
   isCustom: boolean; lifecycleStatus: GoalLifecycleStatus; progressState: GoalProgressState;
   priority: GoalPriority; dueDate: string | null; completedAt: string | null;
-  rating: GoalRatingColor | null; ratingComments: string | null; kpiValues: KPIValue[];
+  rating: GoalRatingColor | null; ratingComments: string | null;
+  kpiTarget: KPITarget | null;
+  kpiValues: KPIValue[];
 }
 interface SuccessCriteria { timePhase: GRTimePhase; criteria: string }
 interface Resource { title: string; url: string; description: string | null }
@@ -220,6 +228,34 @@ function GoalCard({ goal, history }: { goal: Goal; history?: Array<{ cycleNumber
         {goal.description}
       </p>
 
+      {goal.kpiTarget?.targetValue ? (
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "baseline",
+            gap: "0.35rem",
+            marginBottom: "0.5rem",
+            padding: "0.35rem 0.65rem",
+            borderRadius: 999,
+            background: "#f5f3ff",
+            color: "#5b21b6",
+            fontSize: "0.8rem",
+            fontWeight: 600,
+          }}
+        >
+          <span>
+            Target: {goal.kpiTarget.targetValue}
+            {goal.kpiTarget.unit ? ` ${goal.kpiTarget.unit}` : ""}
+          </span>
+          {goal.kpiValues[0]?.value != null ? (
+            <span style={{ fontWeight: 500, color: "#6b7280" }}>
+              · latest {goal.kpiValues[0].value}
+              {goal.kpiTarget.unit ? ` ${goal.kpiTarget.unit}` : ""}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+
       <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", alignItems: "center", fontSize: "0.78rem" }}>
         {due && (
           <span style={{ color: isOverdue ? "#b91c1c" : "var(--muted)", fontWeight: isOverdue ? 600 : 400 }}>
@@ -236,10 +272,14 @@ function GoalCard({ goal, history }: { goal: Goal; history?: Array<{ cycleNumber
 
       {goal.kpiValues.length > 0 && (
         <div style={{ marginTop: "0.6rem", borderTop: "1px solid var(--border)", paddingTop: "0.4rem" }}>
-          <p style={{ fontSize: "0.75rem", fontWeight: 600, marginBottom: "0.2rem" }}>KPI Values</p>
+          <p style={{ fontSize: "0.75rem", fontWeight: 600, marginBottom: "0.2rem" }}>
+            Progress log
+          </p>
           {goal.kpiValues.map((kpi, i) => (
             <div key={i} style={{ fontSize: "0.78rem", color: "var(--muted)" }}>
-              {kpi.value} — {new Date(kpi.measuredAt).toLocaleDateString()}
+              {kpi.value}
+              {goal.kpiTarget?.unit ? ` ${goal.kpiTarget.unit}` : ""} —{" "}
+              {new Date(kpi.measuredAt).toLocaleDateString()}
               {kpi.notes && <span> ({kpi.notes})</span>}
             </div>
           ))}

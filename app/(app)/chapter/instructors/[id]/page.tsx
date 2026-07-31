@@ -67,7 +67,7 @@ export default async function InstructorDetailPage(
           </p>
         </div>
         <Link
-          href={`/mentorship/people/${instructor.id}?section=reviews&panel=draft`}
+          href={`/mentorship/people/${instructor.id}?section=progress`}
           className="button"
           style={{ textDecoration: "none" }}
         >

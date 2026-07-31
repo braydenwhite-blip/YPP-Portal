@@ -22,7 +22,6 @@ import { MonthlyFeedbackPanel } from "./monthly-feedback-panel";
 import { QuarterlyReviewSection } from "./quarterly-review-section";
 import { ReviewDraftPanel } from "./review-draft-panel";
 import { InstructorReviewFeedbackContext } from "./instructor-review-feedback-context";
-import { LinkedWorkEvidence } from "./linked-work-evidence";
 
 /**
  * Feedback tab — one calm job at a time.
@@ -175,13 +174,13 @@ export async function ReviewsSection({
   // Mentee: questions + released feedback only.
   if (isSelf) {
     return (
-      <div className="mx-auto flex w-full max-w-2xl flex-col gap-5">
+      <div className="mx-auto flex w-full max-w-4xl flex-col gap-5">
         <header>
           <h2 className="m-0 text-[20px] font-semibold tracking-[-0.02em] text-ink">
             Feedback
           </h2>
           <p className="m-0 mt-1 text-[13.5px] text-ink-muted">
-            Answer questions from your mentor here.
+            Answer your mentor’s questions — examples stay on the side as you write.
           </p>
         </header>
 
@@ -194,6 +193,7 @@ export async function ReviewsSection({
             canCompose={false}
             canAnswer={canAnswer}
             menteeFirstName={menteeFirst}
+            roleLabel={person.roleLabel}
           />
         ) : null}
 
@@ -248,111 +248,81 @@ export async function ReviewsSection({
     );
   }
 
-  // Mentor / admin browse — calm: next action, history, notes. Questions tucked away.
-  const draftHref = `${sectionHref("reviews")}${
-    sectionHref("reviews").includes("?") ? "&" : "?"
-  }panel=draft`;
+  // Mentor / admin — monthly Q&A is the main process; context stays secondary.
+  const progressHref = sectionHref("progress");
+  const feedbackAnswered = currentForm?.status === "ANSWERED";
   const canOfferWrite =
     capabilities.canDraftReview &&
-    (nextAction.key === "write-review" ||
+    (feedbackAnswered ||
+      nextAction.key === "write-review" ||
       nextAction.key === "revise-review" ||
       lifecycle.cycleStage === "CHANGES_REQUESTED" ||
       lifecycle.cycleStage === "REFLECTION_SUBMITTED");
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
       <header>
-        <h2 className="m-0 text-[20px] font-semibold tracking-[-0.02em] text-ink">
-          Evaluate {menteeFirst}
+        <h2 className="m-0 text-[22px] font-semibold tracking-[-0.02em] text-ink">
+          Feedback
         </h2>
-        <p className="m-0 mt-1 text-[13.5px] text-ink-muted">
-          Look at their work and what others have said — then write the monthly review when
-          it&apos;s due.
+        <p className="m-0 mt-1 text-[14px] text-ink-muted">
+          Same split as G&amp;R: goals by role/cohort, examples for{" "}
+          {menteeFirst} that you set — then send and write Progress.
         </p>
       </header>
 
+      {activeMentorshipId && currentForm && canCompose ? (
+        <MonthlyFeedbackPanel
+          mentorshipId={activeMentorshipId}
+          personId={person.id}
+          current={currentForm}
+          past={pastForms}
+          canCompose={canCompose}
+          canAnswer={false}
+          menteeFirstName={menteeFirst}
+          roleLabel={person.roleLabel}
+          progressHref={progressHref}
+        />
+      ) : !activeMentorshipId ? (
+        <EmptyStateV2
+          title="No active mentorship"
+          body="Monthly questions show up once a mentorship is active."
+        />
+      ) : null}
+
       {canOfferWrite ? (
         <Link
-          href={draftHref}
-          className="rounded-[14px] border border-brand-200 bg-brand-50 px-4 py-3.5 no-underline transition-colors hover:bg-brand-100"
+          href={progressHref}
+          className="rounded-[14px] border border-line bg-surface px-4 py-3.5 no-underline transition-colors hover:border-brand-300 hover:bg-surface-soft"
         >
           <p className="m-0 text-[15px] font-semibold text-ink">
             {lifecycle.cycleStage === "CHANGES_REQUESTED"
-              ? `Fix ${menteeFirst}'s review`
-              : `Write ${menteeFirst}'s monthly review`}
+              ? "Finish the progress update"
+              : "Write progress update"}
           </p>
           <p className="m-0 mt-0.5 text-[13px] text-ink-muted">
-            Their work and others&apos; feedback stay on the page while you write.
+            Opens Progress — skim their answers, then write and send the update.
           </p>
         </Link>
       ) : null}
 
-      <section className="flex flex-col gap-3">
-        <div>
-          <h3 className="m-0 text-[15px] font-semibold text-ink">Their work</h3>
-          <p className="m-0 mt-0.5 text-[13px] text-ink-muted">
-            Goals and open items to judge progress against
-          </p>
+      <details className="rounded-[14px] border border-line-soft bg-surface px-4 py-3">
+        <summary className="cursor-pointer list-none text-[14px] font-semibold text-ink marker:content-none [&::-webkit-details-marker]:hidden">
+          What others said &amp; notes
+          <span className="ml-2 font-normal text-ink-muted">
+            Parent · board · mentor · officer
+          </span>
+        </summary>
+        <div className="mt-4 border-t border-line-soft pt-4">
+          <InstructorReviewFeedbackContext
+            instructorId={person.id}
+            density="calm"
+          />
         </div>
-        <div className="flex flex-wrap gap-2 text-[13px]">
-          <Link
-            href={sectionHref("goals")}
-            className="rounded-full border border-line-soft bg-surface px-3 py-1.5 font-medium text-ink no-underline hover:bg-surface-soft"
-          >
-            Goals
-            <span className="ml-1.5 font-normal text-ink-muted">
-              {workspace.goals.activeGoals > 0
-                ? `${workspace.goals.activeGoals} active`
-                : "not set up"}
-            </span>
-          </Link>
-          <Link
-            href={sectionHref("check-ins")}
-            className="rounded-full border border-line-soft bg-surface px-3 py-1.5 font-medium text-ink no-underline hover:bg-surface-soft"
-          >
-            Meetings
-            <span className="ml-1.5 font-normal text-ink-muted">
-              {workspace.checkIns.length === 0
-                ? "none yet"
-                : `${workspace.checkIns.length} logged`}
-            </span>
-          </Link>
-          <Link
-            href={sectionHref("progress")}
-            className="rounded-full border border-line-soft bg-surface px-3 py-1.5 font-medium text-ink no-underline hover:bg-surface-soft"
-          >
-            Progress update
-          </Link>
-        </div>
-        {workspace.goals.progressLabel ? (
-          <p className="m-0 text-[13px] text-ink-muted">{workspace.goals.progressLabel}</p>
-        ) : null}
-        <LinkedWorkEvidence menteeId={person.id} commitments={commitments} />
-      </section>
-
-      <InstructorReviewFeedbackContext instructorId={person.id} density="calm" />
-
-      {activeMentorshipId && currentForm && canCompose ? (
-        <details className="rounded-[12px] border border-line-soft px-3.5 py-2.5">
-          <summary className="cursor-pointer text-[13px] font-semibold text-ink">
-            Send {menteeFirst} questions
-          </summary>
-          <div className="mt-3">
-            <MonthlyFeedbackPanel
-              mentorshipId={activeMentorshipId}
-              personId={person.id}
-              current={currentForm}
-              past={pastForms}
-              canCompose={canCompose}
-              canAnswer={false}
-              menteeFirstName={menteeFirst}
-            />
-          </div>
-        </details>
-      ) : null}
+      </details>
 
       {capabilities.canRunQuarterlyReview && lifecycle.quarterlyDue ? (
-        <details className="rounded-[12px] border border-line-soft px-3.5 py-2.5">
+        <details className="rounded-[14px] border border-line-soft px-4 py-3">
           <summary className="cursor-pointer text-[13px] font-semibold text-ink-muted">
             Quarterly review
           </summary>

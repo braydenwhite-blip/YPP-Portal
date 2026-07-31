@@ -13,6 +13,8 @@
  * server and client components and is trivially unit-testable.
  */
 
+import { formatMeetingTimeRange } from "@/lib/class-meeting-time";
+
 export type PublicClassStatus =
   | "OPEN"
   | "ALMOST_FULL"
@@ -246,12 +248,13 @@ export function formatScheduleSummary(input: {
   sessionCount?: number | null;
   meetingDays?: string[] | null;
   meetingTime?: string | null;
+  timezone?: string | null;
   startDate?: Date | string | null;
   endDate?: Date | string | null;
 }): string {
   const count = input.sessionCount ?? null;
   const days = formatMeetingDays(input.meetingDays);
-  const time = input.meetingTime?.trim() || "";
+  const time = formatMeetingTimeRange(input.meetingTime, input.timezone);
   const range = formatClassDateRange(input.startDate, input.endDate);
 
   if (count === 1) {

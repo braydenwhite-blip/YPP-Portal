@@ -2,6 +2,7 @@
 
 import { useTransition, useState } from "react";
 import { activateGRDocument, reviewGRGoalChange, assignGRDocument } from "@/lib/gr-actions";
+import { formatEnum } from "@/lib/format-utils";
 
 interface Document {
   id: string;
@@ -43,6 +44,31 @@ const STATUS_COLORS: Record<string, string> = {
   PENDING_APPROVAL: "#eab308",
   ARCHIVED: "#9ca3af",
 };
+
+const ROLE_LABELS: Record<string, string> = {
+  INSTRUCTOR: "Instructors",
+  CHAPTER_PRESIDENT: "Chapter Presidents",
+  GLOBAL_LEADERSHIP: "Global Leadership",
+};
+
+function assignableTemplates(templates: TemplateOption[]) {
+  return templates.filter(
+    (t) => t.status === "GR_APPROVED" || t.status === "GR_DRAFT" || t.status === "IN_REVIEW"
+  );
+}
+
+function templateOptionLabel(t: TemplateOption) {
+  const role = ROLE_LABELS[t.roleType] ?? formatEnum(t.roleType);
+  const status =
+    t.status === "GR_APPROVED"
+      ? null
+      : t.status === "GR_DRAFT"
+        ? "Draft"
+        : t.status === "IN_REVIEW"
+          ? "In review"
+          : formatEnum(t.status);
+  return status ? `${t.title} (${role} · ${status})` : `${t.title} (${role})`;
+}
 
 export default function GRAssignmentsPanel({
   documents,
@@ -233,15 +259,18 @@ export default function GRAssignmentsPanel({
               Template
               <select name="templateId" className="input" required>
                 <option value="">Select a template...</option>
-                {templates
-                  .filter((t) => t.status === "GR_APPROVED")
-                  .map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.title} ({t.roleType})
-                    </option>
-                  ))}
+                {assignableTemplates(templates).map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {templateOptionLabel(t)}
+                  </option>
+                ))}
               </select>
             </label>
+            {assignableTemplates(templates).length === 0 ? (
+              <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--muted)" }}>
+                No templates yet. Create one above and add goals first.
+              </p>
+            ) : null}
             <label>
               User ID
               <input name="userId" className="input" required placeholder="User CUID" />

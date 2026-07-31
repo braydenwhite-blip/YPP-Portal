@@ -1,13 +1,33 @@
 import Link from "next/link";
 
-import { ButtonLink, EmptyStateV2 } from "@/components/ui-v2";
+import { EmptyStateV2 } from "@/components/ui-v2";
 import type {
   InstructorTeachingWorkspace,
   TeachingClass,
 } from "@/lib/classes/instructor-workspace";
 
-function nextLabel(teachingClass: TeachingClass) {
-  if (!teachingClass.nextSession) return "No upcoming session scheduled";
+/** Stable Classroom-style cover colors — one per class, not all brand purple. */
+const COVER_PALETTE = [
+  { from: "#1a73e8", to: "#174ea6" },
+  { from: "#0d904f", to: "#0b8043" },
+  { from: "#d93025", to: "#a50e0e" },
+  { from: "#e37400", to: "#b06000" },
+  { from: "#9334e6", to: "#681da8" },
+  { from: "#00786a", to: "#005f56" },
+  { from: "#e52592", to: "#c2185b" },
+  { from: "#5f6368", to: "#3c4043" },
+] as const;
+
+function coverForClass(id: string) {
+  let hash = 0;
+  for (let i = 0; i < id.length; i += 1) {
+    hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  }
+  return COVER_PALETTE[hash % COVER_PALETTE.length]!;
+}
+
+function nextSessionLine(teachingClass: TeachingClass) {
+  if (!teachingClass.nextSession) return "No upcoming session";
   const session = teachingClass.nextSession;
   const when = new Intl.DateTimeFormat("en-US", {
     weekday: "short",
@@ -15,117 +35,146 @@ function nextLabel(teachingClass: TeachingClass) {
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
+    hour12: true,
     timeZone: teachingClass.timezone,
+    timeZoneName: "short",
   }).format(session.state.startsAt);
-  return `${when} · Session ${session.sessionNumber}: ${session.topic}`;
+  return `${when} · ${session.topic}`;
+}
+
+function needsAttention(teachingClass: TeachingClass) {
+  return (
+    teachingClass.primaryAction != null ||
+    teachingClass.leadershipRequests.length > 0 ||
+    teachingClass.studentAttention.length > 0
+  );
 }
 
 export function InstructorClassesList({ workspace }: { workspace: InstructorTeachingWorkspace }) {
   return (
-    <main className="mx-auto w-full max-w-[1040px] px-4 pb-20 pt-7 sm:px-6 lg:px-8 lg:pt-10">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="m-0 text-[12px] font-bold uppercase tracking-[0.09em] text-brand-700">Teaching</p>
-          <h1 className="m-0 mt-2 text-[28px] font-semibold tracking-[-0.03em] text-ink sm:text-[34px]">Classes</h1>
-          <p className="m-0 mt-2 max-w-2xl text-[14px] leading-6 text-ink-muted">
-            Every class you have accepted responsibility for, shown once with its next session and next required action.
-          </p>
-        </div>
-        <ButtonLink href="/" variant="ghost" size="sm">Back to instructor home</ButtonLink>
-      </header>
-
-      {workspace.activeClasses.length === 0 ? (
-        <div className="mt-8">
-          <EmptyStateV2
-            title="No active classes assigned"
-            body="A class appears here after you are assigned as the lead instructor or accept a teaching assignment."
-          />
-        </div>
-      ) : (
-        <section className="mt-8 divide-y divide-line-card overflow-hidden rounded-[18px] border border-line-card bg-surface shadow-card">
-          {workspace.activeClasses.map((teachingClass) => (
-            <ClassResponsibility key={teachingClass.id} teachingClass={teachingClass} />
-          ))}
-        </section>
-      )}
-
-      {workspace.completedClasses.length > 0 ? (
-        <details className="mt-8 rounded-[14px] border border-line-card bg-surface">
-          <summary className="cursor-pointer px-5 py-4 text-[14px] font-semibold text-ink">
-            Completed classes ({workspace.completedClasses.length})
-          </summary>
-          <div className="divide-y divide-line-card border-t border-line-card">
-            {workspace.completedClasses.map((teachingClass) => (
-              <ClassResponsibility key={teachingClass.id} teachingClass={teachingClass} compact />
-            ))}
+    <main className="min-h-[calc(100vh-4rem)] bg-[#f8f9fa]">
+      <div className="mx-auto w-full max-w-[1180px] px-4 pb-20 pt-8 sm:px-6 lg:px-8 lg:pt-10">
+        <header className="mb-8 flex items-end justify-between gap-4">
+          <div>
+            <h1 className="m-0 text-[28px] font-normal tracking-[-0.02em] text-[#202124] sm:text-[32px]">
+              Classes
+            </h1>
+            <p className="m-0 mt-1 text-[14px] text-[#5f6368]">
+              Your teaching classes — open one to run sessions, roster, and materials.
+            </p>
           </div>
-        </details>
-      ) : null}
+          <Link
+            href="/"
+            className="shrink-0 text-[13.5px] font-medium text-brand-700 no-underline hover:underline"
+          >
+            Home
+          </Link>
+        </header>
+
+        {workspace.activeClasses.length === 0 ? (
+          <EmptyStateV2
+            title="No classes yet"
+            body="A class shows up here after you are assigned as lead instructor or accept a teaching assignment."
+          />
+        ) : (
+          <section
+            aria-label="Active classes"
+            className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3"
+          >
+            {workspace.activeClasses.map((teachingClass) => (
+              <ClassCard key={teachingClass.id} teachingClass={teachingClass} />
+            ))}
+          </section>
+        )}
+
+        {workspace.completedClasses.length > 0 ? (
+          <section className="mt-12" aria-label="Completed classes">
+            <h2 className="m-0 mb-4 text-[14px] font-medium uppercase tracking-[0.06em] text-[#5f6368]">
+              Completed ({workspace.completedClasses.length})
+            </h2>
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+              {workspace.completedClasses.map((teachingClass) => (
+                <ClassCard key={teachingClass.id} teachingClass={teachingClass} muted />
+              ))}
+            </div>
+          </section>
+        ) : null}
+      </div>
     </main>
   );
 }
 
-function ClassResponsibility({
+function ClassCard({
   teachingClass,
-  compact = false,
+  muted = false,
 }: {
   teachingClass: TeachingClass;
-  compact?: boolean;
+  muted?: boolean;
 }) {
-  const prep = teachingClass.nextSession?.state.preparation;
+  const cover = coverForClass(teachingClass.id);
+  const href = teachingClass.primaryAction?.href ?? `/instructor/classes/${teachingClass.id}`;
+  const attention = !muted && needsAttention(teachingClass);
+  const studentCount = teachingClass.roster.length;
+
   return (
-    <article className="p-5 sm:p-6">
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <Link href={`/instructor/classes/${teachingClass.id}`} className="text-[18px] font-semibold tracking-[-0.015em] text-ink hover:text-brand-700 hover:underline">
-              {teachingClass.title}
-            </Link>
-            <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-muted">
-              {teachingClass.status.replaceAll("_", " ").toLowerCase()}
-            </span>
-          </div>
-          <p className="m-0 mt-2 text-[13px] font-medium text-ink">{nextLabel(teachingClass)}</p>
-          {!compact ? (
-            <>
-              <p className="m-0 mt-2 text-[13.5px] leading-5 text-ink-muted">{teachingClass.stateReason}</p>
-              <dl className="mt-4 grid gap-3 text-[12.5px] sm:grid-cols-3">
-                <div>
-                  <dt className="font-semibold text-ink-muted">Preparation</dt>
-                  <dd className="m-0 mt-1 text-ink">
-                    {prep ? (prep.complete ? "Complete" : prep.incompleteReasons[0]) : "No upcoming session"}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="font-semibold text-ink-muted">YPP waiting</dt>
-                  <dd className="m-0 mt-1 text-ink">
-                    {teachingClass.leadershipRequests.length > 0
-                      ? `${teachingClass.leadershipRequests.length} recorded request${teachingClass.leadershipRequests.length === 1 ? "" : "s"}`
-                      : "Nothing recorded"}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="font-semibold text-ink-muted">Student follow-up</dt>
-                  <dd className="m-0 mt-1 text-ink">
-                    {teachingClass.studentAttention.length > 0
-                      ? `${teachingClass.studentAttention.length} actionable reason${teachingClass.studentAttention.length === 1 ? "" : "s"}`
-                      : "None open"}
-                  </dd>
-                </div>
-              </dl>
-            </>
-          ) : null}
-        </div>
-        <ButtonLink
-          href={teachingClass.primaryAction?.href ?? `/instructor/classes/${teachingClass.id}`}
-          variant={teachingClass.primaryAction ? "primary" : "secondary"}
-          size="md"
-          className="self-start"
-        >
-          {teachingClass.primaryAction?.label ?? "View class recap"}
-        </ButtonLink>
+    <Link
+      href={href}
+      className={[
+        "group flex flex-col overflow-hidden rounded-2xl border border-[#dadce0] bg-white no-underline shadow-[0_1px_2px_rgba(60,64,67,0.08)] transition-[box-shadow,transform] duration-200",
+        "hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(60,64,67,0.14)]",
+        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600",
+        muted ? "opacity-80" : "",
+      ].join(" ")}
+    >
+      <div
+        className="relative h-[112px] px-4 pb-3 pt-4 text-white"
+        style={{
+          background: `linear-gradient(135deg, ${cover.from} 0%, ${cover.to} 100%)`,
+        }}
+      >
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 opacity-[0.12]"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle at 85% 20%, #fff 0, transparent 42%), radial-gradient(circle at 10% 90%, #fff 0, transparent 36%)",
+          }}
+        />
+        <h2 className="relative m-0 line-clamp-2 text-[18px] font-medium leading-snug tracking-[-0.01em]">
+          {teachingClass.title}
+        </h2>
+        <p className="relative m-0 mt-1.5 line-clamp-1 text-[12.5px] text-white/85">
+          {teachingClass.scheduleLabel || teachingClass.deliveryMode.replaceAll("_", " ")}
+        </p>
       </div>
-    </article>
+
+      <div className="flex flex-1 flex-col gap-3 px-4 py-3.5">
+        <p className="m-0 line-clamp-2 min-h-[2.5rem] text-[13px] leading-5 text-[#3c4043]">
+          {nextSessionLine(teachingClass)}
+        </p>
+
+        <div className="mt-auto flex items-center justify-between gap-2 border-t border-[#f1f3f4] pt-3">
+          <span className="text-[12.5px] text-[#5f6368]">
+            {studentCount === 0
+              ? "No students yet"
+              : `${studentCount} student${studentCount === 1 ? "" : "s"}`}
+          </span>
+          {attention ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#fef7e0] px-2 py-0.5 text-[11.5px] font-medium text-[#b06000]">
+              <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[#e37400]" />
+              Needs attention
+            </span>
+          ) : muted ? (
+            <span className="text-[11.5px] font-medium uppercase tracking-[0.04em] text-[#80868b]">
+              Done
+            </span>
+          ) : (
+            <span className="text-[12.5px] font-medium text-brand-700 opacity-0 transition-opacity group-hover:opacity-100">
+              Open →
+            </span>
+          )}
+        </div>
+      </div>
+    </Link>
   );
 }
-

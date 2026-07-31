@@ -78,6 +78,13 @@ function saveState(key: string, state: NavState): void {
   }
 }
 
+/** Unlock CTA is for local iteration only — never on deployed hosts. */
+function hostIsLocalDev(): boolean {
+  if (typeof window === "undefined") return false;
+  const host = window.location.hostname;
+  return host === "localhost" || host === "127.0.0.1" || host.startsWith("127.");
+}
+
 function matchesSearch(item: NavLink, searchLower: string): boolean {
   if (!searchLower) return true;
 
@@ -307,9 +314,14 @@ export default function Nav({
   const [search, setSearch] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
   const searchLower = search.trim().toLowerCase();
+  const [showLocalUnlockCta, setShowLocalUnlockCta] = useState(false);
 
   const [moreOpen, setMoreOpen] = useState(false);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    setShowLocalUnlockCta(hostIsLocalDev());
+  }, []);
 
   const defaultGroupState = useMemo(() => {
     const next: Record<string, boolean> = {};
@@ -518,7 +530,9 @@ export default function Nav({
           gate: it only appears once the viewer is past the gate (a valid
           preview passcode, an officer bypass, or the gate disabled entirely) —
           mirroring middleware, which redirects gated users away from /site-map.
-          So "see everything" is reachable then and only then. */}
+          So "see everything" is reachable then and only then.
+          The "Unlock hidden portal areas" CTA stays localhost-only so deployed
+          users never see the internal preview doorway. */}
       {model.leadershipSimpleNav === true ? (
         publicGateActive !== true ? (
           <Link
@@ -532,7 +546,7 @@ export default function Nav({
             </span>
             <span className="min-w-0 flex-1 truncate">Full Portal — see everything</span>
           </Link>
-        ) : (
+        ) : showLocalUnlockCta ? (
           <Link
             href="/preview"
             onClick={onNavigate}
@@ -543,7 +557,7 @@ export default function Nav({
             </span>
             <span className="min-w-0 flex-1 truncate">Unlock hidden portal areas</span>
           </Link>
-        )
+        ) : null
       ) : publicGateActive !== true ? (
         <Link
           href="/site-map"
@@ -558,7 +572,7 @@ export default function Nav({
             {showOfficerSlimNav ? "Full Portal — browse everything" : "Full Portal — see everything"}
           </span>
         </Link>
-      ) : (
+      ) : showLocalUnlockCta ? (
         <Link
           href="/preview"
           onClick={onNavigate}
@@ -569,7 +583,7 @@ export default function Nav({
           </span>
           <span className="min-w-0 flex-1 truncate">Unlock hidden portal areas</span>
         </Link>
-      )}
+      ) : null}
       {showSearch ? (
         <SidebarSearch
           value={search}

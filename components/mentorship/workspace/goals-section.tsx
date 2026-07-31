@@ -1,300 +1,330 @@
-import type { GoalRatingColor, GRTimePhase } from "@prisma/client";
+import type { GoalRatingColor } from "@prisma/client";
 
+import { EmptyStateV2, StatusBadge } from "@/components/ui-v2";
+import GRDocumentView from "@/components/gr/gr-document-view";
+import { LearnMore } from "@/components/mentorship/learn-more";
+import { RatingLegend } from "@/components/mentorship/rating-legend";
 import {
-  CardV2,
-  EmptyStateV2,
-  StatusBadge,
-  cn,
-  type StatusTone,
-} from "@/components/ui-v2";
+  getWorkspaceGRDocument,
+} from "@/lib/gr-actions";
 import type { MentorshipWorkspace } from "@/lib/mentorship/workspace";
-import { prisma } from "@/lib/prisma";
-import { getGoalRatingCopy } from "@/lib/mentorship-rubric-copy";
 
 import { AssignGoalsForm } from "./assign-goals-form";
 import { ProposeChangeForm } from "./propose-change-form";
+import { ActivateGRButton } from "./activate-gr-button";
 
-/**
- * The mentor/leadership view of a mentee's Goals & Responsibilities document —
- * the one canonical development model, seen from the other side of the
- * relationship. Read view + "propose a change" (admin-approved), replacing the
- * old standalone /mentorship/mentees/[id]/gr page and the Growth-OS-backed
- * "Plan" tab.
- */
+const ROLE_LABELS: Record<string, string> = {
+  INSTRUCTOR: "Instructor",
+  CHAPTER_PRESIDENT: "Chapter President",
+  GLOBAL_LEADERSHIP: "Global Leadership",
+};
 
-const TIME_PHASE_LABELS: Record<GRTimePhase, string> = {
+const PRIORITY_ORDER: Record<string, number> = {
+  CRITICAL: 0,
+  HIGH: 1,
+  NORMAL: 2,
+  LOW: 3,
+};
+
+const TIME_PHASE_LABELS: Record<string, string> = {
   MONTHLY: "This cycle",
-  FIRST_MONTH: "First month (Short term)",
+  FIRST_MONTH: "First month",
   FIRST_QUARTER: "First quarter",
   LONG_TERM: "Long-term",
   FULL_YEAR: "Long-term",
 };
 
-const PRIMARY_PHASES: GRTimePhase[] = ["MONTHLY", "FIRST_MONTH", "FIRST_QUARTER"];
-
-const RATING_TONE: Record<string, StatusTone> = {
-  ABOVE_AND_BEYOND: "brand",
-  ACHIEVED: "success",
-  GETTING_STARTED: "warning",
-  BEHIND_SCHEDULE: "danger",
-};
-const PROGRESS_LABELS: Record<string, string> = {
-  NOT_STARTED: "Not started",
-  IN_PROGRESS: "In progress",
-  BLOCKED: "Blocked",
-  DONE: "Done",
-};
-
-export async function MenteeGoalsSection({
+/**
+ * Mentorship G&R tab.
+ * - On your own page: view goals & resources (never the setup form).
+ * - On someone else's page: mentors/admins can set up and edit.
+ */
+export async function GoalsSection({
   workspace,
 }: {
   workspace: MentorshipWorkspace;
 }) {
   const personId = workspace.person.id;
+  const isSelf = workspace.isSelf;
+  // Never treat someone as editor of their own G&R — even admins who are also mentees.
+  const canEdit =
+    !isSelf &&
+    (workspace.isMentor ||
+      workspace.isAdmin ||
+      workspace.canManageSetup ||
+      workspace.isLeadership);
 
-  const doc = await prisma.gRDocument.findFirst({
-    where: { userId: personId, status: { in: ["DRAFT", "PENDING_APPROVAL", "ACTIVE"] } },
-    orderBy: { createdAt: "desc" },
-    include: {
-      template: { select: { title: true } },
-      goals: {
-        where: { lifecycleStatus: { in: ["ACTIVE", "COMPLETED"] } },
-        orderBy: [
-          { timePhase: "asc" },
-          { priority: "desc" },
-          { dueDate: "asc" },
-          { sortOrder: "asc" },
-        ],
-      },
-      resources: {
-        include: { resource: { select: { title: true, url: true, description: true } } },
-        orderBy: { sortOrder: "asc" },
-      },
-      plansOfAction: { orderBy: { cycleNumber: "desc" }, take: 1 },
-    },
-  });
+  const doc = await getWorkspaceGRDocument(personId);
 
   if (!doc) {
-    const canAssign =
-      (workspace.pov === "mentor" || workspace.isAdmin) &&
-      !!workspace.activeMentorshipId;
-
-    if (!canAssign) {
+    if (!canEdit || !workspace.activeMentorshipId) {
       return (
-        <EmptyStateV2
-          title="No goals yet"
-          body={
-            workspace.isSelf
-              ? "Your mentor will add them here."
-              : "The mentor can add them on this tab."
-          }
-        />
+        <div className="mx-auto flex w-full max-w-xl flex-col gap-3">
+          <div>
+            <h2 className="m-0 text-[18px] font-semibold tracking-[-0.3px] text-ink">
+              Goals &amp; Responsibilities
+            </h2>
+            <p className="m-0 mt-1 text-[13.5px] text-ink-muted">
+              {isSelf
+                ? "Your goals and resources will show up here once your mentor sets them up."
+                : "Set up Goals & Responsibilities for this person here."}
+            </p>
+          </div>
+          {isSelf ? (
+            <EmptyStateV2
+              title="Nothing here yet"
+              body="When your mentor assigns your G&R, you’ll see your goals and shared resources on this page."
+            />
+          ) : (
+            <EmptyStateV2
+              title="No Goals & Responsibilities yet"
+              body="Set them up below once you’re ready."
+            />
+          )}
+        </div>
       );
     }
 
     return (
       <div className="flex flex-col gap-5">
         <div>
-          <h2 className="m-0 text-[18px] font-bold tracking-[-0.3px] text-ink">
-            Set up goals
+          <h2 className="m-0 text-[18px] font-semibold tracking-[-0.3px] text-ink">
+            Goals &amp; Responsibilities
           </h2>
           <p className="m-0 mt-1 max-w-[52ch] text-[13.5px] leading-relaxed text-ink-muted">
-            Write a few goals for this mentee. Keep them concrete — you can add more later.
+            Add the goals for {workspace.person.name}. They&apos;ll see them here once
+            you save.
           </p>
         </div>
         <AssignGoalsForm
           personId={personId}
-          mentorshipId={workspace.activeMentorshipId!}
+          mentorshipId={workspace.activeMentorshipId}
         />
       </div>
     );
   }
 
-  // Ratings context from the latest released review.
-  const latestReview = await prisma.mentorGoalReview.findFirst({
-    where: { mentorshipId: doc.mentorshipId, releasedToMenteeAt: { not: null } },
-    orderBy: { cycleMonth: "desc" },
-    select: {
-      id: true,
-      goalRatings: { select: { grDocumentGoalId: true, rating: true, comments: true } },
-    },
-  });
-  const ratingByGoalId = new Map<string, { rating: GoalRatingColor; comments: string | null }>();
-  for (const r of latestReview?.goalRatings ?? []) {
-    if (r.grDocumentGoalId) {
-      ratingByGoalId.set(r.grDocumentGoalId, { rating: r.rating, comments: r.comments });
+  // Mentees wait while draft/pending; mentors can still open and activate.
+  if (isSelf && (doc.status === "DRAFT" || doc.status === "PENDING_APPROVAL")) {
+    return (
+      <div className="flex flex-col gap-4">
+        <div>
+          <h2 className="m-0 text-[18px] font-semibold text-ink">
+            Goals &amp; Responsibilities
+          </h2>
+          <p className="m-0 mt-1 text-[13.5px] text-ink-muted">{doc.template.title}</p>
+        </div>
+        <EmptyStateV2
+          title="Being prepared"
+          body="Your mentor is finishing your Goals & Responsibilities. You'll see them here when they're ready."
+        />
+      </div>
+    );
+  }
+
+  const ratingMap: Record<string, string> = {};
+  if (doc.latestReview) {
+    for (const gr of doc.latestReview.goalRatings) {
+      if (gr.grDocumentGoalId) ratingMap[gr.grDocumentGoalId] = gr.rating;
     }
   }
 
-  const activeGoals = doc.goals.filter((g) => g.lifecycleStatus === "ACTIVE");
-  const nearTerm = activeGoals.filter((g) => PRIMARY_PHASES.includes(g.timePhase));
-  const longTerm = activeGoals.filter((g) => !PRIMARY_PHASES.includes(g.timePhase));
-  const completed = doc.goals.filter((g) => g.lifecycleStatus === "COMPLETED");
-  const plan = doc.plansOfAction[0] ?? null;
-
-  const preparing = doc.status !== "ACTIVE";
-
-  const goalCard = (goal: (typeof doc.goals)[number]) => {
-    const rated = ratingByGoalId.get(goal.id);
-    const cfg = rated ? getGoalRatingCopy(rated.rating) : null;
-    return (
-      <CardV2 key={goal.id} padding="md" className="flex flex-col gap-1.5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3
-            className={cn(
-              "m-0 text-[14px] font-semibold text-ink",
-              goal.lifecycleStatus === "COMPLETED" && "text-ink-muted line-through"
-            )}
-          >
-            {goal.title}
-          </h3>
-          <div className="flex items-center gap-2">
-            <StatusBadge
-              tone={
-                goal.progressState === "DONE"
-                  ? "success"
-                  : goal.progressState === "BLOCKED"
-                    ? "danger"
-                    : goal.progressState === "IN_PROGRESS"
-                      ? "info"
-                      : "neutral"
-              }
-            >
-              {PROGRESS_LABELS[goal.progressState] ?? goal.progressState}
-            </StatusBadge>
-            {rated && cfg ? (
-              <StatusBadge tone={RATING_TONE[String(rated.rating)] ?? "info"} withDot>
-                {cfg.label}
-              </StatusBadge>
-            ) : null}
-            <span className="text-[11.5px] font-semibold text-ink-muted">
-              {TIME_PHASE_LABELS[goal.timePhase]}
-            </span>
-          </div>
-        </div>
-        {goal.description ? (
-          <p className="m-0 text-[13px] leading-relaxed text-ink-muted">{goal.description}</p>
-        ) : null}
-        <div className="flex flex-wrap gap-3 text-[12px] text-ink-muted">
-          {goal.dueDate ? <span>Due {goal.dueDate.toLocaleDateString()}</span> : null}
-          {goal.completedAt ? (
-            <span className="text-complete-700">
-              Completed {goal.completedAt.toLocaleDateString()}
-            </span>
-          ) : null}
-          {rated?.comments ? <span className="italic">“{rated.comments}”</span> : null}
-        </div>
-      </CardV2>
-    );
+  const serialized = {
+    id: doc.id,
+    templateTitle: doc.template.title,
+    roleType: doc.template.roleType,
+    roleMission: doc.roleMission,
+    status: doc.status,
+    roleStartDate: doc.roleStartDate.toISOString(),
+    mentorName: doc.mentorship.mentor.name ?? "Mentor",
+    mentorEmail: doc.mentorship.mentor.email ?? "",
+    mentorInfo: doc.mentorInfo as Record<string, string> | null,
+    officerInfo: doc.officerInfo as Record<string, string> | null,
+    officer: doc.officer ?? null,
+    mentors: doc.mentors ?? [],
+    goalsByLifecycle: doc.goalsByLifecycle,
+    currentPriorities: doc.currentPriorities
+      .sort(
+        (a, b) =>
+          (PRIORITY_ORDER[a.priority] ?? 2) - (PRIORITY_ORDER[b.priority] ?? 2)
+      )
+      .map((g) => ({
+        id: g.id,
+        title: g.title,
+        description: g.description,
+        priority: g.priority,
+        progressState: g.progressState,
+        dueDate: g.dueDate?.toISOString() ?? null,
+        isOverdue: g.isOverdue,
+        isDueSoon: g.isDueSoon,
+        rating: (ratingMap[g.id] ?? null) as GoalRatingColor | null,
+      })),
+    goals: doc.goals.map((g) => {
+      const def = g.templateGoal?.kpiDefinitions?.[0] ?? null;
+      return {
+      id: g.id,
+      title: g.title,
+      description: g.description,
+      timePhase: g.timePhase,
+      isCustom: g.isCustom,
+      lifecycleStatus: g.lifecycleStatus,
+      progressState: g.progressState,
+      priority: g.priority,
+      dueDate: g.dueDate?.toISOString() ?? null,
+      completedAt: g.completedAt?.toISOString() ?? null,
+      rating: (ratingMap[g.id] ?? null) as GoalRatingColor | null,
+      ratingComments:
+        doc.latestReview?.goalRatings.find((gr) => gr.grDocumentGoalId === g.id)
+          ?.comments ?? null,
+      kpiTarget: def
+        ? {
+            definitionId: def.id,
+            label: def.label,
+            targetValue: def.targetValue,
+            unit: def.unit,
+          }
+        : null,
+      kpiValues: g.kpiValues.map((v) => ({
+        value: v.value,
+        measuredAt: v.measuredAt.toISOString(),
+        notes: v.notes,
+      })),
+    };
+    }),
+    successCriteria: doc.successCriteria.map((sc) => ({
+      timePhase: sc.timePhase,
+      criteria: sc.criteria,
+    })),
+    resources: doc.resources.map((r) => ({
+      title: r.resource.title,
+      url: r.resource.url,
+      description: r.resource.description,
+    })),
+    plansOfAction: doc.plansOfAction.map((p) => ({
+      cycleNumber: p.cycleNumber,
+      content: p.content,
+      updatedAt: p.updatedAt.toISOString(),
+    })),
+    latestReview: doc.latestReview
+      ? {
+          id: doc.latestReview.id,
+          cycleMonth: doc.latestReview.cycleMonth.toISOString(),
+          overallRating: doc.latestReview.overallRating,
+          overallComments: doc.latestReview.overallComments,
+          planOfAction: doc.latestReview.planOfAction,
+          isQuarterly: doc.latestReview.isQuarterly,
+          projectedFuturePath: doc.latestReview.projectedFuturePath,
+          promotionReadiness: doc.latestReview.promotionReadiness,
+          releasedToMenteeAt:
+            doc.latestReview.releasedToMenteeAt?.toISOString() ?? null,
+          goalRatings: doc.latestReview.goalRatings.map((gr) => ({
+            grDocumentGoalId: gr.grDocumentGoalId,
+            rating: gr.rating as GoalRatingColor,
+            comments: gr.comments ?? null,
+          })),
+        }
+      : null,
+    nextMonthGoals: doc.nextMonthGoals.map((g) => ({
+      id: g.id,
+      title: g.title,
+      description: g.description,
+      priority: g.priority,
+      dueDate: g.dueDate?.toISOString() ?? null,
+    })),
+    pastReviews: doc.pastReviews.map((r) => ({
+      id: r.id,
+      cycleMonth: r.cycleMonth.toISOString(),
+      overallRating: r.overallRating,
+      overallComments: r.overallComments,
+      planOfAction: r.planOfAction,
+      isQuarterly: r.isQuarterly,
+      releasedToMenteeAt: r.releasedToMenteeAt?.toISOString() ?? null,
+      goalRatings: r.goalRatings.map((gr) => ({
+        grDocumentGoalId: gr.grDocumentGoalId,
+        rating: gr.rating,
+        comments: gr.comments,
+      })),
+      goalSnapshots: r.goalSnapshots.map((s) => ({
+        id: s.id,
+        grDocumentGoalId: s.grDocumentGoalId,
+        title: s.title,
+        description: s.description,
+        timePhase: s.timePhase,
+        priority: s.priority,
+        lifecycleStatusAtSnapshot: s.lifecycleStatusAtSnapshot,
+        dueDateAtSnapshot: s.dueDateAtSnapshot?.toISOString() ?? null,
+      })),
+    })),
+    roleLabel: ROLE_LABELS[doc.template.roleType] ?? doc.template.roleType,
+    ratingHistoryByGoal: doc.ratingHistoryByGoal,
   };
 
+  const activeGoals = doc.goals.filter((g) => g.lifecycleStatus === "ACTIVE");
+
   return (
-    <div className="flex flex-col gap-4">
-      <CardV2 padding="lg" className="flex flex-col gap-2">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="min-w-0">
-            <h2 className="m-0 text-[16px] font-bold tracking-[-0.2px] text-ink">
-              Goals
-            </h2>
-            <p className="m-0 mt-1 text-[13px] text-ink-muted">{doc.template.title}</p>
-          </div>
-          <StatusBadge tone={preparing ? "warning" : "success"}>
-            {preparing ? "Being prepared" : workspace.goals.progressLabel}
-          </StatusBadge>
+    <div className="flex flex-col gap-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="m-0 text-[18px] font-semibold tracking-[-0.3px] text-ink">
+            Goals &amp; Responsibilities
+          </h2>
+          <p className="m-0 mt-1 text-[13.5px] text-ink-muted">
+            {isSelf
+              ? "Your goals and resources — shared with your mentor."
+              : `${doc.template.title} — edit here; they see the same page.`}
+          </p>
         </div>
-        {doc.roleMission ? (
-          <p className="m-0 max-w-[70ch] text-[13.5px] leading-relaxed text-ink">
-            {doc.roleMission}
-          </p>
-        ) : null}
-      </CardV2>
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusBadge
+            tone={
+              doc.status === "ACTIVE"
+                ? "success"
+                : doc.status === "PENDING_APPROVAL"
+                  ? "warning"
+                  : "neutral"
+            }
+          >
+            {doc.status === "ACTIVE"
+              ? "Active"
+              : doc.status === "PENDING_APPROVAL"
+                ? "Pending"
+                : "Draft"}
+          </StatusBadge>
+          {canEdit && doc.status === "DRAFT" ? (
+            <ActivateGRButton documentId={doc.id} />
+          ) : null}
+        </div>
+      </div>
 
-      {nearTerm.length > 0 ? (
-        <section className="flex flex-col gap-3">
-          <h3 className="m-0 text-[13px] font-bold uppercase tracking-[0.06em] text-ink-muted">
-            In motion now
-          </h3>
-          {nearTerm.map(goalCard)}
-        </section>
-      ) : null}
+      <GRDocumentView document={serialized} isOwner={isSelf} />
 
-      {longTerm.length > 0 ? (
-        <details className="group">
-          <summary className="cursor-pointer text-[13px] font-semibold text-ink-muted">
-            Long-term goals ({longTerm.length})
+      {canEdit ? (
+        <details className="rounded-[12px] border border-line-soft bg-surface p-4">
+          <summary className="cursor-pointer text-[13.5px] font-semibold text-ink">
+            Propose a change
           </summary>
-          <div className="mt-3 flex flex-col gap-3">{longTerm.map(goalCard)}</div>
+          <p className="m-0 mt-2 text-[12.5px] text-ink-muted">
+            Suggest a new goal, an edit, or a removal. An admin reviews every proposal
+            before the document changes.
+          </p>
+          <ProposeChangeForm
+            documentId={doc.id}
+            goals={activeGoals.map((g) => ({
+              id: g.id,
+              title: g.title,
+              timePhase: TIME_PHASE_LABELS[g.timePhase] ?? g.timePhase,
+            }))}
+            sourceReviewId={doc.latestReview?.id ?? null}
+          />
         </details>
       ) : null}
 
-      {completed.length > 0 ? (
-        <details>
-          <summary className="cursor-pointer text-[13px] font-semibold text-ink-muted">
-            Completed ({completed.length})
-          </summary>
-          <div className="mt-3 flex flex-col gap-3">{completed.map(goalCard)}</div>
-        </details>
-      ) : null}
-
-      {plan ? (
-        <CardV2 padding="md" className="flex flex-col gap-1">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <p className="m-0 text-[13px] font-bold text-ink">Plan</p>
-            <span className="text-[12px] text-ink-muted">
-              Cycle {plan.cycleNumber} · updated {plan.updatedAt.toLocaleDateString()}
-            </span>
-          </div>
-          <p className="m-0 whitespace-pre-wrap text-[13px] leading-relaxed text-ink">
-            {plan.content}
-          </p>
-        </CardV2>
-      ) : null}
-
-      {doc.resources.length > 0 ? (
-        <CardV2 padding="md" className="flex flex-col gap-2">
-          <p className="m-0 text-[13px] font-bold text-ink">Shared resources</p>
-          <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
-            {doc.resources.map((r) => (
-              <li key={r.id} className="text-[13px]">
-                {r.resource.url ? (
-                  <a
-                    href={r.resource.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="font-semibold text-brand-700 hover:underline"
-                  >
-                    {r.resource.title}
-                  </a>
-                ) : (
-                  <span className="font-semibold text-ink">{r.resource.title}</span>
-                )}
-                {r.resource.description ? (
-                  <span className="text-ink-muted"> — {r.resource.description}</span>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        </CardV2>
-      ) : null}
-
-      <details className="rounded-[12px] border border-line-soft bg-surface p-4">
-        <summary className="cursor-pointer text-[13.5px] font-semibold text-ink">
-          Propose a change to these goals
-        </summary>
-        <p className="m-0 mt-2 text-[12.5px] text-ink-muted">
-          Suggest a new goal, an edit, or a removal. An admin reviews every proposal
-          before the document changes.
-        </p>
-        <ProposeChangeForm
-          documentId={doc.id}
-          goals={activeGoals.map((g) => ({
-            id: g.id,
-            title: g.title,
-            timePhase: TIME_PHASE_LABELS[g.timePhase] ?? g.timePhase,
-          }))}
-          sourceReviewId={latestReview?.id ?? null}
-        />
-      </details>
+      <LearnMore summary="What do the goal colors mean?">
+        <RatingLegend audience={isSelf ? "mentee" : "mentor"} />
+      </LearnMore>
     </div>
   );
 }
+
+/** @deprecated Use GoalsSection — kept as alias for older imports. */
+export const MenteeGoalsSection = GoalsSection;

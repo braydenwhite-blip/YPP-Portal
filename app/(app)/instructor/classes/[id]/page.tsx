@@ -27,7 +27,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
   return (
     <S8Page
-      eyebrow="Instructor class command center"
+      eyebrow="Class"
       title={c.title}
       body="Class overview, next session, roster, preparation, attendance, announcements, feedback, and completion."
       primaryHref={`/instructor/classes/${id}/sessions/${next?.id ?? ""}`}
@@ -54,16 +54,21 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           />
         </S8Card>
 
-        <S8Card title="Roster">
+        <S8Card
+          title="Roster"
+          subtitle={`${c.roster.length} enrolled`}
+          actionHref={`/instructor/classes/${id}/roster`}
+          actionLabel="Open people"
+        >
           <S8List
-            items={c.roster}
-            empty="No enrolled students."
+            items={c.roster.slice(0, 4)}
+            empty="No enrolled students. Open People to manage waitlist and former students."
             render={(e: any) => (
               <div key={e.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <p className="font-semibold text-slate-950">{e.student?.name ?? "Student"}</p>
-                    <p className="text-sm text-slate-500">Grade {e.student?.profile?.grade ?? "not set"} · {e.sessionsAttended} attended</p>
+                    <p className="text-sm text-slate-500">Grade {e.student?.profile?.grade ?? "not set"}</p>
                   </div>
                   <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700">{e.status}</span>
                 </div>
@@ -86,10 +91,14 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                     <span className="rounded-full bg-emerald-50 border border-emerald-200 px-2 py-1 text-xs font-semibold text-emerald-800">Feedback released</span>
                   )}
                 </div>
-                <p className="mt-2 text-xs text-slate-400">Family-safe context only. Restricted support and safeguarding notes are not shown.</p>
               </div>
             )}
           />
+          {c.roster.length > 4 ? (
+            <p className="text-sm text-slate-500">
+              +{c.roster.length - 4} more on the People page.
+            </p>
+          ) : null}
         </S8Card>
 
         <S8Card title="Attendance by Session">

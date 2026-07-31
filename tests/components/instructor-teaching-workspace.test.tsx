@@ -90,7 +90,7 @@ function teachingClass(): TeachingClass {
     endDate: new Date("2030-08-01T00:00:00.000Z"),
     timezone: "America/Denver",
     deliveryMode: "VIRTUAL",
-    scheduleLabel: "Friday · 16:00-17:00",
+    scheduleLabel: "Friday · 4–5 pm MT",
     locationLabel: "Online",
     locationAddress: null,
     arrivalInstructions: null,

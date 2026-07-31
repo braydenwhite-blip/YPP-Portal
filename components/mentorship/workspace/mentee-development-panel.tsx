@@ -9,7 +9,6 @@ import { ChairApprovalPanel } from "@/components/mentorship/workspace/chair-appr
 import { KickoffStatusRow } from "@/components/mentorship/kickoff-status-row";
 import { MenteeGoalsSection } from "@/components/mentorship/workspace/goals-section";
 import { CheckInsSection } from "@/components/mentorship/workspace/sections";
-import { SelfGoalsSection } from "@/components/mentorship/workspace/self-sections";
 import { ReassignMentorForm } from "@/components/people-strategy/reassign-mentor-form";
 
 type KickoffRepairInput = {
@@ -121,7 +120,7 @@ export function MenteeDevelopmentPanel({
           </span>
         </summary>
         <div className="flex flex-col gap-4 border-t border-[#f1f1f6] p-4">
-          {workspace.isSelf ? <SelfGoalsSection /> : <MenteeGoalsSection workspace={workspace} />}
+          <MenteeGoalsSection workspace={workspace} />
           <CheckInsSection workspace={workspace} />
         </div>
       </details>

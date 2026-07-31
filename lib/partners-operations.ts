@@ -2,6 +2,7 @@ import type { ClassOfferingStatus } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { formatMeetingDays } from "@/lib/class-status";
+import { formatMeetingTimeRange } from "@/lib/class-meeting-time";
 import { countOpenActionsByRelatedEntity } from "@/lib/people-strategy/action-queries";
 import { getActionsForEntity } from "@/lib/people-strategy/action-queries";
 import { getMeetingsForEntity, meetingDisplayTitle } from "@/lib/people-strategy/meetings-queries";
@@ -30,10 +31,11 @@ const SETUP_CLASS: ClassOfferingStatus[] = ["DRAFT"];
 function scheduleLabel(offering: {
   meetingDays: string[];
   meetingTime: string;
+  timezone?: string | null;
 }): string {
   const days = formatMeetingDays(offering.meetingDays);
-  const time = offering.meetingTime?.trim() || "";
-  if (days && time) return `${days} ${time.split("-")[0]?.trim() ?? time}`;
+  const time = formatMeetingTimeRange(offering.meetingTime, offering.timezone);
+  if (days && time) return `${days} ${time}`;
   return [days, time].filter(Boolean).join(" ") || "Schedule TBD";
 }
 
@@ -89,6 +91,7 @@ const OFFERING_SELECT = {
   capacity: true,
   meetingDays: true,
   meetingTime: true,
+  timezone: true,
   instructor: { select: { id: true, name: true, email: true } },
   regularInstructorAssignments: {
     select: {

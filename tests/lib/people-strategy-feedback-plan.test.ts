@@ -278,8 +278,18 @@ describe("prepareMonthlyFeedbackPlan", () => {
     const plan = await prepareMonthlyFeedbackPlan({ subjectUserId: SUBJECT.id });
     expect(plan.months).toHaveLength(3);
     expect(plan.defaultMonthKey).toBe(plan.months[0].key);
+    expect(plan.monthsWithCheckIn).toEqual([]);
     expect(plan.alreadyRequestedByMonth[plan.defaultMonthKey]).toEqual(["ian"]);
     expect(plan.subject.id).toBe(SUBJECT.id);
+  });
+
+  it("defaults to a month without an existing check-in and labels months that have one", async () => {
+    const now = new Date();
+    const currentMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    prismaMock.checkIn.findMany.mockResolvedValue([{ month: currentMonth }]);
+    const plan = await prepareMonthlyFeedbackPlan({ subjectUserId: SUBJECT.id });
+    expect(plan.monthsWithCheckIn).toContain(plan.months[0].key);
+    expect(plan.defaultMonthKey).toBe(plan.months[1].key);
   });
 });
 

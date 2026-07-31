@@ -9,8 +9,22 @@ import {
   hasRole,
   requireSessionUser,
 } from "@/lib/authorization";
+import {
+  loadAutoCollectedInstructorFeedback,
+  type AutoCollectedFeedbackRow,
+} from "@/lib/mentorship/auto-feedback";
+import { createNotification } from "@/lib/notifications";
+import { getBaseUrl } from "@/lib/portal-auth-utils";
+import { isEmailConfigured, sendNotificationEmail } from "@/lib/email";
 
-const FeedbackSourceSchema = z.enum(["PARENT", "OFFICER", "STUDENT", "PARTNER"]);
+const FeedbackSourceSchema = z.enum([
+  "PARENT",
+  "OFFICER",
+  "STUDENT",
+  "PARTNER",
+  "BOARD",
+  "MENTOR",
+]);
 
 const CreateReceivedFeedbackSchema = z.object({
   instructorId: z.string().min(1),
@@ -55,14 +69,13 @@ async function isAssignedActiveMentor(menteeId: string, session: SessionUser) {
   return Boolean(mentorship);
 }
 
-async function requireReceivedFeedbackLogger() {
+async function requireReceivedFeedbackLogger(subjectUserId: string) {
   const session = await requireSessionUser();
-  if (!isOfficerOrAdmin(session)) {
-    throw new Error(
-      "Unauthorized: only admins and officers can log parent or officer feedback."
-    );
-  }
-  return session;
+  if (isOfficerOrAdmin(session)) return session;
+  if (await isAssignedActiveMentor(subjectUserId, session)) return session;
+  throw new Error(
+    "Unauthorized: only mentors, officers, and admins can log mentorship feedback."
+  );
 }
 
 async function requireMentorshipNoteAuthor() {
@@ -110,7 +123,7 @@ async function assertCanEditMenteeContext(menteeId: string, session: SessionUser
 
 export type InstructorReceivedFeedbackRow = {
   id: string;
-  source: InstructorFeedbackSource;
+  source: z.infer<typeof FeedbackSourceSchema>;
   feedbackDate: string;
   category: string;
   rating: number;
@@ -132,7 +145,7 @@ export async function listInstructorReceivedFeedback(
   });
   return rows.map((row) => ({
     id: row.id,
-    source: row.source,
+    source: row.source as z.infer<typeof FeedbackSourceSchema>,
     feedbackDate: row.feedbackDate.toISOString(),
     category: row.category,
     rating: row.rating,
@@ -143,8 +156,8 @@ export async function listInstructorReceivedFeedback(
 }
 
 export async function createInstructorReceivedFeedback(input: unknown) {
-  const session = await requireReceivedFeedbackLogger();
   const data = CreateReceivedFeedbackSchema.parse(input);
+  const session = await requireReceivedFeedbackLogger(data.instructorId);
   await assertCanEditMenteeContext(data.instructorId, session);
 
   const feedbackDate = new Date(data.feedbackDate);
@@ -161,7 +174,7 @@ export async function createInstructorReceivedFeedback(input: unknown) {
   await prisma.instructorReceivedFeedback.create({
     data: {
       instructorId: data.instructorId,
-      source: data.source,
+      source: data.source as InstructorFeedbackSource,
       feedbackDate,
       category: data.category,
       rating: data.rating,
@@ -407,7 +420,7 @@ export type PriorMentorReviewRow = {
 export type FeedbackTimelineEntry = {
   id: string;
   date: string;
-  source: "PARENT" | "OFFICER" | "STUDENT" | "PARTNER" | "MENTOR";
+  source: "PARENT" | "OFFICER" | "STUDENT" | "PARTNER" | "BOARD" | "MENTOR";
   category: string;
   rating: string;
   comment: string | null;
@@ -415,6 +428,8 @@ export type FeedbackTimelineEntry = {
 
 export type InstructorReviewContext = {
   received: InstructorReceivedFeedbackRow[];
+  /** Parent surveys + student class ratings — no manual logging required. */
+  autoCollected: AutoCollectedFeedbackRow[];
   priorMentorReviews: PriorMentorReviewRow[];
   questions: InstructorReviewQuestionRow[];
   notes: InstructorReviewNoteRow[];
@@ -423,8 +438,13 @@ export type InstructorReviewContext = {
   timeline: FeedbackTimelineEntry[];
   /** Mentors/officers may add mentorship notes. */
   canEditFeedback: boolean;
-  /** Admins/officers may log parent/officer/student/partner feedback. */
+  /** Mentors/officers/admins may log parent/board/mentor/officer feedback. */
   canLogReceivedFeedback: boolean;
+  /**
+   * Instructor-only: request parent surveys for someone teaching classes.
+   * Not used on mentorship Progress / Feedback collect flows.
+   */
+  canRequestParentFeedback: boolean;
   existingAnswers: Array<{
     questionId: string;
     answer: string;
@@ -442,10 +462,14 @@ export async function loadInstructorReviewContext(
 
   const canEditFeedback =
     isOfficerOrAdmin(session) || (await isAssignedActiveMentor(menteeId, session));
-  const canLogReceivedFeedback = isOfficerOrAdmin(session);
+  const canLogReceivedFeedback = canEditFeedback;
+  // Instructor class-parent surveys stay available on people/instructor surfaces;
+  // mentorship UI does not surface this CTA.
+  const canRequestParentFeedback = false;
 
   const [
     received,
+    autoCollected,
     priorMentorReviews,
     questions,
     notes,
@@ -454,6 +478,7 @@ export async function loadInstructorReviewContext(
     existingAnswers,
   ] = await Promise.all([
     listInstructorReceivedFeedback(menteeId),
+    loadAutoCollectedInstructorFeedback(menteeId),
     prisma.mentorGoalReview.findMany({
       where: {
         menteeId,
@@ -519,6 +544,9 @@ export async function loadInstructorReviewContext(
   }));
 
   const timeline: FeedbackTimelineEntry[] = [
+    // Mentorship timeline: logged parent/board/mentor/officer + prior reviews.
+    // Auto instructor parent/class surveys stay available in `autoCollected`
+    // but are not mixed into mentorship "What others said".
     ...received.map((row) => ({
       id: `fb-${row.id}`,
       date: row.feedbackDate,
@@ -539,6 +567,7 @@ export async function loadInstructorReviewContext(
 
   return {
     received,
+    autoCollected,
     priorMentorReviews: priorMapped,
     questions,
     notes: notes.map((row) => ({
@@ -561,6 +590,125 @@ export async function loadInstructorReviewContext(
     timeline,
     canEditFeedback,
     canLogReceivedFeedback,
+    canRequestParentFeedback,
     existingAnswers,
   };
+}
+
+const RequestParentFeedbackSchema = z.object({
+  instructorId: z.string().min(1),
+});
+
+/**
+ * Email + notify parents of this instructor's students to leave instructor feedback.
+ * Responses land in ParentChapterFeedback and auto-appear on the mentorship timeline.
+ */
+export async function requestParentFeedbackForInstructor(input: unknown) {
+  const session = await requireSessionUser();
+  const data = RequestParentFeedbackSchema.parse(input);
+  await assertCanEditMenteeContext(data.instructorId, session);
+  if (
+    !isOfficerOrAdmin(session) &&
+    !(await isAssignedActiveMentor(data.instructorId, session))
+  ) {
+    throw new Error("Only mentors and officers can request parent feedback.");
+  }
+
+  const instructor = await prisma.user.findUnique({
+    where: { id: data.instructorId },
+    select: { id: true, name: true, chapterId: true },
+  });
+  if (!instructor) throw new Error("Person not found.");
+
+  const [classStudents, courseStudents] = await Promise.all([
+    prisma.classEnrollment.findMany({
+      where: {
+        status: { in: ["ENROLLED", "COMPLETED"] },
+        offering: {
+          instructorId: data.instructorId,
+          status: { in: ["PUBLISHED", "IN_PROGRESS", "COMPLETED"] },
+        },
+      },
+      select: { studentId: true },
+      take: 500,
+    }),
+    prisma.enrollment.findMany({
+      where: {
+        status: { in: ["ENROLLED", "COMPLETED"] },
+        course: { leadInstructorId: data.instructorId },
+      },
+      select: { userId: true },
+      take: 500,
+    }),
+  ]);
+
+  const studentIds = Array.from(
+    new Set([
+      ...classStudents.map((r) => r.studentId),
+      ...courseStudents.map((r) => r.userId),
+    ])
+  );
+
+  if (studentIds.length === 0) {
+    throw new Error(
+      "No enrolled students found for this instructor — nothing to request yet."
+    );
+  }
+
+  const parentLinks = await prisma.parentStudent.findMany({
+    where: {
+      studentId: { in: studentIds },
+      approvalStatus: "APPROVED",
+      archivedAt: null,
+    },
+    select: {
+      parentId: true,
+      parent: { select: { id: true, name: true, email: true } },
+    },
+  });
+
+  const parents = new Map<
+    string,
+    { id: string; name: string; email: string }
+  >();
+  for (const link of parentLinks) {
+    if (!link.parent?.email) continue;
+    parents.set(link.parent.id, link.parent);
+  }
+
+  if (parents.size === 0) {
+    throw new Error("No linked parents found for this instructor’s students.");
+  }
+
+  const firstName = instructor.name.trim().split(/\s+/)[0] || instructor.name;
+  const baseUrl = await getBaseUrl();
+  const link = `${baseUrl}/parent/instructor-feedback/${instructor.id}`;
+  const title = `Feedback requested for ${firstName}`;
+  const body = `Please share a short rating and note about ${instructor.name}'s teaching. It helps their mentor support them.`;
+
+  let notified = 0;
+  for (const parent of parents.values()) {
+    await createNotification({
+      userId: parent.id,
+      type: "COURSE_UPDATE",
+      title,
+      body,
+      link,
+    });
+    if (isEmailConfigured()) {
+      await sendNotificationEmail({
+        to: parent.email,
+        name: parent.name,
+        title,
+        body,
+        link,
+        linkText: "Give feedback",
+      }).catch(() => null);
+    }
+    notified += 1;
+  }
+
+  revalidatePath(`/mentorship/people/${data.instructorId}`);
+  revalidatePath(`/people/${data.instructorId}`);
+  return { ok: true as const, parentsNotified: notified };
 }

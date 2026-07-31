@@ -48,9 +48,12 @@ export async function submitChapterFeedback(formData: FormData) {
     await syncInstructorGrowthSignalsForInstructor(targetUserId).catch(() => null);
   }
 
-  revalidatePath("/parent/feedback");
+    revalidatePath("/parent/feedback");
   revalidatePath("/admin/parent-feedback");
   revalidatePath("/instructor/parent-feedback");
+  if (type === "INSTRUCTOR_FEEDBACK" && targetUserId) {
+    revalidatePath(`/mentorship/people/${targetUserId}`);
+  }
 }
 
 export async function getChapterFeedbackSummary(chapterId: string) {

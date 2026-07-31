@@ -312,11 +312,24 @@ export function FeedbackRequestDrawer({
                 disabled={sending}
                 className="rounded-[8px] border border-line bg-surface px-2.5 py-1.5 text-[13px] font-medium text-ink"
               >
-                {plan.months.map((m) => (
-                  <option key={m.key} value={m.key}>
-                    {m.label}
-                  </option>
-                ))}
+                {plan.months.map((m) => {
+                  const alreadyAsked = plan.alreadyRequestedByMonth[m.key] ?? [];
+                  const allAsked =
+                    plan.suggestions.length > 0 &&
+                    plan.suggestions.every((s) => alreadyAsked.includes(s.id));
+                  const hasCheckIn = plan.monthsWithCheckIn.includes(m.key);
+                  const suffix = hasCheckIn
+                    ? " — check-in already created"
+                    : allAsked
+                      ? " — already requested"
+                      : "";
+                  return (
+                    <option key={m.key} value={m.key}>
+                      {m.label}
+                      {suffix}
+                    </option>
+                  );
+                })}
               </select>
             </label>
             <p className="m-0 text-[12.5px] text-ink-muted">

@@ -8,6 +8,7 @@ import { requireSessionUser } from "@/lib/authorization";
 import {
   ensureCurrentMonthForm,
   readMonthlyFeedbackStore,
+  createMonthlyDraft,
   type MonthlyFeedbackForm,
   type MonthlyFeedbackStore,
 } from "@/lib/mentorship/feedback-prompts";
@@ -171,6 +172,77 @@ export async function removeMonthlyFeedbackQuestion(input: unknown) {
   return { ok: true as const };
 }
 
+const GuideExampleSchema = z.object({
+  label: z.string().trim().min(1).max(80),
+  detail: z.string().trim().min(1).max(500),
+  insertText: z.string().trim().max(500).optional(),
+});
+
+const UpdateQuestionGuideSchema = z.object({
+  mentorshipId: z.string().min(1),
+  questionId: z.string().min(1),
+  /** null clears mentor overrides and restores smart defaults. */
+  guide: z
+    .object({
+      hide: z.boolean().optional(),
+      kind: z.enum(["scale", "text", "auto"]).optional(),
+      title: z.string().trim().max(120).optional(),
+      tip: z.string().trim().max(400).optional(),
+      scaleMax: z.number().int().min(2).max(20).optional(),
+      examples: z.array(GuideExampleSchema).max(12).optional(),
+    })
+    .nullable(),
+});
+
+/**
+ * Mentor sets (or clears) example answers / tip for a question.
+ * Allowed while the form is still a draft or waiting on answers.
+ */
+export async function updateMonthlyFeedbackQuestionGuide(input: unknown) {
+  const viewer = await requireSessionUser();
+  const data = UpdateQuestionGuideSchema.parse(input);
+  const mentorship = await loadMentorshipForViewer(
+    data.mentorshipId,
+    viewer.id,
+    viewer.roles ?? []
+  );
+  if (!isMentorOf(mentorship, viewer.id, viewer.roles ?? [])) {
+    throw new Error("Only the mentor can edit examples.");
+  }
+
+  const { store, current } = ensureCurrentMonthForm(
+    readMonthlyFeedbackStore(mentorship.customPromptsJson)
+  );
+  if (current.status === "ANSWERED") {
+    throw new Error("This month’s answers are already in — examples are locked.");
+  }
+
+  const question = current.questions.find((q) => q.id === data.questionId);
+  if (!question) throw new Error("Question not found.");
+
+  if (data.guide == null) {
+    delete question.guide;
+  } else {
+    const guide: NonNullable<(typeof question)["guide"]> = {};
+    if (data.guide.hide) guide.hide = true;
+    if (data.guide.kind) guide.kind = data.guide.kind;
+    if (data.guide.title) guide.title = data.guide.title;
+    if (data.guide.tip) guide.tip = data.guide.tip;
+    if (data.guide.scaleMax != null) guide.scaleMax = data.guide.scaleMax;
+    if (data.guide.examples) {
+      guide.examples = data.guide.examples.map((e) => ({
+        label: e.label,
+        detail: e.detail,
+        ...(e.insertText ? { insertText: e.insertText } : {}),
+      }));
+    }
+    question.guide = guide;
+  }
+
+  await saveStore(mentorship.id, mentorship.menteeId, replaceForm(store, current));
+  return { ok: true as const };
+}
+
 /** Mentor sends this month’s question list to the mentee. */
 export async function sendMonthlyFeedbackForm(input: unknown) {
   const viewer = await requireSessionUser();
@@ -263,14 +335,7 @@ export async function resetMonthlyFeedbackForTesting(input: unknown) {
   const { current } = ensureCurrentMonthForm(
     readMonthlyFeedbackStore(mentorship.customPromptsJson)
   );
-  const fresh: MonthlyFeedbackForm = {
-    ...current,
-    status: "DRAFT",
-    sentAt: null,
-    answeredAt: null,
-    questions: current.questions.map((q) => ({ ...q, answer: null })),
-  };
-  // Drop past months entirely; keep only a clean current-month draft.
+  const fresh = createMonthlyDraft(current.cycleMonthKey, current.cycleLabel);
   await saveStore(mentorship.id, mentorship.menteeId, {
     version: 2,
     forms: [fresh],

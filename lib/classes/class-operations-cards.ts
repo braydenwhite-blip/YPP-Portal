@@ -1,6 +1,7 @@
 import type { AdminClassOperationsListItem } from "@/lib/admin-class-operations";
 import type { ClassSignals } from "@/lib/class-next-action";
 import { formatMeetingDays } from "@/lib/class-status";
+import { formatMeetingTimeRange } from "@/lib/class-meeting-time";
 
 export type ClassOperationsCardData = {
   id: string;
@@ -22,32 +23,17 @@ function firstName(name: string | null | undefined): string | null {
   return name.trim().split(/\s+/)[0] ?? name;
 }
 
-function formatMeetingTimeShort(raw: string | null | undefined): string {
-  if (!raw?.trim()) return "";
-  const start = raw.split("-")[0]?.trim() ?? raw.trim();
-  if (/am|pm/i.test(start)) {
-    return start.replace(/\s/g, "").toLowerCase();
-  }
-  const match = start.match(/^(\d{1,2}):(\d{2})/);
-  if (!match) return start;
-  let hour = Number.parseInt(match[1], 10);
-  const minutes = match[2];
-  const suffix = hour >= 12 ? "pm" : "am";
-  if (hour > 12) hour -= 12;
-  if (hour === 0) hour = 12;
-  return minutes === "00" ? `${hour}${suffix}` : `${hour}:${minutes}${suffix}`;
-}
-
 export function formatClassScheduleShort(item: {
   meetingDays: string[];
   meetingTime: string;
   sessionCount: number;
+  timezone?: string | null;
 }): string {
   if (item.sessionCount === 0 && item.meetingDays.length === 0 && !item.meetingTime.trim()) {
     return "TBD";
   }
   const day = item.meetingDays[0]?.slice(0, 3) ?? formatMeetingDays(item.meetingDays);
-  const time = formatMeetingTimeShort(item.meetingTime);
+  const time = formatMeetingTimeRange(item.meetingTime, item.timezone);
   if (day && time) return `${day} ${time}`;
   if (day) return day;
   if (time) return time;

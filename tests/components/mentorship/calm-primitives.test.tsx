@@ -14,7 +14,7 @@ import type {
 describe("ColorStatusChip", () => {
   it("renders the operational label for mentor/admin audiences", () => {
     render(<ColorStatusChip rating="ACHIEVED" />);
-    expect(screen.getByText("Achieved")).toBeInTheDocument();
+    expect(screen.getByText("On Track")).toBeInTheDocument();
   });
 
   it("renders nothing when there is no rating", () => {
@@ -24,7 +24,7 @@ describe("ColorStatusChip", () => {
 
   it("uses supportive copy for the mentee audience", () => {
     render(<ColorStatusChip rating="BEHIND_SCHEDULE" audience="mentee" />);
-    expect(screen.getByText("Needs focused support")).toBeInTheDocument();
+    expect(screen.getByText("At Risk")).toBeInTheDocument();
   });
 });
 
@@ -71,7 +71,7 @@ describe("MentorshipRow", () => {
   it("shows the mentee + rubric status for a mentor viewer", () => {
     render(<MentorshipRow relationship={summary()} />);
     expect(screen.getByText("Sam Mentee")).toBeInTheDocument();
-    expect(screen.getByText("Achieved")).toBeInTheDocument();
+    expect(screen.getByText("On Track")).toBeInTheDocument();
     expect(screen.getByRole("link")).toHaveAttribute("href", "/mentorship/mentees/m1");
   });
 

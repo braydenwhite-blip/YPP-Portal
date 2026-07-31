@@ -44,7 +44,7 @@ test.describe("canonical Mentorship lifecycle", () => {
     // an explicit override, assigns Current G&R, and completes kickoff.
     await login(page, USERS.admin);
     await page.goto("/mentorship?view=admin");
-    await expect(page.getByRole("heading", { name: "Who needs something from me?" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "G&R templates" })).toBeVisible();
     await page.getByLabel("Search mentorship people").fill("E2E Monthly Flow Mentee");
     await page
       .getByRole("region", { name: "Find a person" })

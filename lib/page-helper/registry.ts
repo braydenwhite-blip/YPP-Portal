@@ -5015,11 +5015,11 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
   },
   {
     pattern: "/instructor/students",
-    title: "Students Needing Attention",
+    title: "Students",
     content: {
-      purpose: "This page shows only students who have a recorded, actionable teaching reason for follow-up.",
-      firstStep: "Read the reason and expected action, then record the check-in or give the waiting assignment feedback in the same row.",
-      nextStep: "After you record the outcome, the completed item clears from the instructor workspace automatically."
+      purpose: "This page lists every student across your classes, grouped by who is enrolled now, who was in a class, and archived classes. Follow-ups that still need you sit at the top.",
+      firstStep: "Scan Needs attention first if anything is waiting, then open a class section to see current and former students.",
+      nextStep: "Use Open people on a class when you want the full People page for that one roster."
     }
   },
   {

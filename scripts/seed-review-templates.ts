@@ -152,7 +152,11 @@ const GLOBAL_LEADERSHIP_COMPETENCIES: Array<{ title: string; description: string
         "• Ambitious and resourceful — does not let obstacles stand in the way of achieving goals.\n" +
         "• Creates repeatable resources and systems enabling long-term, sustained impact.\n" +
         "• Impact extends beyond any specific project to shape the organization's trajectory.",
-      Officer: "",
+      Officer:
+        "• Defines and drives organization-wide priorities that produce transformational results every week.\n" +
+        "• Ambitious and resourceful — does not let obstacles stand in the way of achieving goals.\n" +
+        "• Creates repeatable resources and systems enabling long-term, sustained impact.\n" +
+        "• Impact extends beyond any specific project to shape the organization's trajectory.",
     },
   },
   {
@@ -171,7 +175,10 @@ const GLOBAL_LEADERSHIP_COMPETENCIES: Array<{ title: string; description: string
         "• Has a strategic vision; generates new high-impact ideas that drive progress across the organization.\n" +
         "• Translates broad challenges into actionable priorities; takes initiative to implement ideas beyond particular role.\n" +
         "• Removes systemic barriers to good ideas and builds structures that make initiative the norm.",
-      Officer: "",
+      Officer:
+        "• Has a strategic vision; generates new high-impact ideas that drive progress across the organization.\n" +
+        "• Translates broad challenges into actionable priorities; takes initiative to implement ideas beyond particular role.\n" +
+        "• Removes systemic barriers to good ideas and builds structures that make initiative the norm.",
     },
   },
   {
@@ -190,7 +197,10 @@ const GLOBAL_LEADERSHIP_COMPETENCIES: Array<{ title: string; description: string
         "• Creates a culture of accountability, reliability, and responsiveness across the organization; moves progress forward on the same day as receiving input rather than delaying.\n" +
         "• Designs scalable processes and structures that enable consistent, high-quality execution.\n" +
         "• Ensures strong communication and alignment across teams and organizational levels; responds within 24 hours and attends 100% of meetings.",
-      Officer: "",
+      Officer:
+        "• Creates a culture of accountability, reliability, and responsiveness across the organization; moves progress forward on the same day as receiving input rather than delaying.\n" +
+        "• Designs scalable processes and structures that enable consistent, high-quality execution.\n" +
+        "• Ensures strong communication and alignment across teams and organizational levels; responds within 24 hours and attends 100% of meetings.",
     },
   },
   {
@@ -207,7 +217,9 @@ const GLOBAL_LEADERSHIP_COMPETENCIES: Array<{ title: string; description: string
       "Chapter President / Regional Director / Senior Regional Director":
         "• Leads others to successful output; successfully manages, develops, and mentors others, creating opportunities for them to take on greater responsibility.\n" +
         "• Contributes positively to the YPP community, boosting collaboration and morale. Collaborates effectively across the entire organization.",
-      Officer: "",
+      Officer:
+        "• Leads others to successful output; successfully manages, develops, and mentors others, creating opportunities for them to take on greater responsibility.\n" +
+        "• Contributes positively to the YPP community, boosting collaboration and morale. Collaborates effectively across the entire organization.",
     },
   },
   {
@@ -224,9 +236,12 @@ const GLOBAL_LEADERSHIP_COMPETENCIES: Array<{ title: string; description: string
         "• Cultivates long-term relationships with key external stakeholders — community leaders, parent networks, and partner organizations — that will serve YPP's mission well beyond any single program cycle.",
       "Chapter President / Regional Director / Senior Regional Director":
         "• Actively shapes the long-term strategic direction and sustainability of the organization; eager to take on more responsibility and genuinely cares about success.\n" +
-        "Builds sustainable structures and plans for organizational continuity.\n" +
+        "• Builds sustainable structures and plans for organizational continuity.\n" +
         "• Develops and stewards a broad ecosystem of long-term relationships — with communities, parents, funders, and partners — that YPP can reliably activate for programs, support, and growth.",
-      Officer: "",
+      Officer:
+        "• Actively shapes the long-term strategic direction and sustainability of the organization; eager to take on more responsibility and genuinely cares about success.\n" +
+        "• Builds sustainable structures and plans for organizational continuity.\n" +
+        "• Develops and stewards a broad ecosystem of long-term relationships — with communities, parents, funders, and partners — that YPP can reliably activate for programs, support, and growth.",
     },
   },
 ];

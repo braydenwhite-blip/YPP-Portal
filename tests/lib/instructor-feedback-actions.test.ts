@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@/lib/mentorship/auto-feedback", () => ({
+  loadAutoCollectedInstructorFeedback: vi.fn().mockResolvedValue([]),
+}));
+
 vi.mock("@/lib/authorization", () => ({
   requireSessionUser: vi.fn().mockResolvedValue({
     id: "admin-1",
@@ -131,6 +135,28 @@ describe("instructor-feedback-actions", () => {
     expect(ctx.timeline.length).toBeGreaterThanOrEqual(2);
     expect(ctx.timeline[0]?.date >= ctx.timeline[1]?.date).toBe(true);
     expect(ctx.canLogReceivedFeedback).toBe(true);
+    expect(ctx.canRequestParentFeedback).toBe(false);
+    expect(ctx.autoCollected).toEqual([]);
+  });
+
+  it("creates received feedback with BOARD source", async () => {
+    await createInstructorReceivedFeedback({
+      instructorId: "instructor-1",
+      source: "BOARD",
+      feedbackDate: "2026-07-15",
+      category: "Board note",
+      rating: 5,
+      comment: "Strong chapter presence.",
+    });
+
+    expect((prisma as any).instructorReceivedFeedback.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          source: "BOARD",
+          category: "Board note",
+        }),
+      })
+    );
   });
 
   it("reorders review questions", async () => {

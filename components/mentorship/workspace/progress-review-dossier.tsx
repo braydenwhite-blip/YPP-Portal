@@ -53,17 +53,23 @@ function snippet(text: string | null | undefined, max = 120): string | null {
  */
 export async function ProgressReviewDossier({
   workspace,
+  embedded = false,
 }: {
   workspace: MentorshipWorkspace;
+  /** When true, skip outer card/title (parent already provides chrome). */
+  embedded?: boolean;
 }) {
   try {
-    return await renderProgressReviewDossier(workspace);
+    return await renderProgressReviewDossier(workspace, embedded);
   } catch {
     return null;
   }
 }
 
-async function renderProgressReviewDossier(workspace: MentorshipWorkspace) {
+async function renderProgressReviewDossier(
+  workspace: MentorshipWorkspace,
+  embedded: boolean
+) {
   const { person, checkIns, commitments, activeMentorshipId } = workspace;
   const first = person.name.trim().split(/\s+/)[0] || "They";
   const sessionUser = await getSessionUser();
@@ -130,32 +136,36 @@ async function renderProgressReviewDossier(workspace: MentorshipWorkspace) {
     latestFeedback != null;
 
   if (!hasWork) {
+    const empty = (
+      <p className="m-0 px-3 py-3 text-[13.5px] text-ink-muted">
+        Nothing logged for {first} this month yet. Check{" "}
+        <Link
+          href={`/mentorship/people/${person.id}?section=goals`}
+          className="font-semibold text-brand-700 no-underline hover:underline"
+        >
+          Goals
+        </Link>
+        ,{" "}
+        <Link
+          href={`/mentorship/people/${person.id}?section=check-ins`}
+          className="font-semibold text-brand-700 no-underline hover:underline"
+        >
+          Meetings
+        </Link>
+        , or{" "}
+        <Link
+          href={`/mentorship/people/${person.id}?section=reviews`}
+          className="font-semibold text-brand-700 no-underline hover:underline"
+        >
+          Feedback
+        </Link>{" "}
+        — then come back to write the update.
+      </p>
+    );
+    if (embedded) return empty;
     return (
       <CardV2 padding="md" className="border border-line-soft bg-surface-soft">
-        <p className="m-0 text-[13.5px] text-ink-muted">
-          Nothing logged for {first} this month yet. Check{" "}
-          <Link
-            href={`/mentorship/people/${person.id}?section=goals`}
-            className="font-semibold text-brand-700 no-underline hover:underline"
-          >
-            Goals
-          </Link>
-          ,{" "}
-          <Link
-            href={`/mentorship/people/${person.id}?section=check-ins`}
-            className="font-semibold text-brand-700 no-underline hover:underline"
-          >
-            Meetings
-          </Link>
-          , or{" "}
-          <Link
-            href={`/mentorship/people/${person.id}?section=reviews`}
-            className="font-semibold text-brand-700 no-underline hover:underline"
-          >
-            Feedback
-          </Link>{" "}
-          — then come back to write the update.
-        </p>
+        {empty}
       </CardV2>
     );
   }
@@ -170,16 +180,20 @@ async function renderProgressReviewDossier(workspace: MentorshipWorkspace) {
   }
   if (answeredCount > 0) chips.push(`${answeredCount} feedback answer${answeredCount === 1 ? "" : "s"}`);
 
-  return (
-    <CardV2 padding="md" className="flex flex-col gap-3">
-      <div>
-        <p className="m-0 text-[14px] font-semibold text-ink">
-          Quick look at {first}&apos;s month
-        </p>
-        {chips.length > 0 ? (
-          <p className="m-0 mt-1 text-[13px] text-ink-muted">{chips.join(" · ")}</p>
-        ) : null}
-      </div>
+  const body = (
+    <div className={embedded ? "flex flex-col gap-3 px-3 pb-3 pt-1" : "flex flex-col gap-3"}>
+      {!embedded ? (
+        <div>
+          <p className="m-0 text-[14px] font-semibold text-ink">
+            Quick look at {first}&apos;s month
+          </p>
+          {chips.length > 0 ? (
+            <p className="m-0 mt-1 text-[13px] text-ink-muted">{chips.join(" · ")}</p>
+          ) : null}
+        </div>
+      ) : chips.length > 0 ? (
+        <p className="m-0 text-[13px] text-ink-muted">{chips.join(" · ")}</p>
+      ) : null}
 
       {latestFeedback?.status === "ANSWERED" && answeredCount > 0 ? (
         <EvidenceBlock
@@ -277,6 +291,13 @@ async function renderProgressReviewDossier(workspace: MentorshipWorkspace) {
           </p>
         </EvidenceBlock>
       ) : null}
+    </div>
+  );
+
+  if (embedded) return body;
+  return (
+    <CardV2 padding="md" className="flex flex-col gap-3">
+      {body}
     </CardV2>
   );
 }

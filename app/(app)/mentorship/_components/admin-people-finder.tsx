@@ -39,7 +39,7 @@ export function AdminPeopleFinder({ people }: { people: MentorshipPersonIndexIte
             Find a person
           </h2>
           <p className="m-0 mt-1 text-[12.5px] text-ink-muted">
-            Open the same Mentorship workspace from any queue or search result.
+            Search to open someone&apos;s Mentorship page (assign G&amp;R there after setup).
           </p>
         </div>
         <button

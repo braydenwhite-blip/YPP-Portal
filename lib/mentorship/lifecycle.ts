@@ -207,13 +207,13 @@ export type LifecycleHrefs = {
  * `/mentorship/people/[id]` is the canonical destination for a person's whole Review &
  * G&R flow — every href the lifecycle engine bakes into `nextAction`/
  * `cycleStrip`/`cycleState` points there (with a `?panel=` for the
- * draft/approve in-page panels), never at the old `/mentorship/*` routes.
+ * approve in-page panel). Progress updates are composed on `?section=progress`.
  */
 export function defaultLifecycleHrefs(menteeId: string): LifecycleHrefs {
   const base = `/mentorship/people/${menteeId}`;
   return {
     section: (sectionId) => `${base}?section=${sectionId}`,
-    writeReview: `${base}?section=reviews&panel=draft`,
+    writeReview: `${base}?section=progress`,
     recordMentorCheckIn: `${base}?section=check-ins&panel=cycle-check-in`,
     adminMatching: `${base}?panel=setup`,
     adminGoals: `${base}?section=goals`,

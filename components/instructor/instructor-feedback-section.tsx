@@ -9,17 +9,31 @@ import {
   type InstructorReceivedFeedbackRow,
 } from "@/lib/instructor-feedback-actions";
 
-const SOURCES = [
+const ALL_SOURCES = [
   { value: "PARENT", label: "Parent" },
+  { value: "BOARD", label: "Board" },
+  { value: "MENTOR", label: "Mentor" },
   { value: "OFFICER", label: "Officer" },
   { value: "STUDENT", label: "Student" },
   { value: "PARTNER", label: "Partner" },
 ] as const;
 
-type FeedbackSource = (typeof SOURCES)[number]["value"];
+export { ALL_SOURCES as INSTRUCTOR_FEEDBACK_SOURCES };
+
+/** Sources collected in mentorship (about the mentee). */
+export const MENTORSHIP_FEEDBACK_SOURCES = [
+  { value: "PARENT", label: "Parent" },
+  { value: "BOARD", label: "Board" },
+  { value: "MENTOR", label: "Mentor" },
+  { value: "OFFICER", label: "Officer" },
+] as const;
+
+type FeedbackSource = (typeof ALL_SOURCES)[number]["value"];
 
 const SOURCE_LABEL: Record<FeedbackSource, string> = {
   PARENT: "Parent",
+  BOARD: "Board",
+  MENTOR: "Mentor",
   OFFICER: "Officer",
   STUDENT: "Student",
   PARTNER: "Partner",
@@ -34,8 +48,8 @@ function formatDate(iso: string) {
 }
 
 /**
- * Manual feedback entry for Parent / Officer / Student / Partner.
- * Same data model powers future automated surveys.
+ * Manual feedback entry. Mentorship uses Parent / Board / Mentor / Officer;
+ * instructor people pages can still log Student / Partner.
  */
 export function InstructorFeedbackSection({
   instructorId,
@@ -44,19 +58,23 @@ export function InstructorFeedbackSection({
   embed = false,
   lockedSource,
   defaultCategory,
+  sources = MENTORSHIP_FEEDBACK_SOURCES,
 }: {
   instructorId: string;
   canEdit: boolean;
   initialRows: InstructorReceivedFeedbackRow[];
   embed?: boolean;
-  /** When set, source is fixed (Parent or Officer section). */
+  /** When set, source is fixed. */
   lockedSource?: FeedbackSource;
   defaultCategory?: string;
+  sources?: ReadonlyArray<{ value: FeedbackSource; label: string }>;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [source, setSource] = useState<FeedbackSource>(lockedSource ?? "PARENT");
+  const [source, setSource] = useState<FeedbackSource>(
+    lockedSource ?? sources[0]?.value ?? "PARENT"
+  );
   const [feedbackDate, setFeedbackDate] = useState(() =>
     new Date().toISOString().slice(0, 10)
   );
@@ -89,13 +107,13 @@ export function InstructorFeedbackSection({
       <div className="grid gap-3 sm:grid-cols-2">
         {!lockedSource ? (
           <label className="block text-[12px] font-medium text-ink-muted">
-            Source
+            From
             <select
               className="mt-1 w-full rounded-[10px] border border-line bg-surface px-3 py-2 text-[14px] text-ink"
               value={source}
               onChange={(e) => setSource(e.target.value as FeedbackSource)}
             >
-              {SOURCES.map((opt) => (
+              {sources.map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}
                 </option>

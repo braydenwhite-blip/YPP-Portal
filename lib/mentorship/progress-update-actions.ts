@@ -102,19 +102,45 @@ export async function submitMonthlyProgressUpdate(
   }
 
   const { cycleMonth, cycleLabel } = getCurrentCycleMonth();
+  const monthEnd = new Date(
+    Date.UTC(cycleMonth.getUTCFullYear(), cycleMonth.getUTCMonth() + 1, 1)
+  );
   const requiresChair = mentorshipRequiresChairApproval({
     governanceMode: mentorship.governanceMode,
     programGroup: mentorship.programGroup,
   });
 
-  // Ensure a reflection for this calendar month exists (create a stub if needed).
-  let reflection = await prisma.monthlySelfReflection.findFirst({
-    where: { mentorshipId: mentorship.id, cycleMonth },
-    include: {
-      goalReview: { select: { id: true, status: true } },
-      mentorCycleCheckIn: { select: { id: true } },
+  // Prefer the reflection that already owns this month's review, else
+  // the newest reflection for the month, else create a stub.
+  // Mentors may re-send an updated version after new mentee feedback.
+  const existingMonthReview = await prisma.mentorGoalReview.findFirst({
+    where: {
+      mentorshipId: mentorship.id,
+      cycleMonth: { gte: cycleMonth, lt: monthEnd },
     },
+    orderBy: [{ createdAt: "desc" }],
+    select: { id: true, status: true, selfReflectionId: true },
   });
+
+  let reflection = existingMonthReview
+    ? await prisma.monthlySelfReflection.findUnique({
+        where: { id: existingMonthReview.selfReflectionId },
+        include: {
+          goalReview: { select: { id: true, status: true } },
+          mentorCycleCheckIn: { select: { id: true } },
+        },
+      })
+    : await prisma.monthlySelfReflection.findFirst({
+        where: {
+          mentorshipId: mentorship.id,
+          cycleMonth: { gte: cycleMonth, lt: monthEnd },
+        },
+        orderBy: { cycleNumber: "desc" },
+        include: {
+          goalReview: { select: { id: true, status: true } },
+          mentorCycleCheckIn: { select: { id: true } },
+        },
+      });
 
   if (!reflection) {
     const last = await prisma.monthlySelfReflection.findFirst({
@@ -145,16 +171,9 @@ export async function submitMonthlyProgressUpdate(
     });
   }
 
-  if (reflection.goalReview?.status === "APPROVED") {
-    throw new Error(
-      `A progress update for ${cycleLabel} was already sent. Open the PDF from Past updates.`
-    );
-  }
-  if (reflection.goalReview?.status === "PENDING_CHAIR_APPROVAL") {
-    throw new Error(
-      "This month's update is waiting on chair approval. You can revise it after the chair sends it back."
-    );
-  }
+  const isRevision =
+    reflection.goalReview?.status === "APPROVED" ||
+    reflection.goalReview?.status === "PENDING_CHAIR_APPROVAL";
 
   if (!reflection.mentorCycleCheckIn) {
     await prisma.mentorshipCheckIn.create({
@@ -164,9 +183,20 @@ export async function submitMonthlyProgressUpdate(
         authorId: viewer.id,
         selfReflectionId: reflection.id,
         kind: "CHECK_IN",
-        notes: `Monthly progress update prepared for ${cycleLabel}.`,
+        notes: isRevision
+          ? `Updated monthly progress update for ${cycleLabel}.`
+          : `Monthly progress update prepared for ${cycleLabel}.`,
         discussion: data.overallComments.trim(),
         participantIds: [viewer.id, mentorship.menteeId],
+        occurredAt: new Date(),
+      },
+    });
+  } else if (isRevision) {
+    await prisma.mentorshipCheckIn.update({
+      where: { id: reflection.mentorCycleCheckIn.id },
+      data: {
+        notes: `Updated monthly progress update for ${cycleLabel}.`,
+        discussion: data.overallComments.trim(),
         occurredAt: new Date(),
       },
     });

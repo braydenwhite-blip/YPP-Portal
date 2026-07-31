@@ -52,7 +52,7 @@ import { PromotionHistoryPanel } from "@/components/people-strategy/promotion-hi
 import { PromotePersonForm } from "@/components/people-strategy/promote-person-form";
 import { INSTRUCTION_TITLES, LEADERSHIP_TITLES } from "@/lib/org/levels";
 import { FunctionDepartmentLabels } from "@/components/org/function-department-labels";
-import { InstructorFeedbackSection } from "@/components/instructor/instructor-feedback-section";
+import { InstructorFeedbackSection, INSTRUCTOR_FEEDBACK_SOURCES } from "@/components/instructor/instructor-feedback-section";
 import { listInstructorReceivedFeedback } from "@/lib/instructor-feedback-actions";
 import { hasRole } from "@/lib/authorization-roles";
 
@@ -237,6 +237,7 @@ export default async function PublicProfilePage({ params, searchParams }: PagePr
             instructorId={id}
             canEdit={canLogFeedback && viewer.id !== id}
             initialRows={instructorFeedback}
+            sources={INSTRUCTOR_FEEDBACK_SOURCES}
           />
         </div>
       ) : null}

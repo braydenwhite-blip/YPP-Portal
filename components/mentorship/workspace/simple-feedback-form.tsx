@@ -25,10 +25,10 @@ const RATINGS = [
 ] as const;
 
 const SIMPLE_LABEL: Record<(typeof RATINGS)[number], string> = {
-  BEHIND_SCHEDULE: "Behind",
-  GETTING_STARTED: "Starting",
-  ACHIEVED: "On track",
-  ABOVE_AND_BEYOND: "Amazing",
+  BEHIND_SCHEDULE: "At Risk",
+  GETTING_STARTED: "Needs Attention",
+  ACHIEVED: "On Track",
+  ABOVE_AND_BEYOND: "Above & Beyond",
 };
 
 const fieldLabel = "text-[13px] font-semibold text-ink";

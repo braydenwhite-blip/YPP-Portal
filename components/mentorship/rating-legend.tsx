@@ -17,16 +17,16 @@ interface RatingLegendProps {
 
 const MENTEE_NEXT_STEP: Record<string, string> = {
   ABOVE_AND_BEYOND: "Keep going — you may be ready for a stretch goal or a leadership role.",
-  ACHIEVED: "Stay consistent and keep the momentum you've built.",
-  GETTING_STARTED: "Your mentor will help break the next step into something easy to start.",
+  ACHIEVED: "Stay consistent and keep meeting every bullet.",
+  GETTING_STARTED: "Your mentor will help close the remaining bullets.",
   BEHIND_SCHEDULE: "Your mentor and the team will help you reset with a clear, manageable plan.",
 };
 
 const OPERATOR_NEXT_STEP: Record<string, string> = {
   ABOVE_AND_BEYOND: "Consider an award nomination or a future mentor/leadership pathway.",
-  ACHIEVED: "No action needed — acknowledge the progress.",
-  GETTING_STARTED: "Add structure: clarify next steps and recommend a resource.",
-  BEHIND_SCHEDULE: "Auto-flags for admin attention. Build a concrete recovery plan.",
+  ACHIEVED: "All bullets met — acknowledge the progress.",
+  GETTING_STARTED: "Some bullets unmet — clarify next steps and add structure.",
+  BEHIND_SCHEDULE: "Major deficiencies. Auto-flags for admin attention; build a recovery plan.",
 };
 
 /**

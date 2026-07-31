@@ -22,6 +22,7 @@ import {
   parseInstructorRequestedFollowUpSourceId,
 } from "@/lib/classes/student-follow-up";
 import { preparationReviewFingerprint } from "@/lib/classes/preparation-fingerprint";
+import { formatClassScheduleLabel } from "@/lib/classes/format-schedule-label";
 
 const CONFIRMED_CO_INSTRUCTOR = [
   "INSTRUCTOR_CONFIRMED",
@@ -371,8 +372,11 @@ export type InstructorTeachingWorkspace = {
 };
 
 function scheduleLabel(row: OfferingRow) {
-  const days = row.meetingDays.length > 0 ? row.meetingDays.join(", ") : "Schedule not set";
-  return row.meetingTime ? `${days} · ${row.meetingTime}` : days;
+  return formatClassScheduleLabel({
+    meetingDays: row.meetingDays,
+    meetingTime: row.meetingTime,
+    timezone: row.timezone,
+  });
 }
 
 function locationLabel(row: OfferingRow) {

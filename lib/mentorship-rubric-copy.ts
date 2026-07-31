@@ -12,54 +12,59 @@ export interface MentorshipRubricCopy {
   adminAttention: boolean;
 }
 
+/**
+ * Leadership Goals & Rubric rating scale (shared across Instructor + Leadership G&R):
+ *   Above & Beyond — Dramatically exceeds all bullets at this level
+ *   On Track — All bullets met
+ *   Needs Attention — Some bullets met; no major deficiencies
+ *   At Risk — Major deficiencies present
+ *
+ * Prisma enums stay ABOVE_AND_BEYOND / ACHIEVED / GETTING_STARTED / BEHIND_SCHEDULE.
+ */
 export const GOAL_RATING_COPY: Record<GoalRatingColor, MentorshipRubricCopy> = {
   ABOVE_AND_BEYOND: {
     label: "Above & Beyond",
     shortLabel: "Purple",
-    menteeLabel: "Exceptional progress",
-    mentorDescription:
-      "Exceptional progress. This person may be ready for future mentor or leadership opportunities.",
+    menteeLabel: "Above & Beyond",
+    mentorDescription: "Dramatically exceeds all bullets at this level.",
     menteeDescription:
-      "You are making exceptional progress and may be ready for more leadership responsibility.",
-    adminDescription:
-      "Exceptional progress; consider future mentor, chair, or leadership pathways.",
+      "You’re exceeding expectations on this goal — keep stretching into bigger ownership.",
+    adminDescription: "Dramatically exceeds all bullets at this level.",
     color: "#7c3aed",
     background: "#f5f3ff",
     adminAttention: false,
   },
   ACHIEVED: {
-    label: "Achieved",
+    label: "On Track",
     shortLabel: "Green",
-    menteeLabel: "On track",
-    mentorDescription: "On track. Goals are being met at the expected pace.",
-    menteeDescription: "You are on track and building steady momentum.",
-    adminDescription: "On track.",
+    menteeLabel: "On Track",
+    mentorDescription: "All bullets met.",
+    menteeDescription: "You’re meeting the expectations for this goal.",
+    adminDescription: "All bullets met.",
     color: "#16a34a",
     background: "#dcfce7",
     adminAttention: false,
   },
   GETTING_STARTED: {
-    label: "Getting Started",
+    label: "Needs Attention",
     shortLabel: "Yellow",
-    menteeLabel: "Needs support",
-    mentorDescription:
-      "Needs support. Clarify next steps and add structure before the next review.",
+    menteeLabel: "Needs Attention",
+    mentorDescription: "Some bullets met; no major deficiencies.",
     menteeDescription:
-      "You are still getting traction. Your mentor should help make the next steps clearer and easier to start.",
-    adminDescription: "Needs support; watch for follow-up and resource needs.",
+      "Some expectations are met. Your mentor will help close the remaining gaps.",
+    adminDescription: "Some bullets met; no major deficiencies.",
     color: "#d97706",
     background: "#fef3c7",
     adminAttention: false,
   },
   BEHIND_SCHEDULE: {
-    label: "Serious Concern",
+    label: "At Risk",
     shortLabel: "Red",
-    menteeLabel: "Needs focused support",
-    mentorDescription:
-      "Serious concern. Requires admin attention and a concrete support plan.",
+    menteeLabel: "At Risk",
+    mentorDescription: "Major deficiencies present.",
     menteeDescription:
-      "This area needs focused support. Your mentor and the team should help you reset with clear, manageable next steps.",
-    adminDescription: "Serious concern; requires admin attention.",
+      "This area needs focused support. Your mentor and the team will help you reset with clear next steps.",
+    adminDescription: "Major deficiencies present; requires admin attention.",
     color: "#dc2626",
     background: "#fee2e2",
     adminAttention: true,
@@ -68,11 +73,7 @@ export const GOAL_RATING_COPY: Record<GoalRatingColor, MentorshipRubricCopy> = {
 
 export const PROGRESS_STATUS_COPY: Record<ProgressStatus, MentorshipRubricCopy> = {
   ABOVE_AND_BEYOND: GOAL_RATING_COPY.ABOVE_AND_BEYOND,
-  ON_TRACK: {
-    ...GOAL_RATING_COPY.ACHIEVED,
-    label: "On Track",
-    menteeLabel: "On track",
-  },
+  ON_TRACK: GOAL_RATING_COPY.ACHIEVED,
   GETTING_STARTED: GOAL_RATING_COPY.GETTING_STARTED,
   BEHIND_SCHEDULE: GOAL_RATING_COPY.BEHIND_SCHEDULE,
 };
@@ -103,8 +104,7 @@ export function ratingRequiresAdminAttention(
 
 /**
  * Canonical display order for the rubric: strongest → needs-most-support.
- * Purple (exceptional) → Green (on track) → Yellow (needs support) → Red (serious concern).
- * Use this everywhere a legend or distribution is rendered so every surface is consistent.
+ * Purple (Above & Beyond) → Green (On Track) → Yellow (Needs Attention) → Red (At Risk).
  */
 export const RATING_ORDER: GoalRatingColor[] = [
   "ABOVE_AND_BEYOND",
@@ -122,7 +122,13 @@ export type RatingAudience = "mentee" | "mentor" | "admin";
 export function getRatingCopyForAudience(
   rating: GoalRatingColor | string | null | undefined,
   audience: RatingAudience
-): { label: string; description: string; color: string; background: string; adminAttention: boolean } {
+): {
+  label: string;
+  description: string;
+  color: string;
+  background: string;
+  adminAttention: boolean;
+} {
   const cfg = getGoalRatingCopy(rating);
   if (audience === "mentee") {
     return {

@@ -22,15 +22,16 @@ function formatDate(iso: string) {
 
 const SOURCE_LABEL: Record<string, string> = {
   PARENT: "Parent",
+  BOARD: "Board",
+  MENTOR: "Mentor",
   OFFICER: "Officer",
   STUDENT: "Student",
   PARTNER: "Partner",
-  MENTOR: "Mentor",
 };
 
 /**
- * Review-page evidence. Mentors see everything while writing; officers/admins
- * can log parent & officer feedback. No extra dashboard pages.
+ * Mentorship review evidence. Collect Parent / Board / Mentor / Officer
+ * feedback about the mentee — not instructor class-parent surveys.
  */
 export async function InstructorReviewFeedbackContext({
   instructorId,
@@ -61,6 +62,8 @@ export function ReviewEvidenceInline({
   density?: "calm" | "full";
 }) {
   const parentRows = ctx.received.filter((r) => r.source === "PARENT");
+  const boardRows = ctx.received.filter((r) => r.source === "BOARD");
+  const mentorRows = ctx.received.filter((r) => r.source === "MENTOR");
   const officerRows = ctx.received.filter((r) => r.source === "OFFICER");
   const otherRows = ctx.received.filter(
     (r) => r.source === "STUDENT" || r.source === "PARTNER"
@@ -71,12 +74,32 @@ export function ReviewEvidenceInline({
       <div className="flex flex-col gap-5">
         <SourceFeedbackBlock
           title="Parent feedback"
-          hint="Logged from parent emails (surveys can plug into the same record later)"
+          hint="What a parent shared about this mentee"
           menteeId={menteeId}
           rows={parentRows}
           lockedSource="PARENT"
           canLog={ctx.canLogReceivedFeedback}
-          defaultCategory="Parent email"
+          defaultCategory="Parent note"
+        />
+
+        <SourceFeedbackBlock
+          title="Board feedback"
+          hint="Board or leadership observations"
+          menteeId={menteeId}
+          rows={boardRows}
+          lockedSource="BOARD"
+          canLog={ctx.canLogReceivedFeedback}
+          defaultCategory="Board note"
+        />
+
+        <SourceFeedbackBlock
+          title="Mentor feedback"
+          hint="Notes from another mentor or co-mentor"
+          menteeId={menteeId}
+          rows={mentorRows}
+          lockedSource="MENTOR"
+          canLog={ctx.canLogReceivedFeedback}
+          defaultCategory="Mentor note"
         />
 
         <SourceFeedbackBlock
@@ -100,7 +123,7 @@ export function ReviewEvidenceInline({
           compact
         />
 
-        {(otherRows.length > 0 || ctx.canLogReceivedFeedback) && (
+        {otherRows.length > 0 ? (
           <details className="rounded-[12px] border border-line-soft px-3.5 py-2.5">
             <summary className="cursor-pointer text-[13px] font-semibold text-ink">
               Student or partner feedback
@@ -111,10 +134,14 @@ export function ReviewEvidenceInline({
                 canEdit={ctx.canLogReceivedFeedback}
                 initialRows={otherRows}
                 embed
+                sources={[
+                  { value: "STUDENT", label: "Student" },
+                  { value: "PARTNER", label: "Partner" },
+                ]}
               />
             </div>
           </details>
-        )}
+        ) : null}
 
         {(ctx.notes.length > 0 || ctx.recentCheckIns.length > 0) && (
           <details className="rounded-[12px] border border-line-soft px-3.5 py-2.5">
@@ -133,7 +160,7 @@ export function ReviewEvidenceInline({
     );
   }
 
-  // Calm browse: compact history + notes; parent/officer still visible.
+  // Calm: mentorship feedback timeline + log Parent/Board/Mentor/Officer.
   const preview = ctx.timeline.slice(0, 5);
   const rest = ctx.timeline.slice(5);
 
@@ -142,7 +169,7 @@ export function ReviewEvidenceInline({
       <section>
         <h3 className="m-0 text-[15px] font-semibold text-ink">What others said</h3>
         <p className="m-0 mt-0.5 text-[13px] text-ink-muted">
-          Parents, officers, and past mentor reviews
+          Parent, board, mentor, and officer feedback collected in mentorship
         </p>
         {preview.length > 0 ? (
           <ul className="m-0 mt-3 list-none divide-y divide-line-soft border-t border-line-soft p-0">
@@ -151,7 +178,10 @@ export function ReviewEvidenceInline({
             ))}
           </ul>
         ) : (
-          <p className="m-0 mt-3 text-[13px] text-ink-muted">No feedback yet.</p>
+          <p className="m-0 mt-3 text-[13px] text-ink-muted">
+            Nothing logged yet — add parent, board, mentor, or officer feedback
+            below.
+          </p>
         )}
         {rest.length > 0 ? (
           <details className="mt-2">
@@ -168,30 +198,24 @@ export function ReviewEvidenceInline({
       </section>
 
       {ctx.canLogReceivedFeedback ? (
-        <details className="rounded-[12px] border border-line-soft px-3.5 py-2.5">
+        <details
+          className="rounded-[12px] border border-line-soft px-3.5 py-2.5"
+          open={preview.length === 0}
+        >
           <summary className="cursor-pointer text-[13px] font-semibold text-ink">
-            Log parent or officer feedback
+            Log feedback
           </summary>
-          <div className="mt-3 flex flex-col gap-4">
-            <SourceFeedbackBlock
-              title="Parent"
-              hint="From email for now"
-              menteeId={menteeId}
-              rows={parentRows}
-              lockedSource="PARENT"
-              canLog
-              defaultCategory="Parent email"
-              compact
-            />
-            <SourceFeedbackBlock
-              title="Officer"
-              hint="Date, category, rating, comments"
-              menteeId={menteeId}
-              rows={officerRows}
-              lockedSource="OFFICER"
-              canLog
-              defaultCategory="Observation"
-              compact
+          <div className="mt-3">
+            <p className="m-0 mb-3 text-[12.5px] leading-relaxed text-ink-muted">
+              Choose who it came from — Parent, Board, Mentor, or Officer — then
+              save it on this mentee&apos;s mentorship record.
+            </p>
+            <InstructorFeedbackSection
+              instructorId={menteeId}
+              canEdit
+              initialRows={ctx.received}
+              embed
+              defaultCategory="Mentorship"
             />
           </div>
         </details>
@@ -221,7 +245,7 @@ function SourceFeedbackBlock({
   hint: string;
   menteeId: string;
   rows: InstructorReviewContext["received"];
-  lockedSource: "PARENT" | "OFFICER";
+  lockedSource: "PARENT" | "BOARD" | "MENTOR" | "OFFICER";
   canLog: boolean;
   defaultCategory: string;
   compact?: boolean;

@@ -331,9 +331,10 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/instructor/students",
       label: "Students",
-      icon: "◉",
+      icon: "👥",
       roles: INSTRUCTOR_ROLES,
-      dashboardDescription: "Only students with a concrete, unresolved teaching follow-up.",
+      dashboardDescription:
+        "All students across your classes — current, former, and archived — plus anyone needing follow-up.",
       dashboardPriority: 2,
     },
     {
@@ -379,7 +380,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/instructor/materials",
       label: "Materials",
-      icon: "▱",
+      icon: "📎",
       roles: INSTRUCTOR_ROLES,
       dashboardDescription: "Lesson plans and teaching materials grouped by the session where they are used.",
       dashboardPriority: 3,
@@ -387,7 +388,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/instructor/schedule",
       label: "Schedule",
-      icon: "□",
+      icon: "📅",
       roles: INSTRUCTOR_ROLES,
       dashboardDescription: "Assigned teaching sessions without unrelated portal events.",
       dashboardPriority: 4,

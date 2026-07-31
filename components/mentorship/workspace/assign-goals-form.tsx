@@ -11,6 +11,9 @@ type GoalDraft = {
   timePhase: string;
   priority: string;
   dueDate: string;
+  /** Empty string = no quantitative target. */
+  targetCount: string;
+  targetUnit: string;
 };
 
 const TIME_PHASE_OPTIONS = [
@@ -27,6 +30,16 @@ const PRIORITY_OPTIONS = [
   { value: "CRITICAL", label: "Critical" },
 ] as const;
 
+/** Common countable outputs mentors can attach as measurable targets. */
+const UNIT_PRESETS = [
+  { unit: "newsletters", label: "Newsletters" },
+  { unit: "classes", label: "Classes" },
+  { unit: "events", label: "Events" },
+  { unit: "meetings", label: "Meetings" },
+  { unit: "parent calls", label: "Parent calls" },
+  { unit: "posts", label: "Posts" },
+] as const;
+
 function emptyGoal(): GoalDraft {
   return {
     title: "",
@@ -34,12 +47,15 @@ function emptyGoal(): GoalDraft {
     timePhase: "MONTHLY",
     priority: "NORMAL",
     dueDate: "",
+    targetCount: "",
+    targetUnit: "",
   };
 }
 
 /**
  * Inline G&R creation on the mentee's Goals tab — mentor or admin fills in
  * mission + goals here (no separate admin page, no template required).
+ * Optional quantitative targets (e.g. 3 newsletters) become KPI definitions.
  */
 export function AssignGoalsForm({
   personId,
@@ -62,13 +78,28 @@ export function AssignGoalsForm({
     setError(null);
 
     const cleaned = goals
-      .map((g) => ({
-        title: g.title.trim(),
-        description: g.description.trim(),
-        timePhase: g.timePhase || "MONTHLY",
-        priority: g.priority || "NORMAL",
-        dueDate: g.dueDate.trim() || null,
-      }))
+      .map((g) => {
+        const countRaw = g.targetCount.trim();
+        const unit = g.targetUnit.trim();
+        const count = countRaw ? Number(countRaw) : null;
+        if (countRaw && (!Number.isInteger(count) || (count ?? 0) < 1)) {
+          throw new Error(`“${g.title || "Goal"}” needs a whole number target (e.g. 3).`);
+        }
+        if ((count && !unit) || (!count && unit)) {
+          throw new Error(
+            `“${g.title || "Goal"}” needs both a number and a unit (e.g. 3 newsletters).`
+          );
+        }
+        return {
+          title: g.title.trim(),
+          description: g.description.trim(),
+          timePhase: g.timePhase || "MONTHLY",
+          priority: g.priority || "NORMAL",
+          dueDate: g.dueDate.trim() || null,
+          targetCount: count,
+          targetUnit: unit || null,
+        };
+      })
       .filter((g) => g.title.length > 0);
 
     if (cleaned.length === 0) {
@@ -93,7 +124,17 @@ export function AssignGoalsForm({
   }
 
   return (
-    <form onSubmit={onSubmit} className="flex w-full flex-col gap-6 text-left">
+    <form
+      onSubmit={(e) => {
+        try {
+          onSubmit(e);
+        } catch (err) {
+          e.preventDefault();
+          setError(err instanceof Error ? err.message : "Check the goals and try again.");
+        }
+      }}
+      className="flex w-full flex-col gap-6 text-left"
+    >
       <label className="flex flex-col gap-2">
         <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-ink-muted">
           Big picture (optional)
@@ -108,9 +149,14 @@ export function AssignGoalsForm({
       </label>
 
       <div className="flex flex-col gap-3">
-        <p className="m-0 text-[12px] font-semibold uppercase tracking-[0.06em] text-ink-muted">
-          Goals
-        </p>
+        <div>
+          <p className="m-0 text-[12px] font-semibold uppercase tracking-[0.06em] text-ink-muted">
+            Goals
+          </p>
+          <p className="m-0 mt-1 text-[12.5px] text-ink-muted">
+            Add a count when it helps — e.g. publish 3 newsletters this cycle.
+          </p>
+        </div>
 
         <div className="overflow-hidden rounded-[14px] border border-line bg-surface">
           {goals.map((goal, index) => (
@@ -156,6 +202,91 @@ export function AssignGoalsForm({
                     className="mt-2 w-full resize-none border-0 bg-transparent p-0 text-[13.5px] leading-relaxed text-ink-muted outline-none placeholder:text-ink-muted/55"
                   />
 
+                  <div className="mt-3 rounded-[12px] border border-line-soft bg-surface-soft px-3.5 py-3">
+                    <p className="m-0 text-[12px] font-semibold text-ink">
+                      Measurable target{" "}
+                      <span className="font-normal text-ink-muted">(optional)</span>
+                    </p>
+                    <p className="m-0 mt-0.5 text-[12px] text-ink-muted">
+                      How many of something should they deliver?{" "}
+                      <span className="italic">Example: 3 newsletters this cycle.</span>
+                    </p>
+                    <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                      <label className="flex flex-col gap-1 text-[11.5px] font-medium text-ink-muted">
+                        <span>How many?</span>
+                        <input
+                          type="number"
+                          min={1}
+                          max={9999}
+                          inputMode="numeric"
+                          value={goal.targetCount}
+                          onChange={(e) =>
+                            updateGoal(index, { targetCount: e.target.value })
+                          }
+                          placeholder="e.g. 3"
+                          className="h-9 w-16 rounded-[10px] border border-line bg-surface px-2.5 text-center text-[14px] font-semibold text-ink outline-none focus:border-brand-400"
+                        />
+                      </label>
+                      <label className="flex min-w-[10rem] flex-1 flex-col gap-1 text-[11.5px] font-medium text-ink-muted">
+                        <span>What are they delivering?</span>
+                        <input
+                          value={goal.targetUnit}
+                          onChange={(e) =>
+                            updateGoal(index, { targetUnit: e.target.value })
+                          }
+                          placeholder="e.g. newsletters"
+                          list={`goal-units-${index}`}
+                          className="h-9 w-full rounded-[10px] border border-line bg-surface px-3 text-[13.5px] text-ink outline-none focus:border-brand-400"
+                        />
+                      </label>
+                      <datalist id={`goal-units-${index}`}>
+                        {UNIT_PRESETS.map((p) => (
+                          <option key={p.unit} value={p.unit} />
+                        ))}
+                      </datalist>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {UNIT_PRESETS.map((p) => {
+                        const selected = goal.targetUnit === p.unit;
+                        return (
+                          <button
+                            key={p.unit}
+                            type="button"
+                            onClick={() =>
+                              updateGoal(index, {
+                                targetUnit: p.unit,
+                                targetCount: goal.targetCount || "3",
+                              })
+                            }
+                            className={
+                              selected
+                                ? "rounded-full bg-brand-600 px-2.5 py-1 text-[11.5px] font-semibold text-white"
+                                : "rounded-full bg-surface px-2.5 py-1 text-[11.5px] font-medium text-ink-muted hover:bg-line/60 hover:text-ink"
+                            }
+                          >
+                            {p.label}
+                          </button>
+                        );
+                      })}
+                      {goal.targetCount || goal.targetUnit ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateGoal(index, { targetCount: "", targetUnit: "" })
+                          }
+                          className="rounded-full px-2.5 py-1 text-[11.5px] font-medium text-ink-muted hover:text-ink"
+                        >
+                          Clear
+                        </button>
+                      ) : null}
+                    </div>
+                    {goal.targetCount && goal.targetUnit ? (
+                      <p className="m-0 mt-2 text-[12.5px] font-medium text-brand-800">
+                        Target: {goal.targetCount} {goal.targetUnit}
+                      </p>
+                    ) : null}
+                  </div>
+
                   <details className="mt-3 group">
                     <summary className="cursor-pointer list-none text-[12.5px] font-medium text-ink-muted hover:text-ink [&::-webkit-details-marker]:hidden">
                       <span className="group-open:hidden">More options</span>
@@ -182,37 +313,37 @@ export function AssignGoalsForm({
                         })}
                       </div>
                       <div className="grid gap-3 sm:grid-cols-2">
-                      <label className="flex flex-col gap-1.5">
-                        <span className="text-[11.5px] font-semibold uppercase tracking-[0.05em] text-ink-muted">
-                          Priority
-                        </span>
-                        <select
-                          value={goal.priority}
-                          onChange={(e) =>
-                            updateGoal(index, { priority: e.target.value })
-                          }
-                          className="h-9 rounded-[10px] border border-line bg-surface px-3 text-[13px] text-ink outline-none focus:border-brand-400"
-                        >
-                          {PRIORITY_OPTIONS.map((o) => (
-                            <option key={o.value} value={o.value}>
-                              {o.label}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="flex flex-col gap-1.5">
-                        <span className="text-[11.5px] font-semibold uppercase tracking-[0.05em] text-ink-muted">
-                          Due date
-                        </span>
-                        <input
-                          type="date"
-                          value={goal.dueDate}
-                          onChange={(e) =>
-                            updateGoal(index, { dueDate: e.target.value })
-                          }
-                          className="h-9 rounded-[10px] border border-line bg-surface px-3 text-[13px] text-ink outline-none focus:border-brand-400"
-                        />
-                      </label>
+                        <label className="flex flex-col gap-1.5">
+                          <span className="text-[11.5px] font-semibold uppercase tracking-[0.05em] text-ink-muted">
+                            Priority
+                          </span>
+                          <select
+                            value={goal.priority}
+                            onChange={(e) =>
+                              updateGoal(index, { priority: e.target.value })
+                            }
+                            className="h-9 rounded-[10px] border border-line bg-surface px-3 text-[13px] text-ink outline-none focus:border-brand-400"
+                          >
+                            {PRIORITY_OPTIONS.map((o) => (
+                              <option key={o.value} value={o.value}>
+                                {o.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="flex flex-col gap-1.5">
+                          <span className="text-[11.5px] font-semibold uppercase tracking-[0.05em] text-ink-muted">
+                            Due date
+                          </span>
+                          <input
+                            type="date"
+                            value={goal.dueDate}
+                            onChange={(e) =>
+                              updateGoal(index, { dueDate: e.target.value })
+                            }
+                            className="h-9 rounded-[10px] border border-line bg-surface px-3 text-[13px] text-ink outline-none focus:border-brand-400"
+                          />
+                        </label>
                       </div>
                     </div>
                   </details>

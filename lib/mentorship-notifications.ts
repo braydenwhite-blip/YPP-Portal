@@ -100,7 +100,7 @@ export const emitReflectionSubmitted = safeEmit(async function emitReflectionSub
     type: NotificationType.REFLECTION_SUBMITTED,
     title: `${params.menteeName} submitted their ${label} reflection`,
     body: `Their reflection is ready for your monthly review.`,
-    link: `/mentorship/people/${params.menteeId}?section=reviews&panel=draft`,
+    link: `/mentorship/people/${params.menteeId}?section=progress`,
     dedupKey: `refl-submit:${params.mentorId}:${params.ctx.cycleNumber}:${params.menteeId}`,
   });
 }, "emitReflectionSubmitted");
@@ -188,7 +188,7 @@ export const notifyMentorReviewDue = safeEmit(async function notifyMentorReviewD
     type: NotificationType.GR_REVIEW_DUE,
     title: `${name} review due — ${label}`,
     body: `The ${label} self-reflection is submitted. Write and submit the review before month-end.`,
-    link: `/mentorship/people/${params.menteeId}?section=reviews&panel=draft`,
+    link: `/mentorship/people/${params.menteeId}?section=progress`,
     dedupKey: `gr:review-due:${params.mentorId}:${params.menteeId}:${params.cycleMonthIso.slice(0, 7)}`,
   });
 }, "notifyMentorReviewDue");

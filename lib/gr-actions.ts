@@ -85,14 +85,50 @@ export async function createGRTemplate(formData: FormData) {
   const officerPosition = getOptionalString(formData, "officerPosition");
   const roleMission = getString(formData, "roleMission");
 
+  let goalsInput: Array<{ title: string; description: string; timePhase?: string }> = [];
+  const goalsJson = formData.get("goalsJson");
+  if (typeof goalsJson === "string" && goalsJson.trim()) {
+    try {
+      const parsed = JSON.parse(goalsJson);
+      if (Array.isArray(parsed)) {
+        goalsInput = parsed
+          .map((g) => ({
+            title: String(g?.title ?? "").trim(),
+            description: String(g?.description ?? "").trim(),
+            timePhase: String(g?.timePhase ?? "LONG_TERM"),
+          }))
+          .filter((g) => g.title.length > 0);
+      }
+    } catch {
+      throw new Error("Invalid goals payload.");
+    }
+  }
+
+  const hasGoals = goalsInput.length > 0;
+
   const template = await prisma.gRTemplate.create({
     data: {
       title,
       roleType,
       officerPosition,
       roleMission,
+      // Ready to assign as soon as the template has goals.
+      status: hasGoals ? "GR_APPROVED" : "GR_DRAFT",
+      publishedAt: hasGoals ? new Date() : null,
       createdById: session.user.id,
       lastEditedById: session.user.id,
+      goals: {
+        create: goalsInput.map((g, index) => ({
+          title: g.title,
+          description: g.description || g.title,
+          timePhase: (["FIRST_MONTH", "FIRST_QUARTER", "LONG_TERM", "MONTHLY"].includes(
+            g.timePhase ?? ""
+          )
+            ? g.timePhase
+            : "LONG_TERM") as GRTimePhase,
+          sortOrder: index,
+        })),
+      },
     },
   });
 
@@ -101,7 +137,14 @@ export async function createGRTemplate(formData: FormData) {
     data: {
       templateId: template.id,
       version: 1,
-      snapshot: { title, roleType, officerPosition, roleMission, goals: [], successCriteria: [] },
+      snapshot: {
+        title,
+        roleType,
+        officerPosition,
+        roleMission,
+        goals: goalsInput,
+        successCriteria: [],
+      },
       changedBy: session.user.id,
       changeNote: "Initial creation",
     },
@@ -117,7 +160,9 @@ export async function createGRTemplate(formData: FormData) {
 
   revalidatePath("/admin/mentorship-program/gr-templates");
   revalidatePath("/admin/mentorship/gr/templates");
+  revalidatePath(`/admin/mentorship/gr/templates/${template.id}`);
   revalidatePath("/admin/mentorship");
+  revalidatePath("/mentorship");
   return { id: template.id };
 }
 
@@ -252,6 +297,7 @@ export async function submitGRTemplateForReview(formData: FormData) {
   revalidatePath("/admin/mentorship-program/gr-templates");
   revalidatePath("/admin/mentorship/gr/templates");
   revalidatePath("/admin/mentorship");
+  revalidatePath("/mentorship");
 }
 
 export async function approveGRTemplate(formData: FormData) {
@@ -273,7 +319,9 @@ export async function approveGRTemplate(formData: FormData) {
 
   revalidatePath("/admin/mentorship-program/gr-templates");
   revalidatePath("/admin/mentorship/gr/templates");
+  revalidatePath(`/admin/mentorship/gr/templates/${templateId}`);
   revalidatePath("/admin/mentorship");
+  revalidatePath("/mentorship");
 }
 
 // ============================================
@@ -294,7 +342,9 @@ export async function addGRTemplateGoal(formData: FormData) {
 
   revalidatePath("/admin/mentorship-program/gr-templates");
   revalidatePath("/admin/mentorship/gr/templates");
+  revalidatePath(`/admin/mentorship/gr/templates/${templateId}`);
   revalidatePath("/admin/mentorship");
+  revalidatePath("/mentorship");
 }
 
 export async function updateGRTemplateGoal(formData: FormData) {
@@ -304,28 +354,34 @@ export async function updateGRTemplateGoal(formData: FormData) {
   const description = getString(formData, "description");
   const timePhase = getString(formData, "timePhase") as GRTimePhase;
 
-  await prisma.gRTemplateGoal.update({
+  const goal = await prisma.gRTemplateGoal.update({
     where: { id: goalId },
     data: { title, description, timePhase },
+    select: { templateId: true },
   });
 
   revalidatePath("/admin/mentorship-program/gr-templates");
   revalidatePath("/admin/mentorship/gr/templates");
+  revalidatePath(`/admin/mentorship/gr/templates/${goal.templateId}`);
   revalidatePath("/admin/mentorship");
+  revalidatePath("/mentorship");
 }
 
 export async function removeGRTemplateGoal(formData: FormData) {
   await requireAdmin();
   const goalId = getString(formData, "goalId");
 
-  await prisma.gRTemplateGoal.update({
+  const goal = await prisma.gRTemplateGoal.update({
     where: { id: goalId },
     data: { isActive: false },
+    select: { templateId: true },
   });
 
   revalidatePath("/admin/mentorship-program/gr-templates");
   revalidatePath("/admin/mentorship/gr/templates");
+  revalidatePath(`/admin/mentorship/gr/templates/${goal.templateId}`);
   revalidatePath("/admin/mentorship");
+  revalidatePath("/mentorship");
 }
 
 // ============================================
@@ -674,6 +730,10 @@ const CustomGoalsSchema = z.object({
         timePhase: z.string().trim().optional().default("MONTHLY"),
         priority: z.enum(["LOW", "NORMAL", "HIGH", "CRITICAL"]).optional().default("NORMAL"),
         dueDate: z.string().trim().optional().nullable(),
+        /** e.g. 3 — paired with targetUnit for "3 newsletters". */
+        targetCount: z.number().int().positive().max(9999).nullable().optional(),
+        /** e.g. "newsletters", "events", "parent calls". */
+        targetUnit: z.string().trim().max(80).nullable().optional(),
       })
     )
     .min(1, "Add at least one goal"),
@@ -705,13 +765,23 @@ export async function createAndActivateCustomGRDocument(formData: FormData): Pro
 
   const goals = parsed.goals.map((g, index) => {
     const phase = CUSTOM_GOAL_PHASES.has(g.timePhase ?? "") ? g.timePhase! : "MONTHLY";
+    const targetCount =
+      g.targetCount != null && Number.isFinite(g.targetCount) ? g.targetCount : null;
+    const targetUnit = g.targetUnit?.trim() || null;
+    const hasMetric = Boolean(targetCount && targetUnit);
+    const metricLine = hasMetric
+      ? `Measurable target: ${targetCount} ${targetUnit}`
+      : null;
+    const description = [g.description?.trim(), metricLine].filter(Boolean).join("\n\n");
     return {
       title: g.title,
-      description: g.description ?? "",
+      description,
       timePhase: phase as GRTimePhase,
       priority: (g.priority ?? "NORMAL") as GoalPriority,
       dueDate: g.dueDate ? new Date(g.dueDate) : null,
       sortOrder: index,
+      targetCount: hasMetric ? targetCount : null,
+      targetUnit: hasMetric ? targetUnit : null,
     };
   });
 
@@ -792,6 +862,20 @@ export async function createAndActivateCustomGRDocument(formData: FormData): Pro
       },
       include: { goals: { orderBy: { sortOrder: "asc" } } },
     });
+
+    for (let i = 0; i < template.goals.length; i++) {
+      const metric = goals[i];
+      if (!metric?.targetCount || !metric.targetUnit) continue;
+      await tx.gRKPIDefinition.create({
+        data: {
+          templateGoalId: template.goals[i].id,
+          label: metric.targetUnit,
+          sourceType: "MANUAL_QUALITATIVE",
+          targetValue: String(metric.targetCount),
+          unit: metric.targetUnit,
+        },
+      });
+    }
 
     await tx.gRTemplateVersion.create({
       data: {
@@ -1169,7 +1253,24 @@ export async function getGRTemplateDetail(id: string) {
 
 export async function getMyGRDocument() {
   const session = await requireAuth();
+  return loadFullGRDocumentForUser(session.user.id);
+}
 
+/**
+ * Full G&R document for the Mentorship Goals tab — same payload mentees and
+ * mentors/admins see. Caller must already be authorized for this person.
+ */
+export async function getWorkspaceGRDocument(personId: string) {
+  const viewer = await getSessionUser();
+  if (!viewer) throw new Error("Unauthorized");
+
+  const access = await resolveWorkspaceAccess(viewer, personId);
+  if (!access) throw new Error("Unauthorized");
+
+  return loadFullGRDocumentForUser(personId);
+}
+
+async function loadFullGRDocumentForUser(userId: string) {
   const contactSelect = {
     name: true,
     email: true,
@@ -1180,9 +1281,12 @@ export async function getMyGRDocument() {
     chapter: { select: { name: true } },
   } as const;
 
-  // FIX: Expected 1 arguments, but got 2 runtime signature mismatch resolved using standard singular object mapping constraints
   const doc = await prisma.gRDocument.findFirst({
-    where: { userId: session.user.id, status: { in: ["DRAFT", "ACTIVE"] } },
+    where: {
+      userId,
+      status: { in: ["DRAFT", "PENDING_APPROVAL", "ACTIVE"] },
+    },
+    orderBy: { createdAt: "desc" },
     include: {
       template: {
         select: {
@@ -1195,8 +1299,28 @@ export async function getMyGRDocument() {
       user: { select: contactSelect },
       goals: {
         where: { lifecycleStatus: { in: ["ACTIVE", "COMPLETED"] } },
-        orderBy: [{ lifecycleStatus: "asc" }, { priority: "desc" }, { dueDate: "asc" }, { sortOrder: "asc" }],
-        include: { kpiValues: { orderBy: { measuredAt: "desc" }, take: 5 } },
+        orderBy: [
+          { lifecycleStatus: "asc" },
+          { priority: "desc" },
+          { dueDate: "asc" },
+          { sortOrder: "asc" },
+        ],
+        include: {
+          kpiValues: { orderBy: { measuredAt: "desc" }, take: 5 },
+          templateGoal: {
+            select: {
+              kpiDefinitions: {
+                select: {
+                  id: true,
+                  label: true,
+                  targetValue: true,
+                  unit: true,
+                },
+                take: 3,
+              },
+            },
+          },
+        },
       },
       successCriteria: { orderBy: { timePhase: "asc" } },
       resources: { include: { resource: true }, orderBy: { sortOrder: "asc" } },
@@ -1259,7 +1383,11 @@ export async function getMyGRDocument() {
 
   const nextMonthGoals = latestReview
     ? await prisma.gRDocumentGoal.findMany({
-        where: { documentId: doc.id, sourceReviewId: latestReview.id, lifecycleStatus: "ACTIVE" },
+        where: {
+          documentId: doc.id,
+          sourceReviewId: latestReview.id,
+          lifecycleStatus: "ACTIVE",
+        },
         orderBy: [{ priority: "desc" }, { dueDate: "asc" }],
       })
     : [];
@@ -1299,7 +1427,7 @@ export async function getMyGRDocument() {
     }
     ratingHistoryByGoal[r.grDocumentGoalId].push({
       cycleNumber: r.review.cycleNumber,
-      rating: r.rating
+      rating: r.rating,
     });
   }
 
@@ -1312,7 +1440,7 @@ export async function getMyGRDocument() {
     latestReview,
     nextMonthGoals,
     pastReviews,
-    ratingHistoryByGoal
+    ratingHistoryByGoal,
   };
 }
 

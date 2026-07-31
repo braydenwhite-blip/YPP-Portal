@@ -10848,6 +10848,9 @@ enum InstructorFeedbackSource {
   OFFICER
   STUDENT
   PARTNER
+  /// Mentorship-collected sources (about the mentee).
+  BOARD
+  MENTOR
 }
 
 model InstructorReceivedFeedback {

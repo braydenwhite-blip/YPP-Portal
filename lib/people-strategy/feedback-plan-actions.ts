@@ -71,6 +71,9 @@ export type MonthlyFeedbackPlan = {
   };
   /** Selectable target months (current + two previous). */
   months: FeedbackMonthOption[];
+  /** Months that already have a compiled check-in — still selectable to add
+   *  more collaborators, but labeled so Leadership doesn't "re-create". */
+  monthsWithCheckIn: string[];
   defaultMonthKey: string;
   /** Reply-by date the email will state ("Friday, June 19, 2026"). */
   dueDateLabel: string;
@@ -103,11 +106,15 @@ export async function prepareMonthlyFeedbackPlan(
     .map((m) => parseMonthKey(m.key))
     .filter((d): d is Date => d !== null);
 
-  const [suggestions, existing] = await Promise.all([
+  const [suggestions, existing, checkIns] = await Promise.all([
     suggestFeedbackCollaborators(subjectUserId),
     prisma.feedbackRequest.findMany({
       where: { subjectUserId, month: { in: monthStarts } },
       select: { collaboratorId: true, month: true },
+    }),
+    prisma.checkIn.findMany({
+      where: { userId: subjectUserId, month: { in: monthStarts } },
+      select: { month: true },
     }),
   ]);
 
@@ -116,6 +123,12 @@ export async function prepareMonthlyFeedbackPlan(
   for (const row of existing) {
     alreadyRequestedByMonth[monthKeyUTC(row.month)]?.push(row.collaboratorId);
   }
+
+  const monthsWithCheckIn = checkIns.map((row) => monthKeyUTC(row.month));
+
+  // Prefer a month that still needs work: no check-in yet, else current.
+  const defaultMonthKey =
+    months.find((m) => !monthsWithCheckIn.includes(m.key))?.key ?? months[0].key;
 
   return {
     subject: {
@@ -126,7 +139,8 @@ export async function prepareMonthlyFeedbackPlan(
       title: subject.title,
     },
     months,
-    defaultMonthKey: months[0].key,
+    monthsWithCheckIn,
+    defaultMonthKey,
     dueDateLabel: formatDueDateLong(
       new Date(now.getTime() + REPLY_WINDOW_DAYS * 86_400_000)
     ),
