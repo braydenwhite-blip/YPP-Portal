@@ -128,9 +128,17 @@ export type MentorshipWorkspace = {
     name: string;
     email: string;
     phone: string | null;
+    primaryRole: string;
     roleLabel: string;
+    title: string | null;
     chapterName: string | null;
     contextLabel: string | null;
+    avatarUrl: string | null;
+    departmentName: string | null;
+    hometown: string | null;
+    location: string | null;
+    hireDateLabel: string | null;
+    gradeLabel: string | null;
   };
   accessLevel: WorkspaceAccessLevel;
   isSelf: boolean;
@@ -157,11 +165,14 @@ export type MentorshipWorkspace = {
   overview: {
     mentorName: string | null;
     mentorEmail: string | null;
+    mentorTitle: string | null;
     chairName: string | null;
     chairEmail: string | null;
+    chairTitle: string | null;
     statusLabel: string;
     currentFocus: string | null;
     upcomingFollowUp: { label: string; dateLabel: string } | null;
+    nextReviewLabel: string | null;
     coachingPlan: CoachingPlan | null;
     record: DevelopmentRecord | null;
   };
@@ -272,8 +283,8 @@ type WorkspaceAccess = {
     cycleStage: string;
     programGroup: string;
     governanceMode: string;
-    mentor: { name: string | null; email: string };
-    chair: { name: string | null; email: string } | null;
+    mentor: { name: string | null; email: string; title: string | null; canonicalTitle: string | null };
+    chair: { name: string | null; email: string; title: string | null; canonicalTitle: string | null } | null;
   } | null;
 };
 
@@ -323,9 +334,10 @@ export async function resolveWorkspaceAccess(
   const hasAccess = isAdmin || leadership || ownsRelationship || isCommitteeMember || isSelf;
   if (!hasAccess) return null;
 
-  // A viewer's OWN record is always the relationship tier — never expose one's
-  // own leadership-confidential succession/potential ratings or unreleased plans.
-  const level: WorkspaceAccessLevel = leadership && !isSelf ? "leadership" : "relationship";
+  // Admins and leadership viewing someone else get the full leadership workspace
+  // (same coach tools a mentor would use). Own record stays relationship-tier.
+  const level: WorkspaceAccessLevel =
+    !isSelf && (isAdmin || leadership) ? "leadership" : "relationship";
 
   const canRecordCheckIn =
     !!activeMentorship && (isAdmin || (leadership && !isSelf) || ownsRelationship || isSelf);
@@ -336,7 +348,7 @@ export async function resolveWorkspaceAccess(
     isAdmin,
     isMentor,
     isChair,
-    isLeadership: leadership && !isSelf,
+    isLeadership: !isSelf && (isAdmin || leadership),
     isCommitteeMember,
     canRecordCheckIn,
   });
@@ -345,7 +357,7 @@ export async function resolveWorkspaceAccess(
     level,
     isSelf,
     isAdmin,
-    isLeadership: leadership && !isSelf,
+    isLeadership: !isSelf && (isAdmin || leadership),
     isMentor,
     isChair,
     isCommitteeMember,
@@ -375,8 +387,19 @@ export async function loadMentorshipWorkspace(
       email: true,
       phone: true,
       primaryRole: true,
+      title: true,
+      canonicalTitle: true,
+      createdAt: true,
       archivedAt: true,
       chapter: { select: { name: true } },
+      orgDepartment: { select: { name: true } },
+      profile: {
+        select: {
+          avatarUrl: true,
+          city: true,
+          stateProvince: true,
+        },
+      },
     },
   });
   if (!person || person.archivedAt) return null;
@@ -902,9 +925,32 @@ export async function loadMentorshipWorkspace(
     firstLine(checkInRows[0]?.discussion ?? checkInRows[0]?.commitments ?? null);
 
   const roleLabel = ROLE_LABELS[person.primaryRole] ?? person.primaryRole;
+  const displayTitle =
+    person.title?.trim() ||
+    person.canonicalTitle?.trim() ||
+    null;
+  const gradeLabel = displayTitle
+    ? `${roleLabel} (${displayTitle})`
+    : roleLabel;
   const contextLabel = person.chapter?.name
     ? `${roleLabel} · ${person.chapter.name}`
     : roleLabel;
+  const hometownParts = [
+    person.profile?.city?.trim(),
+    person.profile?.stateProvince?.trim(),
+  ].filter(Boolean);
+  const hometown = hometownParts.length > 0 ? hometownParts.join(", ") : null;
+  const location =
+    hometown ||
+    (person.chapter?.name ? person.chapter.name : null);
+  const mentorTitle =
+    access.activeMentorship?.mentor.title?.trim() ||
+    access.activeMentorship?.mentor.canonicalTitle?.trim() ||
+    null;
+  const chairTitle =
+    access.activeMentorship?.chair?.title?.trim() ||
+    access.activeMentorship?.chair?.canonicalTitle?.trim() ||
+    null;
 
   const participantOptions: WorkspaceParticipant[] = [];
   if (access.activeMentorship) {
@@ -927,9 +973,23 @@ export async function loadMentorshipWorkspace(
       name: personName,
       email: person.email,
       phone: person.phone ?? null,
+      primaryRole: person.primaryRole,
       roleLabel,
+      title: displayTitle,
       chapterName: person.chapter?.name ?? null,
       contextLabel,
+      avatarUrl: person.profile?.avatarUrl ?? null,
+      departmentName: person.orgDepartment?.name ?? null,
+      hometown,
+      location,
+      hireDateLabel: person.createdAt
+        ? person.createdAt.toLocaleDateString("en-US", {
+            month: "long",
+            day: "numeric",
+            year: "numeric",
+          })
+        : null,
+      gradeLabel,
     },
     accessLevel: access.level,
     isSelf: access.isSelf,
@@ -948,16 +1008,29 @@ export async function loadMentorshipWorkspace(
     overview: {
       mentorName: lifecycle.mentorName,
       mentorEmail: access.activeMentorship?.mentor.email ?? null,
+      mentorTitle,
       chairName:
         access.activeMentorship?.chair?.name ||
         access.activeMentorship?.chair?.email ||
         null,
       chairEmail: access.activeMentorship?.chair?.email ?? null,
+      chairTitle,
       statusLabel: access.activeMentorship ? "Active mentorship" : "No active mentorship",
       currentFocus,
       upcomingFollowUp: nextFollowUp
         ? { label: "Upcoming follow-up", dateLabel: dateLabel(nextFollowUp) }
         : null,
+      nextReviewLabel: (() => {
+        const m = cycleMonth.getUTCMonth();
+        const y = cycleMonth.getUTCFullYear();
+        const q = Math.floor(m / 3) + 1;
+        const startMonth = q * 3 - 3;
+        const endMonth = startMonth + 2;
+        const start = new Date(Date.UTC(y, startMonth, 1));
+        const end = new Date(Date.UTC(y, endMonth, 1));
+        const range = `${start.toLocaleDateString("en-US", { month: "short", timeZone: "UTC" })} – ${end.toLocaleDateString("en-US", { month: "short", timeZone: "UTC" })}`;
+        return `Q${q} ${y} (${range})`;
+      })(),
       coachingPlan,
       record,
     },

@@ -119,46 +119,149 @@ export function StudentFeedbackPanel({ offeringId, students, feedback }: { offer
 
 export function AnnouncementComposer({ offeringId }: { offeringId: string }) {
   const [open, setOpen] = useState(false);
-  const [result, setResult] = useState<{ published: boolean } | null>(null);
+  const [result, setResult] = useState<{
+    published: boolean;
+    scheduled?: boolean;
+    scheduledPublishAt?: string | null;
+  } | null>(null);
   const [pending, setPending] = useState(false);
+  const [publishWhen, setPublishWhen] = useState<"asap" | "at">("asap");
 
   async function submit(formData: FormData) {
     setPending(true);
     formData.set("offeringId", offeringId);
+    formData.set("publishWhen", publishWhen);
     const r = await upsertClassAnnouncement(formData);
     setResult(r);
     setPending(false);
     setOpen(false);
+    setPublishWhen("asap");
   }
 
   return (
     <div className="space-y-2">
       {result && (
-        <p className="rounded-xl bg-emerald-50 border border-emerald-200 p-2 text-sm text-emerald-900">
-          {result.published ? "Announcement published." : "Sent for approval."}
+        <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-2 text-sm text-emerald-900">
+          {result.scheduled
+            ? "Announcement scheduled (Eastern Time)."
+            : result.published
+              ? "Announcement published."
+              : "Sent for approval."}
         </p>
       )}
       {open ? (
         <form action={submit} className="space-y-2">
-          <label className="block text-sm font-semibold" htmlFor="ann-title">Title</label>
-          <input id="ann-title" name="title" required className="w-full rounded-xl border p-3 text-sm" />
-          <label className="block text-sm font-semibold" htmlFor="ann-body">Message</label>
-          <textarea id="ann-body" name="body" required className="w-full rounded-xl border p-3 text-sm" />
-          <label className="block text-sm font-semibold" htmlFor="ann-type">Type</label>
-          <select id="ann-type" name="announcementType" className="w-full rounded-xl border p-3 text-sm">
-            <option value="ROUTINE">Routine (publishes immediately)</option>
-            <option value="SCHEDULE_CHANGE">Schedule change (needs approval)</option>
-            <option value="URGENT">Urgent (needs approval)</option>
-            <option value="GENERAL">General (needs approval)</option>
-          </select>
+          <label className="block text-[13px] font-medium text-[#202124]" htmlFor="ann-title">
+            Title
+          </label>
+          <input
+            id="ann-title"
+            name="title"
+            required
+            className="w-full rounded-lg border border-[#dadce0] p-3 text-sm"
+          />
+          <label className="block text-[13px] font-medium text-[#202124]" htmlFor="ann-body">
+            Message
+          </label>
+          <textarea
+            id="ann-body"
+            name="body"
+            required
+            rows={3}
+            className="w-full rounded-lg border border-[#dadce0] p-3 text-sm"
+          />
+
+          <fieldset className="space-y-2">
+            <legend className="text-[13px] font-medium text-[#202124]">When to post</legend>
+            <div className="flex flex-wrap gap-2">
+              <label
+                className={[
+                  "inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-[13px]",
+                  publishWhen === "asap"
+                    ? "border-[#1967d2] bg-[#e8f0fe] font-medium text-[#174ea6]"
+                    : "border-[#dadce0] bg-white text-[#5f6368]",
+                ].join(" ")}
+              >
+                <input
+                  type="radio"
+                  name="publishWhenUi"
+                  checked={publishWhen === "asap"}
+                  onChange={() => setPublishWhen("asap")}
+                  className="sr-only"
+                />
+                ASAP
+              </label>
+              <label
+                className={[
+                  "inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-[13px]",
+                  publishWhen === "at"
+                    ? "border-[#1967d2] bg-[#e8f0fe] font-medium text-[#174ea6]"
+                    : "border-[#dadce0] bg-white text-[#5f6368]",
+                ].join(" ")}
+              >
+                <input
+                  type="radio"
+                  name="publishWhenUi"
+                  checked={publishWhen === "at"}
+                  onChange={() => setPublishWhen("at")}
+                  className="sr-only"
+                />
+                Specific time
+              </label>
+            </div>
+            {publishWhen === "at" ? (
+              <div>
+                <label
+                  className="block text-[13px] font-medium text-[#202124]"
+                  htmlFor="ann-at"
+                >
+                  Date & time (EST)
+                </label>
+                <input
+                  id="ann-at"
+                  name="scheduledAtLocal"
+                  type="datetime-local"
+                  required
+                  className="mt-1 w-full rounded-lg border border-[#dadce0] p-3 text-sm"
+                />
+                <p className="m-0 mt-1.5 text-[12px] leading-4 text-[#5f6368]">
+                  Eastern Time (EST/EDT) — YPP’s main timezone. Families see the post at this
+                  time.
+                </p>
+              </div>
+            ) : (
+              <p className="m-0 text-[12px] text-[#5f6368]">
+                Posts immediately for your class.
+              </p>
+            )}
+          </fieldset>
+
           <div className="flex gap-2">
-            <button disabled={pending} className="min-h-11 rounded-full bg-violet-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{pending ? "Sending…" : "Send"}</button>
-            <button type="button" onClick={() => setOpen(false)} className="min-h-11 rounded-full border px-4 py-2 text-sm font-semibold text-slate-700">Cancel</button>
+            <button
+              disabled={pending}
+              className="min-h-10 rounded-full bg-[#1967d2] px-4 py-2 text-[13px] font-medium text-white hover:bg-[#1557b0] disabled:opacity-50"
+            >
+              {pending ? "Posting…" : publishWhen === "at" ? "Schedule" : "Post"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                setPublishWhen("asap");
+              }}
+              className="min-h-10 rounded-full px-4 py-2 text-[13px] font-medium text-[#1967d2] hover:bg-[#e8f0fe]"
+            >
+              Cancel
+            </button>
           </div>
         </form>
       ) : (
-        <button type="button" onClick={() => setOpen(true)} className="min-h-11 rounded-full bg-violet-700 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-800">
-          New announcement
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="min-h-10 w-full rounded-full border border-[#dadce0] bg-[#f8f9fa] px-4 py-2 text-left text-[14px] text-[#5f6368] hover:bg-[#f1f3f4] hover:text-[#202124]"
+        >
+          Share with your class…
         </button>
       )}
     </div>

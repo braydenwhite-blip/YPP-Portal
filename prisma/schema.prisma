@@ -7741,6 +7741,9 @@ model ClassOffering {
   semester                       String? // "Spring 2025", "Fall 2025"
   grandfatheredTrainingExemption Boolean             @default(false)
 
+  /// Instructor-chosen banner / accent for the class home (hex, e.g. #6b21c8).
+  themeColor String? @default("#6b21c8")
+
   // Relations
   sessions                     ClassSession[]
   enrollments                  ClassEnrollment[]
@@ -11093,6 +11096,8 @@ model ClassAnnouncement {
   approvedById String?
   approvedAt DateTime?
   publishedAt DateTime?
+  /// When set in the future, post goes live at this instant (stored UTC; UI is EST).
+  scheduledPublishAt DateTime?
   sessionId String?
   isPinned Boolean @default(false)
 
@@ -11101,6 +11106,7 @@ model ClassAnnouncement {
 
   @@index([offeringId, createdAt])
   @@index([authorId])
+  @@index([scheduledPublishAt])
 }
 
 // ============================================

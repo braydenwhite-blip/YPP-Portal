@@ -3,9 +3,10 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireSessionUser } from "@/lib/authorization";
-import { requireInstructorAssigned, canPublishAnnouncement, type Session4Actor } from "@/lib/operational-permissions";
+import { requireInstructorAssigned, type Session4Actor } from "@/lib/operational-permissions";
 import { issueClassCompletionCertificate } from "@/lib/session8/certificates";
 import { upsertAnnouncement, publishAnnouncement } from "@/lib/class-announcement-service";
+import { easternLocalToUtc } from "@/lib/timezone-eastern";
 
 async function actorFor(user: { id: string; roles: string[] }): Promise<Session4Actor> {
   const full = await prisma.user.findUnique({ where: { id: user.id }, select: { chapterId: true } });
@@ -198,7 +199,8 @@ const UpsertClassAnnouncementSchema = z.object({
   id: z.string().optional(),
   title: z.string().min(1).max(200),
   body: z.string().min(1).max(4000),
-  announcementType: z.string().min(1),
+  publishWhen: z.enum(["asap", "at"]).default("asap"),
+  scheduledAtLocal: z.string().optional(),
 });
 
 export async function upsertClassAnnouncement(formData: FormData) {
@@ -208,25 +210,44 @@ export async function upsertClassAnnouncement(formData: FormData) {
     id: String(formData.get("id") ?? "") || undefined,
     title: String(formData.get("title") ?? ""),
     body: String(formData.get("body") ?? ""),
-    announcementType: String(formData.get("announcementType") ?? "ROUTINE"),
+    publishWhen: String(formData.get("publishWhen") ?? "asap"),
+    scheduledAtLocal: String(formData.get("scheduledAtLocal") ?? "") || undefined,
   });
+
+  let scheduledPublishAt: Date | null = null;
+  if (input.publishWhen === "at") {
+    if (!input.scheduledAtLocal) {
+      throw new Error("Pick a date and time in Eastern Time (EST).");
+    }
+    scheduledPublishAt = easternLocalToUtc(input.scheduledAtLocal);
+  }
+  const isFuture =
+    scheduledPublishAt != null && scheduledPublishAt.getTime() > Date.now() + 30_000;
+
   const actor = await actorFor(user);
+  // Instructor class posts always use ROUTINE so they can go live without a
+  // separate approval type — scheduling is the only delay.
   const row = await upsertAnnouncement(actor, input.offeringId, {
     id: input.id,
     title: input.title,
     body: input.body,
-    announcementType: input.announcementType,
+    announcementType: "ROUTINE",
     audience: "ADMITTED_FAMILIES",
-    status: "DRAFT",
+    status: isFuture ? "SCHEDULED" : "DRAFT",
+    scheduledPublishAt: isFuture ? scheduledPublishAt : null,
   });
 
-  const canPublishNow = canPublishAnnouncement(actor.roles, input.announcementType);
-  if (canPublishNow) {
+  if (!isFuture) {
     await publishAnnouncement(actor, row.id);
   }
 
   revalidatePath(`/instructor/classes/${input.offeringId}`);
-  return { ok: true, published: canPublishNow };
+  return {
+    ok: true,
+    published: !isFuture,
+    scheduled: isFuture,
+    scheduledPublishAt: isFuture ? scheduledPublishAt!.toISOString() : null,
+  };
 }
 
 /* ------------------------------------------------------------------ */

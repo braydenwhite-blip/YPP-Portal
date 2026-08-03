@@ -1,20 +1,18 @@
 import type { NavRole } from "@/lib/navigation/types";
 
 /** Bump when the href set changes so dashboard cache partitions stay correct. */
-export const INSTRUCTOR_V1_ALLOWLIST_VERSION = "10";
+export const INSTRUCTOR_V1_ALLOWLIST_VERSION = "11";
 
 /**
- * Default instructor nav follows the teaching lifecycle instead of the portal's
- * database/features: one home, assigned classes, actionable students, materials
- * in session context, and the teaching schedule. Training, builders, history,
- * profile, and settings remain reachable as secondary destinations from the
- * relevant workflow, not as competing top-level homes.
+ * Default instructor nav follows the teaching lifecycle: home, assigned
+ * classes, and schedule. Students and materials live inside each class
+ * (Classroom-style), not as competing top-level homes. Training, builders,
+ * history, profile, and settings remain reachable as secondary destinations
+ * from the relevant workflow.
  */
 export const INSTRUCTOR_V1_ALLOWED_HREFS: ReadonlySet<string> = new Set([
   "/",
   "/instructor/classes",
-  "/instructor/students",
-  "/instructor/materials",
   "/instructor/schedule",
 ]);
 

@@ -6,7 +6,7 @@ import type {
   TeachingClass,
 } from "@/lib/classes/instructor-workspace";
 
-/** Stable Classroom-style cover colors — one per class, not all brand purple. */
+/** Stable Classroom-style cover colors when a class has no theme set yet. */
 const COVER_PALETTE = [
   { from: "#1a73e8", to: "#174ea6" },
   { from: "#0d904f", to: "#0b8043" },
@@ -18,14 +18,29 @@ const COVER_PALETTE = [
   { from: "#5f6368", to: "#3c4043" },
 ] as const;
 
-function coverForClass(id: string) {
+function darkenHex(hex: string, amount: number): string {
+  const n = hex.replace("#", "");
+  const r = Math.max(0, Math.round(parseInt(n.slice(0, 2), 16) * (1 - amount)));
+  const g = Math.max(0, Math.round(parseInt(n.slice(2, 4), 16) * (1 - amount)));
+  const b = Math.max(0, Math.round(parseInt(n.slice(4, 6), 16) * (1 - amount)));
+  return `#${[r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
+}
+
+function coverForClass(teachingClass: TeachingClass) {
+  const theme =
+    teachingClass.themeColor && /^#[0-9a-fA-F]{6}$/.test(teachingClass.themeColor)
+      ? teachingClass.themeColor.toLowerCase()
+      : null;
+  if (theme) {
+    // Match class-home banner color; slight shade for card depth.
+    return { from: theme, to: darkenHex(theme, 0.16) };
+  }
   let hash = 0;
-  for (let i = 0; i < id.length; i += 1) {
-    hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  for (let i = 0; i < teachingClass.id.length; i += 1) {
+    hash = (hash * 31 + teachingClass.id.charCodeAt(i)) >>> 0;
   }
   return COVER_PALETTE[hash % COVER_PALETTE.length]!;
 }
-
 function nextSessionLine(teachingClass: TeachingClass) {
   if (!teachingClass.nextSession) return "No upcoming session";
   const session = teachingClass.nextSession;
@@ -111,7 +126,7 @@ function ClassCard({
   teachingClass: TeachingClass;
   muted?: boolean;
 }) {
-  const cover = coverForClass(teachingClass.id);
+  const cover = coverForClass(teachingClass);
   const href = teachingClass.primaryAction?.href ?? `/instructor/classes/${teachingClass.id}`;
   const attention = !muted && needsAttention(teachingClass);
   const studentCount = teachingClass.roster.length;

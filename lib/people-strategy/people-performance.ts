@@ -316,14 +316,26 @@ export async function loadPeoplePerformance(
 
   const dashboardRows = await loadPeopleDashboard(now);
   const memberIds = dashboardRows.map((r) => r.id);
-  const [feedbackByMember, monthFeedbackByMember, growthByMember, completedByMember, provisionalByMember] =
-    await Promise.all([
-      loadFeedbackStatusByMember(memberIds),
-      loadCurrentMonthFeedback(memberIds, monthStart),
-      loadGrowthSignalsByMember(memberIds),
-      loadCompletedContributionsByMember(memberIds, { now }),
-      loadProvisionalFlags(memberIds, now),
-    ]);
+  const monthEnd = new Date(
+    Date.UTC(monthStart.getUTCFullYear(), monthStart.getUTCMonth() + 1, 1)
+  );
+  const [
+    feedbackByMember,
+    monthFeedbackByMember,
+    growthByMember,
+    completedByMember,
+    provisionalByMember,
+    reflectionFlags,
+    reviewStatusByMember,
+  ] = await Promise.all([
+    loadFeedbackStatusByMember(memberIds),
+    loadCurrentMonthFeedback(memberIds, monthStart),
+    loadGrowthSignalsByMember(memberIds),
+    loadCompletedContributionsByMember(memberIds, { now }),
+    loadProvisionalFlags(memberIds, now),
+    loadCurrentMonthReflectionFlags(memberIds, monthStart, monthEnd),
+    loadCurrentMonthReviewStatus(memberIds, monthStart, monthEnd),
+  ]);
 
   const rows: PeoplePerformanceRow[] = dashboardRows.map((row) => {
     const feedback = feedbackByMember.get(row.id) ?? EMPTY_FEEDBACK;
@@ -368,6 +380,8 @@ export async function loadPeoplePerformance(
       needsMentor: mentorEligible && !hasMentor,
       growthOpportunity: isGrowthOpportunity(growthTags),
       disengagementRisk: hasDisengagementRisk(growthTags),
+      hasSelfReflection: reflectionFlags.get(row.id) ?? false,
+      currentReviewStatus: reviewStatusByMember.get(row.id) ?? null,
     };
     return {
       ...row,

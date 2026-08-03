@@ -294,6 +294,18 @@ export type PerformanceRowFacts = {
   growthOpportunity: boolean;
   /** Carries the "At risk of disengaging" watch signal. */
   disengagementRisk: boolean;
+  /** Current-month self-reflection submitted (mentor review prerequisite). */
+  hasSelfReflection: boolean;
+  /**
+   * Current-month MentorGoalReview status, or null when the mentor has not
+   * started a review for this cycle yet.
+   */
+  currentReviewStatus:
+    | "DRAFT"
+    | "PENDING_CHAIR_APPROVAL"
+    | "CHANGES_REQUESTED"
+    | "APPROVED"
+    | null;
 };
 
 /**
@@ -347,6 +359,7 @@ export const PERFORMANCE_FILTERS = [
   "needs-checkin",
   "feedback-pending",
   "reviews-due",
+  "review-needed",
   "workload",
   "succession",
   "no-mentor",
@@ -368,6 +381,7 @@ export const PERFORMANCE_FILTER_LABELS: Record<PerformanceFilter, string> = {
   "needs-checkin": "Needs check-in",
   "feedback-pending": "Feedback pending",
   "reviews-due": "Reviews due",
+  "review-needed": "Review needed",
   workload: "Workload flagged",
   succession: "Succession",
   "no-mentor": "No mentor",
@@ -381,7 +395,8 @@ export function memberNeedsAttention(facts: PerformanceRowFacts): boolean {
     facts.hasOverdueAction ||
     facts.feedback.outstanding > 0 ||
     facts.needsMentor ||
-    facts.disengagementRisk
+    facts.disengagementRisk ||
+    mentorReviewNeedsAction(facts)
   );
 }
 
@@ -401,6 +416,8 @@ export function factsMatchFilter(facts: PerformanceRowFacts, filter: Performance
       return facts.feedback.outstanding > 0;
     case "reviews-due":
       return facts.reviewDue;
+    case "review-needed":
+      return mentorReviewNeedsAction(facts);
     case "workload":
       return facts.workloadWarning !== null;
     case "succession":
@@ -500,6 +517,54 @@ export function checkInCellStatus(
     return { text: "New feedback since", tone: "info" };
   }
   return { text: `${monthLabel} compiled`, tone: "success" };
+}
+
+/**
+ * Admin People roster — whether the mentor still owes a performance review
+ * this cycle. Prefer this over check-in status on the roster.
+ */
+export function mentorReviewCellStatus(facts: PerformanceRowFacts): CellStatus {
+  if (!facts.hasMentor && !facts.mentorEligible) {
+    return { text: "—", tone: "neutral" };
+  }
+  if (!facts.hasMentor) {
+    return { text: "Needs mentor", tone: "warning" };
+  }
+
+  // Only instructor / CP lanes are on the monthly mentor-review track.
+  if (!facts.mentorEligible) {
+    return { text: "—", tone: "neutral" };
+  }
+
+  switch (facts.currentReviewStatus) {
+    case "APPROVED":
+      return { text: "Review done", tone: "success" };
+    case "PENDING_CHAIR_APPROVAL":
+      return { text: "Awaiting chair", tone: "info" };
+    case "CHANGES_REQUESTED":
+      return { text: "Fix & resubmit", tone: "danger" };
+    case "DRAFT":
+      return { text: "Finish review", tone: "warning" };
+    default:
+      break;
+  }
+
+  if (!facts.hasSelfReflection) {
+    return { text: "Awaiting reflection", tone: "neutral" };
+  }
+
+  // Reflection in and mentor has not started — call it out.
+  return { text: "Review needed", tone: "danger" };
+}
+
+/** Mentor still owes finishing a performance review this cycle. */
+export function mentorReviewNeedsAction(facts: PerformanceRowFacts): boolean {
+  const status = mentorReviewCellStatus(facts).text;
+  return (
+    status === "Review needed" ||
+    status === "Finish review" ||
+    status === "Fix & resubmit"
+  );
 }
 
 /** "4 active, 1 overdue" · "No active items". */

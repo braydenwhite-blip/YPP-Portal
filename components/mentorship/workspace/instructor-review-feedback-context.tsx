@@ -160,73 +160,75 @@ export function ReviewEvidenceInline({
     );
   }
 
-  // Calm: mentorship feedback timeline + log Parent/Board/Mentor/Officer.
-  const preview = ctx.timeline.slice(0, 5);
-  const rest = ctx.timeline.slice(5);
+  // Calm: simple feed inside the parent “From people they worked with” card.
+  const preview = ctx.timeline.slice(0, 6);
+  const rest = ctx.timeline.slice(6);
+  const hasNotes = ctx.mentorshipNotes.length > 0;
 
   return (
-    <div className="flex flex-col gap-4">
-      <section>
-        <h3 className="m-0 text-[15px] font-semibold text-ink">What others said</h3>
-        <p className="m-0 mt-0.5 text-[13px] text-ink-muted">
-          Parent, board, mentor, and officer feedback collected in mentorship
-        </p>
-        {preview.length > 0 ? (
-          <ul className="m-0 mt-3 list-none divide-y divide-line-soft border-t border-line-soft p-0">
-            {preview.map((entry) => (
+    <div className="flex flex-col gap-3">
+      {preview.length > 0 ? (
+        <ul className="m-0 list-none divide-y divide-line-soft p-0">
+          {preview.map((entry) => (
+            <TimelineRow key={entry.id} entry={entry} />
+          ))}
+        </ul>
+      ) : (
+        <p className="m-0 text-[13.5px] text-ink-muted">No feedback yet.</p>
+      )}
+
+      {rest.length > 0 ? (
+        <details>
+          <summary className="cursor-pointer text-[13px] font-medium text-brand-700">
+            {rest.length} older
+          </summary>
+          <ul className="m-0 mt-1 list-none divide-y divide-line-soft p-0">
+            {rest.map((entry) => (
               <TimelineRow key={entry.id} entry={entry} />
             ))}
           </ul>
-        ) : (
-          <p className="m-0 mt-3 text-[13px] text-ink-muted">
-            Nothing logged yet — add parent, board, mentor, or officer feedback
-            below.
-          </p>
-        )}
-        {rest.length > 0 ? (
-          <details className="mt-2">
-            <summary className="cursor-pointer text-[13px] font-medium text-brand-700">
-              Show {rest.length} older
-            </summary>
-            <ul className="m-0 mt-2 list-none divide-y divide-line-soft p-0">
-              {rest.map((entry) => (
-                <TimelineRow key={entry.id} entry={entry} />
-              ))}
-            </ul>
-          </details>
-        ) : null}
-      </section>
+        </details>
+      ) : null}
 
       {ctx.canLogReceivedFeedback ? (
-        <details
-          className="rounded-[12px] border border-line-soft px-3.5 py-2.5"
-          open={preview.length === 0}
-        >
-          <summary className="cursor-pointer text-[13px] font-semibold text-ink">
-            Log feedback
+        <details className="group">
+          <summary className="cursor-pointer list-none text-[13px] font-medium text-ink-muted marker:content-none [&::-webkit-details-marker]:hidden hover:text-ink">
+            <span className="underline-offset-2 group-open:no-underline group-hover:underline">
+              Log something you heard
+            </span>
           </summary>
           <div className="mt-3">
-            <p className="m-0 mb-3 text-[12.5px] leading-relaxed text-ink-muted">
-              Choose who it came from — Parent, Board, Mentor, or Officer — then
-              save it on this mentee&apos;s mentorship record.
-            </p>
             <InstructorFeedbackSection
               instructorId={menteeId}
               canEdit
-              initialRows={ctx.received}
+              initialRows={[]}
               embed
+              formOnly
               defaultCategory="Mentorship"
             />
           </div>
         </details>
       ) : null}
 
-      <MentorshipNotesPanel
-        menteeId={menteeId}
-        initialNotes={ctx.mentorshipNotes}
-        canEdit={ctx.canEditFeedback}
-        compact
-      />
+      {ctx.canEditFeedback || hasNotes ? (
+        <details className="group" open={hasNotes && preview.length === 0}>
+          <summary className="cursor-pointer list-none text-[13px] font-medium text-ink-muted marker:content-none [&::-webkit-details-marker]:hidden hover:text-ink">
+            <span className="underline-offset-2 group-open:no-underline group-hover:underline">
+              Your private notes
+              {hasNotes ? ` (${ctx.mentorshipNotes.length})` : ""}
+            </span>
+          </summary>
+          <div className="mt-3">
+            <MentorshipNotesPanel
+              menteeId={menteeId}
+              initialNotes={ctx.mentorshipNotes}
+              canEdit={ctx.canEditFeedback}
+              compact
+              bare
+            />
+          </div>
+        </details>
+      ) : null}
     </div>
   );
 }
@@ -341,27 +343,27 @@ function TimelineRow({
 }: {
   entry: InstructorReviewContext["timeline"][number];
 }) {
-  const isMentorReview = entry.source === "MENTOR";
-  const title = isMentorReview
+  const isMentorReview = entry.source === "MENTOR" && entry.category === "Monthly review";
+  const who = isMentorReview
     ? "Monthly review"
     : SOURCE_LABEL[entry.source] ?? entry.source;
-  const detail = isMentorReview
-    ? formatTimelineRating(entry)
-    : `${entry.category} · ${formatTimelineRating(entry)}`;
 
   return (
-    <li className="py-2.5">
+    <li className="py-3 first:pt-0 last:pb-0">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <p className="m-0 text-[13.5px] font-medium text-ink">
-          {title}
-          <span className="font-normal text-ink-muted"> · {detail}</span>
+          {who}
+          <span className="font-normal text-ink-muted">
+            {" "}
+            · {formatTimelineRating(entry)}
+          </span>
         </p>
         <time className="text-[12px] text-ink-muted" dateTime={entry.date}>
           {formatDate(entry.date)}
         </time>
       </div>
       {entry.comment ? (
-        <p className="m-0 mt-1 line-clamp-3 whitespace-pre-wrap text-[13px] leading-5 text-ink-muted">
+        <p className="m-0 mt-1 line-clamp-4 whitespace-pre-wrap text-[13.5px] leading-5 text-ink">
           {entry.comment}
         </p>
       ) : null}

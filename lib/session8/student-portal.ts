@@ -83,7 +83,13 @@ export async function getStudentClassSpace(studentId: string, classId: string) {
       }
     : {
         ...row.offering,
-        announcements: row.offering.announcements.filter((a: any) => (a.status === "PUBLISHED" || a.publishedAt != null) && STUDENT_AUDIENCE_VALUES.includes(a.audience)),
+        announcements: row.offering.announcements.filter((a: any) => {
+          const audienceOk = STUDENT_AUDIENCE_VALUES.includes(a.audience);
+          if (!audienceOk) return false;
+          const scheduledAt = a.scheduledPublishAt ? new Date(a.scheduledPublishAt) : null;
+          if (scheduledAt && scheduledAt.getTime() > Date.now()) return false;
+          return a.status === "PUBLISHED" || a.status === "SCHEDULED" || a.publishedAt != null;
+        }),
       };
 
   const attendance = isLimited ? [] : await prisma.classAttendanceRecord.findMany({ where: { studentId, session: { offeringId: classId } }, select: { sessionId: true, status: true, checkedInAt: true, notes: true }, orderBy: { checkedInAt: "desc" } });

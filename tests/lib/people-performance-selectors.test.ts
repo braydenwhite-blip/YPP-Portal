@@ -9,6 +9,7 @@ import {
   buildNeedsActionList,
   buildSignals,
   checkInCellStatus,
+  mentorReviewCellStatus,
   CHECK_IN_ACCOUNTABLE_FROM_MONTH_KEY,
   computePerformanceStats,
   countMatchingFilter,
@@ -62,6 +63,8 @@ function makeFacts(overrides: Partial<PerformanceRowFacts> = {}): PerformanceRow
     needsMentor: false,
     growthOpportunity: false,
     disengagementRisk: false,
+    hasSelfReflection: false,
+    currentReviewStatus: null,
     ...overrides,
   };
 }
@@ -294,6 +297,57 @@ describe("plain-English cell statuses", () => {
         "Jun"
       ).text
     ).toBe("Ready to compile");
+  });
+
+  it("flags when the mentor still owes a performance review", () => {
+    expect(
+      mentorReviewCellStatus(
+        makeFacts({
+          hasMentor: true,
+          mentorEligible: true,
+          hasSelfReflection: true,
+          currentReviewStatus: null,
+        })
+      )
+    ).toEqual({ text: "Review needed", tone: "danger" });
+    expect(
+      mentorReviewCellStatus(
+        makeFacts({
+          hasMentor: true,
+          mentorEligible: true,
+          hasSelfReflection: true,
+          currentReviewStatus: "DRAFT",
+        })
+      )
+    ).toEqual({ text: "Finish review", tone: "warning" });
+    expect(
+      mentorReviewCellStatus(
+        makeFacts({
+          hasMentor: true,
+          mentorEligible: true,
+          currentReviewStatus: "APPROVED",
+        })
+      )
+    ).toEqual({ text: "Review done", tone: "success" });
+    expect(
+      mentorReviewCellStatus(
+        makeFacts({
+          hasMentor: true,
+          mentorEligible: true,
+          hasSelfReflection: false,
+          currentReviewStatus: null,
+        })
+      )
+    ).toEqual({ text: "Awaiting reflection", tone: "neutral" });
+    expect(
+      mentorReviewCellStatus(
+        makeFacts({
+          hasMentor: true,
+          mentorEligible: false,
+          currentReviewStatus: null,
+        })
+      )
+    ).toEqual({ text: "—", tone: "neutral" });
   });
 
   it("derives workload text from active and overdue counts", () => {

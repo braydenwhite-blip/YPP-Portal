@@ -1,30 +1,12 @@
-import type { GoalRatingColor } from "@prisma/client";
-
 import { EmptyStateV2, StatusBadge } from "@/components/ui-v2";
-import GRDocumentView from "@/components/gr/gr-document-view";
-import { LearnMore } from "@/components/mentorship/learn-more";
-import { RatingLegend } from "@/components/mentorship/rating-legend";
-import {
-  getWorkspaceGRDocument,
-} from "@/lib/gr-actions";
+import { getWorkspaceGRDocument } from "@/lib/gr-actions";
+import { buildGrCompetencyRows } from "@/lib/mentorship/gr-competency-rows";
 import type { MentorshipWorkspace } from "@/lib/mentorship/workspace";
 
 import { AssignGoalsForm } from "./assign-goals-form";
-import { ProposeChangeForm } from "./propose-change-form";
 import { ActivateGRButton } from "./activate-gr-button";
-
-const ROLE_LABELS: Record<string, string> = {
-  INSTRUCTOR: "Instructor",
-  CHAPTER_PRESIDENT: "Chapter President",
-  GLOBAL_LEADERSHIP: "Global Leadership",
-};
-
-const PRIORITY_ORDER: Record<string, number> = {
-  CRITICAL: 0,
-  HIGH: 1,
-  NORMAL: 2,
-  LOW: 3,
-};
+import { GrCompetencyExpectationsTable } from "./gr-competency-expectations";
+import { ProposeChangeForm } from "./propose-change-form";
 
 const TIME_PHASE_LABELS: Record<string, string> = {
   MONTHLY: "This cycle",
@@ -34,10 +16,26 @@ const TIME_PHASE_LABELS: Record<string, string> = {
   FULL_YEAR: "Long-term",
 };
 
+const COMPETENCY_TITLES = new Set(
+  [
+    "Impact & Results",
+    "Ideas & Initiative",
+    "Timeliness, Reliability & Communication",
+    "Leadership, Community & Collaboration",
+    "Continuity and Long-Term Potential",
+    "Continuity & Long-Term Potential",
+  ].map((t) => t.toLowerCase()),
+);
+
+function isCompetencyGoal(g: { title: string; kind?: string }) {
+  if (g.kind === "COMPETENCY") return true;
+  return COMPETENCY_TITLES.has(g.title.trim().toLowerCase());
+}
+
 /**
  * Mentorship G&R tab.
- * - On your own page: view goals & resources (never the setup form).
- * - On someone else's page: mentors/admins can set up and edit.
+ * Primary surface: pathway competency expectations + mentor role examples.
+ * Optional extras: shared resources and any time-phased goals beyond the rubric.
  */
 export async function GoalsSection({
   workspace,
@@ -52,214 +50,103 @@ export async function GoalsSection({
     (workspace.isMentor ||
       workspace.isAdmin ||
       workspace.canManageSetup ||
-      workspace.isLeadership);
+      workspace.accessLevel === "leadership");
 
   const doc = await getWorkspaceGRDocument(personId);
 
-  if (!doc) {
-    if (!canEdit || !workspace.activeMentorshipId) {
-      return (
-        <div className="mx-auto flex w-full max-w-xl flex-col gap-3">
-          <div>
-            <h2 className="m-0 text-[18px] font-semibold tracking-[-0.3px] text-ink">
-              Goals &amp; Responsibilities
-            </h2>
-            <p className="m-0 mt-1 text-[13.5px] text-ink-muted">
-              {isSelf
-                ? "Your goals and resources will show up here once your mentor sets them up."
-                : "Set up Goals & Responsibilities for this person here."}
-            </p>
-          </div>
-          {isSelf ? (
-            <EmptyStateV2
-              title="Nothing here yet"
-              body="When your mentor assigns your G&R, you’ll see your goals and shared resources on this page."
-            />
-          ) : (
-            <EmptyStateV2
-              title="No Goals & Responsibilities yet"
-              body="Set them up below once you’re ready."
-            />
-          )}
-        </div>
-      );
-    }
+  const competency = buildGrCompetencyRows({
+    primaryRole: workspace.person.primaryRole,
+    title: workspace.person.title,
+    goals: doc?.goals?.map((g) => ({
+      id: g.id,
+      title: g.title,
+      description: g.description,
+      kind: (g as { kind?: string }).kind,
+    })),
+  });
 
+  const expectationsTable = (
+    <GrCompetencyExpectationsTable
+      rubricLabel={competency.rubricLabel}
+      currentLevelHeading={competency.currentLevelHeading}
+      nextLevelHeading={competency.nextLevelHeading}
+      rows={competency.rows}
+      canEdit={Boolean(canEdit && workspace.activeMentorshipId)}
+      mentorshipId={workspace.activeMentorshipId}
+      menteeId={personId}
+    />
+  );
+
+  if (!doc) {
     return (
       <div className="flex flex-col gap-5">
         <div>
           <h2 className="m-0 text-[18px] font-semibold tracking-[-0.3px] text-ink">
             Goals &amp; Responsibilities
           </h2>
-          <p className="m-0 mt-1 max-w-[52ch] text-[13.5px] leading-relaxed text-ink-muted">
-            Add the goals for {workspace.person.name}. They&apos;ll see them here once
-            you save.
+          <p className="m-0 mt-1 max-w-[60ch] text-[13.5px] leading-relaxed text-ink-muted">
+            {isSelf
+              ? "What is expected at your level, what promotion looks like, and any role-specific examples your mentor adds."
+              : canEdit
+                ? `Expectations for ${workspace.person.name}. Add specific examples in the last column when helpful.`
+                : "Pathway expectations for this role."}
           </p>
         </div>
-        <AssignGoalsForm
-          personId={personId}
-          mentorshipId={workspace.activeMentorshipId}
-        />
+
+        {expectationsTable}
+
+        {canEdit && workspace.activeMentorshipId ? (
+          <details className="rounded-[12px] border border-line-soft bg-surface p-4">
+            <summary className="cursor-pointer text-[13.5px] font-semibold text-ink">
+              Add time-phased goals (optional)
+            </summary>
+            <p className="m-0 mt-2 mb-3 text-[12.5px] text-ink-muted">
+              Use this only if you also need monthly or quarterly goals beyond the
+              competency rubric above.
+            </p>
+            <AssignGoalsForm
+              personId={personId}
+              mentorshipId={workspace.activeMentorshipId}
+            />
+          </details>
+        ) : null}
       </div>
     );
   }
 
   // Mentees wait while draft/pending; mentors can still open and activate.
+  // Still show the pathway table so expectations are visible.
   if (isSelf && (doc.status === "DRAFT" || doc.status === "PENDING_APPROVAL")) {
     return (
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-5">
         <div>
           <h2 className="m-0 text-[18px] font-semibold text-ink">
             Goals &amp; Responsibilities
           </h2>
-          <p className="m-0 mt-1 text-[13.5px] text-ink-muted">{doc.template.title}</p>
+          <p className="m-0 mt-1 text-[13.5px] text-ink-muted">
+            Role expectations are below. Your mentor is still finishing custom goals
+            for {doc.template.title}.
+          </p>
         </div>
+        {expectationsTable}
         <EmptyStateV2
-          title="Being prepared"
-          body="Your mentor is finishing your Goals & Responsibilities. You'll see them here when they're ready."
+          title="Custom goals being prepared"
+          body="You'll see mentor-added examples and resources here when they're ready."
         />
       </div>
     );
   }
 
-  const ratingMap: Record<string, string> = {};
-  if (doc.latestReview) {
-    for (const gr of doc.latestReview.goalRatings) {
-      if (gr.grDocumentGoalId) ratingMap[gr.grDocumentGoalId] = gr.rating;
-    }
-  }
-
-  const serialized = {
-    id: doc.id,
-    templateTitle: doc.template.title,
-    roleType: doc.template.roleType,
-    roleMission: doc.roleMission,
-    status: doc.status,
-    roleStartDate: doc.roleStartDate.toISOString(),
-    mentorName: doc.mentorship.mentor.name ?? "Mentor",
-    mentorEmail: doc.mentorship.mentor.email ?? "",
-    mentorInfo: doc.mentorInfo as Record<string, string> | null,
-    officerInfo: doc.officerInfo as Record<string, string> | null,
-    officer: doc.officer ?? null,
-    mentors: doc.mentors ?? [],
-    goalsByLifecycle: doc.goalsByLifecycle,
-    currentPriorities: doc.currentPriorities
-      .sort(
-        (a, b) =>
-          (PRIORITY_ORDER[a.priority] ?? 2) - (PRIORITY_ORDER[b.priority] ?? 2)
-      )
-      .map((g) => ({
-        id: g.id,
-        title: g.title,
-        description: g.description,
-        priority: g.priority,
-        progressState: g.progressState,
-        dueDate: g.dueDate?.toISOString() ?? null,
-        isOverdue: g.isOverdue,
-        isDueSoon: g.isDueSoon,
-        rating: (ratingMap[g.id] ?? null) as GoalRatingColor | null,
-      })),
-    goals: doc.goals.map((g) => {
-      const def = g.templateGoal?.kpiDefinitions?.[0] ?? null;
-      return {
-      id: g.id,
-      title: g.title,
-      description: g.description,
-      timePhase: g.timePhase,
-      isCustom: g.isCustom,
-      lifecycleStatus: g.lifecycleStatus,
-      progressState: g.progressState,
-      priority: g.priority,
-      dueDate: g.dueDate?.toISOString() ?? null,
-      completedAt: g.completedAt?.toISOString() ?? null,
-      rating: (ratingMap[g.id] ?? null) as GoalRatingColor | null,
-      ratingComments:
-        doc.latestReview?.goalRatings.find((gr) => gr.grDocumentGoalId === g.id)
-          ?.comments ?? null,
-      kpiTarget: def
-        ? {
-            definitionId: def.id,
-            label: def.label,
-            targetValue: def.targetValue,
-            unit: def.unit,
-          }
-        : null,
-      kpiValues: g.kpiValues.map((v) => ({
-        value: v.value,
-        measuredAt: v.measuredAt.toISOString(),
-        notes: v.notes,
-      })),
-    };
-    }),
-    successCriteria: doc.successCriteria.map((sc) => ({
-      timePhase: sc.timePhase,
-      criteria: sc.criteria,
-    })),
-    resources: doc.resources.map((r) => ({
-      title: r.resource.title,
-      url: r.resource.url,
-      description: r.resource.description,
-    })),
-    plansOfAction: doc.plansOfAction.map((p) => ({
-      cycleNumber: p.cycleNumber,
-      content: p.content,
-      updatedAt: p.updatedAt.toISOString(),
-    })),
-    latestReview: doc.latestReview
-      ? {
-          id: doc.latestReview.id,
-          cycleMonth: doc.latestReview.cycleMonth.toISOString(),
-          overallRating: doc.latestReview.overallRating,
-          overallComments: doc.latestReview.overallComments,
-          planOfAction: doc.latestReview.planOfAction,
-          isQuarterly: doc.latestReview.isQuarterly,
-          projectedFuturePath: doc.latestReview.projectedFuturePath,
-          promotionReadiness: doc.latestReview.promotionReadiness,
-          releasedToMenteeAt:
-            doc.latestReview.releasedToMenteeAt?.toISOString() ?? null,
-          goalRatings: doc.latestReview.goalRatings.map((gr) => ({
-            grDocumentGoalId: gr.grDocumentGoalId,
-            rating: gr.rating as GoalRatingColor,
-            comments: gr.comments ?? null,
-          })),
-        }
-      : null,
-    nextMonthGoals: doc.nextMonthGoals.map((g) => ({
-      id: g.id,
-      title: g.title,
-      description: g.description,
-      priority: g.priority,
-      dueDate: g.dueDate?.toISOString() ?? null,
-    })),
-    pastReviews: doc.pastReviews.map((r) => ({
-      id: r.id,
-      cycleMonth: r.cycleMonth.toISOString(),
-      overallRating: r.overallRating,
-      overallComments: r.overallComments,
-      planOfAction: r.planOfAction,
-      isQuarterly: r.isQuarterly,
-      releasedToMenteeAt: r.releasedToMenteeAt?.toISOString() ?? null,
-      goalRatings: r.goalRatings.map((gr) => ({
-        grDocumentGoalId: gr.grDocumentGoalId,
-        rating: gr.rating,
-        comments: gr.comments,
-      })),
-      goalSnapshots: r.goalSnapshots.map((s) => ({
-        id: s.id,
-        grDocumentGoalId: s.grDocumentGoalId,
-        title: s.title,
-        description: s.description,
-        timePhase: s.timePhase,
-        priority: s.priority,
-        lifecycleStatusAtSnapshot: s.lifecycleStatusAtSnapshot,
-        dueDateAtSnapshot: s.dueDateAtSnapshot?.toISOString() ?? null,
-      })),
-    })),
-    roleLabel: ROLE_LABELS[doc.template.roleType] ?? doc.template.roleType,
-    ratingHistoryByGoal: doc.ratingHistoryByGoal,
-  };
-
   const activeGoals = doc.goals.filter((g) => g.lifecycleStatus === "ACTIVE");
+  const extraGoals = activeGoals.filter(
+    (g) => !isCompetencyGoal(g as { title: string; kind?: string }),
+  );
+  const resources = doc.resources.map((r) => ({
+    title: r.resource.title,
+    url: r.resource.url,
+    description: r.resource.description,
+  }));
+  const hasExtras = extraGoals.length > 0 || resources.length > 0;
 
   return (
     <div className="flex flex-col gap-5">
@@ -270,8 +157,8 @@ export async function GoalsSection({
           </h2>
           <p className="m-0 mt-1 text-[13.5px] text-ink-muted">
             {isSelf
-              ? "Your goals and resources — shared with your mentor."
-              : `${doc.template.title} — edit here; they see the same page.`}
+              ? "Your competency expectations and role-specific examples — shared with your mentor."
+              : `${doc.template.title} — expectations below; edit role-specific examples in the last column.`}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -296,7 +183,86 @@ export async function GoalsSection({
         </div>
       </div>
 
-      <GRDocumentView document={serialized} isOwner={isSelf} />
+      {expectationsTable}
+
+      {hasExtras ? (
+        <details className="rounded-[12px] border border-line-soft bg-surface">
+          <summary className="cursor-pointer list-none px-4 py-3.5 text-[13.5px] font-semibold text-ink marker:content-none [&::-webkit-details-marker]:hidden">
+            More on this G&amp;R
+            <span className="mt-0.5 block text-[12.5px] font-normal text-ink-muted">
+              {[
+                extraGoals.length > 0
+                  ? `${extraGoals.length} extra goal${extraGoals.length === 1 ? "" : "s"}`
+                  : null,
+                resources.length > 0
+                  ? `${resources.length} resource${resources.length === 1 ? "" : "s"}`
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </span>
+          </summary>
+          <div className="flex flex-col gap-4 border-t border-line-soft px-4 py-4">
+            {extraGoals.length > 0 ? (
+              <section>
+                <h3 className="m-0 text-[13px] font-bold text-ink">
+                  Extra goals
+                </h3>
+                <p className="m-0 mt-0.5 text-[12.5px] text-ink-muted">
+                  Time-phased goals beyond the competency rubric above.
+                </p>
+                <ul className="m-0 mt-3 flex list-none flex-col gap-2.5 p-0">
+                  {extraGoals.map((g) => (
+                    <li
+                      key={g.id}
+                      className="rounded-[10px] border border-line-soft bg-surface-soft/40 px-3.5 py-3"
+                    >
+                      <div className="flex flex-wrap items-baseline justify-between gap-2">
+                        <p className="m-0 text-[13.5px] font-semibold text-ink">
+                          {g.title}
+                        </p>
+                        <span className="text-[11.5px] font-medium text-ink-muted">
+                          {TIME_PHASE_LABELS[g.timePhase] ?? g.timePhase}
+                        </span>
+                      </div>
+                      {g.description?.trim() ? (
+                        <p className="m-0 mt-1.5 whitespace-pre-wrap text-[12.5px] leading-relaxed text-ink-muted">
+                          {g.description.trim()}
+                        </p>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+
+            {resources.length > 0 ? (
+              <section>
+                <h3 className="m-0 text-[13px] font-bold text-ink">Resources</h3>
+                <ul className="m-0 mt-2 flex list-none flex-col gap-1.5 p-0">
+                  {resources.map((r) => (
+                    <li key={`${r.title}-${r.url}`}>
+                      <a
+                        href={r.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[13.5px] font-semibold text-brand-700 no-underline hover:underline"
+                      >
+                        {r.title}
+                      </a>
+                      {r.description ? (
+                        <p className="m-0 mt-0.5 text-[12.5px] text-ink-muted">
+                          {r.description}
+                        </p>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+          </div>
+        </details>
+      ) : null}
 
       {canEdit ? (
         <details className="rounded-[12px] border border-line-soft bg-surface p-4">
@@ -318,10 +284,6 @@ export async function GoalsSection({
           />
         </details>
       ) : null}
-
-      <LearnMore summary="What do the goal colors mean?">
-        <RatingLegend audience={isSelf ? "mentee" : "mentor"} />
-      </LearnMore>
     </div>
   );
 }

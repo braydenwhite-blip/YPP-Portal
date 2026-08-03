@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth-supabase";
 import { getLeadershipContext } from "@/lib/leadership-context";
 import { resolveStartingPosition } from "@/lib/growth-pathway";
 import { GrowthDashboard } from "@/components/leadership-pathway/growth-dashboard";
+import { prisma } from "@/lib/prisma";
 
 export const metadata = {
   title: "Growth Pathway — YPP",
@@ -14,12 +15,19 @@ export default async function LeadershipPathwayPage() {
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
-  const ctx = await getLeadershipContext(session.user.id);
+  const [ctx, titleRow] = await Promise.all([
+    getLeadershipContext(session.user.id),
+    prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { title: true, canonicalTitle: true },
+    }),
+  ]);
   const isAdmin = (session.user.roles ?? []).includes("ADMIN");
 
   const { trackId, roleId } = resolveStartingPosition({
     stageId: ctx?.stageId ?? null,
     primaryRole: ctx?.user.primaryRole ?? session.user.primaryRole ?? null,
+    title: titleRow?.title ?? titleRow?.canonicalTitle ?? null,
   });
 
   const mentor = ctx?.primaryMentor

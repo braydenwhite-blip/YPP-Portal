@@ -8,31 +8,49 @@ export type MentorshipCustomPrompt = {
   answeredAt: string | null;
 };
 
-/** Fixed starter questions for a new monthly form. */
+/** Fixed starter questions for every staff monthly form. */
 export const MONTHLY_PRESET_PROMPTS = [
   {
-    key: "howGoing" as const,
+    key: "pastMonth" as const,
     n: "1",
-    label: "How was this month?",
-    hint: "A few sentences is plenty.",
-    placeholder: "It was pretty good / busy / hard because…",
+    label: "How would you describe the past month?",
+    hint: "A few honest sentences is enough.",
+    placeholder: "It felt… / The main theme was…",
     rows: 4,
   },
   {
-    key: "whatGood" as const,
+    key: "yppOverall" as const,
     n: "2",
-    label: "What went well?",
-    hint: "One win is enough.",
-    placeholder: "I finished… / I felt proud of…",
-    rows: 3,
+    label: "How is YPP performing overall from your perspective?",
+    hint: "Big picture — org health, momentum, culture.",
+    placeholder: "From where I sit, YPP is…",
+    rows: 4,
   },
   {
-    key: "whatHard" as const,
+    key: "goingWellChallenges" as const,
     n: "3",
-    label: "What was hard?",
-    hint: "Or what do you need help with?",
-    placeholder: "I got stuck on… / I wish I had help with…",
-    rows: 3,
+    label:
+      "What are the biggest things going well as well as challenges we need to address?",
+    hint: "Wins and blockers — both matter.",
+    placeholder: "Going well: … / Challenges: …",
+    rows: 5,
+  },
+  {
+    key: "recommendedChanges" as const,
+    n: "4",
+    label: "What changes if any would you recommend we make?",
+    hint: "Process, support, priorities — or none.",
+    placeholder: "I’d recommend… / No major changes, but…",
+    rows: 4,
+  },
+  {
+    key: "hoursPerWeek" as const,
+    n: "5",
+    label:
+      "Approximately how many hours per week did you spend on YPP this month?",
+    hint: "A rough average is fine.",
+    placeholder: "e.g. 5–8 hours / week",
+    rows: 2,
   },
 ] as const;
 
@@ -92,7 +110,11 @@ const SCALE_EXAMPLES: AnswerGuideExample[] = [
 
 function textGuideFor(question: string): AnswerGuide {
   const q = question.toLowerCase();
-  if (q.includes("how was this month") || q.includes("how going")) {
+  if (
+    q.includes("describe the past month") ||
+    q.includes("how was this month") ||
+    q.includes("how going")
+  ) {
     return {
       kind: "text",
       title: "Example answers",
@@ -100,37 +122,96 @@ function textGuideFor(question: string): AnswerGuide {
       examples: [
         {
           label: "Solid",
-          detail: "Pretty good — busy weeks, but I finished my main goals.",
+          detail: "Steady month — busy weeks, but I stayed on top of the main work.",
         },
         {
           label: "Mixed",
-          detail: "Up and down. Classes went well; I fell behind on follow-ups.",
+          detail: "Up and down. Some clear wins; I also fell behind in a few places.",
         },
         {
           label: "Hard",
-          detail: "Tough month. I need help prioritizing what matters most.",
+          detail: "Tough month. Capacity was tight and priorities kept shifting.",
         },
       ],
     };
   }
-  if (q.includes("went well") || q.includes("proud")) {
+  if (q.includes("ypp performing") || q.includes("from your perspective")) {
     return {
       kind: "text",
       title: "Example answers",
-      tip: "One concrete win is perfect.",
+      tip: "Speak to overall health, not just your lane.",
       examples: [
         {
-          label: "Win",
-          detail: "I finished the outline early and got clear feedback.",
+          label: "Strong",
+          detail: "Momentum feels good — programs are landing and people seem aligned.",
         },
         {
-          label: "People",
-          detail: "I asked for help sooner and it unblocked me.",
+          label: "Uneven",
+          detail: "Some areas are thriving; others feel under-resourced or unclear.",
         },
         {
-          label: "Habit",
-          detail: "I kept a weekly checklist and actually used it.",
+          label: "Concerned",
+          detail: "I’m worried about bandwidth and follow-through across teams.",
         },
+      ],
+    };
+  }
+  if (
+    q.includes("going well") ||
+    q.includes("challenges") ||
+    q.includes("proud")
+  ) {
+    return {
+      kind: "text",
+      title: "Example answers",
+      tip: "Name one or two wins and one or two challenges.",
+      examples: [
+        {
+          label: "Both",
+          detail:
+            "Going well: clearer handoffs. Challenge: too many last-minute asks.",
+        },
+        {
+          label: "Win-heavy",
+          detail: "Classes / projects landed well. Challenge: limited mentor time.",
+        },
+        {
+          label: "Challenge-heavy",
+          detail: "Wins were small. Biggest challenge is unclear ownership.",
+        },
+      ],
+    };
+  }
+  if (q.includes("changes") || q.includes("recommend")) {
+    return {
+      kind: "text",
+      title: "Example answers",
+      tip: "Concrete and actionable beats vague.",
+      examples: [
+        {
+          label: "Process",
+          detail: "Set a clearer weekly priority list so we stop thrashing.",
+        },
+        {
+          label: "Support",
+          detail: "Add a short office-hours slot for blockers mid-week.",
+        },
+        {
+          label: "None",
+          detail: "No major changes — keep the current cadence.",
+        },
+      ],
+    };
+  }
+  if (q.includes("hours per week") || q.includes("hours/week")) {
+    return {
+      kind: "text",
+      title: "Example answers",
+      tip: "A rough weekly average is fine.",
+      examples: [
+        { label: "Light", detail: "About 3–4 hours per week." },
+        { label: "Typical", detail: "Around 6–8 hours per week." },
+        { label: "Heavy", detail: "Closer to 12+ hours most weeks." },
       ],
     };
   }
@@ -142,11 +223,11 @@ function textGuideFor(question: string): AnswerGuide {
       examples: [
         {
           label: "Time",
-          detail: "I ran out of time after school — shorter weekly goals would help.",
+          detail: "I ran out of time after other commitments — shorter weekly goals would help.",
         },
         {
           label: "Clarity",
-          detail: "I’m unsure what “done” looks like for this goal.",
+          detail: "I’m unsure what “done” looks like for this work.",
         },
         {
           label: "Help",
@@ -305,6 +386,28 @@ export function createPresetQuestions(): MonthlyFeedbackQuestion[] {
   }));
 }
 
+/**
+ * Keep DRAFT forms on the latest staff preset set (preserves custom questions).
+ * Sent / answered forms are left alone.
+ */
+export function syncDraftPresetQuestions(
+  form: MonthlyFeedbackForm,
+): MonthlyFeedbackForm {
+  if (form.status !== "DRAFT") return form;
+  const expected = MONTHLY_PRESET_PROMPTS.map((p) => p.label);
+  const presets = form.questions.filter((q) => q.kind === "preset");
+  const customs = form.questions.filter((q) => q.kind !== "preset");
+  const current = presets.map((p) => p.text);
+  const same =
+    current.length === expected.length &&
+    current.every((text, i) => text === expected[i]);
+  if (same) return form;
+  return {
+    ...form,
+    questions: [...createPresetQuestions(), ...customs],
+  };
+}
+
 export function createMonthlyDraft(
   cycleMonthKey?: string,
   cycleLabel?: string
@@ -411,7 +514,19 @@ export function ensureCurrentMonthForm(
 ): { store: MonthlyFeedbackStore; current: MonthlyFeedbackForm } {
   const { cycleMonthKey, cycleLabel } = getCurrentCycleMonth(now);
   const existing = store.forms.find((f) => f.cycleMonthKey === cycleMonthKey);
-  if (existing) return { store, current: existing };
+  if (existing) {
+    const synced = syncDraftPresetQuestions(existing);
+    if (synced === existing) return { store, current: existing };
+    return {
+      store: {
+        version: 2,
+        forms: store.forms.map((f) =>
+          f.cycleMonthKey === cycleMonthKey ? synced : f,
+        ),
+      },
+      current: synced,
+    };
+  }
 
   const draft = createMonthlyDraft(cycleMonthKey, cycleLabel);
   return {

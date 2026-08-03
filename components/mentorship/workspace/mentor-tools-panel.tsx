@@ -30,7 +30,7 @@ export async function MentorToolsPanel({
 
       <div className="flex flex-wrap gap-2">
         <ButtonLink
-          href={`/mentorship/people/${menteeId}?section=reviews`}
+          href={`/mentorship/people/${menteeId}?section=progress`}
           size="sm"
           variant="secondary"
         >

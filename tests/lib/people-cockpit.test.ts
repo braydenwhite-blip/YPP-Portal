@@ -38,6 +38,8 @@ function makeFacts(overrides: Partial<PerformanceRowFacts> = {}): PerformanceRow
     needsMentor: false,
     growthOpportunity: false,
     disengagementRisk: false,
+    hasSelfReflection: false,
+    currentReviewStatus: null,
     ...overrides,
   };
 }

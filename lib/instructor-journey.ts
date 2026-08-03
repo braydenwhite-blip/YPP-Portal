@@ -112,3 +112,21 @@ export async function getInstructorJourney(
     return EMPTY_JOURNEY;
   }
 }
+
+/**
+ * Mark that the instructor has been shown the launchpad (first login). Creates
+ * the journey row if needed so the app-shell gate stops forcing this page.
+ */
+export async function markInstructorLaunchpadPresented(
+  userId: string,
+): Promise<void> {
+  try {
+    await prisma.instructorJourney.upsert({
+      where: { userId },
+      create: { userId, currentStep: 0 },
+      update: {},
+    });
+  } catch {
+    // Table may not exist yet — continue silently.
+  }
+}

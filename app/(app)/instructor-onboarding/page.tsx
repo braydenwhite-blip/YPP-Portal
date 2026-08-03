@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
-import { getInstructorJourney } from "@/lib/instructor-journey";
+import {
+  getInstructorJourney,
+  markInstructorLaunchpadPresented,
+} from "@/lib/instructor-journey";
 import { getTrainingHomeModel } from "@/lib/training-home-model";
 import InstructorLaunchpad from "@/components/instructor-onboarding/instructor-onboarding-guide";
 
@@ -15,6 +18,9 @@ export default async function InstructorOnboardingPage() {
   if (!session?.user?.id) {
     redirect("/login?callbackUrl=/instructor-onboarding");
   }
+
+  // First visit stamps the journey so Home stops forcing this page afterward.
+  await markInstructorLaunchpadPresented(session.user.id);
 
   const [user, application, journey, training] = await Promise.all([
     prisma.user.findUnique({

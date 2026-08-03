@@ -51,6 +51,7 @@ const INSTRUCTOR_OFFERING_SELECT = {
   arrivalInstructions: true,
   materialsList: true,
   zoomLink: true,
+  themeColor: true,
   chapterId: true,
   instructorId: true,
   template: {
@@ -322,6 +323,8 @@ export type TeachingClass = {
   locationAddress: string | null;
   arrivalInstructions: string | null;
   zoomLink: string | null;
+  themeColor: string | null;
+  meetingTime: string | null;
   materialsList: string[];
   ageRange: string | null;
   roster: TeachingStudent[];
@@ -917,6 +920,8 @@ export async function loadInstructorTeachingWorkspace(
       locationAddress: row.locationAddress,
       arrivalInstructions: row.arrivalInstructions,
       zoomLink: row.zoomLink,
+      themeColor: row.themeColor ?? null,
+      meetingTime: row.meetingTime ?? null,
       materialsList: row.materialsList,
       ageRange: row.template.targetAgeGroup,
       roster,

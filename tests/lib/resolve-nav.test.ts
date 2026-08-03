@@ -102,8 +102,6 @@ describe("resolveNavModel", () => {
     expect(visibleHrefs).toEqual([
       "/",
       "/instructor/classes",
-      "/instructor/students",
-      "/instructor/materials",
       "/instructor/schedule",
     ]);
 

@@ -4,21 +4,18 @@ import skin from "@/components/ui-v2/portal-skin.module.css";
 import { ButtonLink } from "@/components/ui-v2";
 import { prisma } from "@/lib/prisma";
 import type { MentorshipWorkspace } from "@/lib/mentorship/workspace";
-import { KickoffStatusRow } from "@/components/mentorship/kickoff-status-row";
 
-import { CheckInsSection } from "./sections";
 import { GoalsSection } from "./goals-section";
-import { ReviewsSection } from "./reviews-section";
 import { ProgressUpdateSection } from "./progress-update-section";
+import { FeedbackSection } from "./feedback-section";
 import { ChairApprovalPanel } from "./chair-approval-panel";
 import {
   SetupRepairPanel,
   type MentorshipSetupData,
 } from "./setup-repair-panel";
 import { ManageRelationship } from "./manage-relationship";
-import { MentorPersonHome } from "./mentor-person-home";
 import { MenteeDashboardHome } from "./mentee-dashboard-home";
-import { SelfHelpCard, SelfMilestones, SelfRecognitionCard } from "./self-sections";
+import { SelfHelpCard, SelfRecognitionCard } from "./self-sections";
 
 /**
  * Shared Mentorship person workspace — quiet chrome, one job per tab.
@@ -27,9 +24,8 @@ import { SelfHelpCard, SelfMilestones, SelfRecognitionCard } from "./self-sectio
 const SECTIONS = [
   { id: "overview", label: "Home" },
   { id: "goals", label: "G&R" },
-  { id: "check-ins", label: "Meetings" },
-  { id: "reviews", label: "Feedback" },
-  { id: "progress", label: "Progress" },
+  { id: "feedback", label: "Feedback" },
+  { id: "progress", label: "Review" },
 ] as const;
 
 type SectionId = (typeof SECTIONS)[number]["id"];
@@ -39,9 +35,12 @@ const SECTION_ALIASES: Record<string, SectionId> = {
   relationships: "overview",
   timeline: "overview",
   opportunities: "overview",
-  reflection: "reviews",
-  review: "reviews",
-  schedule: "check-ins",
+  /** Old Feedback / Reviews / Meetings aliases */
+  reviews: "feedback",
+  reflection: "feedback",
+  review: "progress",
+  schedule: "overview",
+  "check-ins": "overview",
   recognition: "overview",
   "progress-update": "progress",
 };
@@ -64,7 +63,7 @@ function QuietTabs({
   return (
     <nav
       aria-label="Mentorship section"
-      className="flex gap-1 overflow-x-auto border-b border-line-soft"
+      className="flex flex-wrap gap-1 border-b border-line-soft"
     >
       {tabs.map((tab) => {
         const active = tab.id === activeId;
@@ -91,8 +90,8 @@ export function MentorshipWorkspaceView({
   workspace,
   section,
   panel,
+  reviewId,
   setup,
-  kickoff,
   sectionHref,
   showHeader = true,
   helpSent = false,
@@ -103,12 +102,8 @@ export function MentorshipWorkspaceView({
   workspace: MentorshipWorkspace;
   section?: string;
   panel?: string;
+  reviewId?: string;
   setup?: MentorshipSetupData;
-  kickoff?: {
-    scheduledAt: Date | null;
-    completedAt: Date | null;
-    canMarkComplete: boolean;
-  };
   sectionHref: (sectionId: string) => string;
   showHeader?: boolean;
   helpSent?: boolean;
@@ -118,7 +113,9 @@ export function MentorshipWorkspaceView({
 }) {
   const isSelf = workspace.isSelf;
   const active =
-    panel === "draft" || panel === "approve" ? "reviews" : resolveSection(section);
+    panel === "draft" || panel === "approve"
+      ? "progress"
+      : resolveSection(section);
 
   const tabs = SECTIONS.map((s) => ({
     id: s.id,
@@ -139,6 +136,18 @@ export function MentorshipWorkspaceView({
 
   const body = (
     <>
+      {!isSelf && (workspace.isAdmin || workspace.isLeadership) ? (
+        <div className="rounded-[12px] border border-brand-200 bg-brand-50/60 px-4 py-3">
+          <p className="m-0 text-[13.5px] font-semibold text-ink">
+            Viewing as admin
+          </p>
+          <p className="m-0 mt-0.5 text-[12.5px] text-ink-muted">
+            Same Home / G&amp;R / Feedback / Review tools their mentor uses — you can
+            create reviews, request feedback, and manage the relationship.
+          </p>
+        </div>
+      ) : null}
+
       {panel === "setup" && setup ? (
         <SetupRepairPanel
           personId={workspace.person.id}
@@ -150,18 +159,6 @@ export function MentorshipWorkspaceView({
             workspace.lifecycle.hasRoleChair === false
           }
           setup={setup}
-        />
-      ) : null}
-
-      {active === "check-ins" &&
-      workspace.activeMentorshipId &&
-      kickoff &&
-      !kickoff.completedAt ? (
-        <KickoffStatusRow
-          mentorshipId={workspace.activeMentorshipId}
-          kickoffScheduledAt={kickoff.scheduledAt}
-          kickoffCompletedAt={kickoff.completedAt}
-          canMarkComplete={kickoff.canMarkComplete}
         />
       ) : null}
 
@@ -184,73 +181,84 @@ export function MentorshipWorkspaceView({
       {!focusedReviewPanel ? <QuietTabs tabs={tabs} activeId={active} /> : null}
 
       {!focusedReviewPanel && active === "overview" ? (
-        isSelf ? (
-          <>
-            <MenteeDashboardHome
-              workspace={workspace}
-              goalsHref={sectionHref("goals")}
-              checkInsHref={sectionHref("check-ins")}
-              reviewsHref={sectionHref("reviews")}
-            />
-            <SelfMilestones />
+        <>
+          <MenteeDashboardHome
+            workspace={workspace}
+            goalsHref={sectionHref("goals")}
+            reviewsHref={sectionHref("progress")}
+            personBasePath={`/mentorship/people/${workspace.person.id}`}
+          />
+          {isSelf ? (
             <SelfHelpCard
               returnHref={sectionHref("overview")}
               sent={helpSent}
-              scheduleHref={sectionHref("check-ins")}
+              scheduleHref={sectionHref("overview")}
               goalsHref={sectionHref("goals")}
               resourcesHref={sectionHref("goals")}
             />
-          </>
-        ) : (
-          <>
-            <MentorPersonHome
-              workspace={workspace}
-              feedbackHref={sectionHref("reviews")}
-              progressHref={sectionHref("progress")}
-            />
-            {workspace.isAdmin && workspace.activeMentorshipId ? (
-              <details className="mx-auto w-full max-w-xl">
-                <summary className="cursor-pointer text-[12.5px] font-medium text-ink-muted">
-                  Manage relationship
-                </summary>
-                <div className="mt-3">
-                  <ManageRelationshipHost
-                    mentorshipId={workspace.activeMentorshipId}
-                    menteeId={workspace.person.id}
-                  />
-                </div>
-              </details>
-            ) : null}
-          </>
-        )
+          ) : null}
+          {!isSelf &&
+          (workspace.isAdmin || workspace.isLeadership) &&
+          workspace.activeMentorshipId ? (
+            <details className="w-full">
+              <summary className="cursor-pointer text-[12.5px] font-medium text-ink-muted">
+                Manage relationship
+              </summary>
+              <div className="mt-3 max-w-xl">
+                <ManageRelationshipHost
+                  mentorshipId={workspace.activeMentorshipId}
+                  menteeId={workspace.person.id}
+                />
+              </div>
+            </details>
+          ) : null}
+          {!isSelf &&
+          (workspace.isAdmin || workspace.isLeadership) &&
+          !workspace.activeMentorshipId ? (
+            <div className="rounded-[12px] border border-line-soft bg-surface-soft px-4 py-3">
+              <p className="m-0 text-[13.5px] font-semibold text-ink">
+                No active mentorship yet
+              </p>
+              <p className="m-0 mt-1 text-[12.5px] text-ink-muted">
+                Assign a mentor from the People dashboard, or open setup to pair them.
+              </p>
+              <div className="mt-2">
+                <ButtonLink
+                  href={sectionHref("overview") + (sectionHref("overview").includes("?") ? "&" : "?") + "panel=setup"}
+                  variant="secondary"
+                  size="sm"
+                >
+                  Open setup
+                </ButtonLink>
+              </div>
+            </div>
+          ) : null}
+        </>
       ) : null}
 
       {!focusedReviewPanel && active === "goals" ? (
         <>
           <GoalsSection workspace={workspace} />
           {isSelf ? (
-            <SelfRecognitionCard reflectionHref={sectionHref("reviews")} />
+            <SelfRecognitionCard reflectionHref={sectionHref("feedback")} />
           ) : null}
         </>
       ) : null}
 
-      {!focusedReviewPanel && active === "check-ins" ? (
-        <CheckInsSection workspace={workspace} />
-      ) : null}
-
-      {(canOpenDraft || (!focusedReviewPanel && active === "reviews")) ? (
-        <ReviewsSection
+      {!focusedReviewPanel && active === "feedback" ? (
+        <FeedbackSection
           workspace={workspace}
           sectionHref={sectionHref}
-          forceDraft={panel === "draft" || canOpenDraft}
         />
       ) : null}
 
-      {!focusedReviewPanel && active === "progress" ? (
+      {(canOpenDraft || (!focusedReviewPanel && active === "progress")) ? (
         <ProgressUpdateSection
           workspace={workspace}
           justSent={progressSent}
           pendingChair={progressPending}
+          reviewId={reviewId}
+          sectionHref={sectionHref}
         />
       ) : null}
     </>
@@ -260,8 +268,17 @@ export function MentorshipWorkspaceView({
     return <div className="flex flex-col gap-5">{body}</div>;
   }
 
+  const reviewWrite =
+    !isSelf &&
+    active === "progress" &&
+    workspace.capabilities.canDraftReview;
+
   return (
-    <div className={`${skin.portalSkin} mx-auto flex w-full max-w-3xl flex-col gap-5`}>
+    <div
+      className={`${skin.portalSkin} mx-auto flex w-full flex-col gap-5 ${
+        reviewWrite || focusedReviewPanel ? "max-w-6xl" : "max-w-5xl"
+      }`}
+    >
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           {!isSelf ? (
@@ -271,22 +288,6 @@ export function MentorshipWorkspaceView({
             >
               ← Mentorship
             </Link>
-          ) : null}
-          <h1 className="m-0 text-[22px] font-semibold tracking-[-0.3px] text-ink">
-            {isSelf ? "Your mentorship" : workspace.person.name}
-          </h1>
-          {(isSelf
-            ? workspace.overview.mentorName
-              ? `Mentor: ${workspace.overview.mentorName}`
-              : "No mentor yet"
-            : workspace.person.contextLabel) ? (
-            <p className="m-0 mt-0.5 text-[13px] text-ink-muted">
-              {isSelf
-                ? workspace.overview.mentorName
-                  ? `Mentor: ${workspace.overview.mentorName}`
-                  : "No mentor yet"
-                : workspace.person.contextLabel}
-            </p>
           ) : null}
         </div>
         {alsoMentors && isSelf ? (

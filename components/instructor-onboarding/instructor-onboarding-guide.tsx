@@ -441,11 +441,16 @@ export default function InstructorLaunchpad({
               </p>
               <h1 className={styles.title}>Instructor Launchpad</h1>
             </div>
-            <span className={styles.progressMeta}>
-              <strong>
-                Step {activeIndex + 1} of {LAUNCHPAD_STEP_COUNT}
-              </strong>
-            </span>
+            <div className="flex flex-col items-end gap-2">
+              <span className={styles.progressMeta}>
+                <strong>
+                  Step {activeIndex + 1} of {LAUNCHPAD_STEP_COUNT}
+                </strong>
+              </span>
+              <ButtonLink href="/" variant="secondary" size="sm">
+                Go to home
+              </ButtonLink>
+            </div>
           </div>
         </header>
 

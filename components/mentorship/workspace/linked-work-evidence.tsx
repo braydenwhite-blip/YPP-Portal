@@ -76,8 +76,8 @@ export async function LinkedWorkEvidence({
   }
 
   return (
-    <section className="rounded-[12px] border border-line-soft bg-surface px-3.5 py-3">
-      <p className="m-0 text-[13px] font-semibold text-ink">Open work</p>
+    <section className="rounded-[14px] border border-line-soft bg-white/90 px-3.5 py-3.5 shadow-[0_1px_2px_rgb(26_5_51/0.04)]">
+      <p className="m-0 text-[13.5px] font-semibold text-ink">Open work</p>
       <p className="m-0 mt-0.5 text-[12.5px] text-ink-muted">
         Use this when deciding how they&apos;re doing
       </p>

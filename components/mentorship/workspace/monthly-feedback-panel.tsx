@@ -17,16 +17,14 @@ import {
   resetMonthlyFeedbackForTesting,
   sendMonthlyFeedbackForm,
   submitMonthlyFeedbackAnswers,
-  updateMonthlyFeedbackQuestionGuide,
 } from "@/lib/mentorship/feedback-prompt-actions";
 import {
+  MONTHLY_PRESET_PROMPTS,
   SUGGESTED_ADDITIONAL_PROMPTS,
-  defaultGuideAsStored,
   resolveAnswerGuide,
   type AnswerGuideExample,
   type MonthlyFeedbackForm,
   type MonthlyFeedbackQuestion,
-  type StoredAnswerGuide,
 } from "@/lib/mentorship/feedback-prompts";
 
 const fieldInput =
@@ -44,7 +42,6 @@ export function MonthlyFeedbackPanel({
   canCompose,
   canAnswer,
   menteeFirstName,
-  roleLabel,
   progressHref,
 }: {
   mentorshipId: string;
@@ -54,7 +51,7 @@ export function MonthlyFeedbackPanel({
   canCompose: boolean;
   canAnswer: boolean;
   menteeFirstName: string;
-  /** Role / cohort label for the shared Goals column (e.g. Instructor). */
+  /** @deprecated unused — kept so call sites don’t break mid-refactor */
   roleLabel?: string | null;
   /** Mentor step 4 links here when answers are in. */
   progressHref?: string;
@@ -81,7 +78,6 @@ export function MonthlyFeedbackPanel({
         form={form}
         setForm={setForm}
         canCompose={canCompose}
-        roleLabel={roleLabel ?? null}
         canAnswer={canAnswer}
         menteeFirstName={menteeFirstName}
       />
@@ -182,7 +178,6 @@ function CurrentMonthCard({
   canCompose,
   canAnswer,
   menteeFirstName,
-  roleLabel,
 }: {
   mentorshipId: string;
   form: MonthlyFeedbackForm;
@@ -190,7 +185,6 @@ function CurrentMonthCard({
   canCompose: boolean;
   canAnswer: boolean;
   menteeFirstName: string;
-  roleLabel: string | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -274,13 +268,13 @@ function CurrentMonthCard({
             </h3>
             <p className="m-0 mt-0.5 max-w-[58ch] text-[12.5px] leading-relaxed text-ink-muted">
               {form.status === "DRAFT" && canCompose
-                ? `${roleLabel ?? "Role"} goals on the left; examples for ${menteeFirstName} on the right.`
+                ? `Build this month’s questions, then send them to ${menteeFirstName}.`
                 : form.status === "DRAFT" && canAnswer
-                  ? "Preview of this month’s questions — examples appear on the side as you focus each one. You’ll submit for real after your mentor sends the form."
+                  ? "Preview of this month’s questions. You’ll submit for real after your mentor sends the form."
                   : form.status === "SENT" && canCompose
-                    ? `Waiting on ${menteeFirstName}. Goals stay role-shared; you can still tune their personal examples.`
+                    ? `Waiting on ${menteeFirstName} to answer.`
                     : form.status === "SENT" && canAnswer
-                      ? "Answer each question — tap an example to use it."
+                      ? "Answer each question below."
                       : form.status === "ANSWERED" && canCompose
                         ? `${menteeFirstName} answered — read below, or start the month over to try the flow again.`
                         : "Answers are in for this month."}
@@ -312,16 +306,7 @@ function CurrentMonthCard({
 
       {form.status === "DRAFT" && canCompose ? (
         <>
-          <div className="hidden grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] rounded-t-[10px] border border-b-0 border-line-soft bg-surface-soft sm:grid">
-            <p className="m-0 border-r border-line-soft px-3 py-2 text-[12px] font-semibold text-ink-muted">
-              {roleLabel ?? "Role"} goals
-            </p>
-            <p className="m-0 px-3 py-2 text-[12px] font-semibold text-ink-muted">
-              Examples for {menteeFirstName}
-            </p>
-          </div>
-
-          <ul className="m-0 flex list-none flex-col overflow-hidden rounded-[10px] border border-line-soft p-0 sm:rounded-t-none">
+          <ul className="m-0 flex list-none flex-col overflow-hidden rounded-[10px] border border-line-soft p-0">
             {form.questions.map((q, i) => (
               <MentorQuestionCard
                 key={q.id}
@@ -329,23 +314,12 @@ function CurrentMonthCard({
                 question={q}
                 canRemove={form.questions.length > 1}
                 pending={pending}
-                roleLabel={roleLabel}
                 menteeFirstName={menteeFirstName}
-                defaultExamplesOpen={false}
                 onRemove={() =>
                   run(() =>
                     removeMonthlyFeedbackQuestion({
                       mentorshipId,
                       questionId: q.id,
-                    })
-                  )
-                }
-                onSaveGuide={(guide) =>
-                  run(() =>
-                    updateMonthlyFeedbackQuestionGuide({
-                      mentorshipId,
-                      questionId: q.id,
-                      guide,
                     })
                   )
                 }
@@ -443,40 +417,19 @@ function CurrentMonthCard({
       ) : null}
 
       {form.status === "SENT" && canCompose ? (
-        <>
-          <div className="hidden grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] rounded-t-[10px] border border-b-0 border-line-soft bg-surface-soft sm:grid">
-            <p className="m-0 border-r border-line-soft px-3 py-2 text-[12px] font-semibold text-ink-muted">
-              {roleLabel ?? "Role"} goals
-            </p>
-            <p className="m-0 px-3 py-2 text-[12px] font-semibold text-ink-muted">
-              Examples for {menteeFirstName}
-            </p>
-          </div>
-          <ul className="m-0 flex list-none flex-col overflow-hidden rounded-[10px] border border-line-soft p-0 sm:rounded-t-none">
-            {form.questions.map((q, i) => (
-              <MentorQuestionCard
-                key={q.id}
-                index={i}
-                question={q}
-                canRemove={false}
-                pending={pending}
-                roleLabel={roleLabel}
-                menteeFirstName={menteeFirstName}
-                defaultExamplesOpen={false}
-                onRemove={() => undefined}
-                onSaveGuide={(guide) =>
-                  run(() =>
-                    updateMonthlyFeedbackQuestionGuide({
-                      mentorshipId,
-                      questionId: q.id,
-                      guide,
-                    })
-                  )
-                }
-              />
-            ))}
-          </ul>
-        </>
+        <ul className="m-0 flex list-none flex-col overflow-hidden rounded-[10px] border border-line-soft p-0">
+          {form.questions.map((q, i) => (
+            <MentorQuestionCard
+              key={q.id}
+              index={i}
+              question={q}
+              canRemove={false}
+              pending={pending}
+              menteeFirstName={menteeFirstName}
+              onRemove={() => undefined}
+            />
+          ))}
+        </ul>
       ) : null}
 
       {form.status === "ANSWERED" ? (
@@ -495,294 +448,55 @@ function MentorQuestionCard({
   question,
   canRemove,
   pending,
-  roleLabel,
   menteeFirstName,
-  defaultExamplesOpen = false,
   onRemove,
-  onSaveGuide,
 }: {
   index: number;
   question: MonthlyFeedbackQuestion;
   canRemove: boolean;
   pending: boolean;
-  roleLabel: string | null;
   menteeFirstName: string;
-  defaultExamplesOpen?: boolean;
   onRemove: () => void;
-  onSaveGuide: (guide: StoredAnswerGuide | null) => void;
 }) {
-  const [open, setOpen] = useState(defaultExamplesOpen);
-  const hasCustom = Boolean(question.guide);
-  const hidden = question.guide?.hide === true;
-  const resolved = resolveAnswerGuide(question);
-  const examplePreview = (resolved?.examples ?? []).slice(0, 1);
-
   return (
-    <li className="overflow-hidden border-b border-line-soft bg-surface last:border-b-0">
-      <div className="grid gap-0 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
-        {/* Goals column — shared by role / cohort */}
-        <div className="flex border-b border-line-soft px-3 py-2.5 sm:border-b-0 sm:border-r">
-          <div className="min-w-0 flex-1">
-          <p className="m-0 text-[11px] font-medium text-ink-muted sm:hidden">
-            {roleLabel ?? "Role"} goal
-          </p>
-          <p className="m-0 text-[13px] font-medium leading-snug text-ink">
-            <span className="mr-2 text-[12px] font-normal text-ink-muted">
-              {index + 1}
-            </span>
-            {question.text}
-          </p>
-          {question.kind !== "preset" ? (
-            <p className="m-0 mt-1 text-[11px] text-ink-muted">
-              Added for {menteeFirstName}
-            </p>
-          ) : null}
-          </div>
-          {canRemove ? (
-            <button
-              type="button"
-              disabled={pending}
-              aria-label={`Delete question ${index + 1}`}
-              title="Delete question"
-              className="ml-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-[7px] text-ink-muted transition-colors hover:bg-danger-50 hover:text-danger-700 disabled:opacity-40"
-              onClick={() => {
-                if (window.confirm("Delete this question?")) onRemove();
-              }}
-            >
-              <svg
-                aria-hidden="true"
-                viewBox="0 0 20 20"
-                className="h-4 w-4"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.6"
-              >
-                <path d="M4.5 6h11M8 3.75h4M6.5 6l.6 10h5.8l.6-10M8.25 8.5v5M11.75 8.5v5" />
-              </svg>
-            </button>
-          ) : null}
-        </div>
-
-        {/* Examples column — personal, mentor-set */}
-        <div className="flex flex-col gap-1.5 px-3 py-2.5">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <p className="m-0 text-[11px] font-medium text-ink-muted sm:hidden">
-                Examples for {menteeFirstName}
-              </p>
-              <p className="m-0 text-[12px] text-ink-muted">
-                {hidden
-                  ? "Hidden for mentee"
-                  : hasCustom
-                    ? `${question.guide?.examples?.length ?? 0} custom for ${menteeFirstName}`
-                    : "Role defaults — personalize for them"}
-              </p>
-              {!open && !hidden && examplePreview.length > 0 ? (
-                <ul className="m-0 mt-1 list-none p-0">
-                  {examplePreview.map((ex) => (
-                    <li
-                      key={`${ex.label}-${ex.detail.slice(0, 24)}`}
-                      className="truncate text-[12px] text-ink"
-                    >
-                      <span className="font-medium">{ex.label}</span>
-                      <span className="text-ink-muted"> — {ex.detail}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-            </div>
-            <button
-              type="button"
-              disabled={pending}
-              className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[8px] border border-line bg-surface px-2.5 text-[12px] font-medium text-ink transition-colors hover:border-brand-300 hover:bg-brand-50 hover:text-brand-800 disabled:opacity-40"
-              onClick={() => setOpen((v) => !v)}
-            >
-              <svg
-                aria-hidden="true"
-                viewBox="0 0 20 20"
-                className="h-3.5 w-3.5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.6"
-              >
-                {open ? (
-                  <path d="m6 6 8 8M14 6l-8 8" />
-                ) : (
-                  <path d="m4 14.5-.5 2 2-.5L15 6.5 13.5 5 4 14.5ZM12.5 6l1.5 1.5" />
-                )}
-              </svg>
-              {open ? "Close" : "Edit"}
-            </button>
-          </div>
-        </div>
-      </div>
-      {open ? (
-        <QuestionGuideEditor
-          question={question}
-          menteeFirstName={menteeFirstName}
-          pending={pending}
-          onSave={onSaveGuide}
-          onCancel={() => setOpen(false)}
-        />
-      ) : null}
-    </li>
-  );
-}
-
-function emptyExample(): AnswerGuideExample {
-  return { label: "", detail: "" };
-}
-
-function QuestionGuideEditor({
-  question,
-  menteeFirstName,
-  pending,
-  onSave,
-  onCancel,
-}: {
-  question: MonthlyFeedbackQuestion;
-  menteeFirstName: string;
-  pending: boolean;
-  onSave: (guide: StoredAnswerGuide | null) => void;
-  onCancel: () => void;
-}) {
-  const defaults = defaultGuideAsStored(question.text);
-  const initial = question.guide ?? defaults;
-  const [hide, setHide] = useState(Boolean(initial.hide));
-  const [examples, setExamples] = useState<AnswerGuideExample[]>(
-    (initial.examples?.length ? initial.examples : defaults.examples ?? []).map(
-      (e) => ({ ...e })
-    )
-  );
-
-  function loadDefaults() {
-    const d = defaultGuideAsStored(question.text);
-    setHide(false);
-    setExamples((d.examples ?? []).map((e) => ({ ...e })));
-  }
-
-  function save() {
-    if (hide) {
-      onSave({ hide: true });
-      return;
-    }
-    const cleaned = examples
-      .map((e) => ({
-        label: e.label.trim(),
-        detail: e.detail.trim(),
-        ...(e.insertText?.trim() ? { insertText: e.insertText.trim() } : {}),
-      }))
-      .filter((e) => e.label && e.detail);
-
-    onSave({
-      ...(question.guide ?? {}),
-      hide: false,
-      examples: cleaned,
-    });
-  }
-
-  return (
-    <div className="flex flex-col gap-4 border-t border-line-soft bg-surface-soft/40 p-4">
-      <div>
-        <p className="m-0 text-[14px] font-semibold text-ink">
-          Examples for {menteeFirstName}
+    <li className="flex items-start gap-2 border-b border-line-soft bg-surface px-3 py-2.5 last:border-b-0">
+      <div className="min-w-0 flex-1">
+        <p className="m-0 text-[13px] font-medium leading-snug text-ink">
+          <span className="mr-2 text-[12px] font-normal text-ink-muted">
+            {index + 1}
+          </span>
+          {question.text}
         </p>
-        <p className="m-0 mt-0.5 text-[12.5px] text-ink-muted">
-          They can tap one while answering.
-        </p>
+        {question.kind !== "preset" ? (
+          <p className="m-0 mt-1 text-[11px] text-ink-muted">
+            Added for {menteeFirstName}
+          </p>
+        ) : null}
       </div>
-
-      <label className="flex items-center gap-2 text-[12.5px] text-ink-muted">
-        <input
-          type="checkbox"
-          checked={!hide}
-          disabled={pending}
-          onChange={(e) => setHide(!e.target.checked)}
-        />
-        Show examples
-      </label>
-
-      {!hide ? (
-        <div className="flex flex-col gap-2">
-            {examples.map((ex, i) => (
-              <div
-                key={i}
-                className="grid gap-2 rounded-[10px] border border-line-soft bg-surface p-2.5 sm:grid-cols-[9rem_minmax(0,1fr)_2rem]"
-              >
-                <input
-                  className={fieldInput}
-                  value={ex.label}
-                  disabled={pending}
-                  aria-label={`Example ${i + 1} label`}
-                  placeholder="Short label"
-                  onChange={(e) =>
-                    setExamples((rows) =>
-                      rows.map((row, idx) =>
-                        idx === i ? { ...row, label: e.target.value } : row
-                      )
-                    )
-                  }
-                />
-                <textarea
-                  className={`${fieldInput} resize-y`}
-                  rows={2}
-                  value={ex.detail}
-                  disabled={pending}
-                  aria-label={`Example ${i + 1} answer`}
-                  placeholder="Example answer"
-                  onChange={(e) =>
-                    setExamples((rows) =>
-                      rows.map((row, idx) =>
-                        idx === i ? { ...row, detail: e.target.value } : row
-                      )
-                    )
-                  }
-                />
-                <button
-                  type="button"
-                  disabled={pending}
-                  aria-label={`Delete example ${i + 1}`}
-                  title="Delete example"
-                  className="flex h-8 w-8 items-center justify-center rounded-[7px] text-ink-muted hover:bg-danger-50 hover:text-danger-700 disabled:opacity-40"
-                  onClick={() =>
-                    setExamples((rows) => rows.filter((_, idx) => idx !== i))
-                  }
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-
-            <button
-              type="button"
-              disabled={pending || examples.length >= 12}
-              className="self-start rounded-[8px] border border-line bg-surface px-2.5 py-1.5 text-[12px] font-medium text-ink hover:border-brand-300 hover:text-brand-800 disabled:opacity-50"
-              onClick={() => setExamples((rows) => [...rows, emptyExample()])}
-            >
-              Add example
-            </button>
-        </div>
-      ) : null}
-
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line-soft pt-3">
+      {canRemove ? (
         <button
           type="button"
           disabled={pending}
-          className="text-[12px] font-medium text-ink-muted hover:text-ink"
-          onClick={loadDefaults}
+          aria-label={`Delete question ${index + 1}`}
+          title="Delete question"
+          className="ml-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-[7px] text-ink-muted transition-colors hover:bg-danger-50 hover:text-danger-700 disabled:opacity-40"
+          onClick={() => {
+            if (window.confirm("Delete this question?")) onRemove();
+          }}
         >
-          Use defaults
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 20 20"
+            className="h-4 w-4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+          >
+            <path d="M4.5 6h11M8 3.75h4M6.5 6l.6 10h5.8l.6-10M8.25 8.5v5M11.75 8.5v5" />
+          </svg>
         </button>
-        <div className="flex gap-2">
-          <Button variant="secondary" size="sm" disabled={pending} onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button variant="primary" size="sm" loading={pending} onClick={save}>
-            Save examples
-          </Button>
-        </div>
-      </div>
-    </div>
+      ) : null}
+    </li>
   );
 }
 
@@ -824,26 +538,12 @@ function MenteeAnswerWorkspace({
   const questions =
     form.questions.length > 0
       ? form.questions
-      : [
-          {
-            id: "preview_1",
-            text: "How was this month?",
-            kind: "preset" as const,
-            answer: null,
-          },
-          {
-            id: "preview_2",
-            text: "What went well?",
-            kind: "preset" as const,
-            answer: null,
-          },
-          {
-            id: "preview_3",
-            text: "What was hard?",
-            kind: "preset" as const,
-            answer: null,
-          },
-        ];
+      : MONTHLY_PRESET_PROMPTS.map((p, i) => ({
+          id: `preview_${i + 1}`,
+          text: p.label,
+          kind: "preset" as const,
+          answer: null,
+        }));
 
   const [focusedId, setFocusedId] = useState(questions[0]?.id ?? "");
   const focused =

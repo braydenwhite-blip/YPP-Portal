@@ -70,6 +70,7 @@ export const ACTION_ITEM_STATUS_LABELS: Record<string, string> = {
 export const CLASS_ANNOUNCEMENT_STATUS_LABELS: Record<string, string> = {
   DRAFT: "Draft",
   PENDING_APPROVAL: "Sent for approval",
+  SCHEDULED: "Scheduled (EST)",
   PUBLISHED: "Published",
   REJECTED: "Not approved",
 };

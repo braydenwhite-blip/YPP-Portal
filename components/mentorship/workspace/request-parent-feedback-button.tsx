@@ -9,8 +9,12 @@ import { requestParentFeedbackForInstructor } from "@/lib/instructor-feedback-ac
 /** Mentor/officer CTA to email parents of this instructor's students. */
 export function RequestParentFeedbackButton({
   instructorId,
+  label = "Request feedback from parents",
+  variant = "primary",
 }: {
   instructorId: string;
+  label?: string;
+  variant?: "primary" | "secondary" | "ghost";
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -36,9 +40,9 @@ export function RequestParentFeedbackButton({
   }
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <Button variant="primary" size="sm" loading={pending} onClick={run}>
-        Request feedback from parents
+    <div className="flex flex-col items-center gap-1.5">
+      <Button variant={variant} size="sm" loading={pending} onClick={run}>
+        {label}
       </Button>
       {message ? (
         <p className="m-0 text-[12.5px] font-medium text-complete-800">{message}</p>

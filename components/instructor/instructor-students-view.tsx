@@ -19,11 +19,10 @@ function sortStudents(a: TeachingStudent, b: TeachingStudent) {
 
 function splitRoster(roster: TeachingStudent[]) {
   const inClass = roster.filter((s) => s.status === "ENROLLED").sort(sortStudents);
-  const waitlisted = roster.filter((s) => s.status === "WAITLISTED").sort(sortStudents);
   const wasInClass = roster
     .filter((s) => s.status === "DROPPED" || s.status === "COMPLETED")
     .sort(sortStudents);
-  return { inClass, waitlisted, wasInClass };
+  return { inClass, wasInClass };
 }
 
 export function InstructorStudentsView({
@@ -110,7 +109,7 @@ function ClassPeopleBlock({
   teachingClass: TeachingClass;
   archived?: boolean;
 }) {
-  const { inClass, waitlisted, wasInClass } = splitRoster(teachingClass.roster);
+  const { inClass, wasInClass } = splitRoster(teachingClass.roster);
   const peopleHref = `/instructor/classes/${teachingClass.id}/roster`;
 
   return (
@@ -152,25 +151,10 @@ function ClassPeopleBlock({
           rows={wasInClass}
           empty="No former students."
           muted
-          statusLabel={(s) => (s.status === "COMPLETED" ? "Completed" : "Dropped")}
+          statusLabel={(s) => (s.status === "COMPLETED" ? "Completed" : "Left class")}
           classId={teachingClass.id}
         />
       </div>
-
-      {waitlisted.length > 0 ? (
-        <div className="border-t border-[#f1f3f4] px-4 py-3 sm:px-5">
-          <p className="m-0 text-[12px] font-medium uppercase tracking-[0.05em] text-[#5f6368]">
-            Waitlisted ({waitlisted.length})
-          </p>
-          <ul className="m-0 mt-2 list-none space-y-1.5 p-0">
-            {waitlisted.map((student) => (
-              <li key={student.studentId} className="text-[13.5px] text-[#3c4043]">
-                {student.name}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
     </article>
   );
 }

@@ -53,7 +53,9 @@ import { PromotePersonForm } from "@/components/people-strategy/promote-person-f
 import { INSTRUCTION_TITLES, LEADERSHIP_TITLES } from "@/lib/org/levels";
 import { FunctionDepartmentLabels } from "@/components/org/function-department-labels";
 import { InstructorFeedbackSection, INSTRUCTOR_FEEDBACK_SOURCES } from "@/components/instructor/instructor-feedback-section";
+import { GiveCollaboratorFeedbackForm } from "@/components/people/give-collaborator-feedback-form";
 import { listInstructorReceivedFeedback } from "@/lib/instructor-feedback-actions";
+import { getMyOutstandingRequestForSubject } from "@/lib/mentorship/collaborator-feedback-actions";
 import { hasRole } from "@/lib/authorization-roles";
 
 const PROMOTION_TITLE_OPTIONS = [...INSTRUCTION_TITLES, ...LEADERSHIP_TITLES];
@@ -128,6 +130,11 @@ export default async function PublicProfilePage({ params, searchParams }: PagePr
   const instructorFeedback = isInstructorProfile
     ? await listInstructorReceivedFeedback(id).catch(() => [])
     : [];
+  const pendingColleagueFeedback =
+    viewer.id !== id
+      ? await getMyOutstandingRequestForSubject(id).catch(() => null)
+      : null;
+  const showGiveFeedbackForm = Boolean(pendingColleagueFeedback);
 
   const personMeetingHref = meetingPrefillToQuery({
     relatedType: "USER",
@@ -197,6 +204,36 @@ export default async function PublicProfilePage({ params, searchParams }: PagePr
     personAttention = isLeadershipOrBoard(viewer)
       ? attention
       : attention.filter((item) => !item.confidential);
+  }
+
+  // When answering a colleague-feedback request, keep the page to name + form +
+  // contact — skip the rest of the profile chrome.
+  if (showGiveFeedbackForm && pendingColleagueFeedback) {
+    return (
+      <div className="mx-auto w-full max-w-[680px] px-1 pb-12 pt-2">
+        <header className="mb-4">
+          <h1 className="m-0 text-[22px] font-bold tracking-[-0.3px] text-[#1c1a2e]">
+            {profile.name}
+          </h1>
+          <p className="m-0 mt-1 text-[13.5px] text-[#717189]">
+            {profile.title}
+            {profile.chapterName ? ` · ${profile.chapterName}` : ""}
+            {` · ${activeLabel(profile.monthsActive)}`}
+          </p>
+        </header>
+
+        <div className="mb-4">
+          <GiveCollaboratorFeedbackForm
+            requestId={pendingColleagueFeedback.id}
+            subjectName={pendingColleagueFeedback.subjectName}
+            requestedByName={pendingColleagueFeedback.requestedByName}
+            reason={pendingColleagueFeedback.reason}
+          />
+        </div>
+
+        <ProfileBody profile={profile} contactOnly />
+      </div>
+    );
   }
 
   return (

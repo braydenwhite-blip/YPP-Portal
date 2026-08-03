@@ -5,12 +5,17 @@ import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui-v2";
 import { submitSelfReflection } from "@/lib/self-reflection-actions";
-import { MONTHLY_PRESET_PROMPTS } from "@/lib/mentorship/feedback-prompts";
+import {
+  MONTHLY_PRESET_PROMPTS,
+  type MonthlyPresetKey,
+} from "@/lib/mentorship/feedback-prompts";
 
 type Goal = { id: string; title: string };
 
+const PRESET_COUNT = MONTHLY_PRESET_PROMPTS.length;
+
 /**
- * One-page monthly note — three presets, one Send.
+ * One-page monthly note — staff presets, one Send.
  */
 export function SimpleReflectionForm({
   goals,
@@ -21,52 +26,53 @@ export function SimpleReflectionForm({
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [howGoing, setHowGoing] = useState("");
-  const [whatGood, setWhatGood] = useState("");
-  const [whatHard, setWhatHard] = useState("");
+  const [answers, setAnswers] = useState<Record<MonthlyPresetKey, string>>(
+    () =>
+      Object.fromEntries(
+        MONTHLY_PRESET_PROMPTS.map((p) => [p.key, ""]),
+      ) as Record<MonthlyPresetKey, string>,
+  );
   const [error, setError] = useState<string | null>(null);
 
-  const values = { howGoing, whatGood, whatHard };
-  const setters = {
-    howGoing: setHowGoing,
-    whatGood: setWhatGood,
-    whatHard: setWhatHard,
-  };
-  const filled = [howGoing, whatGood, whatHard].filter((v) => v.trim()).length;
+  const filled = MONTHLY_PRESET_PROMPTS.filter((p) =>
+    answers[p.key]?.trim(),
+  ).length;
 
   function submit() {
-    if (!howGoing.trim()) {
-      setError("Tell us how the month went — even a sentence is enough.");
-      return;
-    }
-    if (!whatGood.trim()) {
-      setError("Share one thing that went well.");
-      return;
-    }
-    if (!whatHard.trim()) {
-      setError("Share one thing that was hard or that you need help with.");
+    const missing = MONTHLY_PRESET_PROMPTS.find((p) => !answers[p.key]?.trim());
+    if (missing) {
+      setError(`Please answer: ${missing.label}`);
       return;
     }
     setError(null);
 
+    const pastMonth = answers.pastMonth.trim();
+    const yppOverall = answers.yppOverall.trim();
+    const goingWell = answers.goingWellChallenges.trim();
+    const changes = answers.recommendedChanges.trim();
+    const hours = answers.hoursPerWeek.trim();
+
     const formData = new FormData();
-    formData.set("overallReflection", howGoing.trim());
-    formData.set("engagementOverall", howGoing.trim());
-    formData.set("workingWell", whatGood.trim());
-    formData.set("supportNeeded", whatHard.trim());
-    formData.set("mentorHelpfulness", whatGood.trim());
-    formData.set("collaborationAssessment", howGoing.trim());
+    formData.set("overallReflection", pastMonth);
+    formData.set("engagementOverall", pastMonth);
+    formData.set("workingWell", goingWell);
+    formData.set("supportNeeded", changes);
+    formData.set("mentorHelpfulness", yppOverall);
+    formData.set("collaborationAssessment", yppOverall);
     formData.set("teamMembersAboveAndBeyond", "");
-    formData.set("collaborationImprovements", "");
-    formData.set("additionalReflections", "");
+    formData.set("collaborationImprovements", changes);
+    formData.set(
+      "additionalReflections",
+      `Hours per week on YPP: ${hours}`,
+    );
 
     goals.forEach((g) => {
       formData.append("goalIds", g.id);
-      formData.set(`goal_${g.id}_progressMade`, howGoing.trim());
+      formData.set(`goal_${g.id}_progressMade`, pastMonth);
       formData.set(`goal_${g.id}_objectiveAchieved`, "false");
-      formData.set(`goal_${g.id}_accomplishments`, whatGood.trim());
-      formData.set(`goal_${g.id}_blockers`, whatHard.trim());
-      formData.set(`goal_${g.id}_nextMonthPlans`, whatHard.trim());
+      formData.set(`goal_${g.id}_accomplishments`, goingWell);
+      formData.set(`goal_${g.id}_blockers`, changes);
+      formData.set(`goal_${g.id}_nextMonthPlans`, changes);
     });
 
     startTransition(async () => {
@@ -83,11 +89,11 @@ export function SimpleReflectionForm({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-2" aria-hidden>
-        {[1, 2, 3].map((n) => (
+        {MONTHLY_PRESET_PROMPTS.map((prompt, index) => (
           <span
-            key={n}
+            key={prompt.key}
             className={
-              filled >= n
+              filled > index
                 ? "h-1.5 flex-1 rounded-full bg-brand-600"
                 : "h-1.5 flex-1 rounded-full bg-line"
             }
@@ -107,12 +113,16 @@ export function SimpleReflectionForm({
             <span className="block text-[14.5px] font-semibold tracking-[-0.15px] text-ink">
               {prompt.label}
             </span>
-            <span className="mt-0.5 block text-[12.5px] text-ink-muted">{prompt.hint}</span>
+            <span className="mt-0.5 block text-[12.5px] text-ink-muted">
+              {prompt.hint}
+            </span>
             <textarea
               className="mt-3 w-full resize-y rounded-[10px] border border-transparent bg-surface-soft px-3.5 py-3 text-[15px] leading-relaxed text-ink outline-none placeholder:text-ink-muted/65 focus:border-brand-300 focus:bg-surface"
               rows={prompt.rows}
-              value={values[prompt.key]}
-              onChange={(e) => setters[prompt.key](e.target.value)}
+              value={answers[prompt.key]}
+              onChange={(e) =>
+                setAnswers((prev) => ({ ...prev, [prompt.key]: e.target.value }))
+              }
               placeholder={prompt.placeholder}
               disabled={pending}
             />
@@ -130,7 +140,9 @@ export function SimpleReflectionForm({
 
       <div className="flex items-center justify-between gap-3 border-t border-line-soft pt-4">
         <p className="m-0 text-[12.5px] text-ink-muted">
-          {filled === 3 ? "Ready to send" : `${filled} of 3 answered`}
+          {filled === PRESET_COUNT
+            ? "Ready to send"
+            : `${filled} of ${PRESET_COUNT} answered`}
         </p>
         <Button variant="primary" size="md" onClick={submit} loading={pending}>
           Send to mentor

@@ -23,11 +23,14 @@ export function MentorshipNotesPanel({
   initialNotes,
   canEdit,
   compact = false,
+  bare = false,
 }: {
   menteeId: string;
   initialNotes: MentorshipNoteRow[];
   canEdit: boolean;
   compact?: boolean;
+  /** Hide title/description when nested under another heading. */
+  bare?: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -58,13 +61,23 @@ export function MentorshipNotesPanel({
 
   return (
     <section>
-      <h3 className="m-0 text-[15px] font-semibold text-ink">Your notes</h3>
-      <p className="m-0 mt-0.5 text-[13px] text-ink-muted">
-        Private reminders for next time
-      </p>
+      {!bare ? (
+        <>
+          <h3 className="m-0 text-[15px] font-semibold text-ink">Your notes</h3>
+          <p className="m-0 mt-0.5 text-[13px] text-ink-muted">
+            Private reminders for next time
+          </p>
+        </>
+      ) : null}
 
       {visible.length > 0 ? (
-        <ul className="m-0 mt-3 list-none divide-y divide-line-soft border-t border-line-soft p-0">
+        <ul
+          className={
+            bare
+              ? "m-0 list-none divide-y divide-line-soft p-0"
+              : "m-0 mt-3 list-none divide-y divide-line-soft border-t border-line-soft p-0"
+          }
+        >
           {visible.map((note) => (
             <li key={note.id} className="py-2.5">
               <p className="m-0 text-[12px] text-ink-muted">
@@ -77,7 +90,9 @@ export function MentorshipNotesPanel({
           ))}
         </ul>
       ) : (
-        <p className="m-0 mt-3 text-[13px] text-ink-muted">No notes yet.</p>
+        <p className={bare ? "m-0 text-[13px] text-ink-muted" : "m-0 mt-3 text-[13px] text-ink-muted"}>
+          No notes yet.
+        </p>
       )}
 
       {hiddenCount > 0 ? (
@@ -101,7 +116,7 @@ export function MentorshipNotesPanel({
       ) : null}
 
       {canEdit ? (
-        <div className="mt-3">
+        <div className={bare ? "mt-2" : "mt-3"}>
           <label className="block text-[12px] font-medium text-ink-muted">
             New note
             <textarea

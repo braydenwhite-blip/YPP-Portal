@@ -48,16 +48,20 @@ export function InstructorTeachingHome({
   workspace,
   unreadNotifications,
   recentNotifications,
+  launchpadPercent = 0,
+  launchpadComplete = false,
 }: {
   name: string;
   workspace: InstructorTeachingWorkspace;
   unreadNotifications: number;
   recentNotifications: InstructorHomeNotification[];
+  launchpadPercent?: number;
+  launchpadComplete?: boolean;
 }) {
   const classes = workspace.activeClasses;
 
   return (
-    <main className="mx-auto w-full max-w-[720px] px-4 pb-16 pt-7 sm:px-6 lg:pt-10">
+    <main className="relative mx-auto w-full max-w-[720px] px-4 pb-24 pt-7 sm:px-6 lg:pt-10">
       <header>
         <p className="m-0 text-[12px] font-bold uppercase tracking-[0.09em] text-brand-700">
           Home
@@ -178,6 +182,26 @@ export function InstructorTeachingHome({
           Notification center
         </Link>
       </section>
+
+      <Link
+        href="/instructor-onboarding"
+        className="fixed bottom-5 right-5 z-20 inline-flex items-center gap-2 rounded-full border border-line-card bg-surface px-3.5 py-2 text-[13px] font-semibold text-ink no-underline shadow-[0_8px_24px_rgba(15,23,42,0.12)] transition hover:-translate-y-0.5 hover:border-brand-200 hover:text-brand-800"
+        aria-label={
+          launchpadComplete
+            ? "Open Instructor Launchpad"
+            : `Open Instructor Launchpad, ${launchpadPercent}% complete`
+        }
+      >
+        <span aria-hidden className="text-[14px]">
+          ✦
+        </span>
+        Launchpad
+        {!launchpadComplete ? (
+          <span className="rounded-full bg-brand-50 px-1.5 py-0.5 text-[11px] font-semibold text-brand-800">
+            {launchpadPercent}%
+          </span>
+        ) : null}
+      </Link>
     </main>
   );
 }

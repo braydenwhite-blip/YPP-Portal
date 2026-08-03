@@ -329,15 +329,6 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 1,
     },
     {
-      href: "/instructor/students",
-      label: "Students",
-      icon: "👥",
-      roles: INSTRUCTOR_ROLES,
-      dashboardDescription:
-        "All students across your classes — current, former, and archived — plus anyone needing follow-up.",
-      dashboardPriority: 2,
-    },
-    {
       href: "/instructor/availability",
       label: "My Availability",
       icon: "🗓️",
@@ -378,20 +369,12 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardDescription: "Request help with logistics, materials, roster, scheduling, attendance, or student support.",
     },
     {
-      href: "/instructor/materials",
-      label: "Materials",
-      icon: "📎",
-      roles: INSTRUCTOR_ROLES,
-      dashboardDescription: "Lesson plans and teaching materials grouped by the session where they are used.",
-      dashboardPriority: 3,
-    },
-    {
       href: "/instructor/schedule",
       label: "Schedule",
       icon: "📅",
       roles: INSTRUCTOR_ROLES,
       dashboardDescription: "Assigned teaching sessions without unrelated portal events.",
-      dashboardPriority: 4,
+      dashboardPriority: 2,
     },
     {
       href: "/instructor/workspace",

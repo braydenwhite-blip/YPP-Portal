@@ -76,7 +76,7 @@ export function CheckInComposer({
         setOpen(false);
         reset();
         if (isCycleCheckIn) {
-          router.push(`/mentorship/people/${subjectId}?section=reviews`);
+          router.push(`/mentorship/people/${subjectId}?section=progress`);
           router.refresh();
         } else {
           router.refresh();

@@ -4,6 +4,7 @@ import { MentorshipWorkspaceView } from "@/components/mentorship/workspace/works
 import type { MentorshipSetupData } from "@/components/mentorship/workspace/setup-repair-panel";
 import { getSessionUser } from "@/lib/auth-supabase";
 import { getInstructorMentorshipMembership } from "@/lib/mentorship-access";
+import { getMyOutstandingRequestForSubject } from "@/lib/mentorship/collaborator-feedback-actions";
 import { loadMentorshipWorkspace } from "@/lib/mentorship/workspace";
 import { prisma } from "@/lib/prisma";
 
@@ -30,8 +31,23 @@ export default async function MentorshipPersonPage({ params, searchParams }: Pag
 
   if (!viewer) redirect(`/login?next=/mentorship/people/${id}`);
 
+  const giveFeedback =
+    sp.giveFeedback === "1" ||
+    sp.giveFeedback === "true" ||
+    sp.giveFeedback === "";
+  if (giveFeedback) {
+    const pending = await getMyOutstandingRequestForSubject(id).catch(() => null);
+    if (pending) {
+      redirect(`/people/${id}?giveFeedback=1`);
+    }
+  }
+
   const workspace = await loadMentorshipWorkspace(viewer, id);
-  if (!workspace) notFound();
+  if (!workspace) {
+    const pending = await getMyOutstandingRequestForSubject(id).catch(() => null);
+    if (pending) redirect(`/people/${id}?giveFeedback=1`);
+    notFound();
+  }
 
   const alsoMentors =
     workspace.isSelf
@@ -40,15 +56,12 @@ export default async function MentorshipPersonPage({ params, searchParams }: Pag
 
   const section = typeof sp.section === "string" ? sp.section : undefined;
   const panel = typeof sp.panel === "string" ? sp.panel : undefined;
+  const reviewId = typeof sp.reviewId === "string" ? sp.reviewId : undefined;
 
   const mentorshipMeta = workspace.activeMentorshipId
     ? await prisma.mentorship.findUnique({
         where: { id: workspace.activeMentorshipId },
-        select: {
-          mentorId: true,
-          kickoffScheduledAt: true,
-          kickoffCompletedAt: true,
-        },
+        select: { mentorId: true },
       })
     : null;
 
@@ -117,17 +130,8 @@ export default async function MentorshipPersonPage({ params, searchParams }: Pag
       workspace={workspace}
       section={section}
       panel={panel}
+      reviewId={reviewId}
       setup={setup}
-      kickoff={
-        mentorshipMeta
-          ? {
-              scheduledAt: mentorshipMeta.kickoffScheduledAt,
-              completedAt: mentorshipMeta.kickoffCompletedAt,
-              canMarkComplete:
-                mentorshipMeta.mentorId === viewer.id || viewer.roles.includes("ADMIN"),
-            }
-          : undefined
-      }
       helpSent={sp.sent === "1"}
       alsoMentors={alsoMentors}
       progressSent={sp.progressSent === "1"}

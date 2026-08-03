@@ -190,16 +190,19 @@ export async function ensurePortalOnboardingComplete(params: {
   const isInstructor = primaryRole === "INSTRUCTOR" || roles.includes("INSTRUCTOR");
 
   if (isInstructor) {
+    // Launchpad is forced once on first login. After the instructor has been
+    // presented it (journey row exists) — or finished the legacy onboarding —
+    // they use Home freely and reopen Launchpad from the corner button.
     const [journeyRow, legacyRow] = await Promise.all([
       prisma.instructorJourney
-        .findUnique({ where: { userId }, select: { completedAt: true } })
+        .findUnique({ where: { userId }, select: { id: true } })
         .catch(handleMissingTable),
       prisma.onboardingProgress
         .findUnique({ where: { userId }, select: { completedAt: true } })
         .catch(handleMissingTable),
     ]);
-    const onboarded = Boolean(journeyRow?.completedAt || legacyRow?.completedAt);
-    if (!onboarded) {
+    const presented = Boolean(journeyRow?.id || legacyRow?.completedAt);
+    if (!presented) {
       redirect("/instructor-onboarding");
     }
     return;

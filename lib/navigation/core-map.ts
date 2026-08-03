@@ -35,9 +35,11 @@ export const CORE_NAV_MAP: Record<NavRole, string[]> = {
   INSTRUCTOR: [
     "/",
     "/instructor/classes",
-    "/instructor/students",
-    "/instructor/materials",
     "/instructor/schedule",
+    // Kept for core-map floor / full-explorer only — filtered out of the
+    // default instructor sidebar by INSTRUCTOR_V1_ALLOWED_HREFS.
+    "/instructor/workspace",
+    "/instructor/class-settings",
   ],
   ADMIN: ["/", "/mentorship", "/actions", "/admin/instructor-applicants", "/admin"],
   HIRING_CHAIR: ["/", "/people", "/actions", "/admin/instructor-applicants"],

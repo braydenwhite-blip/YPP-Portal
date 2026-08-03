@@ -25,6 +25,7 @@ import { MentorHomeCalm } from "./_components/mentor-home-calm";
 import { EmptyStateEditorial } from "./_components/empty-state-editorial";
 import { AdminMentorshipHome } from "./_components/admin-home-calm";
 import { MentorshipRoleChooser } from "./_components/role-chooser";
+import { PendingFeedbackRequestsCard } from "@/components/people/pending-feedback-requests-card";
 import { PeopleReviewsPage } from "@/components/people-strategy/people-reviews-page";
 import { isPeopleDashboardEnabled } from "@/lib/feature-flags";
 import {
@@ -159,12 +160,13 @@ export default async function MentorshipPage(
     return (
       <div className={`${skin.portalSkin} flex flex-col gap-6`}>
         <PageHeaderV2
-          eyebrow="Mentorship"
+          eyebrow="Admin"
           title="People"
-          subtitle="Who needs a check-in next — one row per person, sorted by urgency."
+          subtitle="Find someone. See if they need a review or a mentor. Tap to open."
           backHref="/mentorship"
           backLabel="Mentorship"
         />
+        <PendingFeedbackRequestsCard />
         <PeopleReviewsPage
           searchParams={Promise.resolve(searchParams ?? {})}
           basePath="/mentorship"
@@ -303,6 +305,7 @@ export default async function MentorshipPage(
           committeeProgramGroups={committeeProgramGroups}
         />
 
+        <PendingFeedbackRequestsCard />
         {mentorBlock.total === 0 ? (
           <EmptyStateEditorial
             title="Ready when they arrive"

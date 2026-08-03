@@ -13,6 +13,7 @@ import {
   isHiringDemoModeEnabled,
 } from "@/lib/hiring-demo-mode";
 import { InstructorTeachingHome } from "@/components/instructor/instructor-teaching-home";
+import { getInstructorJourney } from "@/lib/instructor-journey";
 import { loadInstructorTeachingWorkspace } from "@/lib/classes/instructor-workspace";
 import { getStudentProgressSnapshot } from "@/lib/student-progress-actions";
 import { getMyClassesHubData } from "@/lib/student-class-portal";
@@ -350,11 +351,12 @@ export default async function OverviewPage() {
   }
 
   if (isInstructor) {
-    const [teachingWorkspace, unreadNotifications, recentNotifications] =
+    const [teachingWorkspace, unreadNotifications, recentNotifications, journey] =
       await Promise.all([
         loadInstructorTeachingWorkspace(session.user.id),
         getUnreadNotificationCountCached(session.user.id).catch(() => 0),
         getRecentNotifications(session.user.id, 8).catch(() => []),
+        getInstructorJourney(session.user.id),
       ]);
     return (
       <InstructorTeachingHome
@@ -369,6 +371,8 @@ export default async function OverviewPage() {
           isRead: notification.isRead,
           createdAt: notification.createdAt.toISOString(),
         }))}
+        launchpadPercent={journey.onboardingPercent}
+        launchpadComplete={Boolean(journey.completedAt)}
       />
     );
   }

@@ -122,3 +122,83 @@ export function formatMeetingTimeRange(
   }
   return `${cleaned} ${tz}`;
 }
+
+function pad2(n: number) {
+  return String(n).padStart(2, "0");
+}
+
+/** Settings-form display: "16:00-17:00" → "4:00 pm – 5:00 pm" (no TZ; label says EST). */
+export function meetingTimeToTwelveHourInput(
+  raw: string | null | undefined,
+): string {
+  if (!raw?.trim()) return "";
+  const cleaned = raw
+    .trim()
+    .replace(/\s*[–—]\s*/g, "-")
+    .replace(/\s+-\s+/g, "-");
+  const parts = cleaned.split("-").map((p) => p.trim()).filter(Boolean);
+  if (parts.length >= 2) {
+    const start = parseClockToMinutes(parts[0]!);
+    const end = parseClockToMinutes(parts[1]!);
+    if (start != null && end != null) {
+      return `${formatClockPart(start, { withMinutes: true, withPeriod: true })} – ${formatClockPart(end, { withMinutes: true, withPeriod: true })}`;
+    }
+  }
+  const single = parseClockToMinutes(cleaned);
+  if (single != null) {
+    return formatClockPart(single, { withMinutes: true, withPeriod: true });
+  }
+  return raw.trim();
+}
+
+/** Persist settings input as 24h storage: "4:00 pm – 5:00 pm" → "16:00-17:00". */
+export function meetingTimeFromTwelveHourInput(raw: string | null | undefined): string {
+  if (!raw?.trim()) return "";
+  const cleaned = raw
+    .trim()
+    .replace(/\s*[–—]\s*/g, "-")
+    .replace(/\s+-\s+/g, "-")
+    .replace(/\b(et|est|edt)\b/gi, "")
+    .trim();
+  const parts = cleaned.split("-").map((p) => p.trim()).filter(Boolean);
+  if (parts.length >= 2) {
+    const start = parseClockToMinutes(parts[0]!);
+    const end = parseClockToMinutes(parts[1]!);
+    if (start != null && end != null) {
+      const sh = Math.floor(start / 60);
+      const sm = start % 60;
+      const eh = Math.floor(end / 60);
+      const em = end % 60;
+      return `${pad2(sh)}:${pad2(sm)}-${pad2(eh)}:${pad2(em)}`;
+    }
+  }
+  const single = parseClockToMinutes(cleaned);
+  if (single != null) {
+    const h = Math.floor(single / 60);
+    const m = single % 60;
+    return `${pad2(h)}:${pad2(m)}`;
+  }
+  return raw.trim();
+}
+
+/** Split stored "16:00-17:00" (or 12h) into session start/end clocks. */
+export function splitMeetingTimeRange(
+  raw: string | null | undefined,
+): { startTime: string; endTime: string } | null {
+  const normalized = meetingTimeFromTwelveHourInput(raw);
+  if (!normalized) return null;
+  const parts = normalized.split("-").map((p) => p.trim()).filter(Boolean);
+  if (parts.length >= 2 && /^\d{2}:\d{2}$/.test(parts[0]!) && /^\d{2}:\d{2}$/.test(parts[1]!)) {
+    return { startTime: parts[0]!, endTime: parts[1]! };
+  }
+  if (parts.length === 1 && /^\d{2}:\d{2}$/.test(parts[0]!)) {
+    const start = parseClockToMinutes(parts[0]!);
+    if (start == null) return null;
+    const end = start + 60;
+    return {
+      startTime: parts[0]!,
+      endTime: `${pad2(Math.floor(end / 60) % 24)}:${pad2(end % 60)}`,
+    };
+  }
+  return null;
+}

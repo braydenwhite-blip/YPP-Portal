@@ -8,6 +8,7 @@ import {
   TRACKS,
   expectationsFor,
   getRole,
+  getNextRole,
   resolveStartingPosition,
   type PathwayCompetency,
   type PathwayRole,
@@ -20,24 +21,31 @@ export type ProgressRubricContext = {
   roleId: string;
   roleLabel: string;
   roleSubtitle: string | null;
+  /** Person's title when it maps onto this band (e.g. "Senior Director"). */
+  displayLabel: string;
 };
 
 export function resolveProgressRubricContext(input: {
   primaryRole: string | null;
   stageId?: string | null;
+  title?: string | null;
 }): ProgressRubricContext {
   const { trackId, roleId } = resolveStartingPosition({
     stageId: input.stageId ?? null,
     primaryRole: input.primaryRole,
+    title: input.title ?? null,
   });
   const track = TRACKS[trackId];
   const role = getRole(track, roleId);
+  const trimmedTitle = input.title?.trim() || null;
+  const displayLabel = trimmedTitle || role?.label || roleId;
   return {
     trackId,
     trackLabel: track.label,
     roleId,
     roleLabel: role?.label ?? roleId,
     roleSubtitle: role?.subtitle ?? null,
+    displayLabel,
   };
 }
 
@@ -108,4 +116,49 @@ export function bandRubricRows(input: {
     title: c.title,
     bullets: expectationsFor(c, role),
   }));
+}
+
+/** Current-band + next-band expectation bullets for a competency row. */
+export function dualBandBulletsForProgressGoal(input: {
+  title: string;
+  description: string | null | undefined;
+  trackId: TrackId;
+  roleId: string;
+}): {
+  currentLabel: string;
+  nextLabel: string | null;
+  currentBullets: string[];
+  nextBullets: string[];
+  oneLiner: string | null;
+} {
+  const track = TRACKS[input.trackId];
+  const role = getRole(track, input.roleId);
+  const next = role ? getNextRole(track, role.id) : null;
+  const competency = matchCompetency(input.title, track.competencies);
+  const currentBullets = competency && role
+    ? expectationsFor(competency, role)
+    : splitExpectationBullets(input.description);
+  const nextBullets =
+    competency && next ? expectationsFor(competency, next) : [];
+
+  // Mockup labels for the combined Manager / Senior Manager band.
+  let currentLabel = role?.label ? `${role.label} level expectations` : "Current level expectations";
+  let nextLabel = next?.label ? `${next.label} level expectations` : null;
+  if (role?.id === "MANAGER") {
+    currentLabel = "Manager level expectations";
+    nextLabel = "Senior Manager level expectations";
+    // Senior Manager sits in the same band as Manager; if no separate bullets,
+    // show Director stretch expectations as the promotion column.
+    if (nextBullets.length === 0 && next) {
+      // keep next bullets from Director via nextRole above
+    }
+  }
+
+  return {
+    currentLabel,
+    nextLabel,
+    currentBullets,
+    nextBullets,
+    oneLiner: competency?.oneLiner ?? null,
+  };
 }

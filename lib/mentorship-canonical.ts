@@ -193,8 +193,8 @@ export function findActiveMentorshipForMentee(menteeId: string) {
       cycleStage: true,
       programGroup: true,
       governanceMode: true,
-      mentor: { select: { name: true, email: true } },
-      chair: { select: { name: true, email: true } },
+      mentor: { select: { name: true, email: true, title: true, canonicalTitle: true } },
+      chair: { select: { name: true, email: true, title: true, canonicalTitle: true } },
     },
   });
 }

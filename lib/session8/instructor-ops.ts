@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { requireSessionUser, requireOfficer } from "@/lib/authorization";
-const includeOffering = { template:true, chapter:{select:{id:true,name:true}}, partner:{select:{id:true,name:true}}, sessions:{orderBy:[{date:"asc" as const},{startTime:"asc" as const}]}, enrollments:{include:{student:{select:{id:true,name:true,email:true,profile:true}}}}, announcements:{orderBy:{createdAt:"desc" as const}, take:5}, outcome:true };
+const includeOffering = { template:true, chapter:{select:{id:true,name:true}}, partner:{select:{id:true,name:true}}, sessions:{orderBy:[{date:"asc" as const},{startTime:"asc" as const}]}, enrollments:{include:{student:{select:{id:true,name:true,email:true,primaryRole:true,profile:true}}}}, announcements:{orderBy:{createdAt:"desc" as const}, take:5}, assignments:{orderBy:{createdAt:"desc" as const}, take:40}, outcome:true };
 
 const ATTENDANCE_OPEN_STATUSES = ["SENT", "REVIEWING", "NEED_MORE_INFORMATION"];
 
@@ -71,6 +71,8 @@ export async function getInstructorHome(){
 
 export async function getInstructorClass(id:string){
   const user=await requireSessionUser();
+  const { flushDueClassAnnouncements } = await import("@/lib/class-announcement-service");
+  await flushDueClassAnnouncements(id).catch(() => undefined);
   const c: any = await prisma.classOffering.findFirst({where:{id, ...assignedOfferingWhere(user.id)} as any, include:includeOffering});
   if (!c) return null;
 
@@ -136,12 +138,41 @@ export async function getInstructorClass(id:string){
     ? await (prisma as any).instructorStudentFeedback.findMany({ where: { offeringId: id, studentId: { in: studentIds } }, orderBy: { updatedAt: "desc" } })
     : [];
 
+  const parentLinks = studentIds.length
+    ? await prisma.parentStudent.findMany({
+        where: {
+          studentId: { in: studentIds },
+          archivedAt: null,
+          approvalStatus: { in: ["APPROVED", "PENDING"] },
+        },
+        select: {
+          id: true,
+          relationship: true,
+          studentId: true,
+          parent: { select: { id: true, name: true, email: true, primaryRole: true } },
+          student: { select: { id: true, name: true } },
+        },
+        orderBy: { createdAt: "asc" },
+      })
+    : [];
+
+  const classParents = parentLinks.map((link) => ({
+    id: link.id,
+    parentId: link.parent.id,
+    name: link.parent.name,
+    email: link.parent.email,
+    primaryRole: link.parent.primaryRole,
+    relationship: link.relationship,
+    studentId: link.studentId,
+    studentName: link.student.name,
+  }));
+
   const reviewRequestsPresentation = openRequests.map((r: any) => ({
     id: r.id, sessionId: r.sessionId, createdAt: r.createdAt, externalStatus: r.externalStatus,
     sessionDate: c.sessions.find((s: any) => s.id === r.sessionId)?.date ?? null,
   }));
 
-  return { ...c, roster, sessionAttendanceState, offeringEnded, alreadyCompleted, instructorFeedback, openReviewRequests: reviewRequestsPresentation };
+  return { ...c, roster, classParents, sessionAttendanceState, offeringEnded, alreadyCompleted, instructorFeedback, openReviewRequests: reviewRequestsPresentation };
 }
 
 export async function getInstructorSession(id:string, sessionId:string){

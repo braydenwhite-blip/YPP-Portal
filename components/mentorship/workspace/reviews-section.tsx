@@ -20,7 +20,7 @@ import { Prisma } from "@prisma/client";
 
 import { MonthlyFeedbackPanel } from "./monthly-feedback-panel";
 import { QuarterlyReviewSection } from "./quarterly-review-section";
-import { ReviewDraftPanel } from "./review-draft-panel";
+import { ProgressUpdateSection } from "./progress-update-section";
 import { InstructorReviewFeedbackContext } from "./instructor-review-feedback-context";
 
 /**
@@ -66,7 +66,6 @@ export async function ReviewsSection({
     nextAction,
     person,
     capabilities,
-    commitments,
     activeMentorshipId,
   } = workspace;
 
@@ -141,7 +140,9 @@ export async function ReviewsSection({
     const alreadyHad = existing.forms.some(
       (f) => f.cycleMonthKey === ensured.current.cycleMonthKey
     );
-    if (canCompose && !alreadyHad) {
+    const storeChanged =
+      JSON.stringify(existing.forms) !== JSON.stringify(ensured.store.forms);
+    if (canCompose && (!alreadyHad || storeChanged)) {
       await prisma.mentorship.update({
         where: { id: activeMentorshipId },
         data: {
@@ -152,23 +153,9 @@ export async function ReviewsSection({
   }
 
   if (canWriteInline) {
-    return (
-      <div className="mx-auto flex w-full max-w-2xl flex-col gap-5">
-        <header>
-          <h2 className="m-0 text-[20px] font-semibold tracking-[-0.02em] text-ink">
-            Monthly review
-          </h2>
-          <p className="m-0 mt-1 text-[13.5px] text-ink-muted">
-            Their work and others&apos; feedback first — then your rating below.
-          </p>
-        </header>
-        <ReviewDraftPanel
-          menteeId={person.id}
-          menteeName={person.name}
-          commitments={commitments}
-        />
-      </div>
-    );
+    // Same Performance Review surface as the Progress tab — mockup form +
+    // evidence (open work, parent/officer feedback, month dossier).
+    return <ProgressUpdateSection workspace={workspace} />;
   }
 
   // Mentee: questions + released feedback only.
@@ -297,11 +284,11 @@ export async function ReviewsSection({
         >
           <p className="m-0 text-[15px] font-semibold text-ink">
             {lifecycle.cycleStage === "CHANGES_REQUESTED"
-              ? "Finish the progress update"
-              : "Write progress update"}
+              ? "Finish the performance review"
+              : "Write performance review"}
           </p>
           <p className="m-0 mt-0.5 text-[13px] text-ink-muted">
-            Opens Progress — skim their answers, then write and send the update.
+            Opens Review — evidence stays visible while you write and send.
           </p>
         </Link>
       ) : null}
@@ -309,9 +296,6 @@ export async function ReviewsSection({
       <details className="rounded-[14px] border border-line-soft bg-surface px-4 py-3">
         <summary className="cursor-pointer list-none text-[14px] font-semibold text-ink marker:content-none [&::-webkit-details-marker]:hidden">
           What others said &amp; notes
-          <span className="ml-2 font-normal text-ink-muted">
-            Parent · board · mentor · officer
-          </span>
         </summary>
         <div className="mt-4 border-t border-line-soft pt-4">
           <InstructorReviewFeedbackContext

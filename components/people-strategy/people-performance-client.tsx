@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 
 import { PeoplePerformanceTable } from "@/components/people-strategy/people-performance-table";
+import { PeopleRosterOverviewPanel } from "@/components/people-strategy/people-roster-overview";
 import {
   PeopleReviewsFiltersBar,
   type PeopleReviewsFilterOptions,
@@ -11,8 +12,10 @@ import {
   paginateRows,
   PeopleReviewsPagination,
 } from "@/components/people-strategy/people-reviews-pagination";
+import { buildPeopleRosterOverview } from "@/lib/people-strategy/people-roster-overview";
 import {
   sortPerformanceRowsByUrgency,
+  type PerformanceFilter,
   type PeopleReviewsTableFilters,
 } from "@/lib/people-strategy/people-performance-selectors";
 import type { PeoplePerformanceRow } from "@/lib/people-strategy/people-performance";
@@ -26,10 +29,15 @@ export function PeoplePerformanceClient({
   page,
   basePath = "/people",
   personHrefBase = "/people",
+  filterParam = "view",
+  activeFilter = "all",
+  boardRollupHref = null,
   monthLabel,
   monthShortLabel,
   quarter,
   quarterlyEnabled,
+  mentorCandidates = [],
+  canAssignMentors = false,
 }: {
   rows: PeoplePerformanceRow[];
   tableRows: PeoplePerformanceRow[];
@@ -39,12 +47,23 @@ export function PeoplePerformanceClient({
   page: number;
   basePath?: string;
   personHrefBase?: string;
+  filterParam?: string;
+  activeFilter?: PerformanceFilter;
+  boardRollupHref?: string | null;
   monthLabel: string;
   monthShortLabel: string;
   quarter: string;
   quarterlyEnabled: boolean;
+  mentorCandidates?: Array<{
+    id: string;
+    name: string;
+    role?: string | null;
+    title?: string | null;
+  }>;
+  canAssignMentors?: boolean;
 }) {
   const ctx = useMemo(() => ({ monthLabel, quarter }), [monthLabel, quarter]);
+  const overview = useMemo(() => buildPeopleRosterOverview(rows), [rows]);
   const sortedRows = useMemo(() => {
     const sorted = sortPerformanceRowsByUrgency(tableRows, ctx);
     const seen = new Set<string>();
@@ -55,11 +74,31 @@ export function PeoplePerformanceClient({
     });
   }, [tableRows, ctx]);
   const pageRows = useMemo(() => paginateRows(sortedRows, page), [sortedRows, page]);
-  const opensMentorshipWorkspace = personHrefBase.startsWith("/mentorship/people");
+
+  const groupLabel =
+    activeFilter === "review-needed"
+      ? "Needs a review"
+      : activeFilter === "no-mentor"
+        ? "Needs a mentor"
+        : "Everyone";
 
   return (
-    <>
-      <div className="flex flex-col gap-4">
+    <div className="flex min-w-0 flex-col gap-5">
+      <PeopleRosterOverviewPanel
+        overview={overview}
+        activeFilter={activeFilter}
+        basePath={basePath}
+        filterParam={filterParam}
+        boardRollupHref={boardRollupHref}
+      />
+
+      <section className="flex min-w-0 flex-col gap-3">
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <h2 className="m-0 text-[16px] font-bold tracking-[-0.2px] text-[#1c1a2e]">
+            {groupLabel}
+          </h2>
+        </div>
+
         <PeopleReviewsFiltersBar
           filters={tableFilters}
           options={filterOptions}
@@ -69,12 +108,7 @@ export function PeoplePerformanceClient({
         />
 
         {pageRows.length > 0 ? (
-          <div className="overflow-hidden rounded-[14px] border border-[#ebebf2] bg-white shadow-[0_1px_2px_rgba(20,20,50,0.03)]">
-            <p className="border-b border-[#f1f1f6] px-4 py-2 text-[12px] text-[#717189]">
-              {opensMentorshipWorkspace
-                ? "Tap any row to open their mentorship workspace."
-                : "Tap any row to open their full profile."}
-            </p>
+          <div className="min-w-0 overflow-hidden rounded-[16px] border border-[#ebebf2] bg-white shadow-[0_1px_2px_rgba(20,20,50,0.03)]">
             <PeoplePerformanceTable
               rows={pageRows}
               monthLabel={monthLabel}
@@ -82,15 +116,20 @@ export function PeoplePerformanceClient({
               quarter={quarter}
               quarterlyEnabled={quarterlyEnabled}
               personHrefBase={personHrefBase}
+              mentorCandidates={mentorCandidates}
+              canAssignMentors={canAssignMentors}
             />
             <PeopleReviewsPagination total={sortedRows.length} page={page} basePath={basePath} />
           </div>
         ) : (
-          <div className="rounded-[14px] border border-[#ebebf2] bg-white px-5 py-12 text-center text-[13px] text-[#9a9ab0] shadow-[0_1px_2px_rgba(20,20,50,0.03)]">
-            No one matches this search or filter.
+          <div className="rounded-[16px] border border-[#ebebf2] bg-white px-5 py-14 text-center shadow-[0_1px_2px_rgba(20,20,50,0.03)]">
+            <p className="m-0 text-[15px] font-semibold text-[#3a3a52]">Nobody here</p>
+            <p className="m-0 mt-1 text-[13px] text-[#9a9ab0]">
+              Try another group, or clear the search.
+            </p>
           </div>
         )}
-      </div>
-    </>
+      </section>
+    </div>
   );
 }

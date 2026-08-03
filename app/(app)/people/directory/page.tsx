@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { PeopleDirectory } from "@/components/people/people-directory";
 import { PeopleHubNav } from "@/components/people/people-hub-nav";
+import { PendingFeedbackRequestsCard } from "@/components/people/pending-feedback-requests-card";
 import { CommandModeToggle } from "@/components/command-center/command-mode";
 import {
   PrimaryFocusCard,
@@ -134,6 +135,8 @@ export default async function PeopleDirectoryPage({
 
   const tableBlock = (
     <div className="flex flex-col gap-4">
+      <PendingFeedbackRequestsCard />
+
       <FilterBar aria-label="People views">
         {PEOPLE_SIMPLE_ROLE_FILTERS.map((value) => (
           <FilterChipLink

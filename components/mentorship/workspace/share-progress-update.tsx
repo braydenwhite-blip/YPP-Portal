@@ -16,6 +16,7 @@ export function ShareProgressUpdateControls({
   canNotifyChair = false,
   menteeFirstName = "them",
   compact = false,
+  hideDownload = false,
 }: {
   personId: string;
   reviewId: string;
@@ -24,6 +25,8 @@ export function ShareProgressUpdateControls({
   canNotifyChair?: boolean;
   menteeFirstName?: string;
   compact?: boolean;
+  /** When the parent already shows a primary download CTA. */
+  hideDownload?: boolean;
 }) {
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
@@ -72,9 +75,11 @@ export function ShareProgressUpdateControls({
   return (
     <div className={compact ? "flex flex-col gap-1.5" : "flex flex-col gap-2"}>
       <div className="flex flex-wrap items-center gap-2">
-        <ButtonLink href={pdfPath} variant="secondary" size="sm">
-          Download PDF
-        </ButtonLink>
+        {!hideDownload ? (
+          <ButtonLink href={pdfPath} variant="secondary" size="sm">
+            Download PDF
+          </ButtonLink>
+        ) : null}
         <Button
           type="button"
           variant="secondary"

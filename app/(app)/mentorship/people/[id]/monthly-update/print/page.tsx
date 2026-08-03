@@ -166,7 +166,7 @@ export default async function MonthlyProgressUpdatePrintPage({
     <div className="mpu-page">
       <div className="mpu-toolbar no-print">
         <Link href={`/mentorship/people/${id}?section=progress`} className="mpu-back">
-          ← Back to Progress update
+          ← Back to Review
         </Link>
         <div className="mpu-toolbar-actions">
           <PrintMonthlyUpdateButton />

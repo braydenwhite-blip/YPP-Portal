@@ -143,7 +143,7 @@ export function SimpleFeedbackForm({
             })),
           });
         }
-        router.push(`/mentorship/people/${menteeId}?section=reviews`);
+        router.push(`/mentorship/people/${menteeId}?section=progress`);
         router.refresh();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Could not send. Try again.");
@@ -152,13 +152,13 @@ export function SimpleFeedbackForm({
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-6">
       {reflectionBlurb ? (
-        <div className="rounded-[12px] border border-line-soft bg-surface-soft px-3.5 py-3">
-          <p className="m-0 text-[11.5px] font-bold uppercase tracking-[0.05em] text-ink-muted">
+        <div className="rounded-[16px] border border-brand-100 bg-[linear-gradient(180deg,#faf7ff_0%,#ffffff_100%)] px-4 py-3.5 sm:px-5">
+          <p className="m-0 text-[11.5px] font-bold uppercase tracking-[0.06em] text-brand-700">
             {menteeName} wrote
           </p>
-          <p className="m-0 mt-1.5 text-[13.5px] leading-relaxed text-ink">
+          <p className="m-0 mt-2 whitespace-pre-wrap text-[14px] leading-relaxed text-ink">
             {reflectionBlurb}
           </p>
         </div>
@@ -166,8 +166,8 @@ export function SimpleFeedbackForm({
 
       <div>
         <p className={fieldLabel}>How did they do?</p>
-        <p className={fieldHint}>Tap one.</p>
-        <div className="mt-2.5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <p className={fieldHint}>Choose one overall rating for the month.</p>
+        <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
           {RATINGS.map((value) => {
             const copy = getGoalRatingCopy(value);
             const selected = rating === value;
@@ -181,11 +181,19 @@ export function SimpleFeedbackForm({
                 disabled={pending}
                 className={
                   selected
-                    ? "rounded-[12px] border-2 border-brand-600 bg-brand-50 px-3 py-3 text-center text-[14px] font-bold text-brand-800"
-                    : "rounded-[12px] border border-line bg-surface px-3 py-3 text-center text-[14px] font-semibold text-ink hover:border-brand-300"
+                    ? "rounded-[14px] border-2 border-brand-600 bg-brand-50 px-3 py-3.5 text-center shadow-[0_0_0_3px_rgb(107_33_200/0.12)] transition"
+                    : "rounded-[14px] border border-line bg-surface px-3 py-3.5 text-center transition hover:border-brand-300 hover:bg-brand-50/40"
                 }
               >
-                {SIMPLE_LABEL[value]}
+                <span
+                  className={
+                    selected
+                      ? "block text-[14px] font-bold text-brand-800"
+                      : "block text-[14px] font-semibold text-ink"
+                  }
+                >
+                  {SIMPLE_LABEL[value]}
+                </span>
               </button>
             );
           })}
@@ -193,14 +201,14 @@ export function SimpleFeedbackForm({
       </div>
 
       {questions.length > 0 ? (
-        <div className="flex flex-col gap-3 rounded-[12px] border border-line-soft bg-surface-soft/40 px-3.5 py-3.5">
+        <div className="flex flex-col gap-3.5 rounded-[16px] border border-line-soft bg-surface-soft/50 px-4 py-4 sm:px-5">
           <div>
             <p className={fieldLabel}>Review questions</p>
             <p className={fieldHint}>Configured by admins — answer each one.</p>
           </div>
           {questions.map((q) => (
             <label key={q.id} className="flex flex-col">
-              <span className="text-[13px] font-semibold text-ink">
+              <span className="text-[13.5px] font-semibold text-ink">
                 {q.prompt}
                 {q.category ? (
                   <span className="ml-1.5 text-[12px] font-medium text-ink-muted">
@@ -228,37 +236,42 @@ export function SimpleFeedbackForm({
         </div>
       ) : null}
 
-      <label className="flex flex-col">
-        <span className={fieldLabel}>What should they know?</span>
-        <span className={fieldHint}>A few sentences is plenty.</span>
-        <textarea
-          className={fieldInput}
-          rows={4}
-          value={wentWell}
-          onChange={(e) => setWentWell(e.target.value)}
-          placeholder={`You did a great job with…`}
-          disabled={pending}
-        />
-      </label>
+      <div className="grid gap-5">
+        <label className="flex flex-col">
+          <span className={fieldLabel}>What should they know?</span>
+          <span className={fieldHint}>A few sentences is plenty.</span>
+          <textarea
+            className={fieldInput}
+            rows={5}
+            value={wentWell}
+            onChange={(e) => setWentWell(e.target.value)}
+            placeholder={`You did a great job with…`}
+            disabled={pending}
+          />
+        </label>
 
-      <label className="flex flex-col">
-        <span className={fieldLabel}>What&apos;s next?</span>
-        <span className={fieldHint}>One clear focus for next month.</span>
-        <textarea
-          className={fieldInput}
-          rows={3}
-          value={whatsNext}
-          onChange={(e) => setWhatsNext(e.target.value)}
-          placeholder="Next, try…"
-          disabled={pending}
-        />
-      </label>
+        <label className="flex flex-col">
+          <span className={fieldLabel}>What&apos;s next?</span>
+          <span className={fieldHint}>One clear focus for next month.</span>
+          <textarea
+            className={fieldInput}
+            rows={3}
+            value={whatsNext}
+            onChange={(e) => setWhatsNext(e.target.value)}
+            placeholder="Next, try…"
+            disabled={pending}
+          />
+        </label>
+      </div>
 
       {error ? (
         <p className="m-0 text-[13px] font-medium text-danger-700">{error}</p>
       ) : null}
 
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line-soft pt-5">
+        <p className="m-0 text-[12.5px] text-ink-muted">
+          Sends to the Role Chair when required — otherwise shares with {menteeName}.
+        </p>
         <Button variant="primary" size="md" onClick={submit} loading={pending}>
           Send feedback
         </Button>

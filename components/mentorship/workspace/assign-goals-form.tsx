@@ -149,14 +149,9 @@ export function AssignGoalsForm({
       </label>
 
       <div className="flex flex-col gap-3">
-        <div>
-          <p className="m-0 text-[12px] font-semibold uppercase tracking-[0.06em] text-ink-muted">
-            Goals
-          </p>
-          <p className="m-0 mt-1 text-[12.5px] text-ink-muted">
-            Add a count when it helps — e.g. publish 3 newsletters this cycle.
-          </p>
-        </div>
+        <p className="m-0 text-[12px] font-semibold uppercase tracking-[0.06em] text-ink-muted">
+          Goals
+        </p>
 
         <div className="overflow-hidden rounded-[14px] border border-line bg-surface">
           {goals.map((goal, index) => (

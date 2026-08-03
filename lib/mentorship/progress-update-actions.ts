@@ -43,12 +43,15 @@ const GoalBlockSchema = z.object({
 const SubmitSchema = z.object({
   mentorshipId: z.string().min(1),
   menteeId: z.string().min(1),
+  /** When set, update this specific review document instead of “current month”. */
+  reviewId: z.string().min(1).optional(),
   overallRating: GoalRatingSchema,
   overallComments: z.string().min(1).max(8000),
   strengths: z.string().min(1).max(4000),
   areasForDevelopment: z.string().min(1).max(4000),
   planOfAction: z.string().min(1).max(8000),
   goals: z.array(GoalBlockSchema).min(0),
+  saveAsDraft: z.boolean().optional().default(false),
 });
 
 export type SubmitProgressUpdateInput = z.infer<typeof SubmitSchema>;
@@ -101,26 +104,58 @@ export async function submitMonthlyProgressUpdate(
     throw new Error("Only the assigned mentor can send a progress update.");
   }
 
-  const { cycleMonth, cycleLabel } = getCurrentCycleMonth();
-  const monthEnd = new Date(
-    Date.UTC(cycleMonth.getUTCFullYear(), cycleMonth.getUTCMonth() + 1, 1)
-  );
+  const { cycleMonth: currentCycleMonth, cycleLabel: currentCycleLabel } =
+    getCurrentCycleMonth();
   const requiresChair = mentorshipRequiresChairApproval({
     governanceMode: mentorship.governanceMode,
     programGroup: mentorship.programGroup,
   });
 
-  // Prefer the reflection that already owns this month's review, else
-  // the newest reflection for the month, else create a stub.
-  // Mentors may re-send an updated version after new mentee feedback.
-  const existingMonthReview = await prisma.mentorGoalReview.findFirst({
-    where: {
-      mentorshipId: mentorship.id,
-      cycleMonth: { gte: cycleMonth, lt: monthEnd },
-    },
-    orderBy: [{ createdAt: "desc" }],
-    select: { id: true, status: true, selfReflectionId: true },
-  });
+  // Prefer an explicit review document, else the newest review for the
+  // current month, else create a stub reflection for this month.
+  let existingMonthReview = data.reviewId
+    ? await prisma.mentorGoalReview.findFirst({
+        where: {
+          id: data.reviewId,
+          mentorshipId: mentorship.id,
+          menteeId: mentorship.menteeId,
+        },
+        select: {
+          id: true,
+          status: true,
+          selfReflectionId: true,
+          cycleMonth: true,
+        },
+      })
+    : null;
+
+  const cycleMonth = existingMonthReview?.cycleMonth ?? currentCycleMonth;
+  const cycleLabel = existingMonthReview
+    ? new Intl.DateTimeFormat("en-US", {
+        month: "long",
+        year: "numeric",
+        timeZone: "UTC",
+      }).format(existingMonthReview.cycleMonth)
+    : currentCycleLabel;
+  const monthEnd = new Date(
+    Date.UTC(cycleMonth.getUTCFullYear(), cycleMonth.getUTCMonth() + 1, 1)
+  );
+
+  if (!existingMonthReview) {
+    existingMonthReview = await prisma.mentorGoalReview.findFirst({
+      where: {
+        mentorshipId: mentorship.id,
+        cycleMonth: { gte: cycleMonth, lt: monthEnd },
+      },
+      orderBy: [{ createdAt: "desc" }],
+      select: {
+        id: true,
+        status: true,
+        selfReflectionId: true,
+        cycleMonth: true,
+      },
+    });
+  }
 
   let reflection = existingMonthReview
     ? await prisma.monthlySelfReflection.findUnique({
@@ -240,7 +275,11 @@ export async function submitMonthlyProgressUpdate(
           actionItems: "",
         }));
 
-  const reviewStatus = requiresChair ? "PENDING_CHAIR_APPROVAL" : "APPROVED";
+  const reviewStatus = data.saveAsDraft
+    ? "DRAFT"
+    : requiresChair
+      ? "PENDING_CHAIR_APPROVAL"
+      : "APPROVED";
   const overallRating = data.overallRating as GoalRatingColor;
 
   const reviewId = await prisma.$transaction(async (tx) => {
@@ -264,8 +303,15 @@ export async function submitMonthlyProgressUpdate(
           overallComments,
           planOfAction,
           status: reviewStatus,
-          ...(requiresChair
-            ? {}
+          ...(data.saveAsDraft || requiresChair
+            ? data.saveAsDraft
+              ? {
+                  chairReviewerId: null,
+                  chairComments: null,
+                  chairApprovedAt: null,
+                  releasedToMenteeAt: null,
+                }
+              : {}
             : {
                 chairReviewerId: viewer.id,
                 chairComments: "Released directly — chair approval not required.",
@@ -301,7 +347,7 @@ export async function submitMonthlyProgressUpdate(
           overallComments,
           planOfAction,
           status: reviewStatus,
-          ...(requiresChair
+          ...(data.saveAsDraft || requiresChair
             ? {}
             : {
                 chairReviewerId: viewer.id,
@@ -376,7 +422,7 @@ export async function submitMonthlyProgressUpdate(
       }
     }
 
-    if (!requiresChair) {
+    if (!data.saveAsDraft && !requiresChair) {
       const menteeRoleType = toMenteeRoleType(mentorship.mentee.primaryRole);
       if (menteeRoleType) {
         const pointsAwarded = POINT_TABLE[overallRating][menteeRoleType];
@@ -444,6 +490,11 @@ export async function submitMonthlyProgressUpdate(
     await syncMentorGoalReviewWorkflow(reviewId);
   } catch (err) {
     logger.warn({ err, reviewId }, "submitMonthlyProgressUpdate: workflow sync failed");
+  }
+
+  if (data.saveAsDraft) {
+    revalidatePath(`/mentorship/people/${mentorship.menteeId}`);
+    return { ok: true as const, reviewId, released: false };
   }
 
   if (requiresChair) {

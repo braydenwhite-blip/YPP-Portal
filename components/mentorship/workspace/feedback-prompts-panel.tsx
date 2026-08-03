@@ -107,7 +107,7 @@ export function FeedbackPromptsPanel({
         </h3>
         <p className="m-0 mt-0.5 text-[12.5px] text-ink-muted">
           {canAsk
-            ? "Three presets every month, plus anything else you want to ask."
+            ? "Staff presets every month, plus anything else you want to ask."
             : "Answer the monthly form and any extras your mentor added."}
         </p>
       </div>

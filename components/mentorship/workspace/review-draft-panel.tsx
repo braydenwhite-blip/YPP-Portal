@@ -165,33 +165,54 @@ export async function ReviewDraftPanel({
   const questions = await listInstructorReviewQuestions({ activeOnly: true });
 
   return (
-    <section className="overflow-hidden rounded-[16px] border border-line bg-surface shadow-card">
-      <div className="border-b border-line-soft bg-surface-soft/70 px-5 py-4 sm:px-6">
-        <p className="m-0 text-[11.5px] font-bold uppercase tracking-[0.07em] text-ink-muted">
-          {cycleMonthLabel}
-        </p>
-        <h3 className="m-0 mt-1 text-[18px] font-bold tracking-[-0.3px] text-ink">
-          Write this month&apos;s review
-        </h3>
-        <p className="m-0 mt-1 max-w-[48ch] text-[13.5px] leading-relaxed text-ink-muted">
-          Officer and parent feedback stay visible while you write — no popups, no extra pages.
-        </p>
-      </div>
+    <section className="overflow-hidden rounded-[22px] border border-line bg-surface shadow-card">
+      <div className="grid lg:grid-cols-[minmax(320px,0.92fr)_minmax(0,1.28fr)]">
+        {/* Evidence rail */}
+        <aside className="border-b border-line-soft bg-[linear-gradient(180deg,#faf7ff_0%,#ffffff_28%)] lg:border-b-0 lg:border-r lg:border-line-soft">
+          <div className="sticky top-0 flex flex-col gap-4 px-5 py-5 sm:px-6 lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto lg:py-6">
+            <div>
+              <p className="m-0 text-[11px] font-bold uppercase tracking-[0.08em] text-brand-700">
+                {cycleMonthLabel}
+              </p>
+              <h3 className="m-0 mt-1.5 text-[17px] font-bold tracking-[-0.02em] text-ink">
+                Evidence while you write
+              </h3>
+              <p className="m-0 mt-1 text-[13px] leading-relaxed text-ink-muted">
+                Open work, parent and officer notes, and prior reviews stay here
+                so you never leave the page.
+              </p>
+            </div>
 
-      <div className="px-5 py-5 sm:px-6">
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:items-start">
-          <aside className="flex flex-col gap-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pr-1">
             <LinkedWorkEvidence menteeId={menteeId} commitments={commitments} />
-            <InstructorReviewFeedbackContext
-              instructorId={menteeId}
-              reviewId={review?.id}
-              density="full"
-            />
-          </aside>
 
-          <div className="min-w-0">
+            <div className="flex flex-col gap-5 border-t border-line-soft pt-4 [&_h3]:text-[14px]">
+              <InstructorReviewFeedbackContext
+                instructorId={menteeId}
+                reviewId={review?.id}
+                density="full"
+              />
+            </div>
+          </div>
+        </aside>
+
+        {/* Writer */}
+        <div className="flex min-w-0 flex-col bg-surface">
+          <div className="border-b border-line-soft px-5 py-5 sm:px-7 sm:py-6">
+            <p className="m-0 text-[11px] font-bold uppercase tracking-[0.08em] text-ink-muted">
+              Your rating
+            </p>
+            <h3 className="m-0 mt-1.5 text-[22px] font-semibold tracking-[-0.03em] text-ink">
+              Write this month&apos;s review
+            </h3>
+            <p className="m-0 mt-1.5 max-w-[46ch] text-[14px] leading-relaxed text-ink-muted">
+              Capture how {mentee.name ?? menteeName} did, what they should know,
+              and one clear focus for next month.
+            </p>
+          </div>
+
+          <div className="px-5 py-5 sm:px-7 sm:py-6">
             {review?.status === "CHANGES_REQUESTED" && review.chairComments ? (
-              <div className="mb-4">
+              <div className="mb-5">
                 <ReviewNotesBanner
                   status="RETURNED"
                   reviewNotes={review.chairComments}

@@ -437,14 +437,19 @@ export function expectationsFor(
 
 /**
  * Resolve the user's default track + current role from their inferred
- * leadership stage and primary role. The dashboard lets the user explore
- * either track freely, but this picks the most relevant starting point.
+ * leadership stage, primary role, and org title. Title wins when it maps to a
+ * canonical pathway rung (Manager / Director / Officer / CP / Instructor…).
  */
 export function resolveStartingPosition(input: {
   stageId: string | null;
   primaryRole: string | null;
+  /** Free-text or canonical org title (e.g. "Senior Director", "Chapter President"). */
+  title?: string | null;
 }): { trackId: TrackId; roleId: string } {
-  const { stageId, primaryRole } = input;
+  const { stageId, primaryRole, title } = input;
+
+  const fromTitle = pathwayRoleFromTitle(title);
+  if (fromTitle) return fromTitle;
 
   // Explicit org-leadership signals → Leadership track.
   if (primaryRole === "CHAPTER_PRESIDENT") {
@@ -453,7 +458,7 @@ export function resolveStartingPosition(input: {
   if (stageId === "ORGANIZATIONAL_LEADERSHIP" || primaryRole === "ADMIN") {
     return { trackId: "LEADERSHIP", roleId: "OFFICER" };
   }
-  if (primaryRole === "STAFF") {
+  if (primaryRole === "STAFF" || primaryRole === "HIRING_CHAIR") {
     return { trackId: "LEADERSHIP", roleId: "MANAGER" };
   }
 
@@ -466,4 +471,51 @@ export function resolveStartingPosition(input: {
   }
   // INSTRUCTOR, WORKSHOP_INSTRUCTOR, or unknown → Instructor rung.
   return { trackId: "INSTRUCTOR", roleId: "INSTRUCTOR" };
+}
+
+/** Map a stored org title onto a pathway track + role id. */
+function pathwayRoleFromTitle(
+  title: string | null | undefined,
+): { trackId: TrackId; roleId: string } | null {
+  if (!title?.trim()) return null;
+  const key = title.trim().toLowerCase();
+
+  // Instruction ladder
+  if (key === "instructor") return { trackId: "INSTRUCTOR", roleId: "INSTRUCTOR" };
+  if (key === "senior instructor") {
+    return { trackId: "INSTRUCTOR", roleId: "SENIOR_INSTRUCTOR" };
+  }
+  if (key === "lead instructor") {
+    return { trackId: "INSTRUCTOR", roleId: "LEAD_INSTRUCTOR" };
+  }
+
+  // Leadership ladder (+ parallel CP track)
+  if (
+    key === "chapter president" ||
+    key === "president" ||
+    key === "regional director" ||
+    key === "senior regional director"
+  ) {
+    return { trackId: "LEADERSHIP", roleId: "CHAPTER_PRESIDENT" };
+  }
+  if (key === "manager" || key === "senior manager") {
+    return { trackId: "LEADERSHIP", roleId: "MANAGER" };
+  }
+  if (
+    key === "director" ||
+    key === "senior director" ||
+    key === "executive director"
+  ) {
+    return { trackId: "LEADERSHIP", roleId: "DIRECTOR" };
+  }
+  if (
+    key === "officer" ||
+    key === "senior officer" ||
+    key === "board member" ||
+    key === "board"
+  ) {
+    return { trackId: "LEADERSHIP", roleId: "OFFICER" };
+  }
+
+  return null;
 }

@@ -56,6 +56,7 @@ export function InstructorFeedbackSection({
   canEdit,
   initialRows,
   embed = false,
+  formOnly = false,
   lockedSource,
   defaultCategory,
   sources = MENTORSHIP_FEEDBACK_SOURCES,
@@ -64,6 +65,8 @@ export function InstructorFeedbackSection({
   canEdit: boolean;
   initialRows: InstructorReceivedFeedbackRow[];
   embed?: boolean;
+  /** Embed form without the existing-rows list (caller renders notes separately). */
+  formOnly?: boolean;
   /** When set, source is fixed. */
   lockedSource?: FeedbackSource;
   defaultCategory?: string;
@@ -179,6 +182,9 @@ export function InstructorFeedbackSection({
   ) : null;
 
   if (embed) {
+    if (formOnly) {
+      return <div className="grid gap-3">{form}</div>;
+    }
     return (
       <div className="grid gap-3">
         {initialRows.length > 0 ? (

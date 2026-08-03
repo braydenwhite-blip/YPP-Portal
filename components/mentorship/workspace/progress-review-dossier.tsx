@@ -154,7 +154,7 @@ async function renderProgressReviewDossier(
         </Link>
         , or{" "}
         <Link
-          href={`/mentorship/people/${person.id}?section=reviews`}
+          href={`/mentorship/people/${person.id}?section=progress`}
           className="font-semibold text-brand-700 no-underline hover:underline"
         >
           Feedback
@@ -199,7 +199,7 @@ async function renderProgressReviewDossier(
         <EvidenceBlock
           title={`What ${first} said (${latestFeedback.cycleLabel})`}
           defaultOpen
-          href={`/mentorship/people/${person.id}?section=reviews`}
+          href={`/mentorship/people/${person.id}?section=progress`}
         >
           <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
             {latestFeedback.questions

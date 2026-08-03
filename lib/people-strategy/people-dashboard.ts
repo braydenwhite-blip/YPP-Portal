@@ -1,4 +1,4 @@
-import type { GoalRatingColor, QuarterlyReviewDecision } from "@prisma/client";
+import type { GoalRatingColor, QuarterlyReviewDecision, RoleType } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { isPeopleDashboardEnabled } from "@/lib/feature-flags";
@@ -28,6 +28,16 @@ import {
  * returns an empty list.
  */
 
+/** Roles that belong on the admin People roster (ops / leadership pipeline). */
+export const PEOPLE_DASHBOARD_ROSTER_ROLES: RoleType[] = [
+  "ADMIN",
+  "STAFF",
+  "CHAPTER_PRESIDENT",
+  "HIRING_CHAIR",
+  "INSTRUCTOR",
+  "MENTOR",
+];
+
 /** One action rendered in the "Active Actions & Deadlines" cell. */
 export interface DashboardActionView {
   id: string;
@@ -46,6 +56,16 @@ export interface DashboardQuarterlyView {
   successionFlag: boolean;
 }
 
+/** Most recent MentorGoalReview (performance review) — overall rating + plan of action. */
+export interface DashboardLatestGoalReviewView {
+  cycleMonthKey: string;
+  cycleMonthLabel: string;
+  overallRating: GoalRatingColor;
+  planOfAction: string;
+  status: string;
+  released: boolean;
+}
+
 /** One colored check-in dot (most-recent-first in the row). */
 export interface DashboardCheckInDot {
   monthLabel: string;
@@ -57,6 +77,9 @@ export interface PeopleDashboardRow {
   id: string;
   name: string;
   email: string;
+  phone: string | null;
+  /** Free-text / canonical org title (Manager, Director, …). */
+  title: string | null;
   role: string | null;
   avatarUrl: string | null;
   mentorName: string | null;
@@ -71,6 +94,8 @@ export interface PeopleDashboardRow {
   leadActions: DashboardActionView[];
   executingActions: DashboardActionView[];
   quarterly: DashboardQuarterlyView | null;
+  /** Most recent performance review (MentorGoalReview), if any. */
+  latestGoalReview: DashboardLatestGoalReviewView | null;
   /** True when the latest review flags this person as a succession candidate. */
   successor: boolean;
   checkInDots: DashboardCheckInDot[];
@@ -126,10 +151,9 @@ function toActionView(action: DashboardAction, now: Date): DashboardActionView {
 const MONTH_FORMAT: Intl.DateTimeFormatOptions = { month: "short", year: "2-digit" };
 
 /**
- * Load the People Dashboard rows. Includes every active user who has a
- * People-Strategy footprint — a Quarterly Review, a Monthly Check-In, an action
- * they lead, or an action assignment — so the table reflects the people in the
- * leadership pipeline rather than every portal user.
+ * Load the People Dashboard rows. Restricted to staff, instructors, chapter
+ * presidents, hiring chairs, mentors, and admins — not students, parents, or
+ * applicants — even when those people appear on actions or mentorships.
  */
 export async function loadPeopleDashboard(
   now: Date = new Date()
@@ -142,16 +166,17 @@ export async function loadPeopleDashboard(
     where: {
       archivedAt: null,
       OR: [
-        { quarterlyReviews: { some: {} } },
-        { peopleCheckIns: { some: {} } },
-        { actionItemsLed: { some: {} } },
-        { actionAssignments: { some: {} } },
+        { primaryRole: { in: PEOPLE_DASHBOARD_ROSTER_ROLES } },
+        { roles: { some: { role: { in: PEOPLE_DASHBOARD_ROSTER_ROLES } } } },
       ],
     },
     select: {
       id: true,
       name: true,
       email: true,
+      phone: true,
+      title: true,
+      canonicalTitle: true,
       primaryRole: true,
       orgFunction: { select: { name: true } },
       orgDepartment: { select: { name: true } },
@@ -178,6 +203,17 @@ export async function loadPeopleDashboard(
           potentialRating: true,
           decision: true,
           successionFlag: true,
+        },
+      },
+      goalReviewsReceived: {
+        orderBy: [{ cycleMonth: "desc" }, { updatedAt: "desc" }],
+        take: 1,
+        select: {
+          cycleMonth: true,
+          overallRating: true,
+          planOfAction: true,
+          status: true,
+          releasedToMenteeAt: true,
         },
       },
       peopleCheckIns: {
@@ -229,6 +265,18 @@ export async function loadPeopleDashboard(
         }
       : null;
 
+    const goalReview = user.goalReviewsReceived[0] ?? null;
+    const latestGoalReview: DashboardLatestGoalReviewView | null = goalReview
+      ? {
+          cycleMonthKey: monthKeyUTC(goalReview.cycleMonth),
+          cycleMonthLabel: goalReview.cycleMonth.toLocaleDateString("en-US", MONTH_FORMAT),
+          overallRating: goalReview.overallRating,
+          planOfAction: goalReview.planOfAction.trim(),
+          status: goalReview.status,
+          released: Boolean(goalReview.releasedToMenteeAt),
+        }
+      : null;
+
     const recent = lastCheckIns(user.peopleCheckIns, 3);
     const checkInDots: DashboardCheckInDot[] = recent.map((c) => ({
       monthLabel: c.month.toLocaleDateString("en-US", MONTH_FORMAT),
@@ -243,6 +291,8 @@ export async function loadPeopleDashboard(
       id: user.id,
       name: user.name,
       email: user.email,
+      phone: user.phone?.trim() || null,
+      title: user.title?.trim() || user.canonicalTitle?.trim() || null,
       role: user.primaryRole,
       avatarUrl: user.profile?.avatarUrl ?? null,
       mentorName: user.menteePairs[0]?.mentor?.name ?? user.menteePairs[0]?.mentor?.email ?? null,
@@ -256,6 +306,7 @@ export async function loadPeopleDashboard(
         .filter((a) => !leadIds.has(a.id))
         .map((a) => toActionView(a, today)),
       quarterly,
+      latestGoalReview,
       successor: review?.successionFlag ?? false,
       checkInDots,
       recentCheckIns,

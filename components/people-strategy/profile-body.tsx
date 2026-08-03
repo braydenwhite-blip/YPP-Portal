@@ -63,9 +63,12 @@ function ProfileSection({
 export function ProfileBody({
   profile,
   compact = false,
+  contactOnly = false,
 }: {
   profile: PublicProfile;
   compact?: boolean;
+  /** Name + contact only — used while someone is writing requested feedback. */
+  contactOnly?: boolean;
 }) {
   const totalOwned = profile.actionsLed.length + profile.actionsExecuting.length;
   const contactItems: Array<{ label: string; value: ReactNode }> = [];
@@ -94,6 +97,24 @@ export function ProfileBody({
     profile.classesTaught.length > 0 ||
     totalOwned > 0 ||
     (profile.growthSignals !== null && profile.growthSignals.length > 0);
+
+  if (contactOnly) {
+    if (contactItems.length === 0) return null;
+    return (
+      <div className="flex flex-col gap-3">
+        <ProfileSection title="Contact" defaultOpen>
+          <div className="flex flex-col gap-2 text-[14px] text-[#3a3a52]">
+            {contactItems.map((item) => (
+              <div key={item.label} className="flex flex-wrap gap-1">
+                <span className="text-[#9a9ab0]">{item.label}</span>
+                <span>{item.value}</span>
+              </div>
+            ))}
+          </div>
+        </ProfileSection>
+      </div>
+    );
+  }
 
   if (compact) {
     return (
