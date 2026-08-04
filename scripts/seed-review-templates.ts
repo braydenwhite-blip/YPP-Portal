@@ -5,9 +5,16 @@
  * content supplied by product/leadership. Idempotent: upserts by
  * (roleType, title) so it's safe to re-run in any environment.
  *
+ * Leadership content comes from `lib/leadership-goals-rubric.ts` (SoT).
+ *
  * Run with: npx tsx scripts/seed-review-templates.ts
  */
 import { PrismaClient } from "@prisma/client";
+import {
+  LEADERSHIP_RUBRIC_COLUMNS,
+  LEADERSHIP_RUBRIC_ROLE_MISSION,
+  leadershipCompetenciesForTemplateSeed,
+} from "../lib/leadership-goals-rubric";
 
 const prisma = new PrismaClient();
 
@@ -123,128 +130,9 @@ const INSTRUCTOR_COMPETENCIES: Array<{ title: string; description: string; level
   },
 ];
 
-const GLOBAL_LEADERSHIP_COLUMNS = [
-  "Manager / Senior Manager",
-  "Director / Senior Director / Executive Director",
-  "Chapter President / Regional Director / Senior Regional Director",
-  "Officer",
-] as const;
-
-const GLOBAL_LEADERSHIP_ROLE_MISSION =
-  "Global Leadership drives YPP's programs, culture, and long-term growth across the organization — delivering measurable impact, proposing and driving new ideas, operating with reliability and clear communication, developing and elevating the people around them, and building the systems and relationships that sustain YPP well beyond any single program cycle.";
-
-const GLOBAL_LEADERSHIP_COMPETENCIES: Array<{ title: string; description: string; levelGuidance: LevelGuidance }> = [
-  {
-    title: "Impact & Results",
-    description: "Delivers high-quality work consistently and reliably.",
-    levelGuidance: {
-      "Manager / Senior Manager":
-        "• Work shows clear, demonstrable impact every week.\n" +
-        "• Achieves goals, solves problems, and produces measurable results within area of responsibility.\n" +
-        "• Impact extends beyond the specific task to benefit the broader team or program.",
-      "Director / Senior Director / Executive Director":
-        "Owns outcomes and delivers sustained impact across the entire program, team, or functional area.\n" +
-        "• Work shows significant progress and impact every week, beyond individual project level.\n" +
-        "• Identifies obstacles, breaks down complex problems into actionable strategies.\n" +
-        "• Achieves ambitious goals and lifts the performance of those around them.",
-      "Chapter President / Regional Director / Senior Regional Director":
-        "Defines and drives organization-wide priorities that produce transformational results every week.\n" +
-        "• Ambitious and resourceful — does not let obstacles stand in the way of achieving goals.\n" +
-        "• Creates repeatable resources and systems enabling long-term, sustained impact.\n" +
-        "• Impact extends beyond any specific project to shape the organization's trajectory.",
-      Officer:
-        "• Defines and drives organization-wide priorities that produce transformational results every week.\n" +
-        "• Ambitious and resourceful — does not let obstacles stand in the way of achieving goals.\n" +
-        "• Creates repeatable resources and systems enabling long-term, sustained impact.\n" +
-        "• Impact extends beyond any specific project to shape the organization's trajectory.",
-    },
-  },
-  {
-    title: "Ideas & Initiative",
-    description: "Proactively proposes new systems, programs, and improvements.",
-    levelGuidance: {
-      "Manager / Senior Manager":
-        "• Does not simply complete assigned work; proactively proposes new systems, programs, and improvements without being asked.\n" +
-        "• Takes ownership of challenges and opportunities within their area of responsibility.\n" +
-        "• Brings forward ideas that improve efficiency, quality, or mission alignment.",
-      "Director / Senior Director / Executive Director":
-        "• Identifies gaps and opportunities at the program or team level and develops concrete initiatives to address them.\n" +
-        "• Drives cross-functional improvements; champions ideas that elevate the work of multiple teams.\n" +
-        "• Creates space for others' ideas while ensuring the strongest proposals move forward.",
-      "Chapter President / Regional Director / Senior Regional Director":
-        "• Has a strategic vision; generates new high-impact ideas that drive progress across the organization.\n" +
-        "• Translates broad challenges into actionable priorities; takes initiative to implement ideas beyond particular role.\n" +
-        "• Removes systemic barriers to good ideas and builds structures that make initiative the norm.",
-      Officer:
-        "• Has a strategic vision; generates new high-impact ideas that drive progress across the organization.\n" +
-        "• Translates broad challenges into actionable priorities; takes initiative to implement ideas beyond particular role.\n" +
-        "• Removes systemic barriers to good ideas and builds structures that make initiative the norm.",
-    },
-  },
-  {
-    title: "Timeliness, Reliability & Communication",
-    description: "On-time output, responsiveness, and proactive communication.",
-    levelGuidance: {
-      "Manager / Senior Manager":
-        "• Consistently produces on-time output and follows through with minimal oversight or reminders.\n" +
-        "• Responds promptly to messages (never more than 24 hours) and attends 100% of meetings.\n" +
-        "• Communicates proactively when timelines or expectations shift.",
-      "Director / Senior Director / Executive Director":
-        "• Ensures both personal work and team deliverables are completed reliably and on time; moves progress forward without day-long delays.\n" +
-        "• Establishes systems, expectations, and accountability mechanisms that improve team performance.\n" +
-        "• Communicates proactively and effectively with stakeholders and team members; responds within 24 hours and attends 100% of meetings.",
-      "Chapter President / Regional Director / Senior Regional Director":
-        "• Creates a culture of accountability, reliability, and responsiveness across the organization; moves progress forward on the same day as receiving input rather than delaying.\n" +
-        "• Designs scalable processes and structures that enable consistent, high-quality execution.\n" +
-        "• Ensures strong communication and alignment across teams and organizational levels; responds within 24 hours and attends 100% of meetings.",
-      Officer:
-        "• Creates a culture of accountability, reliability, and responsiveness across the organization; moves progress forward on the same day as receiving input rather than delaying.\n" +
-        "• Designs scalable processes and structures that enable consistent, high-quality execution.\n" +
-        "• Ensures strong communication and alignment across teams and organizational levels; responds within 24 hours and attends 100% of meetings.",
-    },
-  },
-  {
-    title: "Leadership, Community & Collaboration",
-    description: "Leading community-building, mentoring others, and modeling YPP values.",
-    levelGuidance: {
-      "Manager / Senior Manager":
-        "• Leads major community-building initiatives, mentorship efforts, or instructor engagement.\n" +
-        "• Helps shape YPP culture, morale, and organizational community standards.\n" +
-        "• Motivates and manages team members to fulfill their responsibilities with care and excellence.",
-      "Director / Senior Director / Executive Director":
-        "• Develops and manages staff to reach their potential; actively mentors junior team members, helps them improve, and creates opportunities for them to take on greater responsibility.\n" +
-        "• Fosters collaboration across departments, models YPP values, and holds the team to high standards of conduct.",
-      "Chapter President / Regional Director / Senior Regional Director":
-        "• Leads others to successful output; successfully manages, develops, and mentors others, creating opportunities for them to take on greater responsibility.\n" +
-        "• Contributes positively to the YPP community, boosting collaboration and morale. Collaborates effectively across the entire organization.",
-      Officer:
-        "• Leads others to successful output; successfully manages, develops, and mentors others, creating opportunities for them to take on greater responsibility.\n" +
-        "• Contributes positively to the YPP community, boosting collaboration and morale. Collaborates effectively across the entire organization.",
-    },
-  },
-  {
-    title: "Continuity and Long-Term Potential",
-    description: "Building sustainable structures, relationships, and readiness for broader responsibility.",
-    levelGuidance: {
-      "Manager / Senior Manager":
-        "• Leads major organizational initiatives with high impact beyond their specific role.\n" +
-        "• Eager to take on more responsibility; genuinely cares about the organization's long-term success.\n" +
-        "• Has a vision for YPP and the practical leadership, judgment, and discipline to carry it out.",
-      "Director / Senior Director / Executive Director":
-        "• Demonstrates readiness for broader responsibility; proactively develops the skills needed for the next level of leadership.\n" +
-        "• Mentors and sponsors high-potential junior staff and builds systems that will outlast their current role.\n" +
-        "• Cultivates long-term relationships with key external stakeholders — community leaders, parent networks, and partner organizations — that will serve YPP's mission well beyond any single program cycle.",
-      "Chapter President / Regional Director / Senior Regional Director":
-        "• Actively shapes the long-term strategic direction and sustainability of the organization; eager to take on more responsibility and genuinely cares about success.\n" +
-        "• Builds sustainable structures and plans for organizational continuity.\n" +
-        "• Develops and stewards a broad ecosystem of long-term relationships — with communities, parents, funders, and partners — that YPP can reliably activate for programs, support, and growth.",
-      Officer:
-        "• Actively shapes the long-term strategic direction and sustainability of the organization; eager to take on more responsibility and genuinely cares about success.\n" +
-        "• Builds sustainable structures and plans for organizational continuity.\n" +
-        "• Develops and stewards a broad ecosystem of long-term relationships — with communities, parents, funders, and partners — that YPP can reliably activate for programs, support, and growth.",
-    },
-  },
-];
+const GLOBAL_LEADERSHIP_COLUMNS = LEADERSHIP_RUBRIC_COLUMNS;
+const GLOBAL_LEADERSHIP_ROLE_MISSION = LEADERSHIP_RUBRIC_ROLE_MISSION;
+const GLOBAL_LEADERSHIP_COMPETENCIES = leadershipCompetenciesForTemplateSeed();
 
 async function resolveSeedOwnerId(): Promise<string> {
   const admin = await prisma.user.findFirst({

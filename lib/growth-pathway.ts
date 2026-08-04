@@ -16,6 +16,10 @@ import {
   LEADERSHIP_GOALS,
   LeadershipGoal,
 } from "@/lib/leadership-pathway";
+import {
+  LEADERSHIP_RATING_SCALE,
+  LEADERSHIP_RUBRIC_COMPETENCIES,
+} from "@/lib/leadership-goals-rubric";
 
 /* ------------------------------------------------------------------ *
  * Status levels (shared across both tracks)
@@ -37,36 +41,36 @@ export interface StatusLevel {
   fill: number;
 }
 
-export const STATUS_LEVELS: Record<StatusLevelId, StatusLevel> = {
-  ABOVE_AND_BEYOND: {
-    id: "ABOVE_AND_BEYOND",
-    label: "Above & Beyond",
-    description: "Dramatically exceeds all bullets at this level.",
-    tone: "above",
-    fill: 1,
-  },
-  ON_TRACK: {
-    id: "ON_TRACK",
-    label: "On Track",
-    description: "All bullets met.",
-    tone: "ontrack",
-    fill: 0.82,
-  },
-  NEEDS_ATTENTION: {
-    id: "NEEDS_ATTENTION",
-    label: "Needs Attention",
-    description: "Some bullets met; no major deficiencies.",
-    tone: "attention",
-    fill: 0.5,
-  },
-  AT_RISK: {
-    id: "AT_RISK",
-    label: "At Risk",
-    description: "Major deficiencies present.",
-    tone: "risk",
-    fill: 0.22,
-  },
+const STATUS_FILLS: Record<StatusLevelId, number> = {
+  ABOVE_AND_BEYOND: 1,
+  ON_TRACK: 0.82,
+  NEEDS_ATTENTION: 0.5,
+  AT_RISK: 0.22,
 };
+
+const STATUS_TONES: Record<
+  StatusLevelId,
+  StatusLevel["tone"]
+> = {
+  ABOVE_AND_BEYOND: "above",
+  ON_TRACK: "ontrack",
+  NEEDS_ATTENTION: "attention",
+  AT_RISK: "risk",
+};
+
+export const STATUS_LEVELS: Record<StatusLevelId, StatusLevel> =
+  Object.fromEntries(
+    LEADERSHIP_RATING_SCALE.map((row) => [
+      row.id,
+      {
+        id: row.id,
+        label: row.label,
+        description: `${row.description}.`,
+        tone: STATUS_TONES[row.id],
+        fill: STATUS_FILLS[row.id],
+      },
+    ]),
+  ) as Record<StatusLevelId, StatusLevel>;
 
 export const STATUS_LEVEL_ORDER: StatusLevelId[] = [
   "ABOVE_AND_BEYOND",
@@ -238,138 +242,20 @@ const LEADERSHIP_PARALLEL_ROLES: PathwayRole[] = [
     promotionWindow:
       "Regional leaders who shape strategy beyond their territory step into officer-level stewardship.",
     order: 1,
-    bandKey: "OFFICER",
+    bandKey: "CHAPTER_PRESIDENT",
     parallelToOrder: 1,
   },
 ];
 
-const LEADERSHIP_COMPETENCIES: PathwayCompetency[] = [
-  {
-    id: "IMPACT_AND_RESULTS",
-    number: 1,
-    title: "Impact & Results",
-    shortTitle: "Impact & Results",
-    oneLiner: "Delivers high-quality work consistently and reliably.",
-    expectations: {
-      MANAGER: [
-        "Delivers high-quality work consistently and reliably.",
-        "Work shows clear, demonstrable impact every week.",
-        "Achieves goals, solves problems, and produces measurable results within area of responsibility.",
-        "Impact extends beyond the specific task to benefit the broader team or program.",
-      ],
-      DIRECTOR: [
-        "Owns outcomes and delivers sustained impact across the entire program, team, or functional area.",
-        "Work shows significant progress and impact every week, beyond individual project level.",
-        "Identifies obstacles, breaks down complex problems into actionable strategies.",
-        "Achieves ambitious goals and lifts the performance of those around them.",
-      ],
-      OFFICER: [
-        "Defines and drives organization-wide priorities that produce transformational results every week.",
-        "Ambitious and resourceful — does not let obstacles stand in the way of achieving goals.",
-        "Creates repeatable resources and systems enabling long-term, sustained impact.",
-        "Impact extends beyond any specific project to shape the organization's trajectory.",
-      ],
-    },
-  },
-  {
-    id: "IDEAS_AND_INITIATIVE",
-    number: 2,
-    title: "Ideas & Initiative",
-    shortTitle: "Ideas & Initiative",
-    oneLiner:
-      "Proactively proposes new systems, programs, and improvements without being asked.",
-    expectations: {
-      MANAGER: [
-        "Does not simply complete assigned work; proactively proposes new systems, programs, and improvements without being asked.",
-        "Takes ownership of challenges and opportunities within their area of responsibility.",
-        "Brings forward ideas that improve efficiency, quality, or mission alignment.",
-      ],
-      DIRECTOR: [
-        "Identifies gaps and opportunities at the program or team level and develops concrete initiatives to address them.",
-        "Drives cross-functional improvements; champions ideas that elevate the work of multiple teams.",
-        "Creates space for others' ideas while ensuring the strongest proposals move forward.",
-      ],
-      OFFICER: [
-        "Has a strategic vision; generates new high-impact ideas that drive progress across the organization.",
-        "Translates broad challenges into actionable priorities; takes initiative to implement ideas beyond particular role.",
-        "Removes systemic barriers to good ideas and builds structures that make initiative the norm.",
-      ],
-    },
-  },
-  {
-    id: "TIMELINESS_RELIABILITY_COMMUNICATION",
-    number: 3,
-    title: "Timeliness, Reliability & Communication",
-    shortTitle: "Timeliness, Reliability & Comm.",
-    oneLiner:
-      "On-time output, responsiveness within 24 hours, and proactive communication.",
-    expectations: {
-      MANAGER: [
-        "Consistently produces on-time output and follows through with minimal oversight or reminders.",
-        "Responds promptly to messages (never more than 24 hours) and attends 100% of meetings.",
-        "Communicates proactively when timelines or expectations shift.",
-      ],
-      DIRECTOR: [
-        "Ensures both personal work and team deliverables are completed reliably and on time; moves progress forward without day-long delays.",
-        "Establishes systems, expectations, and accountability mechanisms that improve team performance.",
-        "Communicates proactively and effectively with stakeholders and team members; responds within 24 hours and attends 100% of meetings.",
-      ],
-      OFFICER: [
-        "Creates a culture of accountability, reliability, and responsiveness across the organization; moves progress forward on the same day as receiving input rather than delaying.",
-        "Designs scalable processes and structures that enable consistent, high-quality execution.",
-        "Ensures strong communication and alignment across teams and organizational levels; responds within 24 hours and attends 100% of meetings.",
-      ],
-    },
-  },
-  {
-    id: "LEADERSHIP_COMMUNITY_COLLABORATION",
-    number: 4,
-    title: "Leadership, Community & Collaboration",
-    shortTitle: "Leadership, Community & Collab.",
-    oneLiner:
-      "Leading community-building, mentoring others, and modeling YPP values.",
-    expectations: {
-      MANAGER: [
-        "Leads major community-building initiatives, mentorship efforts, or instructor engagement.",
-        "Helps shape YPP culture, morale, and organizational community standards.",
-        "Motivates and manages team members to fulfill their responsibilities with care and excellence.",
-      ],
-      DIRECTOR: [
-        "Develops and manages staff to reach their potential; actively mentors junior team members, helps them improve, and creates opportunities for them to take on greater responsibility.",
-        "Fosters collaboration across departments, models YPP values, and holds the team to high standards of conduct.",
-      ],
-      OFFICER: [
-        "Leads others to successful output; successfully manages, develops, and mentors others, creating opportunities for them to take on greater responsibility.",
-        "Contributes positively to the YPP community, boosting collaboration and morale. Collaborates effectively across the entire organization.",
-      ],
-    },
-  },
-  {
-    id: "CONTINUITY_LONG_TERM_POTENTIAL",
-    number: 5,
-    title: "Continuity and Long-Term Potential",
-    shortTitle: "Continuity and Long-Term Potential",
-    oneLiner:
-      "Building sustainable structures, relationships, and readiness for broader responsibility.",
-    expectations: {
-      MANAGER: [
-        "Leads major organizational initiatives with high impact beyond their specific role.",
-        "Eager to take on more responsibility; genuinely cares about the organization's long-term success.",
-        "Has a vision for YPP and the practical leadership, judgment, and discipline to carry it out.",
-      ],
-      DIRECTOR: [
-        "Demonstrates readiness for broader responsibility; proactively develops the skills needed for the next level of leadership.",
-        "Mentors and sponsors high-potential junior staff and builds systems that will outlast their current role.",
-        "Cultivates long-term relationships with key external stakeholders — community leaders, parent networks, and partner organizations — that will serve YPP's mission well beyond any single program cycle.",
-      ],
-      OFFICER: [
-        "Actively shapes the long-term strategic direction and sustainability of the organization; eager to take on more responsibility and genuinely cares about success.",
-        "Builds sustainable structures and plans for organizational continuity.",
-        "Develops and stewards a broad ecosystem of long-term relationships — with communities, parents, funders, and partners — that YPP can reliably activate for programs, support, and growth.",
-      ],
-    },
-  },
-];
+const LEADERSHIP_COMPETENCIES: PathwayCompetency[] =
+  LEADERSHIP_RUBRIC_COMPETENCIES.map((c) => ({
+    id: c.id,
+    number: c.number,
+    title: c.title,
+    shortTitle: c.shortTitle,
+    oneLiner: c.oneLiner,
+    expectations: { ...c.expectations },
+  }));
 
 /* ------------------------------------------------------------------ *
  * Track registry + helpers

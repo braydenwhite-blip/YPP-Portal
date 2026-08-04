@@ -82,7 +82,7 @@ export async function GoalsSection({
       <div className="flex flex-col gap-5">
         <div>
           <h2 className="m-0 text-[18px] font-semibold tracking-[-0.3px] text-ink">
-            Goals &amp; Responsibilities
+            Goals &amp; Rubric
           </h2>
           <p className="m-0 mt-1 max-w-[60ch] text-[13.5px] leading-relaxed text-ink-muted">
             {isSelf
@@ -121,7 +121,7 @@ export async function GoalsSection({
       <div className="flex flex-col gap-5">
         <div>
           <h2 className="m-0 text-[18px] font-semibold text-ink">
-            Goals &amp; Responsibilities
+            Goals &amp; Rubric
           </h2>
           <p className="m-0 mt-1 text-[13.5px] text-ink-muted">
             Role expectations are below. Your mentor is still finishing custom goals
@@ -153,7 +153,7 @@ export async function GoalsSection({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="m-0 text-[18px] font-semibold tracking-[-0.3px] text-ink">
-            Goals &amp; Responsibilities
+            Goals &amp; Rubric
           </h2>
           <p className="m-0 mt-1 text-[13.5px] text-ink-muted">
             {isSelf

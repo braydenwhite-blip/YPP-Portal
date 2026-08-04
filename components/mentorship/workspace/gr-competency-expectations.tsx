@@ -4,8 +4,27 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { Button } from "@/components/ui-v2";
+import { LEADERSHIP_RATING_SCALE } from "@/lib/leadership-goals-rubric";
 import { saveGRCompetencyRoleExamples } from "@/lib/mentorship/gr-competency-actions";
 import type { GrCompetencyRow } from "@/lib/mentorship/gr-competency-rows";
+
+function RatingScaleLegend() {
+  return (
+    <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+      {LEADERSHIP_RATING_SCALE.map((level) => (
+        <div
+          key={level.id}
+          className="rounded-[8px] border border-line-soft bg-surface-soft px-3 py-2"
+        >
+          <p className="m-0 text-[12px] font-bold text-ink">{level.label}</p>
+          <p className="m-0 mt-0.5 text-[11px] leading-snug text-ink-muted">
+            {level.description}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function BulletList({ items }: { items: string[] }) {
   if (items.length === 0) {
@@ -160,18 +179,22 @@ export function GrCompetencyExpectationsTable({
   mentorshipId: string | null;
   menteeId: string;
 }) {
+  const isLeadership = rubricLabel.toLowerCase().includes("leadership");
+  const heading = isLeadership
+    ? "Leadership Goals & Rubric"
+    : "Goals & Rubric";
+
   return (
     <div className="overflow-hidden rounded-[12px] border border-line-soft bg-surface">
       <div className="border-b border-line-soft px-5 py-4">
-        <h3 className="m-0 text-[15px] font-bold text-ink">
-          Competency expectations
-        </h3>
+        <h3 className="m-0 text-[15px] font-bold text-ink">{heading}</h3>
         <p className="m-0 mt-1 text-[12.5px] text-ink-muted">
           {rubricLabel}
           {canEdit
             ? " — add specific examples for this person in the last column."
             : " — what is expected at your level, and what promotion looks like."}
         </p>
+        <RatingScaleLegend />
       </div>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[980px] border-collapse text-left">

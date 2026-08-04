@@ -1,4 +1,5 @@
 import type { PersonAuthority } from "@/lib/org/levels";
+import { LEADERSHIP_RUBRIC_COLUMNS } from "@/lib/leadership-goals-rubric";
 
 /**
  * Maps a person's canonical authority (and, for titles the org authority
@@ -22,12 +23,7 @@ import type { PersonAuthority } from "@/lib/org/levels";
 
 const INSTRUCTOR_COLUMNS = ["Instructor", "Senior Instructor", "Lead Instructor"] as const;
 
-const GLOBAL_LEADERSHIP_COLUMNS = [
-  "Manager / Senior Manager",
-  "Director / Senior Director / Executive Director",
-  "Chapter President / Regional Director / Senior Regional Director",
-  "Officer",
-] as const;
+const GLOBAL_LEADERSHIP_COLUMNS = LEADERSHIP_RUBRIC_COLUMNS;
 
 /** Free-text title (case-insensitive) -> Global Leadership rubric column. */
 const GLOBAL_LEADERSHIP_TITLE_TO_COLUMN: Record<string, (typeof GLOBAL_LEADERSHIP_COLUMNS)[number]> = {

@@ -1,4 +1,5 @@
 import type { GoalRatingColor, ProgressStatus } from "@prisma/client";
+import { LEADERSHIP_RATING_SCALE } from "@/lib/leadership-goals-rubric";
 
 export interface MentorshipRubricCopy {
   label: string;
@@ -12,59 +13,59 @@ export interface MentorshipRubricCopy {
   adminAttention: boolean;
 }
 
+const RATING_BY_ID = Object.fromEntries(
+  LEADERSHIP_RATING_SCALE.map((r) => [r.id, r]),
+) as Record<(typeof LEADERSHIP_RATING_SCALE)[number]["id"], (typeof LEADERSHIP_RATING_SCALE)[number]>;
+
 /**
- * Leadership Goals & Rubric rating scale (shared across Instructor + Leadership G&R):
- *   Above & Beyond — Dramatically exceeds all bullets at this level
- *   On Track — All bullets met
- *   Needs Attention — Some bullets met; no major deficiencies
- *   At Risk — Major deficiencies present
- *
+ * Leadership Goals & Rubric rating scale (shared across Instructor + Leadership G&R).
+ * Copy comes from `lib/leadership-goals-rubric.ts`.
  * Prisma enums stay ABOVE_AND_BEYOND / ACHIEVED / GETTING_STARTED / BEHIND_SCHEDULE.
  */
 export const GOAL_RATING_COPY: Record<GoalRatingColor, MentorshipRubricCopy> = {
   ABOVE_AND_BEYOND: {
-    label: "Above & Beyond",
+    label: RATING_BY_ID.ABOVE_AND_BEYOND.label,
     shortLabel: "Purple",
-    menteeLabel: "Above & Beyond",
-    mentorDescription: "Dramatically exceeds all bullets at this level.",
+    menteeLabel: RATING_BY_ID.ABOVE_AND_BEYOND.label,
+    mentorDescription: `${RATING_BY_ID.ABOVE_AND_BEYOND.description}.`,
     menteeDescription:
       "You’re exceeding expectations on this goal — keep stretching into bigger ownership.",
-    adminDescription: "Dramatically exceeds all bullets at this level.",
+    adminDescription: `${RATING_BY_ID.ABOVE_AND_BEYOND.description}.`,
     color: "#7c3aed",
     background: "#f5f3ff",
     adminAttention: false,
   },
   ACHIEVED: {
-    label: "On Track",
+    label: RATING_BY_ID.ON_TRACK.label,
     shortLabel: "Green",
-    menteeLabel: "On Track",
-    mentorDescription: "All bullets met.",
+    menteeLabel: RATING_BY_ID.ON_TRACK.label,
+    mentorDescription: `${RATING_BY_ID.ON_TRACK.description}.`,
     menteeDescription: "You’re meeting the expectations for this goal.",
-    adminDescription: "All bullets met.",
+    adminDescription: `${RATING_BY_ID.ON_TRACK.description}.`,
     color: "#16a34a",
     background: "#dcfce7",
     adminAttention: false,
   },
   GETTING_STARTED: {
-    label: "Needs Attention",
+    label: RATING_BY_ID.NEEDS_ATTENTION.label,
     shortLabel: "Yellow",
-    menteeLabel: "Needs Attention",
-    mentorDescription: "Some bullets met; no major deficiencies.",
+    menteeLabel: RATING_BY_ID.NEEDS_ATTENTION.label,
+    mentorDescription: `${RATING_BY_ID.NEEDS_ATTENTION.description}.`,
     menteeDescription:
       "Some expectations are met. Your mentor will help close the remaining gaps.",
-    adminDescription: "Some bullets met; no major deficiencies.",
+    adminDescription: `${RATING_BY_ID.NEEDS_ATTENTION.description}.`,
     color: "#d97706",
     background: "#fef3c7",
     adminAttention: false,
   },
   BEHIND_SCHEDULE: {
-    label: "At Risk",
+    label: RATING_BY_ID.AT_RISK.label,
     shortLabel: "Red",
-    menteeLabel: "At Risk",
-    mentorDescription: "Major deficiencies present.",
+    menteeLabel: RATING_BY_ID.AT_RISK.label,
+    mentorDescription: `${RATING_BY_ID.AT_RISK.description}.`,
     menteeDescription:
       "This area needs focused support. Your mentor and the team will help you reset with clear next steps.",
-    adminDescription: "Major deficiencies present; requires admin attention.",
+    adminDescription: `${RATING_BY_ID.AT_RISK.description}; requires admin attention.`,
     color: "#dc2626",
     background: "#fee2e2",
     adminAttention: true,
