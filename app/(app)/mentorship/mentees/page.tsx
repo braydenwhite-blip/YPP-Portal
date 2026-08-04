@@ -84,6 +84,7 @@ export default async function MenteesPage() {
       cycleStage: card.cycleStage,
       kickoffPending: card.kickoffPending,
       mentorCheckInComplete: card.mentorCheckInComplete,
+      overallRating: card.overallRating,
       latestRatings: card.latestRatings,
     })),
     sessions: engagement.upcomingSessions.map((s) => ({

@@ -9,7 +9,6 @@ import { listOutstandingRequestsForMentee } from "@/lib/mentorship/collaborator-
 
 import { InstructorReviewFeedbackContext } from "./instructor-review-feedback-context";
 import { RequestCollaboratorFeedbackButton } from "./request-collaborator-feedback-button";
-import { RequestParentFeedbackButton } from "./request-parent-feedback-button";
 import { SimpleReflectionForm } from "./simple-reflection-form";
 
 const card =
@@ -173,19 +172,14 @@ export async function FeedbackSection({
                   From people they worked with
                 </h3>
                 <p className="m-0 mt-0.5 text-[12.5px] text-ink-muted">
-                  Ask colleagues for notes, request parent feedback, or log what
-                  you heard — private to you.
+                  Ask colleagues for notes or log what you heard — private to
+                  you.
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <RequestCollaboratorFeedbackButton
                   menteeId={person.id}
                   menteeFirstName={menteeFirst}
-                />
-                <RequestParentFeedbackButton
-                  instructorId={person.id}
-                  label="Ask parents"
-                  variant="ghost"
                 />
               </div>
             </div>

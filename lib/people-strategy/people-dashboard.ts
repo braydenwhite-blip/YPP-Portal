@@ -84,6 +84,9 @@ export interface PeopleDashboardRow {
   avatarUrl: string | null;
   mentorName: string | null;
   mentorId: string | null;
+  /** Active pairing Role Chair (Mentorship.chairId). */
+  chairName: string | null;
+  chairId: string | null;
   /** Person's org Function (e.g. Operations). */
   functionName: string | null;
   /** Person's org Department (e.g. Technology). */
@@ -183,7 +186,10 @@ export async function loadPeopleDashboard(
       profile: { select: { avatarUrl: true, interests: true } },
       menteePairs: {
         where: { status: "ACTIVE" },
-        select: { mentor: { select: { id: true, name: true, email: true } } },
+        select: {
+          mentor: { select: { id: true, name: true, email: true } },
+          chair: { select: { id: true, name: true, email: true } },
+        },
         take: 1,
       },
       actionItemsLed: {
@@ -297,6 +303,8 @@ export async function loadPeopleDashboard(
       avatarUrl: user.profile?.avatarUrl ?? null,
       mentorName: user.menteePairs[0]?.mentor?.name ?? user.menteePairs[0]?.mentor?.email ?? null,
       mentorId: user.menteePairs[0]?.mentor?.id ?? null,
+      chairName: user.menteePairs[0]?.chair?.name ?? user.menteePairs[0]?.chair?.email ?? null,
+      chairId: user.menteePairs[0]?.chair?.id ?? null,
       functionName,
       departmentName,
       departments: departmentLabels,

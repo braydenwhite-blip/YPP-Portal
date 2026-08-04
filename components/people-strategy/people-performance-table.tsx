@@ -76,6 +76,7 @@ export function PeoplePerformanceTable({
   rows,
   personHrefBase = "/people",
   mentorCandidates = [],
+  chairCandidates = [],
   canAssignMentors = false,
 }: {
   rows: PeoplePerformanceRow[];
@@ -85,6 +86,12 @@ export function PeoplePerformanceTable({
   quarterlyEnabled: boolean;
   personHrefBase?: string;
   mentorCandidates?: Array<{
+    id: string;
+    name: string;
+    role?: string | null;
+    title?: string | null;
+  }>;
+  chairCandidates?: Array<{
     id: string;
     name: string;
     role?: string | null;
@@ -209,31 +216,70 @@ export function PeoplePerformanceTable({
             </div>
 
             <div
-              className="flex min-w-0 items-center justify-between gap-3 sm:w-[160px] sm:shrink-0 sm:flex-col sm:items-end sm:justify-center"
+              className="flex min-w-0 items-center justify-between gap-3 sm:w-[200px] sm:shrink-0 sm:flex-col sm:items-end sm:justify-center"
               onClick={stopRowNavigation}
             >
               {canAssignMentors ? (
-                <PeopleMentorAssignCell
-                  menteeId={row.id}
-                  menteeName={name}
-                  mentorId={row.mentorId}
-                  mentorName={row.mentorName}
-                  candidates={mentorCandidates}
-                  canAssign
-                />
+                <div className="flex w-full min-w-0 flex-col gap-3 sm:items-end">
+                  <div className="min-w-0 sm:text-right">
+                    <p className="m-0 text-[11px] font-medium uppercase tracking-[0.04em] text-[#9a9ab0]">
+                      Mentor
+                    </p>
+                    <PeopleMentorAssignCell
+                      menteeId={row.id}
+                      menteeName={name}
+                      mentorId={row.mentorId}
+                      mentorName={row.mentorName}
+                      candidates={mentorCandidates}
+                      canAssign
+                      kind="mentor"
+                    />
+                  </div>
+                  <div className="min-w-0 sm:text-right">
+                    <p className="m-0 text-[11px] font-medium uppercase tracking-[0.04em] text-[#9a9ab0]">
+                      Role Chair
+                    </p>
+                    <PeopleMentorAssignCell
+                      menteeId={row.id}
+                      menteeName={name}
+                      mentorId={row.chairId}
+                      mentorName={row.chairName}
+                      candidates={chairCandidates.length > 0 ? chairCandidates : mentorCandidates}
+                      canAssign
+                      kind="chair"
+                      requireMentorship
+                      hasActiveMentorship={Boolean(row.mentorId)}
+                    />
+                  </div>
+                </div>
               ) : (
-                <div className="min-w-0 text-right">
-                  <p className="m-0 text-[11px] font-medium uppercase tracking-[0.04em] text-[#9a9ab0]">
-                    Mentor
-                  </p>
-                  <p
-                    className={cn(
-                      "m-0 truncate text-[13px] font-semibold",
-                      row.mentorName ? "text-[#3a3a52]" : "text-[#c0392b]"
-                    )}
-                  >
-                    {row.mentorName ?? "Unassigned"}
-                  </p>
+                <div className="flex min-w-0 flex-col gap-2 text-right">
+                  <div>
+                    <p className="m-0 text-[11px] font-medium uppercase tracking-[0.04em] text-[#9a9ab0]">
+                      Mentor
+                    </p>
+                    <p
+                      className={cn(
+                        "m-0 truncate text-[13px] font-semibold",
+                        row.mentorName ? "text-[#3a3a52]" : "text-[#c0392b]"
+                      )}
+                    >
+                      {row.mentorName ?? "Unassigned"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="m-0 text-[11px] font-medium uppercase tracking-[0.04em] text-[#9a9ab0]">
+                      Role Chair
+                    </p>
+                    <p
+                      className={cn(
+                        "m-0 truncate text-[13px] font-semibold",
+                        row.chairName ? "text-[#3a3a52]" : "text-[#c0392b]"
+                      )}
+                    >
+                      {row.chairName ?? "Not assigned"}
+                    </p>
+                  </div>
                 </div>
               )}
               <span className="hidden text-[12px] font-semibold text-[#5a1da8] sm:inline">

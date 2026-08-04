@@ -112,6 +112,18 @@ describe("evaluateReviewApproval — proposal examples", () => {
     expect(decision.allowed).toBe(false);
     expect(decision.reason).toMatch(/cannot give final approval/i);
   });
+
+  it("allows a mentor who is also Role Chair to finalize their own draft", () => {
+    const decision = evaluateReviewApproval({
+      author: participant("Dana", 6),
+      approver: participant("Dana", 6),
+      subject: participant("Some Mentee", 1),
+      approverIsRoleChair: true,
+    });
+    expect(decision.allowed).toBe(true);
+    expect(decision.viaException).toBe(true);
+    expect(decision.reason).toMatch(/Role Chair/i);
+  });
 });
 
 describe("Board approval review routes", () => {

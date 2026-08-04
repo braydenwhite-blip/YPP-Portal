@@ -10,12 +10,29 @@ import { useRouter } from "next/navigation";
 import type { GoalRatingColor } from "@prisma/client";
 
 import { Button, CardV2 } from "@/components/ui-v2";
+import { PeopleMentorAssignCell } from "@/components/people-strategy/people-mentor-assign-cell";
 import {
   RATING_ORDER,
   getGoalRatingCopy,
 } from "@/lib/mentorship-rubric-copy";
 import { submitMonthlyProgressUpdate } from "@/lib/mentorship/progress-update-actions";
 import type { ProgressRubricContext } from "@/lib/mentorship/progress-rubric";
+
+export type ProgressAssignCandidate = {
+  id: string;
+  name: string;
+  role?: string | null;
+  title?: string | null;
+};
+
+export type ProgressReviewTeamAssign = {
+  canAssign: boolean;
+  mentorId: string | null;
+  chairId: string | null;
+  hasActiveMentorship: boolean;
+  mentorCandidates: ProgressAssignCandidate[];
+  chairCandidates: ProgressAssignCandidate[];
+};
 
 export type ProgressGoalDraft = {
   goalId: string;
@@ -100,17 +117,23 @@ function packPlan(choice: ActionPlanId | null, elaborate: string) {
 function MetaCell({
   label,
   value,
+  action,
 }: {
   label: string;
   value: string | null | undefined;
+  action?: ReactNode;
 }) {
-  if (!value) return null;
+  if (!value && !action) return null;
   return (
     <div className="min-w-0 border-b border-[#f0ecf6] pb-2.5 last:border-b-0 last:pb-0">
       <p className="m-0 text-[11px] font-medium text-ink-muted">{label}</p>
-      <p className="m-0 mt-0.5 text-[13.5px] font-semibold leading-snug text-[#2e1065]">
-        {value}
-      </p>
+      {action ? (
+        <div className="mt-0.5">{action}</div>
+      ) : (
+        <p className="m-0 mt-0.5 text-[13.5px] font-semibold leading-snug text-[#2e1065]">
+          {value}
+        </p>
+      )}
     </div>
   );
 }
@@ -303,6 +326,7 @@ export function ProgressUpdateForm({
   initialPlan,
   initialGoals,
   reviewId,
+  reviewTeamAssign,
 }: {
   mentorshipId: string;
   menteeId: string;
@@ -321,6 +345,8 @@ export function ProgressUpdateForm({
   initialGoals: ProgressGoalDraft[];
   /** Persist into this specific review document when set. */
   reviewId?: string | null;
+  /** When set, Mentor / Role Chair cells become assignable. */
+  reviewTeamAssign?: ProgressReviewTeamAssign | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -493,10 +519,38 @@ export function ProgressUpdateForm({
             <MetaCell
               label="Mentor"
               value={profile.mentorDisplay ?? "Not assigned"}
+              action={
+                reviewTeamAssign?.canAssign ? (
+                  <PeopleMentorAssignCell
+                    menteeId={menteeId}
+                    menteeName={menteeName}
+                    mentorId={reviewTeamAssign.mentorId}
+                    mentorName={profile.mentorDisplay}
+                    candidates={reviewTeamAssign.mentorCandidates}
+                    canAssign
+                    kind="mentor"
+                  />
+                ) : undefined
+              }
             />
             <MetaCell
               label="Role Chair"
               value={profile.chairDisplay ?? "Not assigned"}
+              action={
+                reviewTeamAssign?.canAssign ? (
+                  <PeopleMentorAssignCell
+                    menteeId={menteeId}
+                    menteeName={menteeName}
+                    mentorId={reviewTeamAssign.chairId}
+                    mentorName={profile.chairDisplay}
+                    candidates={reviewTeamAssign.chairCandidates}
+                    canAssign
+                    kind="chair"
+                    requireMentorship
+                    hasActiveMentorship={reviewTeamAssign.hasActiveMentorship}
+                  />
+                ) : undefined
+              }
             />
           </div>
         </div>

@@ -35,26 +35,16 @@ function formatMonthYear(date: Date) {
   });
 }
 
-function cyclePeriodLabel(cycleMonth: Date, isQuarterly: boolean) {
+function cyclePeriodLabel(cycleMonth: Date, _isQuarterly: boolean) {
   const month = cycleMonth.toLocaleDateString("en-US", {
     month: "long",
     year: "numeric",
     timeZone: "UTC",
   });
-  if (!isQuarterly) return { titleCycle: month, period: month };
-
-  const m = cycleMonth.getUTCMonth(); // 0-11
-  const y = cycleMonth.getUTCFullYear();
-  const q = Math.floor(m / 3) + 1;
-  const startMonth = q * 3 - 3;
-  const endMonth = startMonth + 2;
-  const start = new Date(Date.UTC(y, startMonth, 1));
-  const end = new Date(Date.UTC(y, endMonth, 1));
-  const range = `${start.toLocaleDateString("en-US", { month: "short", timeZone: "UTC" })} – ${end.toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" })}`;
-  return {
-    titleCycle: `Q${q} ${y}`,
-    period: `Q${q} ${y} (${range})`,
-  };
+  // Monthly performance reviews use the calendar month under review
+  // (e.g. early August → "July 2026"). Quarterly committee reviews keep
+  // their own quarter keys elsewhere.
+  return { titleCycle: month, period: month };
 }
 
 function reviewSteps(input: {
@@ -299,13 +289,9 @@ export async function loadMenteeHomeDocuments(input: {
 
 export function nextReviewLabel(cycleMonth: Date | null | undefined): string | null {
   if (!cycleMonth) return null;
-  const m = cycleMonth.getUTCMonth();
-  const y = cycleMonth.getUTCFullYear();
-  const q = Math.floor(m / 3) + 1;
-  const startMonth = q * 3 - 3;
-  const endMonth = startMonth + 2;
-  const start = new Date(Date.UTC(y, startMonth, 1));
-  const end = new Date(Date.UTC(y, endMonth, 1));
-  const range = `${start.toLocaleDateString("en-US", { month: "short", timeZone: "UTC" })} – ${end.toLocaleDateString("en-US", { month: "short", timeZone: "UTC" })}`;
-  return `Q${q} ${y} (${range})`;
+  return cycleMonth.toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
 }

@@ -16,7 +16,7 @@
  */
 
 import { revalidatePath } from "next/cache";
-import { MentorshipType, type Prisma } from "@prisma/client";
+import { MentorshipType, SupportRole, type Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { requireSessionUser, hasRole, hasAnyAdminSubtype } from "@/lib/authorization";
@@ -26,6 +26,14 @@ import {
   type CurrentAssignment,
   type FocusArea,
 } from "@/lib/mentorship-transfer";
+
+/** Roles allowed to serve as a pairing Role Chair (matches support-circle rules). */
+const CHAIR_ELIGIBLE_ROLES = new Set([
+  "CHAPTER_PRESIDENT",
+  "ADMIN",
+  "STAFF",
+  "HIRING_CHAIR",
+]);
 
 async function requireMentorshipAssigner() {
   const session = await requireSessionUser();
@@ -284,6 +292,7 @@ export async function reassignPrimaryMentor(
   revalidatePath(`/people/${input.menteeId}`);
   revalidatePath(`/mentorship/people/${input.menteeId}`);
   revalidatePath("/mentorship");
+  revalidatePath("/people");
   revalidatePath("/admin/mentorship");
 
   return { status: "reassigned", mentorshipId: newMentorshipId };
@@ -308,6 +317,138 @@ export async function reassignPrimaryMentorFromForm(formData: FormData): Promise
     reason: String(formData.get("reason") ?? "").trim() || null,
     isTemporary: formData.get("isTemporary") === "on" || formData.get("isTemporary") === "true",
   });
+}
+
+export interface ReassignRoleChairInput {
+  menteeId: string;
+  newChairId: string;
+  reason?: string | null;
+}
+
+export interface ReassignRoleChairResult {
+  status: "reassigned" | "unchanged";
+  mentorshipId: string;
+}
+
+/**
+ * Assign or change the Role Chair on an active mentorship pairing.
+ * Requires an active mentorship (assign a mentor first). Syncs the CHAIR
+ * support-circle seat so review approval routing stays consistent.
+ */
+export async function reassignRoleChair(
+  input: ReassignRoleChairInput
+): Promise<ReassignRoleChairResult> {
+  const session = await requireMentorshipAssigner();
+
+  if (input.menteeId === input.newChairId) {
+    throw new Error("A person cannot be their own Role Chair.");
+  }
+
+  const [mentee, newChair, active] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: input.menteeId },
+      select: { id: true, name: true },
+    }),
+    prisma.user.findUnique({
+      where: { id: input.newChairId },
+      select: {
+        id: true,
+        name: true,
+        primaryRole: true,
+        roles: { select: { role: true } },
+      },
+    }),
+    prisma.mentorship.findFirst({
+      where: { menteeId: input.menteeId, status: "ACTIVE" },
+      select: { id: true, chairId: true, mentorId: true },
+      orderBy: { startDate: "desc" },
+    }),
+  ]);
+
+  if (!mentee) throw new Error("Person not found.");
+  if (!newChair) throw new Error("Chair candidate not found.");
+  if (!active) {
+    throw new Error("Assign a mentor before assigning a Role Chair.");
+  }
+
+  const chairRoles = new Set([
+    newChair.primaryRole,
+    ...newChair.roles.map((entry) => entry.role),
+  ]);
+  if (![...chairRoles].some((role) => CHAIR_ELIGIBLE_ROLES.has(role))) {
+    throw new Error(
+      "Role Chairs must be an admin, staff member, chapter president, or hiring chair."
+    );
+  }
+
+  if (active.chairId === input.newChairId) {
+    return { status: "unchanged", mentorshipId: active.id };
+  }
+
+  if (active.mentorId === input.newChairId) {
+    throw new Error("The mentor and Role Chair must be different people.");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.mentorship.update({
+      where: { id: active.id },
+      data: { chairId: input.newChairId },
+    });
+
+    await tx.mentorshipCircleMember.updateMany({
+      where: {
+        menteeId: input.menteeId,
+        role: SupportRole.CHAIR,
+        isActive: true,
+        userId: { not: input.newChairId },
+      },
+      data: { isActive: false, isPrimary: false, mentorshipId: active.id },
+    });
+
+    await tx.mentorshipCircleMember.upsert({
+      where: {
+        menteeId_userId_role: {
+          menteeId: input.menteeId,
+          userId: input.newChairId,
+          role: SupportRole.CHAIR,
+        },
+      },
+      create: {
+        mentorshipId: active.id,
+        menteeId: input.menteeId,
+        userId: input.newChairId,
+        role: SupportRole.CHAIR,
+        source: "MANUAL_ASSIGNMENT",
+        notes: input.reason?.trim() || null,
+        isPrimary: false,
+        isActive: true,
+      },
+      update: {
+        mentorshipId: active.id,
+        isActive: true,
+        source: "MANUAL_ASSIGNMENT",
+        notes: input.reason?.trim() || null,
+      },
+    });
+  });
+
+  await logAuditEvent({
+    action: "MENTORSHIP_UPDATED",
+    actorId: session.id,
+    targetType: "Mentorship",
+    targetId: active.id,
+    description:
+      `Role Chair for ${mentee.name} assigned to ${newChair.name}` +
+      `${input.reason ? ` — ${input.reason}` : ""}`,
+  });
+
+  revalidatePath(`/people/${input.menteeId}`);
+  revalidatePath(`/mentorship/people/${input.menteeId}`);
+  revalidatePath("/mentorship");
+  revalidatePath("/people");
+  revalidatePath("/admin/mentorship");
+
+  return { status: "reassigned", mentorshipId: active.id };
 }
 
 export interface MentorshipHistoryEntry {

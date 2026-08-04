@@ -237,7 +237,9 @@ export type SimplifiedKanbanCard = {
   /** Cycle-bound meeting logged for the latest reflection (when one exists). */
   mentorCheckInComplete: boolean;
   kickoffPending: boolean;
-  latestRatings: string[]; // GoalRatingColor values
+  /** Overall rating from the latest performance review. */
+  overallRating: string | null;
+  latestRatings: string[]; // GoalRatingColor values (per-goal; fallback)
   softDeadline: Date | null;
   cta: CycleCTA;
 };
@@ -347,6 +349,7 @@ export async function getSimplifiedMentorKanban(): Promise<{
         select: {
           id: true,
           status: true,
+          overallRating: true,
           releasedToMenteeAt: true,
           goalRatings: { select: { rating: true } },
         },
@@ -386,6 +389,7 @@ export async function getSimplifiedMentorKanban(): Promise<{
       reflectionSubmitted: !!latestReflection?.submittedAt,
       mentorCheckInComplete: !!latestReflection?.mentorCycleCheckIn,
       kickoffPending: m.cycleStage === "KICKOFF_PENDING",
+      overallRating: latestReview?.overallRating ?? null,
       latestRatings: latestReview?.goalRatings.map((gr) => gr.rating) ?? [],
       softDeadline: activeStages.includes(m.cycleStage) ? softDeadline : null,
       cta: getCycleStageCTA({

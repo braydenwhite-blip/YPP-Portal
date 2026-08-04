@@ -68,6 +68,8 @@ export async function assertReviewApprovalAuthority(args: {
   approverId: string;
   authorId: string;
   subject: { id: string; name?: string | null };
+  /** Mentors who are also Role Chair may finalize their own draft. */
+  approverIsRoleChair?: boolean;
 }): Promise<ApprovalDecision | null> {
   if (!isReviewAuthorityEnforced()) return null;
 
@@ -88,6 +90,7 @@ export async function assertReviewApprovalAuthority(args: {
     subject,
     selfFinalizeExceptions: exceptions.selfFinalizeExceptions,
     boardApprovalRoutes: exceptions.boardApprovalRoutes,
+    approverIsRoleChair: args.approverIsRoleChair,
   });
 
   if (!decision.allowed) {

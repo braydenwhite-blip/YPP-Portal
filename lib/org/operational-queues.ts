@@ -64,7 +64,7 @@ export async function getReviewsToApproveRows(
       id: r.id,
       title: mentee?.name ?? "Review",
       subtitle: "Awaiting your approval",
-      href: `/mentorship/people/${r.menteeId}?section=reviews&panel=approve`,
+      href: `/mentorship/chair/${r.id}`,
       ageLabel: null,
     };
   });

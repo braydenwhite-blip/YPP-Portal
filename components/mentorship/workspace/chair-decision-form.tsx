@@ -12,10 +12,12 @@ interface Props {
   menteeName: string;
   bonusPoints?: number;
   bonusReason?: string | null;
+  /** Where to send the chair after a successful decision. */
+  afterSuccessHref?: string;
 }
 
 /**
- * Approve / request-changes — inline on ?panel=approve.
+ * Approve / request-changes for chair review.
  * Approval releases the review and awards points in one step.
  */
 export function ChairDecisionForm({
@@ -25,6 +27,7 @@ export function ChairDecisionForm({
   menteeName,
   bonusPoints = 0,
   bonusReason,
+  afterSuccessHref,
 }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -71,7 +74,10 @@ export function ChairDecisionForm({
       try {
         await approveGoalReview(formData);
         setSuccess(`Released. ${totalPoints} points awarded.`);
-        setTimeout(() => router.refresh(), 1000);
+        setTimeout(() => {
+          if (afterSuccessHref) router.push(afterSuccessHref);
+          else router.refresh();
+        }, 800);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to approve");
       }
@@ -92,7 +98,10 @@ export function ChairDecisionForm({
       try {
         await requestReviewChanges(formData);
         setSuccess("Sent back to the mentor.");
-        setTimeout(() => router.refresh(), 1000);
+        setTimeout(() => {
+          if (afterSuccessHref) router.push(afterSuccessHref);
+          else router.refresh();
+        }, 800);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to request changes");
       }

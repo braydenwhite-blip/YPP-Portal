@@ -67,7 +67,7 @@ export async function MonthlyApprovalQueue() {
         {reviews.map((review) => (
           <li key={review.id}>
             <Link
-              href={`/mentorship/people/${review.menteeId}?section=reviews&panel=approve`}
+              href={`/mentorship/chair/${review.id}`}
               className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 no-underline transition-colors hover:bg-surface-soft"
             >
               <div className="min-w-0">

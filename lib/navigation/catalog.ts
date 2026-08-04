@@ -968,8 +968,6 @@ export const NAV_CATALOG: NavLink[] = [
         "Coaching",
         "Mentorship Ops",
         "Mentorship admin",
-        "Chair Queue",
-        "Review Approvals",
         "People",
         "People Hub",
         "People Database",
@@ -986,6 +984,21 @@ export const NAV_CATALOG: NavLink[] = [
         "Mentorship home — role cards plus people workload for leadership.",
       dashboardPriority: 3,
     },
+    {
+      href: "/mentorship/chair",
+      label: "Review Approvals",
+      icon: "✅",
+      roles: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "MENTOR"] as NavRole[],
+      searchAliases: [
+        "Chair Queue",
+        "Approve Reviews",
+        "Pending Reviews",
+        "Chair Approvals",
+      ],
+      dashboardDescription:
+        "Approve mentor performance reviews or send them back with notes.",
+      dashboardPriority: 4,
+    },
     // /my-mentor now redirects to /mentorship?view=me (the mentee POV, which
     // renders natively in-hub). Its old detail subroutes (goals, progress,
     // reflection, schedule, resources, awards, help) redirect to that same
@@ -993,8 +1006,8 @@ export const NAV_CATALOG: NavLink[] = [
     // Retired nav entries (pages still live or redirecting):
     //  - "Review Cycles" (/mentorship/cycles) — the cohort launcher stays a
     //    live leadership page, reached from the admin cockpit's overview.
-    //  - "Review Inbox" (/mentorship/reviews) — now a redirect; the monthly
-    //    approval queue renders on /mentorship itself.
+    //  - "Review Inbox" (/mentorship/reviews) — redirects to Mentorship home;
+    //    chair approvals live at /mentorship/chair.
     //  - "Committee Queue" (/mentorship/committee) — now a redirect; the
     //    quarterly queue renders on /mentorship itself.
     {

@@ -199,7 +199,7 @@ function loopsForFact(
         why: `A review for ${fact.menteeName} is waiting for chair approval.`,
         recommendedMove: "Review and approve, or request changes.",
         resolveLabel: "Open approvals",
-        href: `/mentorship/people/${fact.menteeId}?section=reviews&panel=approve`,
+        href: `/mentorship/chair`,
         signals: baseSignals({ mine: true }),
         statusLabel: "Awaiting approval",
       })

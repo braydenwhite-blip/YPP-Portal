@@ -4,7 +4,10 @@ import { useMemo, useState, useTransition, type MouseEvent } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button, ModalFooterV2, ModalV2, cn } from "@/components/ui-v2";
-import { reassignPrimaryMentor } from "@/lib/mentorship-reassign-actions";
+import {
+  reassignPrimaryMentor,
+  reassignRoleChair,
+} from "@/lib/mentorship-reassign-actions";
 import { formatRoleLabel } from "@/lib/user-title";
 
 type MentorCandidate = {
@@ -14,15 +17,47 @@ type MentorCandidate = {
   title?: string | null;
 };
 
+export type ReviewTeamAssignKind = "mentor" | "chair";
+
 function candidateRoleLabel(c: MentorCandidate): string {
   const title = c.title?.trim();
   if (title) return title;
   return formatRoleLabel(c.role);
 }
 
+const COPY: Record<
+  ReviewTeamAssignKind,
+  {
+    noun: string;
+    unassigned: string;
+    assign: string;
+    change: string;
+    pickError: string;
+    help: string;
+  }
+> = {
+  mentor: {
+    noun: "mentor",
+    unassigned: "Unassigned",
+    assign: "Assign mentor",
+    change: "Change",
+    pickError: "Pick a mentor.",
+    help: "Prior mentorship stays in history — nothing is deleted.",
+  },
+  chair: {
+    noun: "Role Chair",
+    unassigned: "Not assigned",
+    assign: "Assign chair",
+    change: "Change",
+    pickError: "Pick a Role Chair.",
+    help: "The Role Chair approves performance reviews for this pairing.",
+  },
+};
+
 /**
- * Compact mentor cell for the admin People dashboard — shows current mentor
- * and lets officers assign / change without leaving the roster.
+ * Compact review-team cell for the admin People dashboard / progress form —
+ * shows the current mentor or Role Chair and lets officers assign / change
+ * without leaving the page.
  */
 export function PeopleMentorAssignCell({
   menteeId,
@@ -31,6 +66,9 @@ export function PeopleMentorAssignCell({
   mentorName,
   candidates,
   canAssign,
+  kind = "mentor",
+  requireMentorship = false,
+  hasActiveMentorship = true,
 }: {
   menteeId: string;
   menteeName: string;
@@ -38,8 +76,13 @@ export function PeopleMentorAssignCell({
   mentorName: string | null;
   candidates: MentorCandidate[];
   canAssign: boolean;
+  kind?: ReviewTeamAssignKind;
+  /** When true (Role Chair), block assign until a mentorship exists. */
+  requireMentorship?: boolean;
+  hasActiveMentorship?: boolean;
 }) {
   const router = useRouter();
+  const copy = COPY[kind];
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState(mentorId ?? "");
   const [query, setQuery] = useState("");
@@ -58,9 +101,16 @@ export function PeopleMentorAssignCell({
       .slice(0, 80);
   }, [candidates, menteeId, query]);
 
+  const blockedByMissingMentorship =
+    requireMentorship && !hasActiveMentorship;
+
   function openModal(event: MouseEvent) {
     event.stopPropagation();
     event.preventDefault();
+    if (blockedByMissingMentorship) {
+      setError("Assign a mentor first.");
+      return;
+    }
     setSelected(mentorId ?? "");
     setQuery("");
     setError(null);
@@ -69,21 +119,37 @@ export function PeopleMentorAssignCell({
 
   function save() {
     if (!selected) {
-      setError("Pick a mentor.");
+      setError(copy.pickError);
       return;
     }
     setError(null);
     startTransition(async () => {
       try {
-        await reassignPrimaryMentor({
-          menteeId,
-          newMentorId: selected,
-          reason: mentorId ? "Changed from People dashboard" : "Assigned from People dashboard",
-        });
+        if (kind === "chair") {
+          await reassignRoleChair({
+            menteeId,
+            newChairId: selected,
+            reason: mentorId
+              ? "Changed from People dashboard"
+              : "Assigned from People dashboard",
+          });
+        } else {
+          await reassignPrimaryMentor({
+            menteeId,
+            newMentorId: selected,
+            reason: mentorId
+              ? "Changed from People dashboard"
+              : "Assigned from People dashboard",
+          });
+        }
         setOpen(false);
         router.refresh();
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Could not update mentor.");
+        setError(
+          e instanceof Error
+            ? e.message
+            : `Could not update ${copy.noun}.`
+        );
       }
     });
   }
@@ -98,16 +164,23 @@ export function PeopleMentorAssignCell({
           )}
           title={mentorName ?? undefined}
         >
-          {mentorName ?? "Unassigned"}
+          {mentorName ?? copy.unassigned}
         </span>
         {canAssign ? (
-          <button
-            type="button"
-            onClick={openModal}
-            className="w-fit border-0 bg-transparent p-0 text-left text-[12px] font-semibold text-brand-700 hover:text-brand-800 hover:underline"
-          >
-            {mentorName ? "Change" : "Assign mentor"}
-          </button>
+          blockedByMissingMentorship ? (
+            <span className="text-[12px] text-[#9a9ab0]">Assign mentor first</span>
+          ) : (
+            <button
+              type="button"
+              onClick={openModal}
+              className="w-fit border-0 bg-transparent p-0 text-left text-[12px] font-semibold text-brand-700 hover:text-brand-800 hover:underline"
+            >
+              {mentorName ? copy.change : copy.assign}
+            </button>
+          )
+        ) : null}
+        {error && !open ? (
+          <p className="m-0 text-[11px] font-medium text-danger-700">{error}</p>
         ) : null}
       </div>
 
@@ -116,7 +189,7 @@ export function PeopleMentorAssignCell({
         onClose={() => {
           if (!pending) setOpen(false);
         }}
-        labelledBy={`assign-mentor-${menteeId}`}
+        labelledBy={`assign-${kind}-${menteeId}`}
         locked={pending}
         size="sm"
         role="dialog"
@@ -124,13 +197,13 @@ export function PeopleMentorAssignCell({
         <div className="flex flex-col gap-3" onClick={(e) => e.stopPropagation()}>
           <div>
             <h2
-              id={`assign-mentor-${menteeId}`}
+              id={`assign-${kind}-${menteeId}`}
               className="m-0 text-[17px] font-semibold text-ink"
             >
-              {mentorName ? "Change mentor" : "Assign mentor"}
+              {mentorName ? `Change ${copy.noun}` : `Assign ${copy.noun}`}
             </h2>
             <p className="m-0 mt-1 text-[13px] text-ink-muted">
-              For {menteeName}. Prior mentorship stays in history — nothing is deleted.
+              For {menteeName}. {copy.help}
             </p>
           </div>
 
@@ -162,7 +235,7 @@ export function PeopleMentorAssignCell({
                     >
                       <input
                         type="radio"
-                        name={`mentor-${menteeId}`}
+                        name={`${kind}-${menteeId}`}
                         className="size-4 shrink-0 accent-brand-600"
                         checked={checked}
                         onChange={() => setSelected(c.id)}

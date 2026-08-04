@@ -37,6 +37,7 @@ export function PeoplePerformanceClient({
   quarter,
   quarterlyEnabled,
   mentorCandidates = [],
+  chairCandidates = [],
   canAssignMentors = false,
 }: {
   rows: PeoplePerformanceRow[];
@@ -55,6 +56,12 @@ export function PeoplePerformanceClient({
   quarter: string;
   quarterlyEnabled: boolean;
   mentorCandidates?: Array<{
+    id: string;
+    name: string;
+    role?: string | null;
+    title?: string | null;
+  }>;
+  chairCandidates?: Array<{
     id: string;
     name: string;
     role?: string | null;
@@ -117,6 +124,7 @@ export function PeoplePerformanceClient({
               quarterlyEnabled={quarterlyEnabled}
               personHrefBase={personHrefBase}
               mentorCandidates={mentorCandidates}
+              chairCandidates={chairCandidates}
               canAssignMentors={canAssignMentors}
             />
             <PeopleReviewsPagination total={sortedRows.length} page={page} basePath={basePath} />

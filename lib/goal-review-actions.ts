@@ -971,12 +971,13 @@ export async function approveGoalReview(formData: FormData) {
   if (review.status === "APPROVED") throw new Error("Already approved");
 
   // Phase 1 (org authority spine): when ORG_REVIEW_AUTHORITY_ENFORCED is on,
-  // require the approver to outrank the drafting mentor (or hold a configured
-  // self-finalize exception). No-op by default, so behavior is unchanged.
+  // require the approver to outrank the drafting mentor — unless they are also
+  // the Role Chair (already verified above), which is a normal dual-hat case.
   await assertReviewApprovalAuthority({
     approverId: session.user.id,
     authorId: review.mentor.id,
     subject: { id: review.mentee.id, name: review.mentee.name },
+    approverIsRoleChair: true,
   });
 
   const menteeRoleType = toMenteeRoleType(review.mentee.primaryRole);

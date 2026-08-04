@@ -7,22 +7,29 @@ type RoleChooserProps = {
   mentorHref?: string | null;
   /** Leadership people/workload roster. */
   peopleHref?: string | null;
+  /** Role Chair approvals queue — only for assigned Role Chairs. */
+  chairHref?: string | null;
   /** People this viewer mentors (shown on the Mentor card). */
   menteeNames?: string[];
   /** This viewer's own mentor (shown on the Mentee card). */
   mentorName?: string | null;
+  /** Pending reviews waiting on this Role Chair (optional detail). */
+  chairPendingCount?: number;
 };
 
 /**
- * Mentorship home — pick Mentor workspace, your mentee home, and/or the
- * leadership People roster depending on what the viewer actually holds.
+ * Mentorship home — pick Mentor workspace, your mentee home, Role Chair
+ * approvals, and/or the leadership People roster depending on what the
+ * viewer actually holds.
  */
 export function MentorshipRoleChooser({
   menteeHref,
   mentorHref,
   peopleHref,
+  chairHref,
   menteeNames = [],
   mentorName,
+  chairPendingCount = 0,
 }: RoleChooserProps) {
   const cards: {
     key: string;
@@ -50,12 +57,25 @@ export function MentorshipRoleChooser({
       detail: mentorName ? `Mentor: ${mentorName}` : null,
     });
   }
+  if (chairHref) {
+    cards.push({
+      key: "chair",
+      href: chairHref,
+      title: "Review Approvals",
+      description:
+        "Approve performance reviews sent to you as Role Chair, or send them back.",
+      detail:
+        chairPendingCount > 0
+          ? `${chairPendingCount} waiting`
+          : "You're caught up",
+    });
+  }
   if (peopleHref) {
     cards.push({
       key: "people",
       href: peopleHref,
-      title: "Everyone",
-      description: "See who needs a check-in across the mentorship roster.",
+      title: "Admin Hub",
+      description: "Find someone. See if they need a review or a mentor.",
       detail: null,
     });
   }
@@ -69,7 +89,7 @@ export function MentorshipRoleChooser({
           "grid gap-4",
           cards.length === 1 && "mx-auto max-w-md sm:grid-cols-1",
           cards.length === 2 && "sm:grid-cols-2",
-          cards.length >= 3 && "sm:grid-cols-2 lg:grid-cols-3"
+          cards.length >= 3 && "sm:grid-cols-2 lg:grid-cols-3",
         )}
       >
         {cards.map((card) => (

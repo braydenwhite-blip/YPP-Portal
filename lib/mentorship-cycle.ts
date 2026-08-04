@@ -1,7 +1,10 @@
 /**
  * Mentorship cycle helpers.
  *
- * Calendar-month anchored: cycleMonth is the first day of the month UTC.
+ * Calendar-month anchored: cycleMonth is the first day of the month under
+ * review (UTC). Mentors close out the prior calendar month — e.g. at the
+ * beginning of August the active cycle is July.
+ *
  * cycleNumber is sequential from the mentorship kickoff; multiples of 3 are
  * quarterly cycles in the modern pipeline.
  *
@@ -19,16 +22,22 @@ import type {
 import { prisma } from "@/lib/prisma";
 
 export type CycleMonthInfo = {
-  /** First day of the current calendar month, UTC midnight. */
+  /** First day of the month under review, UTC midnight. */
   cycleMonth: Date;
   /** YYYY-MM string for comparison. */
   cycleMonthKey: string;
-  /** Human label, e.g. "April 2026". */
+  /** Human label, e.g. "July 2026". */
   cycleLabel: string;
 };
 
+/**
+ * Active review cycle = prior calendar month.
+ * Beginning of August → July cycle (you review July's work).
+ */
 export function getCurrentCycleMonth(date: Date = new Date()): CycleMonthInfo {
-  const cycleMonth = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+  const cycleMonth = new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth() - 1, 1),
+  );
   const cycleMonthKey = `${cycleMonth.getUTCFullYear()}-${String(cycleMonth.getUTCMonth() + 1).padStart(2, "0")}`;
   const cycleLabel = cycleMonth.toLocaleDateString("en-US", {
     month: "long",

@@ -6,16 +6,21 @@ import { useRouter } from "next/navigation";
 import { Button, ModalFooterV2, ModalV2 } from "@/components/ui-v2";
 import { createPerformanceReviewDocument } from "@/lib/mentorship/review-document-actions";
 
-function currentMonthKey() {
-  const now = new Date();
-  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+function reviewCoverageMonthKey(date: Date = new Date()) {
+  // Early in a month you close out the prior month (beg of Aug → July).
+  const prior = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() - 1, 1));
+  return `${prior.getUTCFullYear()}-${String(prior.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
 function defaultTitleFromMonthKey(monthKey: string) {
   const [y, m] = monthKey.split("-").map(Number);
   if (!y || !m) return "Performance Review";
-  const q = Math.floor((m - 1) / 3) + 1;
-  return `Q${q} ${y} Performance Review`;
+  const label = new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+  return `${label} Performance Review`;
 }
 
 const fieldClass =
@@ -38,9 +43,9 @@ export function NewReviewDocumentButton({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
-  const [monthKey, setMonthKey] = useState(currentMonthKey);
+  const [monthKey, setMonthKey] = useState(reviewCoverageMonthKey);
   const [title, setTitle] = useState(() =>
-    defaultTitleFromMonthKey(currentMonthKey()),
+    defaultTitleFromMonthKey(reviewCoverageMonthKey()),
   );
   const [titleTouched, setTitleTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +56,7 @@ export function NewReviewDocumentButton({
   );
 
   function openModal() {
-    const key = currentMonthKey();
+    const key = reviewCoverageMonthKey();
     setMonthKey(key);
     setTitle(defaultTitleFromMonthKey(key));
     setTitleTouched(false);

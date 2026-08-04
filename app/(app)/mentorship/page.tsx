@@ -38,7 +38,7 @@ import { prisma } from "@/lib/prisma";
  * Mentorship hub — mentors, mentees, and leadership.
  *
  *   (home)  → role cards for whatever sides the viewer holds
- *   people  → org-wide People & workload roster
+ *   people  → Mentorship Admin Hub (officer roster)
  *   mentor  → coaching console
  *   admin   → G&R templates
  *   me      → own development workspace (/mentorship/people/[id])
@@ -110,19 +110,36 @@ export default async function MentorshipPage(
     };
     const showPeopleCard = isPeopleDashboardEnabled() && isOfficerTier(hubViewer);
 
-    const [asMentee, asMentor] = await Promise.all([
-      prisma.mentorship.findFirst({
-        where: { menteeId: userId, status: "ACTIVE" },
-        orderBy: { startDate: "desc" },
-        select: { mentor: { select: { name: true } } },
-      }),
-      prisma.mentorship.findMany({
-        where: { status: "ACTIVE", mentorId: userId },
-        select: { mentee: { select: { name: true } } },
-        orderBy: { mentee: { name: "asc" } },
-        take: 8,
-      }),
-    ]);
+    const [asMentee, asMentor, laneChairRow, pairingChairCount, pendingForChair] =
+      await Promise.all([
+        prisma.mentorship.findFirst({
+          where: { menteeId: userId, status: "ACTIVE" },
+          orderBy: { startDate: "desc" },
+          select: { mentor: { select: { name: true } } },
+        }),
+        prisma.mentorship.findMany({
+          where: { status: "ACTIVE", mentorId: userId },
+          select: { mentee: { select: { name: true } } },
+          orderBy: { mentee: { name: "asc" } },
+          take: 8,
+        }),
+        // Real Role Chair assignment only — not admin bypass.
+        prisma.mentorCommitteeChair.findFirst({
+          where: { userId, isActive: true },
+          select: { id: true },
+        }),
+        prisma.mentorship.count({
+          where: { chairId: userId, status: "ACTIVE" },
+        }),
+        prisma.mentorGoalReview.count({
+          where: {
+            status: "PENDING_CHAIR_APPROVAL",
+            mentorship: { chairId: userId },
+          },
+        }),
+      ]);
+
+    const isAssignedRoleChair = Boolean(laneChairRow) || pairingChairCount > 0;
 
     const menteeNames = asMentor
       .map((row) => row.mentee.name)
@@ -138,6 +155,8 @@ export default async function MentorshipPage(
           mentorHref={showMentorCard ? povHref("mentor") : null}
           menteeHref={showMenteeCard ? `/mentorship/people/${userId}` : null}
           peopleHref={showPeopleCard ? "/mentorship?view=people" : null}
+          chairHref={isAssignedRoleChair ? "/mentorship/chair" : null}
+          chairPendingCount={isAssignedRoleChair ? pendingForChair : 0}
           mentorName={asMentee?.mentor.name ?? null}
           menteeNames={menteeNames}
         />
@@ -145,7 +164,7 @@ export default async function MentorshipPage(
     );
   }
 
-  // People & workload — officer-tier roster (Admin / Staff / CP / Hiring Chair).
+  // Mentorship Admin Hub — officer-tier roster (Admin / Staff / CP / Hiring Chair).
   if (requestedView === "people") {
     const hubViewer: ActionViewer = {
       id: userId,
@@ -160,8 +179,8 @@ export default async function MentorshipPage(
     return (
       <div className={`${skin.portalSkin} flex flex-col gap-6`}>
         <PageHeaderV2
-          eyebrow="Admin"
-          title="People"
+          eyebrow="Mentorship"
+          title="Admin Hub"
           subtitle="Find someone. See if they need a review or a mentor. Tap to open."
           backHref="/mentorship"
           backLabel="Mentorship"
@@ -280,6 +299,7 @@ export default async function MentorshipPage(
       cycleStage: card.cycleStage,
       kickoffPending: card.kickoffPending,
       mentorCheckInComplete: card.mentorCheckInComplete,
+      overallRating: card.overallRating,
       latestRatings: card.latestRatings,
     })),
     sessions: engagement.upcomingSessions.map((s) => ({

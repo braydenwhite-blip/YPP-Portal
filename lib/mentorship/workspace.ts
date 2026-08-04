@@ -163,9 +163,11 @@ export type MentorshipWorkspace = {
    * status, owner, and available actions — organizing element for the page. */
   cycleState: CycleState;
   overview: {
+    mentorId: string | null;
     mentorName: string | null;
     mentorEmail: string | null;
     mentorTitle: string | null;
+    chairId: string | null;
     chairName: string | null;
     chairEmail: string | null;
     chairTitle: string | null;
@@ -1006,9 +1008,11 @@ export async function loadMentorshipWorkspace(
     cycleStrip,
     cycleState,
     overview: {
+      mentorId: access.activeMentorship?.mentorId ?? null,
       mentorName: lifecycle.mentorName,
       mentorEmail: access.activeMentorship?.mentor.email ?? null,
       mentorTitle,
+      chairId: access.activeMentorship?.chairId ?? null,
       chairName:
         access.activeMentorship?.chair?.name ||
         access.activeMentorship?.chair?.email ||
@@ -1020,17 +1024,7 @@ export async function loadMentorshipWorkspace(
       upcomingFollowUp: nextFollowUp
         ? { label: "Upcoming follow-up", dateLabel: dateLabel(nextFollowUp) }
         : null,
-      nextReviewLabel: (() => {
-        const m = cycleMonth.getUTCMonth();
-        const y = cycleMonth.getUTCFullYear();
-        const q = Math.floor(m / 3) + 1;
-        const startMonth = q * 3 - 3;
-        const endMonth = startMonth + 2;
-        const start = new Date(Date.UTC(y, startMonth, 1));
-        const end = new Date(Date.UTC(y, endMonth, 1));
-        const range = `${start.toLocaleDateString("en-US", { month: "short", timeZone: "UTC" })} – ${end.toLocaleDateString("en-US", { month: "short", timeZone: "UTC" })}`;
-        return `Q${q} ${y} (${range})`;
-      })(),
+      nextReviewLabel: cycleLabel,
       coachingPlan,
       record,
     },

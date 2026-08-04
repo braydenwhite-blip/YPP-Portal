@@ -10,6 +10,7 @@ import { resolveWorkspaceAccess } from "@/lib/mentorship/workspace";
 import { getGoalRatingCopy } from "@/lib/mentorship-rubric-copy";
 import { buildGRMentorList, buildGROfficerInfo } from "@/lib/gr-contact";
 import { toMenteeRoleType } from "@/lib/mentee-role-utils";
+import { getCurrentCycleMonth } from "@/lib/mentorship-cycle";
 import { z } from "zod";
 
 // Local structural fallback type references protect compilers from generated prisma variations
@@ -1766,9 +1767,7 @@ export async function getCurrentGRSummary(personId: string): Promise<CurrentGRSu
 }
 
 function getCurrentCycleMonthLabel(): string {
-  const now = new Date();
-  const nextMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
-  return nextMonth.toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
+  return getCurrentCycleMonth().cycleLabel;
 }
 
 // ============================================

@@ -79,25 +79,50 @@ export async function PeopleReviewsPage({
   const page = typeof sp.page === "string" ? Math.max(1, Number.parseInt(sp.page, 10) || 1) : 1;
   const tableFilters = parsePeopleReviewsTableFilters(sp);
 
-  const [{ rows, currentQuarter, currentMonthKey }, mentorCandidates] = await Promise.all([
-    loadPeoplePerformance(),
-    prisma.user.findMany({
-      where: {
-        archivedAt: null,
-        OR: [
-          {
-            primaryRole: {
-              in: ["ADMIN", "STAFF", "MENTOR", "CHAPTER_PRESIDENT", "HIRING_CHAIR"],
+  const [{ rows, currentQuarter, currentMonthKey }, mentorCandidates, chairCandidates] =
+    await Promise.all([
+      loadPeoplePerformance(),
+      prisma.user.findMany({
+        where: {
+          archivedAt: null,
+          OR: [
+            {
+              primaryRole: {
+                in: ["ADMIN", "STAFF", "MENTOR", "CHAPTER_PRESIDENT", "HIRING_CHAIR"],
+              },
             },
-          },
-          { mentorPairs: { some: { status: "ACTIVE" } } },
-        ],
-      },
-      select: { id: true, name: true, primaryRole: true, title: true, canonicalTitle: true },
-      orderBy: { name: "asc" },
-      take: 400,
-    }),
-  ]);
+            { mentorPairs: { some: { status: "ACTIVE" } } },
+          ],
+        },
+        select: { id: true, name: true, primaryRole: true, title: true, canonicalTitle: true },
+        orderBy: { name: "asc" },
+        take: 400,
+      }),
+      prisma.user.findMany({
+        where: {
+          archivedAt: null,
+          OR: [
+            {
+              primaryRole: {
+                in: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"],
+              },
+            },
+            {
+              roles: {
+                some: {
+                  role: {
+                    in: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"],
+                  },
+                },
+              },
+            },
+          ],
+        },
+        select: { id: true, name: true, primaryRole: true, title: true, canonicalTitle: true },
+        orderBy: { name: "asc" },
+        take: 400,
+      }),
+    ]);
   const visible = filterPerformanceRows(rows, view, q, tableFilters);
   const filterOptions = collectPeopleReviewsFilterOptions(rows);
 
@@ -125,6 +150,12 @@ export async function PeopleReviewsPage({
     ]);
 
   const candidateOptions = mentorCandidates.map((c) => ({
+    id: c.id,
+    name: c.name?.trim() || "Unknown",
+    role: c.primaryRole,
+    title: c.title?.trim() || c.canonicalTitle?.trim() || null,
+  }));
+  const chairCandidateOptions = chairCandidates.map((c) => ({
     id: c.id,
     name: c.name?.trim() || "Unknown",
     role: c.primaryRole,
@@ -182,6 +213,7 @@ export async function PeopleReviewsPage({
           quarter={currentQuarter}
           quarterlyEnabled={quarterlyEnabled}
           mentorCandidates={candidateOptions}
+          chairCandidates={chairCandidateOptions}
           canAssignMentors={canAssignMentors}
         />
       </Suspense>

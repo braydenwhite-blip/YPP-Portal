@@ -188,7 +188,7 @@ function candidatesForFact(
         `Share ${fact.menteeName}'s feedback`,
         `Feedback for ${fact.menteeName} is waiting for chair approval.`,
         "Open approvals",
-        workspaceHref(fact.menteeId, "section=reviews&panel=approve"),
+        "/mentorship/chair",
         "attention",
         now
       )

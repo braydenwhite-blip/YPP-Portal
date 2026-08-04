@@ -19,10 +19,12 @@ function monthStartFromKey(monthKey: string): Date {
 }
 
 function defaultTitleForMonth(cycleMonth: Date): string {
-  const y = cycleMonth.getUTCFullYear();
-  const m = cycleMonth.getUTCMonth();
-  const q = Math.floor(m / 3) + 1;
-  return `Q${q} ${y} Performance Review`;
+  const label = cycleMonth.toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+  return `${label} Performance Review`;
 }
 
 async function assertCanComposeReview(

@@ -8,7 +8,8 @@
  * Proposal rules encoded here:
  *   - The approver must be in a HIGHER role than the person being reviewed.
  *   - A mentor should not normally finalize a review they drafted
- *     (conflict of interest), UNLESS a self-finalize exception applies.
+ *     (conflict of interest), UNLESS they are also the Role Chair for that
+ *     review, or a self-finalize exception applies.
  *   - Officer and Senior Officer reviews require Board approval.
  *   - Board-on-Board: when the subject is a Board Member (top level), another
  *     (different) Board Member may approve at the same level.
@@ -84,8 +85,21 @@ export function evaluateReviewApproval(args: {
   /** Overrides for the built-in exception lists — merge in admin-configured rows. */
   selfFinalizeExceptions?: SelfFinalizeException[];
   boardApprovalRoutes?: BoardApprovalReviewRoute[];
+  /**
+   * When true, the approver is acting as Role Chair (already authorized by the
+   * chair gate). Mentors who are also Role Chair may finalize their own draft.
+   */
+  approverIsRoleChair?: boolean;
 }): ApprovalDecision {
-  const { approver, author, subject, now, selfFinalizeExceptions, boardApprovalRoutes } = args;
+  const {
+    approver,
+    author,
+    subject,
+    now,
+    selfFinalizeExceptions,
+    boardApprovalRoutes,
+    approverIsRoleChair = false,
+  } = args;
 
   // Fail open while the org-authority spine is being populated: if either the
   // approver or subject role is unknown we cannot evaluate the comparison,
@@ -106,6 +120,14 @@ export function evaluateReviewApproval(args: {
   const isSelf = refsMatch(approver.ref, author.ref);
 
   if (isSelf) {
+    if (approverIsRoleChair) {
+      return {
+        allowed: true,
+        viaException: true,
+        reason:
+          "Approver is also the Role Chair for this review, so they may finalize their own draft.",
+      };
+    }
     const exception = findSelfFinalizeException(
       author.ref,
       subject.ref,

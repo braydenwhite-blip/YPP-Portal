@@ -27,7 +27,13 @@ describe("headlineRatingColor", () => {
     expect(headlineRatingColor([])).toBeNull();
   });
 
-  it("leads with the most-actionable (lowest) rating", () => {
+  it("prefers the overall rating over per-goal ratings", () => {
+    expect(
+      headlineRatingColor(["ACHIEVED", "BEHIND_SCHEDULE"], "ABOVE_AND_BEYOND"),
+    ).toBe("ABOVE_AND_BEYOND");
+  });
+
+  it("falls back to the most-actionable (lowest) per-goal rating", () => {
     expect(headlineRatingColor(["ACHIEVED", "BEHIND_SCHEDULE", "ABOVE_AND_BEYOND"])).toBe(
       "BEHIND_SCHEDULE"
     );
@@ -89,14 +95,19 @@ describe("mentorCardsToFacts", () => {
     expect(fact.sessions.map((s) => s.id)).toEqual(["s1"]);
   });
 
-  it("carries the headline rubric color through", () => {
+  it("carries the overall rating through as the row badge", () => {
     const [fact] = mentorCardsToFacts({
       viewerId: "u-mentor",
       viewerName: "You",
-      cards: [card({ latestRatings: ["ACHIEVED", "BEHIND_SCHEDULE"] })],
+      cards: [
+        card({
+          overallRating: "ACHIEVED",
+          latestRatings: ["ACHIEVED", "BEHIND_SCHEDULE"],
+        }),
+      ],
       sessions: [],
     });
-    expect(fact.releasedColorStatus).toBe("BEHIND_SCHEDULE");
+    expect(fact.releasedColorStatus).toBe("ACHIEVED");
   });
 });
 

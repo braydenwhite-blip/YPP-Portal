@@ -29,6 +29,7 @@ import {
   ProgressUpdateForm,
   type ProgressEmployeeProfile,
   type ProgressGoalDraft,
+  type ProgressReviewTeamAssign,
 } from "./progress-update-form";
 import { ShareProgressUpdateControls } from "./share-progress-update";
 import {
@@ -55,22 +56,13 @@ function monthKey(value: Date) {
   return `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
-/** e.g. "Q3 2026 Review (Jul – Sep)" to match the performance-review mockup. */
+/** e.g. "July 2026" — monthly performance review covers the prior calendar month. */
 function formatReviewPeriodLabel(cycleMonth: Date): string {
-  const y = cycleMonth.getUTCFullYear();
-  const m = cycleMonth.getUTCMonth();
-  const q = Math.floor(m / 3) + 1;
-  const start = new Date(Date.UTC(y, q * 3 - 3, 1));
-  const end = new Date(Date.UTC(y, q * 3 - 1, 1));
-  const startLabel = start.toLocaleDateString("en-US", {
-    month: "short",
+  return cycleMonth.toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
     timeZone: "UTC",
   });
-  const endLabel = end.toLocaleDateString("en-US", {
-    month: "short",
-    timeZone: "UTC",
-  });
-  return `Q${q} ${y} Review (${startLabel} – ${endLabel})`;
 }
 
 type ComposeState = {
@@ -116,6 +108,79 @@ export async function ProgressUpdateSection({
     (workspace.isMentor ||
       capabilities.canDraftReview ||
       workspace.isAdmin);
+
+  // Mentor / Role Chair edits on this form are admin-only.
+  const canAssignReviewTeam = workspace.isAdmin;
+
+  let reviewTeamAssign: ProgressReviewTeamAssign | null = null;
+  if (canAssignReviewTeam) {
+    const [mentorCandidates, chairCandidates] = await Promise.all([
+      prisma.user.findMany({
+        where: {
+          archivedAt: null,
+          id: { not: person.id },
+          OR: [
+            {
+              primaryRole: {
+                in: ["ADMIN", "STAFF", "MENTOR", "CHAPTER_PRESIDENT", "HIRING_CHAIR"],
+              },
+            },
+            { mentorPairs: { some: { status: "ACTIVE" } } },
+          ],
+        },
+        select: { id: true, name: true, primaryRole: true, title: true, canonicalTitle: true },
+        orderBy: { name: "asc" },
+        take: 400,
+      }),
+      prisma.user.findMany({
+        where: {
+          archivedAt: null,
+          id: { not: person.id },
+          OR: [
+            {
+              primaryRole: {
+                in: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"],
+              },
+            },
+            {
+              roles: {
+                some: {
+                  role: {
+                    in: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"],
+                  },
+                },
+              },
+            },
+          ],
+        },
+        select: { id: true, name: true, primaryRole: true, title: true, canonicalTitle: true },
+        orderBy: { name: "asc" },
+        take: 400,
+      }),
+    ]);
+
+    const mapCandidate = (c: {
+      id: string;
+      name: string | null;
+      primaryRole: string | null;
+      title: string | null;
+      canonicalTitle: string | null;
+    }) => ({
+      id: c.id,
+      name: c.name?.trim() || "Unknown",
+      role: c.primaryRole,
+      title: c.title?.trim() || c.canonicalTitle?.trim() || null,
+    });
+
+    reviewTeamAssign = {
+      canAssign: true,
+      mentorId: workspace.overview.mentorId,
+      chairId: workspace.overview.chairId,
+      hasActiveMentorship: Boolean(activeMentorshipId),
+      mentorCandidates: mentorCandidates.map(mapCandidate),
+      chairCandidates: chairCandidates.map(mapCandidate),
+    };
+  }
 
   const allCopies = await prisma.mentorGoalReview.findMany({
     where: {
@@ -227,12 +292,11 @@ export async function ProgressUpdateSection({
     formatReviewPeriodLabel(compose?.cycleMonth ?? selectedCycleMonth);
 
   const copyOptions: ReviewCopyOption[] = allCopies.map((c) => {
-    const { titleCycle } = (() => {
-      const y = c.cycleMonth.getUTCFullYear();
-      const m = c.cycleMonth.getUTCMonth();
-      const q = Math.floor(m / 3) + 1;
-      return { titleCycle: `Q${q} ${y}` };
-    })();
+    const titleCycle = c.cycleMonth.toLocaleDateString("en-US", {
+      month: "long",
+      year: "numeric",
+      timeZone: "UTC",
+    });
     const title =
       readReviewDocumentTitle(c.nextMonthGoalDraftsJson) ||
       `${titleCycle} Performance Review`;
@@ -267,10 +331,7 @@ export async function ProgressUpdateSection({
             canEditMeta={Boolean(activeReviewId) && !lockedApproved}
             initialTitle={
               compose.documentTitle?.trim() ||
-              formatReviewPeriodLabel(compose.cycleMonth).replace(
-                / Review.*/,
-                " Performance Review",
-              )
+              `${formatReviewPeriodLabel(compose.cycleMonth)} Performance Review`
             }
             initialMonthKey={monthKeyValue(compose.cycleMonth)}
           />
@@ -335,6 +396,7 @@ export async function ProgressUpdateSection({
           initialPlan={compose.draft.plan}
           initialGoals={compose.draft.goals}
           reviewId={compose.existingReviewId}
+          reviewTeamAssign={reviewTeamAssign}
         />
 
         {released.length > 0 ? (

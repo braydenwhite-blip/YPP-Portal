@@ -28,7 +28,9 @@ export type MentorHomeCardInput = {
   kickoffPending: boolean;
   /** Cycle-bound meeting logged for the latest reflection. */
   mentorCheckInComplete?: boolean;
-  /** GoalRatingColor values from the latest review (may be empty). */
+  /** Overall rating from the latest performance review (preferred for the row badge). */
+  overallRating?: GoalRatingColor | string | null;
+  /** Per-goal ratings from the latest review (fallback when overall is missing). */
   latestRatings: string[];
 };
 
@@ -50,11 +52,16 @@ const RATING_SEVERITY: Record<string, number> = {
 };
 
 /**
- * The single headline rubric color for a relationship row: the most actionable
- * (lowest-severity) rating, so a calm list leads with what needs support
- * instead of burying it behind a healthy average. Null when no rating exists.
+ * Rubric color for a mentee row: prefer the review's overall rating.
+ * Falls back to the most-actionable (lowest) per-goal rating when overall is missing.
  */
-export function headlineRatingColor(ratings: string[]): GoalRatingColor | null {
+export function headlineRatingColor(
+  ratings: string[],
+  overallRating?: string | null,
+): GoalRatingColor | null {
+  if (overallRating && overallRating in RATING_SEVERITY) {
+    return overallRating as GoalRatingColor;
+  }
   let worst: string | null = null;
   for (const rating of ratings) {
     if (!(rating in RATING_SEVERITY)) continue;
@@ -107,7 +114,10 @@ export function mentorCardsToFacts({
     status: "ACTIVE",
     cycleStage: card.cycleStage,
     cycleNumber: 0,
-    releasedColorStatus: headlineRatingColor(card.latestRatings),
+    releasedColorStatus: headlineRatingColor(
+      card.latestRatings,
+      card.overallRating ?? null,
+    ),
     kickoffCompleted:
       !card.kickoffPending && card.cycleStage !== "KICKOFF_PENDING",
     reflectionDue: card.cycleStage === "REFLECTION_DUE",

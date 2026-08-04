@@ -1,24 +1,25 @@
 import { redirect } from "next/navigation";
 
-import { getReviewForChair } from "@/lib/goal-review-actions";
+import { ChairReviewDetail } from "@/components/mentorship/chair/chair-review-detail";
+import { getSessionUser } from "@/lib/auth-supabase";
+
+export const dynamic = "force-dynamic";
+export const metadata = { title: "Chair Review — YPP Mentorship" };
 
 /**
- * Retired: chair approval is now an in-page panel on /people/[id] (the
- * "Approve" control inside the Active Review Cycle flow) — the chair
- * approves a coherent packet without leaving the person's page, not on a
- * separate destination. getReviewForChair() re-runs the same
- * chair-or-admin authorization check this page always had, so this redirect
- * never leaks which mentee a reviewId belongs to to an unauthorized viewer.
+ * Dedicated chair review packet for a single MentorGoalReview.
+ * Notification links land here after "Send Review to Chair".
  */
-export default async function ChairReviewDetailRedirect({
+export default async function ChairReviewPage({
   params,
 }: {
   params: Promise<{ reviewId: string }>;
 }) {
+  const viewer = await getSessionUser();
   const { reviewId } = await params;
+  if (!viewer) {
+    redirect(`/login?next=/mentorship/chair/${encodeURIComponent(reviewId)}`);
+  }
 
-  const review = await getReviewForChair(reviewId);
-  if (!review) redirect("/mentorship");
-
-  redirect(`/mentorship/people/${review.menteeId}?section=reviews&panel=approve`);
+  return <ChairReviewDetail reviewId={reviewId} />;
 }

@@ -204,10 +204,10 @@ export type LifecycleHrefs = {
 };
 
 /**
- * `/mentorship/people/[id]` is the canonical destination for a person's whole Review &
- * G&R flow — every href the lifecycle engine bakes into `nextAction`/
- * `cycleStrip`/`cycleState` points there (with a `?panel=` for the
- * approve in-page panel). Progress updates are composed on `?section=progress`.
+ * `/mentorship/people/[id]` is the canonical destination for a person's Review &
+ * G&R flow. Chair approval of submitted monthly reviews lives at
+ * `/mentorship/chair` (queue) and `/mentorship/chair/[reviewId]` (packet).
+ * Progress updates are composed on `?section=progress`.
  */
 export function defaultLifecycleHrefs(menteeId: string): LifecycleHrefs {
   const base = `/mentorship/people/${menteeId}`;
@@ -217,7 +217,7 @@ export function defaultLifecycleHrefs(menteeId: string): LifecycleHrefs {
     recordMentorCheckIn: `${base}?section=check-ins&panel=cycle-check-in`,
     adminMatching: `${base}?panel=setup`,
     adminGoals: `${base}?section=goals`,
-    reviewInbox: `${base}?section=reviews&panel=approve`,
+    reviewInbox: `/mentorship/chair`,
   };
 }
 
