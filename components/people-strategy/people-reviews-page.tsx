@@ -147,7 +147,9 @@ export async function PeopleReviewsPage({
     : currentMonthKey;
 
   const quarterlyEnabled = isQuarterlyReviewsEnabled();
-  const showBoardRollupLink = isBoard(viewer);
+  // Inline — a prior TDZ/HMR glitch left `showBoardRollupLink` undefined in the
+  // cached SSR chunk and crashed Mentorship Admin People into AppError.
+  const boardRollupHref = isBoard(viewer) ? "/actions/people/board-rollup" : null;
 
   const canAssignMentors =
     hasRole(viewer.roles, "ADMIN", viewer.primaryRole) ||
@@ -219,7 +221,7 @@ export async function PeopleReviewsPage({
           personHrefBase={resolvedPersonBase}
           filterParam={filterParam}
           activeFilter={view}
-          boardRollupHref={showBoardRollupLink ? "/actions/people/board-rollup" : null}
+          boardRollupHref={boardRollupHref}
           monthLabel={monthLabel}
           monthShortLabel={monthShortLabel}
           quarter={currentQuarter}
