@@ -205,10 +205,9 @@ export function buildCheckInCalendarDots(
 /**
  * Roles the Instructor Mentorship Program assigns a mentor to. Mentees in the
  * program are instructors and chapter presidents (the two active mentorship
- * lanes); students get an *advisor* (not a mentor), and admins/staff/officers
- * are not mentees — so a missing mentor is only a development gap for these
- * roles. Keeping the predicate pure here lets the loader flag "No mentor
- * assigned" without over-flagging people who are not expected to have one.
+ * lanes); students get an *advisor* (not a mentor). A missing mentor is only a
+ * development gap for these roles in matching/ops — the People roster uses
+ * `mentorshipExempt` for who can opt out of needing one.
  */
 export const MENTOR_EXPECTED_ROLES = ["INSTRUCTOR", "CHAPTER_PRESIDENT"] as const;
 
@@ -217,33 +216,46 @@ export function roleExpectsMentor(role: string | null | undefined): boolean {
 }
 
 /**
- * Board / org-owner assignees are mentors (and approvers), not mentees — even
- * when they also hold an instructor or chapter-president role.
+ * Manually marked board / mentor-only — does not need a mentee mentor.
+ * Do not infer this from ADMIN/STAFF/title/level; officers set it in the UI.
  */
+export function isMentorshipExempt(input: {
+  mentorshipExempt?: boolean | null;
+}): boolean {
+  return Boolean(input.mentorshipExempt);
+}
+
+/** @deprecated Use {@link isMentorshipExempt}. Kept for older call sites. */
 export function isBoardRelatedAssignee(input: {
   primaryRole?: string | null;
   title?: string | null;
   adminSubtypes?: Array<string | null | undefined> | null;
   internalLevel?: number | null;
+  mentorshipExempt?: boolean | null;
 }): boolean {
-  const title = (input.title ?? "").trim().toLowerCase();
-  if (title.includes("board")) return true;
-  if (input.primaryRole === "ADMIN" || input.primaryRole === "STAFF") return true;
-  if ((input.internalLevel ?? 0) >= 7) return true;
-  return (input.adminSubtypes ?? []).some(
-    (subtype) => subtype === "SUPER_ADMIN" || subtype === "LEADERSHIP",
-  );
+  return isMentorshipExempt(input);
 }
 
-/** True when this person should have a mentor in the mentorship program. */
+/** True when this person should have a mentor in the mentorship program lanes. */
 export function personExpectsMentor(input: {
   primaryRole?: string | null;
   title?: string | null;
   adminSubtypes?: Array<string | null | undefined> | null;
   internalLevel?: number | null;
+  mentorshipExempt?: boolean | null;
 }): boolean {
-  if (isBoardRelatedAssignee(input)) return false;
+  if (isMentorshipExempt(input)) return false;
   return roleExpectsMentor(input.primaryRole);
+}
+
+/**
+ * People roster: everyone can be assigned a mentor unless an officer marked
+ * them Board member (mentorshipExempt).
+ */
+export function peopleRosterExpectsMentor(input: {
+  mentorshipExempt?: boolean | null;
+}): boolean {
+  return !isMentorshipExempt(input);
 }
 
 // ── Row shape ────────────────────────────────────────────────────────────────

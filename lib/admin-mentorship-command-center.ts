@@ -222,6 +222,7 @@ export async function getAdminMentorshipCommandCenterData() {
         title: true,
         canonicalTitle: true,
         internalLevel: true,
+        mentorshipExempt: true,
         adminSubtypes: { select: { subtype: true } },
         roles: { select: { role: true } },
         chapter: { select: { name: true } },
@@ -360,6 +361,7 @@ export async function getAdminMentorshipCommandCenterData() {
         title: user.title?.trim() || user.canonicalTitle?.trim() || null,
         adminSubtypes: user.adminSubtypes.map((row) => row.subtype),
         internalLevel: user.internalLevel ?? null,
+        mentorshipExempt: user.mentorshipExempt,
       }),
     )
     .map((user) => {

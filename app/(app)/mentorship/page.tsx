@@ -181,7 +181,7 @@ export default async function MentorshipPage(
         <PageHeaderV2
           eyebrow="Mentorship"
           title="Mentorship Admin"
-          subtitle="Mentees who need a review or a mentor. Board members stay mentors only."
+          subtitle="Assign mentors for everyone. Mark Board member only when they do not need one."
           backHref="/mentorship"
           backLabel="Mentorship"
         />

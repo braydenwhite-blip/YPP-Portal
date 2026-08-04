@@ -177,6 +177,7 @@ export async function computeMentorMatches(
       title: mentee.title?.trim() || mentee.canonicalTitle?.trim() || null,
       adminSubtypes: mentee.adminSubtypes.map((row) => row.subtype),
       internalLevel: mentee.internalLevel ?? null,
+      mentorshipExempt: mentee.mentorshipExempt,
     }),
   );
 

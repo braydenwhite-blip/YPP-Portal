@@ -32,9 +32,9 @@ const STALE_GOAL_NO_UPDATE_DAYS = 30;
 export const ADMIN_QUEUE_PAGE_SIZE = 200;
 
 // Primary roles that the admin instructor-mentorship surfaces treat as
-// eligible mentees. Instructors + chapter presidents only — board / admin /
-// staff assignees are mentors, not mentees. STUDENT is intentionally excluded
-// because student mentorship is not yet launched.
+// eligible mentees. Instructors + chapter presidents only. STUDENT is
+// intentionally excluded because student mentorship is not yet launched.
+// Board opt-out is manual via User.mentorshipExempt.
 const ELIGIBLE_MENTEE_PRIMARY_ROLES = [
   "INSTRUCTOR",
   "CHAPTER_PRESIDENT",
@@ -91,16 +91,7 @@ export async function getInstructorMentorshipOpsSummary(): Promise<InstructorMen
       where: {
         primaryRole: { in: [...ELIGIBLE_MENTEE_PRIMARY_ROLES] },
         menteePairs: { none: { status: "ACTIVE" } },
-        adminSubtypes: {
-          none: { subtype: { in: ["SUPER_ADMIN", "LEADERSHIP"] } },
-        },
-        NOT: {
-          OR: [
-            { title: { contains: "Board", mode: "insensitive" } },
-            { canonicalTitle: { contains: "Board", mode: "insensitive" } },
-            { internalLevel: { gte: 7 } },
-          ],
-        },
+        mentorshipExempt: false,
       },
     }),
     prisma.mentorship.groupBy({
@@ -206,6 +197,7 @@ export async function getUnassignedInstructorQueue(): Promise<UnassignedInstruct
       title: true,
       canonicalTitle: true,
       internalLevel: true,
+      mentorshipExempt: true,
       createdAt: true,
       adminSubtypes: { select: { subtype: true } },
       chapter: { select: { name: true } },
@@ -225,6 +217,7 @@ export async function getUnassignedInstructorQueue(): Promise<UnassignedInstruct
         title: user.title?.trim() || user.canonicalTitle?.trim() || null,
         adminSubtypes: user.adminSubtypes.map((row) => row.subtype),
         internalLevel: user.internalLevel ?? null,
+        mentorshipExempt: user.mentorshipExempt,
       }),
     )
     .map((user) => {

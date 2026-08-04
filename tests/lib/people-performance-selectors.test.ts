@@ -31,6 +31,7 @@ import {
   quarterlyReviewTableStatus,
   roleExpectsMentor,
   personExpectsMentor,
+  peopleRosterExpectsMentor,
   workloadCellStatus,
   type CurrentMonthFeedback,
   type PerformanceRowFacts,
@@ -532,27 +533,39 @@ describe("mentorship & growth selectors", () => {
     expect(roleExpectsMentor(null)).toBe(false);
   });
 
-  it("excludes board-related assignees from needing a mentor", () => {
+  it("excludes only manual mentorshipExempt from needing a mentor", () => {
     expect(
       personExpectsMentor({ primaryRole: "INSTRUCTOR", title: "Board Member" }),
-    ).toBe(false);
+    ).toBe(true);
     expect(
       personExpectsMentor({
         primaryRole: "INSTRUCTOR",
         adminSubtypes: ["SUPER_ADMIN"],
       }),
-    ).toBe(false);
+    ).toBe(true);
     expect(
       personExpectsMentor({
         primaryRole: "CHAPTER_PRESIDENT",
         adminSubtypes: ["LEADERSHIP"],
       }),
-    ).toBe(false);
+    ).toBe(true);
     expect(personExpectsMentor({ primaryRole: "ADMIN" })).toBe(false);
     expect(personExpectsMentor({ primaryRole: "STAFF" })).toBe(false);
     expect(personExpectsMentor({ primaryRole: "MENTOR" })).toBe(false);
     expect(personExpectsMentor({ primaryRole: "INSTRUCTOR" })).toBe(true);
     expect(personExpectsMentor({ primaryRole: "CHAPTER_PRESIDENT" })).toBe(true);
+    expect(
+      personExpectsMentor({
+        primaryRole: "INSTRUCTOR",
+        mentorshipExempt: true,
+      }),
+    ).toBe(false);
+  });
+
+  it("treats People roster as mentee-eligible unless Board opt-out", () => {
+    expect(peopleRosterExpectsMentor({ mentorshipExempt: false })).toBe(true);
+    expect(peopleRosterExpectsMentor({ mentorshipExempt: true })).toBe(false);
+    expect(peopleRosterExpectsMentor({})).toBe(true);
   });
 
   it("surfaces no-mentor, growth, and disengagement signals with concrete labels", () => {

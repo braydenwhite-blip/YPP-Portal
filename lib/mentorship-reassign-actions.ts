@@ -210,6 +210,12 @@ export async function reassignPrimaryMentor(
   if (!mentee) throw new Error("Mentee not found");
   if (!newMentor) throw new Error("Mentor not found");
 
+  // Assigning a mentor means they are a mentee again — clear board opt-out.
+  await prisma.user.update({
+    where: { id: input.menteeId },
+    data: { mentorshipExempt: false },
+  });
+
   // The current active mentorship for this focus area (null focus = the general
   // primary relationship).
   const existing = await prisma.mentorship.findFirst({
@@ -455,6 +461,52 @@ export async function reassignRoleChair(
   revalidatePath("/admin/mentorship");
 
   return { status: "reassigned", mentorshipId: active.id };
+}
+
+/**
+ * Mark (or unmark) someone as Board member / mentor-only so the People roster
+ * stops flagging them as needing a mentee mentor.
+ */
+export async function setMentorshipExempt(input: {
+  userId: string;
+  exempt: boolean;
+  reason?: string | null;
+}): Promise<{ ok: true }> {
+  const session = await requireMentorshipAssigner();
+  const user = await prisma.user.findUnique({
+    where: { id: input.userId },
+    select: { id: true, name: true, mentorshipExempt: true },
+  });
+  if (!user) throw new Error("Person not found.");
+
+  if (Boolean(user.mentorshipExempt) === Boolean(input.exempt)) {
+    return { ok: true };
+  }
+
+  await prisma.user.update({
+    where: { id: input.userId },
+    data: { mentorshipExempt: Boolean(input.exempt) },
+  });
+
+  await logAuditEvent({
+    action: "USER_UPDATED",
+    actorId: session.id,
+    targetType: "User",
+    targetId: input.userId,
+    description:
+      input.exempt
+        ? `Marked ${user.name} as Board member (no mentee mentor needed)` +
+          `${input.reason ? ` — ${input.reason}` : ""}`
+        : `Cleared Board member opt-out for ${user.name}` +
+          `${input.reason ? ` — ${input.reason}` : ""}`,
+  });
+
+  revalidatePath(`/people/${input.userId}`);
+  revalidatePath(`/mentorship/people/${input.userId}`);
+  revalidatePath("/mentorship");
+  revalidatePath("/people");
+
+  return { ok: true };
 }
 
 export interface MentorshipHistoryEntry {

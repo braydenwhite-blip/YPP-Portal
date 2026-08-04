@@ -79,8 +79,21 @@ export async function PeopleReviewsPage({
   const page = typeof sp.page === "string" ? Math.max(1, Number.parseInt(sp.page, 10) || 1) : 1;
   const tableFilters = parsePeopleReviewsTableFilters(sp);
 
-  const [{ rows, currentQuarter, currentMonthKey }, mentorCandidates, chairCandidates] =
-    await Promise.all([
+  let rows: Awaited<ReturnType<typeof loadPeoplePerformance>>["rows"] = [];
+  let currentQuarter = "";
+  let currentMonthKey = "";
+  let mentorCandidates: Array<{
+    id: string;
+    name: string | null;
+    primaryRole: string | null;
+    title: string | null;
+    canonicalTitle: string | null;
+  }> = [];
+  let chairCandidates: typeof mentorCandidates = [];
+  let loadError: string | null = null;
+
+  try {
+    const loaded = await Promise.all([
       loadPeoplePerformance(),
       prisma.user.findMany({
         where: {
@@ -123,17 +136,29 @@ export async function PeopleReviewsPage({
         take: 400,
       }),
     ]);
+    rows = loaded[0].rows;
+    currentQuarter = loaded[0].currentQuarter;
+    currentMonthKey = loaded[0].currentMonthKey;
+    mentorCandidates = loaded[1];
+    chairCandidates = loaded[2];
+  } catch (err) {
+    loadError = err instanceof Error ? err.message : "Could not load people.";
+  }
+
+  if (loadError) {
+    return (
+      <div className="rounded-[14px] border border-[#f0d4d4] bg-white px-5 py-8 text-center">
+        <p className="m-0 text-[15px] font-semibold text-[#c0392b]">Could not load people</p>
+        <p className="m-0 mt-1 text-[13px] text-[#717189]">{loadError}</p>
+      </div>
+    );
+  }
   const resolvedPersonBase =
     personHrefBase ?? (basePath === "/mentorship" ? "/mentorship/people" : "/people");
 
-  // Mentorship Admin People is a mentee roster: instructors / chapter presidents
-  // who should have a mentor. Board members, admins, staff, and mentor-only
-  // accounts stay assignable as mentors but do not appear as rows here.
-  const isMentorshipMenteeRoster =
+  const isMentorshipRoster =
     basePath === "/mentorship" || resolvedPersonBase.startsWith("/mentorship/people");
-  const rosterRows = isMentorshipMenteeRoster
-    ? rows.filter((row) => row.facts.mentorEligible)
-    : rows;
+  const rosterRows = rows;
 
   const visible = filterPerformanceRows(rosterRows, view, q, tableFilters);
   const filterOptions = collectPeopleReviewsFilterOptions(rosterRows);
@@ -196,8 +221,8 @@ export async function PeopleReviewsPage({
             </h1>
           )}
           <p className="m-0 mt-1 text-[13.5px] text-ink-muted">
-            {isMentorshipMenteeRoster
-              ? "Mentees only — board members and mentor-only accounts stay off this list."
+            {isMentorshipRoster
+              ? "Assign a mentor for anyone — or mark Board member if they do not need one."
               : "Find someone. See if they need a review or a mentor. Tap to open."}
           </p>
         </div>

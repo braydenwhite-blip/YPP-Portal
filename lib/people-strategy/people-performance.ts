@@ -23,7 +23,7 @@ import {
   monthKeyUTC,
   monthLabelUTC,
   parseMonthKey,
-  personExpectsMentor,
+  peopleRosterExpectsMentor,
   rowMatchesPeopleReviewsFilters,
   type CheckInCalendarDot,
   type CurrentMonthFeedback,
@@ -350,15 +350,12 @@ export async function loadPeoplePerformance(
     const overdueActionCount = new Set(
       [...row.leadActions, ...row.executingActions].filter((a) => a.overdue).map((a) => a.id)
     ).size;
-    // Mentorship: a missing mentor is only a gap for mentor-eligible roles
-    // (instructors / chapter presidents). Board / admin / staff assignees are
-    // mentors themselves — never flagged as needing one.
+    // People roster: everyone needs a mentor unless an officer marked them
+    // Board member (mentorshipExempt). Manual opt-out only — do not infer from
+    // ADMIN/STAFF/title/level.
     const hasMentor = Boolean(row.mentorId);
-    const mentorEligible = personExpectsMentor({
-      primaryRole: row.role,
-      title: row.title,
-      adminSubtypes: row.adminSubtypes,
-      internalLevel: row.internalLevel,
+    const mentorEligible = peopleRosterExpectsMentor({
+      mentorshipExempt: row.mentorshipExempt,
     });
     const facts: PerformanceRowFacts = {
       workloadWarning: row.workloadWarning,

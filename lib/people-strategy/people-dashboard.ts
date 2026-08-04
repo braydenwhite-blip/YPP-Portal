@@ -85,6 +85,8 @@ export interface PeopleDashboardRow {
   adminSubtypes: string[];
   /** Persisted org ladder level when set. */
   internalLevel: number | null;
+  /** Manual board / mentor-only opt-out — does not need a mentee mentor. */
+  mentorshipExempt: boolean;
   avatarUrl: string | null;
   mentorName: string | null;
   mentorId: string | null;
@@ -186,6 +188,7 @@ export async function loadPeopleDashboard(
       canonicalTitle: true,
       primaryRole: true,
       internalLevel: true,
+      mentorshipExempt: true,
       adminSubtypes: { select: { subtype: true } },
       orgFunction: { select: { name: true } },
       orgDepartment: { select: { name: true } },
@@ -308,6 +311,7 @@ export async function loadPeopleDashboard(
       role: user.primaryRole,
       adminSubtypes: user.adminSubtypes.map((row) => row.subtype),
       internalLevel: user.internalLevel ?? null,
+      mentorshipExempt: Boolean(user.mentorshipExempt),
       avatarUrl: user.profile?.avatarUrl ?? null,
       mentorName: user.menteePairs[0]?.mentor?.name ?? user.menteePairs[0]?.mentor?.email ?? null,
       mentorId: user.menteePairs[0]?.mentor?.id ?? null,

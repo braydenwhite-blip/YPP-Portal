@@ -971,6 +971,9 @@ model User {
   internalLevel        Int?
   ladder               OrgLadder?
   canonicalTitle       String?
+  /// Manual opt-out: this person is a board member / mentor-only and should not
+  /// be flagged as needing a mentee mentor on the People roster.
+  mentorshipExempt     Boolean                  @default(false)
   /// Org Function (e.g. Operations, Core Instruction) — parent of Department.
   orgFunctionId        String?
   orgFunction          OrgFunction?          @relation("UserOrgFunction", fields: [orgFunctionId], references: [id], onDelete: SetNull)
