@@ -14,14 +14,14 @@ export const MONTHLY_PRESET_PROMPTS = [
     key: "pastMonth" as const,
     n: "1",
     label: "How would you describe the past month?",
-    placeholder: "It felt… / The main theme was…",
+    placeholder: "Write your answer…",
     rows: 4,
   },
   {
     key: "yppOverall" as const,
     n: "2",
     label: "How is YPP performing overall from your perspective?",
-    placeholder: "From where I sit, YPP is…",
+    placeholder: "Write your answer…",
     rows: 4,
   },
   {
@@ -29,14 +29,14 @@ export const MONTHLY_PRESET_PROMPTS = [
     n: "3",
     label:
       "What are the biggest things going well as well as challenges we need to address?",
-    placeholder: "Going well: … / Challenges: …",
+    placeholder: "Write your answer…",
     rows: 5,
   },
   {
     key: "recommendedChanges" as const,
     n: "4",
     label: "What changes if any would you recommend we make?",
-    placeholder: "I’d recommend… / No major changes, but…",
+    placeholder: "Write your answer…",
     rows: 4,
   },
   {
@@ -44,7 +44,7 @@ export const MONTHLY_PRESET_PROMPTS = [
     n: "5",
     label:
       "Approximately how many hours per week did you spend on YPP this month?",
-    placeholder: "e.g. 5–8 hours / week",
+    placeholder: "e.g. 6",
     rows: 2,
   },
 ] as const;
