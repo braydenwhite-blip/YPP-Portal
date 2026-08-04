@@ -180,7 +180,7 @@ export default async function MentorshipPage(
       <div className={`${skin.portalSkin} flex flex-col gap-6`}>
         <PageHeaderV2
           eyebrow="Mentorship"
-          title="Admin Hub"
+          title="Mentorship Admin"
           subtitle="Find someone. See if they need a review or a mentor. Tap to open."
           backHref="/mentorship"
           backLabel="Mentorship"

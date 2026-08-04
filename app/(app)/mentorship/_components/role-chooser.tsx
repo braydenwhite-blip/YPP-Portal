@@ -74,7 +74,7 @@ export function MentorshipRoleChooser({
     cards.push({
       key: "people",
       href: peopleHref,
-      title: "Admin Hub",
+      title: "Mentorship Admin",
       description: "Find someone. See if they need a review or a mentor.",
       detail: null,
     });

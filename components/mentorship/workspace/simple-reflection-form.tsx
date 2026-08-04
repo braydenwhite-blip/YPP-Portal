@@ -113,9 +113,6 @@ export function SimpleReflectionForm({
             <span className="block text-[14.5px] font-semibold tracking-[-0.15px] text-ink">
               {prompt.label}
             </span>
-            <span className="mt-0.5 block text-[12.5px] text-ink-muted">
-              {prompt.hint}
-            </span>
             <textarea
               className="mt-3 w-full resize-y rounded-[10px] border border-transparent bg-surface-soft px-3.5 py-3 text-[15px] leading-relaxed text-ink outline-none placeholder:text-ink-muted/65 focus:border-brand-300 focus:bg-surface"
               rows={prompt.rows}
