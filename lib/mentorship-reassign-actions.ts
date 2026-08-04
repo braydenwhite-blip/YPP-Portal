@@ -385,10 +385,6 @@ export async function reassignRoleChair(
     return { status: "unchanged", mentorshipId: active.id };
   }
 
-  if (active.mentorId === input.newChairId) {
-    throw new Error("The mentor and Role Chair must be different people.");
-  }
-
   await prisma.$transaction(async (tx) => {
     await tx.mentorship.update({
       where: { id: active.id },

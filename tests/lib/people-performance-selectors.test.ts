@@ -30,6 +30,7 @@ import {
   quarterlyCellStatus,
   quarterlyReviewTableStatus,
   roleExpectsMentor,
+  personExpectsMentor,
   workloadCellStatus,
   type CurrentMonthFeedback,
   type PerformanceRowFacts,
@@ -529,6 +530,27 @@ describe("mentorship & growth selectors", () => {
     expect(roleExpectsMentor("STUDENT")).toBe(false);
     expect(roleExpectsMentor("ADMIN")).toBe(false);
     expect(roleExpectsMentor(null)).toBe(false);
+  });
+
+  it("excludes board-related assignees from needing a mentor", () => {
+    expect(
+      personExpectsMentor({ primaryRole: "INSTRUCTOR", title: "Board Member" }),
+    ).toBe(false);
+    expect(
+      personExpectsMentor({
+        primaryRole: "INSTRUCTOR",
+        adminSubtypes: ["SUPER_ADMIN"],
+      }),
+    ).toBe(false);
+    expect(
+      personExpectsMentor({
+        primaryRole: "CHAPTER_PRESIDENT",
+        adminSubtypes: ["LEADERSHIP"],
+      }),
+    ).toBe(false);
+    expect(personExpectsMentor({ primaryRole: "ADMIN" })).toBe(false);
+    expect(personExpectsMentor({ primaryRole: "INSTRUCTOR" })).toBe(true);
+    expect(personExpectsMentor({ primaryRole: "CHAPTER_PRESIDENT" })).toBe(true);
   });
 
   it("surfaces no-mentor, growth, and disengagement signals with concrete labels", () => {

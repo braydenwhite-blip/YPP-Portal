@@ -15,7 +15,7 @@ import {
   currentQuarterLabel,
   isCheckInMonthAccountable,
   monthKeyUTC,
-  roleExpectsMentor,
+  personExpectsMentor,
 } from "@/lib/people-strategy/people-performance-selectors";
 import { startOfDay } from "@/lib/leadership-action-center/dates";
 
@@ -151,7 +151,11 @@ async function loadDevelopmentFacts(now: Date): Promise<{
       name: true,
       email: true,
       primaryRole: true,
+      title: true,
+      canonicalTitle: true,
+      internalLevel: true,
       createdAt: true,
+      adminSubtypes: { select: { subtype: true } },
       chapter: { select: { name: true } },
       roles: { select: { role: true } },
       menteePairs: {
@@ -377,7 +381,12 @@ async function loadDevelopmentFacts(now: Date): Promise<{
       population,
       daysSinceJoined: daysBetween(user.createdAt, now),
       mentorName: pair?.mentor?.name ?? pair?.mentor?.email ?? null,
-      mentorEligible: roleExpectsMentor(user.primaryRole),
+      mentorEligible: personExpectsMentor({
+        primaryRole: user.primaryRole,
+        title: user.title?.trim() || user.canonicalTitle?.trim() || null,
+        adminSubtypes: user.adminSubtypes.map((row) => row.subtype),
+        internalLevel: user.internalLevel ?? null,
+      }),
       daysSinceLastSession: lastSessionAt ? daysBetween(lastSessionAt, now) : null,
       checkInAccountable,
       hasCurrentMonthCheckIn: checkIn

@@ -81,6 +81,10 @@ export interface PeopleDashboardRow {
   /** Free-text / canonical org title (Manager, Director, …). */
   title: string | null;
   role: string | null;
+  /** Admin subtypes (e.g. SUPER_ADMIN for Board). */
+  adminSubtypes: string[];
+  /** Persisted org ladder level when set. */
+  internalLevel: number | null;
   avatarUrl: string | null;
   mentorName: string | null;
   mentorId: string | null;
@@ -181,6 +185,8 @@ export async function loadPeopleDashboard(
       title: true,
       canonicalTitle: true,
       primaryRole: true,
+      internalLevel: true,
+      adminSubtypes: { select: { subtype: true } },
       orgFunction: { select: { name: true } },
       orgDepartment: { select: { name: true } },
       profile: { select: { avatarUrl: true, interests: true } },
@@ -300,6 +306,8 @@ export async function loadPeopleDashboard(
       phone: user.phone?.trim() || null,
       title: user.title?.trim() || user.canonicalTitle?.trim() || null,
       role: user.primaryRole,
+      adminSubtypes: user.adminSubtypes.map((row) => row.subtype),
+      internalLevel: user.internalLevel ?? null,
       avatarUrl: user.profile?.avatarUrl ?? null,
       mentorName: user.menteePairs[0]?.mentor?.name ?? user.menteePairs[0]?.mentor?.email ?? null,
       mentorId: user.menteePairs[0]?.mentor?.id ?? null,

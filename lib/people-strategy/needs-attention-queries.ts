@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { isProvisionalClockEnabled } from "@/lib/feature-flags";
 
 import { loadPeopleDashboard, type PeopleDashboardRow } from "./people-dashboard";
-import { roleExpectsMentor } from "./people-performance-selectors";
+import { personExpectsMentor } from "./people-performance-selectors";
 import { loadLeadershipEscalationQueue } from "./escalation-queue";
 import { loadMentorshipHealth } from "./mentorship-health";
 import { getMyActionItems, type ActionItemWithRelations } from "./action-queries";
@@ -47,7 +47,12 @@ function dashboardRowToPerson(row: PeopleDashboardRow): AttentionPerson {
   return {
     id: row.id,
     name: row.name,
-    expectsMentor: roleExpectsMentor(row.role),
+    expectsMentor: personExpectsMentor({
+      primaryRole: row.role,
+      title: row.title,
+      adminSubtypes: row.adminSubtypes,
+      internalLevel: row.internalLevel,
+    }),
     hasMentor: row.mentorId != null,
     // The dashboard row does not carry the pairing start / kickoff or the
     // provisional clock, so those signals come from their own loaders; here we
@@ -158,8 +163,12 @@ export async function loadPersonAttention(
         name: true,
         email: true,
         primaryRole: true,
+        title: true,
+        canonicalTitle: true,
+        internalLevel: true,
         provisionalStart: true,
         provisionalConfirmedAt: true,
+        adminSubtypes: { select: { subtype: true } },
         menteePairs: {
           where: { status: "ACTIVE" },
           take: 1,
@@ -188,7 +197,12 @@ export async function loadPersonAttention(
   const person: AttentionPerson = {
     id: subjectUserId,
     name: user.name ?? user.email,
-    expectsMentor: roleExpectsMentor(user.primaryRole),
+    expectsMentor: personExpectsMentor({
+      primaryRole: user.primaryRole,
+      title: user.title?.trim() || user.canonicalTitle?.trim() || null,
+      adminSubtypes: user.adminSubtypes.map((row) => row.subtype),
+      internalLevel: user.internalLevel ?? null,
+    }),
     hasMentor: pair != null,
     mentorshipStartDate: pair?.startDate ?? null,
     kickoffCompleted: pair?.kickoffCompletedAt != null,

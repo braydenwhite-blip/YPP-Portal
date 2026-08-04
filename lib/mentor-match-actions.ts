@@ -20,6 +20,7 @@ import {
 import {
   assignSupportCircleMember,
 } from "@/lib/mentorship-hub-actions";
+import { personExpectsMentor } from "@/lib/people-strategy/people-performance-selectors";
 import { prisma } from "@/lib/prisma";
 import { whereUserHasAnyRole, whereUserHasRole } from "@/lib/user-role-where";
 
@@ -123,6 +124,7 @@ export async function computeMentorMatches(
     include: {
       profile: true,
       chapter: true,
+      adminSubtypes: { select: { subtype: true } },
       roles: {
         select: { role: true },
       },
@@ -166,6 +168,19 @@ export async function computeMentorMatches(
   });
 
   if (potentialMentees.length === 0) {
+    return [];
+  }
+
+  const menteesNeedingMentor = potentialMentees.filter((mentee) =>
+    personExpectsMentor({
+      primaryRole: mentee.primaryRole,
+      title: mentee.title?.trim() || mentee.canonicalTitle?.trim() || null,
+      adminSubtypes: mentee.adminSubtypes.map((row) => row.subtype),
+      internalLevel: mentee.internalLevel ?? null,
+    }),
+  );
+
+  if (menteesNeedingMentor.length === 0) {
     return [];
   }
 
@@ -230,7 +245,7 @@ export async function computeMentorMatches(
 
   const groupedSuggestions: MentorMatchGroup[] = [];
 
-  for (const mentee of potentialMentees) {
+  for (const mentee of menteesNeedingMentor) {
     const candidates: MentorMatchSuggestion[] = [];
     const activeMentorship = mentee.menteePairs[0] ?? null;
     const rolesPresent = getSupportRolesPresent({
@@ -381,9 +396,5 @@ function getLaneWhere(lane: AdminMentorshipLane): Prisma.UserWhereInput {
     return whereUserHasRole(RoleType.INSTRUCTOR);
   }
 
-  return whereUserHasAnyRole([
-    RoleType.CHAPTER_PRESIDENT,
-    RoleType.ADMIN,
-    RoleType.STAFF,
-  ]);
+  return whereUserHasAnyRole([RoleType.CHAPTER_PRESIDENT]);
 }

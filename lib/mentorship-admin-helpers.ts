@@ -42,7 +42,7 @@ export const ADMIN_MENTORSHIP_LANE_META: Record<
     label: "Leadership",
     shortLabel: "Leadership",
     description:
-      "Leadership circles support chapter presidents, staff, and global leaders. These circles lean more heavily on governance clarity and escalation coverage.",
+      "Chapter-president circles. Board and admin assignees mentor here — they are not mentees on this lane.",
     staffingExpectation:
       "Primary mentor and chair keep leadership circles operational; advisor roles help when strategy or long-range planning is needed.",
   },

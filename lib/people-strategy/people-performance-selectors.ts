@@ -216,6 +216,36 @@ export function roleExpectsMentor(role: string | null | undefined): boolean {
   return role != null && (MENTOR_EXPECTED_ROLES as readonly string[]).includes(role);
 }
 
+/**
+ * Board / org-owner assignees are mentors (and approvers), not mentees — even
+ * when they also hold an instructor or chapter-president role.
+ */
+export function isBoardRelatedAssignee(input: {
+  primaryRole?: string | null;
+  title?: string | null;
+  adminSubtypes?: Array<string | null | undefined> | null;
+  internalLevel?: number | null;
+}): boolean {
+  const title = (input.title ?? "").trim().toLowerCase();
+  if (title.includes("board")) return true;
+  if (input.primaryRole === "ADMIN" || input.primaryRole === "STAFF") return true;
+  if ((input.internalLevel ?? 0) >= 7) return true;
+  return (input.adminSubtypes ?? []).some(
+    (subtype) => subtype === "SUPER_ADMIN" || subtype === "LEADERSHIP",
+  );
+}
+
+/** True when this person should have a mentor in the mentorship program. */
+export function personExpectsMentor(input: {
+  primaryRole?: string | null;
+  title?: string | null;
+  adminSubtypes?: Array<string | null | undefined> | null;
+  internalLevel?: number | null;
+}): boolean {
+  if (isBoardRelatedAssignee(input)) return false;
+  return roleExpectsMentor(input.primaryRole);
+}
+
 // ── Row shape ────────────────────────────────────────────────────────────────
 
 export type MemberFeedbackStatus = {

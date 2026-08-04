@@ -50,7 +50,7 @@ const COPY: Record<
     assign: "Assign chair",
     change: "Change",
     pickError: "Pick a Role Chair.",
-    help: "The Role Chair approves performance reviews for this pairing.",
+    help: "Approves performance reviews. Can be the same person as the mentor.",
   },
 };
 

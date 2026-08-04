@@ -13,7 +13,7 @@ import { getUserTitle } from "@/lib/user-title";
 import { getMyActionItems } from "./action-queries";
 import { isOfficerTier, type ActionViewer } from "./action-permissions";
 import { formatClassSchedule, getMyTeachingClasses } from "./class-tracker";
-import { roleExpectsMentor } from "./people-performance-selectors";
+import { personExpectsMentor } from "./people-performance-selectors";
 
 /**
  * People Strategy — read-only public member profile (`/people/[id]`).
@@ -189,7 +189,11 @@ function reviewPathLabel(input: {
 }): string {
   const mentor = input.mentors[0];
   if (!mentor) {
-    return roleExpectsMentor(input.primaryRole)
+    return personExpectsMentor({
+      primaryRole: input.primaryRole,
+      title: input.authority.title,
+      internalLevel: input.authority.internalLevel,
+    })
       ? "Assign mentor to create review path"
       : "No mentor review path assigned";
   }
@@ -220,7 +224,16 @@ function buildNeedsSetup(input: {
   const needs: string[] = [];
   if (!input.authority.title && input.authority.internalLevel == null) needs.push("Role/title");
   if (!input.chapterName) needs.push("Chapter");
-  if (roleExpectsMentor(input.primaryRole) && input.mentorCount === 0) needs.push("Mentor");
+  if (
+    personExpectsMentor({
+      primaryRole: input.primaryRole,
+      title: input.authority.title,
+      internalLevel: input.authority.internalLevel,
+    }) &&
+    input.mentorCount === 0
+  ) {
+    needs.push("Mentor");
+  }
   return needs;
 }
 

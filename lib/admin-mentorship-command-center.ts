@@ -16,6 +16,7 @@ import {
   getSupportRolesPresent,
   type AdminMentorshipLane,
 } from "@/lib/mentorship-admin-helpers";
+import { personExpectsMentor } from "@/lib/people-strategy/people-performance-selectors";
 import { prisma } from "@/lib/prisma";
 import { MENTORSHIP_LEGACY_ROOT_SELECT } from "@/lib/mentorship-read-fragments";
 import {
@@ -210,7 +211,7 @@ export async function getAdminMentorshipCommandCenterData() {
           ...(SHOW_STUDENT_MENTORSHIP_LANE
             ? [{ roles: { some: { role: "STUDENT" as const } } }]
             : []),
-          { primaryRole: { in: ["INSTRUCTOR", "CHAPTER_PRESIDENT", "ADMIN", "STAFF"] } },
+          { primaryRole: { in: ["INSTRUCTOR", "CHAPTER_PRESIDENT"] } },
         ],
       },
       select: {
@@ -218,6 +219,10 @@ export async function getAdminMentorshipCommandCenterData() {
         name: true,
         email: true,
         primaryRole: true,
+        title: true,
+        canonicalTitle: true,
+        internalLevel: true,
+        adminSubtypes: { select: { subtype: true } },
         roles: { select: { role: true } },
         chapter: { select: { name: true } },
       },
@@ -349,6 +354,14 @@ export async function getAdminMentorshipCommandCenterData() {
 
   const unassignedMentees = potentialMentees
     .filter((user) => !activeMentorshipByMenteeId.has(user.id))
+    .filter((user) =>
+      personExpectsMentor({
+        primaryRole: user.primaryRole,
+        title: user.title?.trim() || user.canonicalTitle?.trim() || null,
+        adminSubtypes: user.adminSubtypes.map((row) => row.subtype),
+        internalLevel: user.internalLevel ?? null,
+      }),
+    )
     .map((user) => {
       const lane = getAdminMentorshipLaneForUser({
         primaryRole: user.primaryRole,

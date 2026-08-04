@@ -18,6 +18,7 @@ import { prisma } from "@/lib/prisma";
 import { FULL_PROGRAM_MENTOR_CAP } from "@/lib/mentorship-canonical";
 import { SHOW_STUDENT_MENTORSHIP_LANE } from "@/lib/mentorship-admin-helpers";
 import { getPortalSettings } from "@/lib/portal-settings";
+import { personExpectsMentor } from "@/lib/people-strategy/people-performance-selectors";
 
 // Single boundary for "instructor mentorship vs student mentorship". Until
 // student mentorship launches we exclude STUDENT from every helper here.
@@ -31,14 +32,12 @@ const STALE_GOAL_NO_UPDATE_DAYS = 30;
 export const ADMIN_QUEUE_PAGE_SIZE = 200;
 
 // Primary roles that the admin instructor-mentorship surfaces treat as
-// eligible mentees. INSTRUCTOR + LEADERSHIP roles match the visible lanes
-// on /admin/mentorship-program (Instructors and Leadership). STUDENT is
-// intentionally excluded because student mentorship is not yet launched.
+// eligible mentees. Instructors + chapter presidents only — board / admin /
+// staff assignees are mentors, not mentees. STUDENT is intentionally excluded
+// because student mentorship is not yet launched.
 const ELIGIBLE_MENTEE_PRIMARY_ROLES = [
   "INSTRUCTOR",
   "CHAPTER_PRESIDENT",
-  "ADMIN",
-  "STAFF",
 ] as const;
 
 async function requireAdminForOps() {
@@ -92,6 +91,16 @@ export async function getInstructorMentorshipOpsSummary(): Promise<InstructorMen
       where: {
         primaryRole: { in: [...ELIGIBLE_MENTEE_PRIMARY_ROLES] },
         menteePairs: { none: { status: "ACTIVE" } },
+        adminSubtypes: {
+          none: { subtype: { in: ["SUPER_ADMIN", "LEADERSHIP"] } },
+        },
+        NOT: {
+          OR: [
+            { title: { contains: "Board", mode: "insensitive" } },
+            { canonicalTitle: { contains: "Board", mode: "insensitive" } },
+            { internalLevel: { gte: 7 } },
+          ],
+        },
       },
     }),
     prisma.mentorship.groupBy({
@@ -194,7 +203,11 @@ export async function getUnassignedInstructorQueue(): Promise<UnassignedInstruct
       name: true,
       email: true,
       primaryRole: true,
+      title: true,
+      canonicalTitle: true,
+      internalLevel: true,
       createdAt: true,
+      adminSubtypes: { select: { subtype: true } },
       chapter: { select: { name: true } },
       menteePairs: {
         orderBy: { startDate: "desc" },
@@ -205,7 +218,16 @@ export async function getUnassignedInstructorQueue(): Promise<UnassignedInstruct
     orderBy: [{ createdAt: "desc" }],
   });
 
-  return instructors.map((user) => {
+  return instructors
+    .filter((user) =>
+      personExpectsMentor({
+        primaryRole: user.primaryRole,
+        title: user.title?.trim() || user.canonicalTitle?.trim() || null,
+        adminSubtypes: user.adminSubtypes.map((row) => row.subtype),
+        internalLevel: user.internalLevel ?? null,
+      }),
+    )
+    .map((user) => {
     const lastPair = user.menteePairs[0];
     const reason = lastPair
       ? lastPair.status === "PAUSED"

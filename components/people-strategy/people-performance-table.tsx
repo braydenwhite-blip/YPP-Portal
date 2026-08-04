@@ -219,7 +219,7 @@ export function PeoplePerformanceTable({
               className="flex min-w-0 items-center justify-between gap-3 sm:w-[200px] sm:shrink-0 sm:flex-col sm:items-end sm:justify-center"
               onClick={stopRowNavigation}
             >
-              {canAssignMentors ? (
+              {canAssignMentors && row.facts.mentorEligible ? (
                 <div className="flex w-full min-w-0 flex-col gap-3 sm:items-end">
                   <div className="min-w-0 sm:text-right">
                     <p className="m-0 text-[11px] font-medium uppercase tracking-[0.04em] text-[#9a9ab0]">
@@ -251,6 +251,13 @@ export function PeoplePerformanceTable({
                       hasActiveMentorship={Boolean(row.mentorId)}
                     />
                   </div>
+                </div>
+              ) : canAssignMentors ? (
+                <div className="min-w-0 text-right">
+                  <p className="m-0 text-[11px] font-medium uppercase tracking-[0.04em] text-[#9a9ab0]">
+                    Mentorship
+                  </p>
+                  <p className="m-0 text-[13px] text-[#6b6b80]">Mentor (not a mentee)</p>
                 </div>
               ) : (
                 <div className="flex min-w-0 flex-col gap-2 text-right">
