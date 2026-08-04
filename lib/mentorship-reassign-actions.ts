@@ -214,7 +214,14 @@ export async function reassignPrimaryMentor(
   // primary relationship).
   const existing = await prisma.mentorship.findFirst({
     where: { menteeId: input.menteeId, status: "ACTIVE", focusArea },
-    select: { id: true, mentorId: true, focusArea: true, type: true, startDate: true },
+    select: {
+      id: true,
+      mentorId: true,
+      chairId: true,
+      focusArea: true,
+      type: true,
+      startDate: true,
+    },
     orderBy: { startDate: "desc" },
   });
 
@@ -245,7 +252,8 @@ export async function reassignPrimaryMentor(
       });
     }
 
-    // 2. Create the incoming mentorship.
+    // 2. Create the incoming mentorship — keep Role Chair when set (may be the
+    // same person as the new mentor; admins often assign both seats that way).
     const created = await tx.mentorship.create({
       data: {
         mentorId: input.newMentorId,
@@ -253,6 +261,7 @@ export async function reassignPrimaryMentor(
         type: mentorshipType,
         focusArea,
         isTemporary,
+        chairId: existing?.chairId ?? null,
         notes: input.reason?.trim() || null,
       },
       select: { id: true },
@@ -334,6 +343,7 @@ export interface ReassignRoleChairResult {
  * Assign or change the Role Chair on an active mentorship pairing.
  * Requires an active mentorship (assign a mentor first). Syncs the CHAIR
  * support-circle seat so review approval routing stays consistent.
+ * Mentor and Role Chair may be the same person.
  */
 export async function reassignRoleChair(
   input: ReassignRoleChairInput

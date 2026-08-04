@@ -549,6 +549,8 @@ describe("mentorship & growth selectors", () => {
       }),
     ).toBe(false);
     expect(personExpectsMentor({ primaryRole: "ADMIN" })).toBe(false);
+    expect(personExpectsMentor({ primaryRole: "STAFF" })).toBe(false);
+    expect(personExpectsMentor({ primaryRole: "MENTOR" })).toBe(false);
     expect(personExpectsMentor({ primaryRole: "INSTRUCTOR" })).toBe(true);
     expect(personExpectsMentor({ primaryRole: "CHAPTER_PRESIDENT" })).toBe(true);
   });

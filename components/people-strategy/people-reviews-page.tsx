@@ -123,8 +123,20 @@ export async function PeopleReviewsPage({
         take: 400,
       }),
     ]);
-  const visible = filterPerformanceRows(rows, view, q, tableFilters);
-  const filterOptions = collectPeopleReviewsFilterOptions(rows);
+  const resolvedPersonBase =
+    personHrefBase ?? (basePath === "/mentorship" ? "/mentorship/people" : "/people");
+
+  // Mentorship Admin People is a mentee roster: instructors / chapter presidents
+  // who should have a mentor. Board members, admins, staff, and mentor-only
+  // accounts stay assignable as mentors but do not appear as rows here.
+  const isMentorshipMenteeRoster =
+    basePath === "/mentorship" || resolvedPersonBase.startsWith("/mentorship/people");
+  const rosterRows = isMentorshipMenteeRoster
+    ? rows.filter((row) => row.facts.mentorEligible)
+    : rows;
+
+  const visible = filterPerformanceRows(rosterRows, view, q, tableFilters);
+  const filterOptions = collectPeopleReviewsFilterOptions(rosterRows);
 
   const currentMonth = parseMonthKey(currentMonthKey);
   const monthLabel = currentMonth ? monthLabelUTC(currentMonth) : currentMonthKey;
@@ -136,8 +148,6 @@ export async function PeopleReviewsPage({
 
   const quarterlyEnabled = isQuarterlyReviewsEnabled();
   const showBoardRollupLink = isBoard(viewer);
-  const resolvedPersonBase =
-    personHrefBase ?? (basePath === "/mentorship" ? "/mentorship/people" : "/people");
 
   const canAssignMentors =
     hasRole(viewer.roles, "ADMIN", viewer.primaryRole) ||
@@ -184,14 +194,16 @@ export async function PeopleReviewsPage({
             </h1>
           )}
           <p className="m-0 mt-1 text-[13.5px] text-ink-muted">
-            Find someone. See if they need a review or a mentor. Tap to open.
+            {isMentorshipMenteeRoster
+              ? "Mentees only — board members and mentor-only accounts stay off this list."
+              : "Find someone. See if they need a review or a mentor. Tap to open."}
           </p>
         </div>
       ) : null}
 
       <Suspense fallback={<p className="text-[13px] text-ink-muted">Loading people…</p>}>
         <PeoplePerformanceClient
-          rows={rows}
+          rows={rosterRows}
           tableRows={visible}
           tableFilters={tableFilters}
           filterOptions={{

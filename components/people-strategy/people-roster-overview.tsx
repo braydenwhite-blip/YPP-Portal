@@ -29,7 +29,7 @@ const TABS: Array<{
   countKey: "total" | "reviewNeeded" | "needsMentor";
   hint: string;
 }> = [
-  { filter: "all", label: "Everyone", countKey: "total", hint: "Full roster" },
+  { filter: "all", label: "Everyone", countKey: "total", hint: "On this list" },
   {
     filter: "review-needed",
     label: "Needs a review",
