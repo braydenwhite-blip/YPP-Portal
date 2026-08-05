@@ -259,7 +259,11 @@ export async function reassignPrimaryMentor(
     }
 
     // 2. Create the incoming mentorship — keep Role Chair when set (may be the
-    // same person as the new mentor; admins often assign both seats that way).
+    // same person as the new mentor; never the mentee themselves).
+    const preservedChairId =
+      existing?.chairId && existing.chairId !== input.menteeId
+        ? existing.chairId
+        : null;
     const created = await tx.mentorship.create({
       data: {
         mentorId: input.newMentorId,
@@ -267,7 +271,7 @@ export async function reassignPrimaryMentor(
         type: mentorshipType,
         focusArea,
         isTemporary,
-        chairId: existing?.chairId ?? null,
+        chairId: preservedChairId,
         notes: input.reason?.trim() || null,
       },
       select: { id: true },

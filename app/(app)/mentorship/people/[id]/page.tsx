@@ -42,6 +42,16 @@ export default async function MentorshipPersonPage({ params, searchParams }: Pag
     }
   }
 
+  // Board members don't have a mentee home (no mentor / Role Chair track).
+  const subjectFlags = await prisma.user.findUnique({
+    where: { id },
+    select: { mentorshipExempt: true, archivedAt: true },
+  });
+  if (!subjectFlags || subjectFlags.archivedAt) notFound();
+  if (subjectFlags.mentorshipExempt) {
+    redirect(viewer.id === id ? "/mentorship" : "/mentorship?view=people");
+  }
+
   const workspace = await loadMentorshipWorkspace(viewer, id);
   if (!workspace) {
     const pending = await getMyOutstandingRequestForSubject(id).catch(() => null);

@@ -603,6 +603,14 @@ export async function assignSupportCircleMember(formData: FormData) {
       trackId: track.id,
       primaryRole: mentee.primaryRole,
     });
+    // Never auto-assign someone as their own Role Chair (lane chairs who are
+    // also mentees used to get self-chaired, which desynced the home header).
+    const safeResolvedChairId =
+      resolvedChairId && resolvedChairId !== menteeId ? resolvedChairId : null;
+    const existingChairId =
+      activeMentorship?.chairId && activeMentorship.chairId !== menteeId
+        ? activeMentorship.chairId
+        : null;
 
     await enforceFullProgramMentorCapacity({
       mentorId: supporterId,
@@ -620,7 +628,7 @@ export async function assignSupportCircleMember(formData: FormData) {
           programGroup,
           governanceMode,
           trackId: track.id,
-          chairId: activeMentorship.chairId ?? resolvedChairId,
+          chairId: existingChairId ?? safeResolvedChairId,
         },
       });
       mentorshipId = activeMentorship.id;
@@ -633,7 +641,7 @@ export async function assignSupportCircleMember(formData: FormData) {
           programGroup,
           governanceMode,
           trackId: track.id,
-          chairId: resolvedChairId,
+          chairId: safeResolvedChairId,
           notes: notes || "Created from support circle assignment",
         },
       });

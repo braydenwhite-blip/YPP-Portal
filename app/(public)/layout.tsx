@@ -1,5 +1,3 @@
-import PageHelperFab from "@/components/page-helper-fab";
-
 export const dynamic = "force-dynamic";
 
 export default function PublicLayout({
@@ -7,10 +5,5 @@ export default function PublicLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <>
-      {children}
-      <PageHelperFab primaryRole="PUBLIC" />
-    </>
-  );
+  return <>{children}</>;
 }

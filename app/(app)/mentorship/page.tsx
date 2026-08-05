@@ -68,7 +68,7 @@ export default async function MentorshipPage(
   const { id: userId, primaryRole, roles = [] } = session.user;
 
   const isAdmin = roles.includes("ADMIN");
-  const [membership, chairLanes, commandAccess, committeeMemberships, hubAllowed] =
+  const [membership, chairLanes, commandAccess, committeeMemberships, hubAllowed, selfFlags] =
     await Promise.all([
       getInstructorMentorshipMembership(userId),
       getLanesForChair(userId, (session.user.adminSubtypes ?? []) as string[]),
@@ -78,6 +78,10 @@ export default async function MentorshipPage(
         select: { committee: { select: { track: { select: { programGroup: true } } } } },
       }),
       canAccessMentorshipHub(userId, primaryRole ?? "", roles),
+      prisma.user.findUnique({
+        where: { id: userId },
+        select: { mentorshipExempt: true },
+      }),
     ]);
 
   if (!hubAllowed) {
@@ -88,8 +92,10 @@ export default async function MentorshipPage(
     new Set(committeeMemberships.map((membership) => membership.committee.track.programGroup))
   );
 
+  // Board members are not mentees in the hub — no empty Home / G&R / Review.
+  const isBoardMember = Boolean(selfFlags?.mentorshipExempt);
   const facts = {
-    isMentee: membership.isMentee,
+    isMentee: membership.isMentee && !isBoardMember,
     isMentor: membership.isMentor,
     isAdmin,
     isChair: chairLanes.length > 0,
@@ -146,7 +152,7 @@ export default async function MentorshipPage(
       .filter((name): name is string => Boolean(name));
 
     const showMentorCard = asMentor.length > 0;
-    const showMenteeCard = Boolean(asMentee);
+    const showMenteeCard = Boolean(asMentee) && !isBoardMember;
 
     return (
       <div className={`${skin.portalSkin} flex flex-col gap-6`}>

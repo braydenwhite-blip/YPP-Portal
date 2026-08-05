@@ -315,8 +315,14 @@ export async function loadPeopleDashboard(
       avatarUrl: user.profile?.avatarUrl ?? null,
       mentorName: user.menteePairs[0]?.mentor?.name ?? user.menteePairs[0]?.mentor?.email ?? null,
       mentorId: user.menteePairs[0]?.mentor?.id ?? null,
-      chairName: user.menteePairs[0]?.chair?.name ?? user.menteePairs[0]?.chair?.email ?? null,
-      chairId: user.menteePairs[0]?.chair?.id ?? null,
+      chairName:
+        user.menteePairs[0]?.chair?.id && user.menteePairs[0].chair.id !== user.id
+          ? user.menteePairs[0]?.chair?.name ?? user.menteePairs[0]?.chair?.email ?? null
+          : null,
+      chairId:
+        user.menteePairs[0]?.chair?.id && user.menteePairs[0].chair.id !== user.id
+          ? user.menteePairs[0].chair.id
+          : null,
       functionName,
       departmentName,
       departments: departmentLabels,

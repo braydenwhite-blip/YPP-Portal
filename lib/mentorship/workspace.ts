@@ -41,6 +41,7 @@ import { loadParticipationsForUser } from "./cycle-load";
 import { STAGE_META } from "./cycle-constants";
 import { isQuarterlyCycle, findQuarterlyReview } from "./quarterly-review";
 import { currentQuarterLabel } from "@/lib/people-strategy/people-performance-selectors";
+import { getUserTitle } from "@/lib/user-title";
 
 /**
  * The unified Mentorship workspace loader — one person's complete development
@@ -139,6 +140,8 @@ export type MentorshipWorkspace = {
     location: string | null;
     hireDateLabel: string | null;
     gradeLabel: string | null;
+    /** Manual board / mentor-only opt-out — mirrors People roster. */
+    mentorshipExempt: boolean;
   };
   accessLevel: WorkspaceAccessLevel;
   isSelf: boolean;
@@ -391,8 +394,13 @@ export async function loadMentorshipWorkspace(
       primaryRole: true,
       title: true,
       canonicalTitle: true,
+      internalLevel: true,
+      ladder: true,
+      mentorshipExempt: true,
+      provisionalStart: true,
       createdAt: true,
       archivedAt: true,
+      adminSubtypes: { select: { subtype: true } },
       chapter: { select: { name: true } },
       orgDepartment: { select: { name: true } },
       profile: {
@@ -574,7 +582,10 @@ export async function loadMentorshipWorkspace(
       return laneRoleType
         ? prisma.mentorCommitteeChair.findFirst({
             where: { roleType: laneRoleType, isActive: true },
-            select: { user: { select: { name: true, email: true } } },
+            select: {
+              userId: true,
+              user: { select: { name: true, email: true } },
+            },
           })
         : Promise.resolve(null);
     })(),
@@ -851,6 +862,21 @@ export async function loadMentorshipWorkspace(
     }
   }
 
+  // Pairing Role Chair only (same source as People roster). Never treat the
+  // mentee as their own chair — that used to happen when lane-chair auto-fill
+  // pointed at the mentee.
+  const pairingChairId =
+    access.activeMentorship?.chairId &&
+    access.activeMentorship.chairId !== personId
+      ? access.activeMentorship.chairId
+      : null;
+  const pairingChair =
+    pairingChairId && access.activeMentorship?.chair
+      ? access.activeMentorship.chair
+      : null;
+  const laneChairOk =
+    roleChair && roleChair.userId !== personId ? roleChair : null;
+
   const lifecycle: LifecycleSnapshot = {
     hasActiveMentorship: !!access.activeMentorship,
     mentorshipStatus: access.activeMentorship?.status ?? latestMentorshipAnyStatus?.status ?? null,
@@ -861,10 +887,10 @@ export async function loadMentorshipWorkspace(
       access.activeMentorship?.mentor.email ||
       null,
     chairName:
-      access.activeMentorship?.chair?.name ||
-      access.activeMentorship?.chair?.email ||
-      roleChair?.user.name ||
-      roleChair?.user.email ||
+      pairingChair?.name ||
+      pairingChair?.email ||
+      laneChairOk?.user.name ||
+      laneChairOk?.user.email ||
       null,
     grDocStatus,
     cycleLabel: lifecycleCycleLabel,
@@ -878,7 +904,7 @@ export async function loadMentorshipWorkspace(
           programGroup: access.activeMentorship.programGroup as never,
         })
       : true,
-    hasRoleChair: Boolean(roleChair),
+    hasRoleChair: Boolean(pairingChairId || laneChairOk),
     overdueFollowUpLabel:
       followUpIsOverdue && latestWithFollowUp?.followUpDate
         ? `Follow-up was due ${dateLabel(latestWithFollowUp.followUpDate)}`
@@ -927,13 +953,19 @@ export async function loadMentorshipWorkspace(
     firstLine(checkInRows[0]?.discussion ?? checkInRows[0]?.commitments ?? null);
 
   const roleLabel = ROLE_LABELS[person.primaryRole] ?? person.primaryRole;
-  const displayTitle =
-    person.title?.trim() ||
-    person.canonicalTitle?.trim() ||
-    null;
-  const gradeLabel = displayTitle
-    ? `${roleLabel} (${displayTitle})`
-    : roleLabel;
+  const adminSubtypeValues = person.adminSubtypes.map((row) => row.subtype);
+  const displayTitle = getUserTitle({
+    title: person.title,
+    primaryRole: person.primaryRole,
+    adminSubtypes: adminSubtypeValues,
+    internalLevel: person.internalLevel,
+    ladder: person.ladder,
+    canonicalTitle: person.canonicalTitle,
+  });
+  const gradeLabel =
+    person.internalLevel != null
+      ? `${displayTitle} · L${person.internalLevel}`
+      : displayTitle;
   const contextLabel = person.chapter?.name
     ? `${roleLabel} · ${person.chapter.name}`
     : roleLabel;
@@ -942,16 +974,24 @@ export async function loadMentorshipWorkspace(
     person.profile?.stateProvince?.trim(),
   ].filter(Boolean);
   const hometown = hometownParts.length > 0 ? hometownParts.join(", ") : null;
-  const location =
-    hometown ||
-    (person.chapter?.name ? person.chapter.name : null);
+  // Location prefers profile city/state; chapter is the org fallback (same as
+  // People profile when hometown is empty).
+  const location = hometown || (person.chapter?.name ? person.chapter.name : null);
+  const hireSource = person.provisionalStart ?? person.createdAt;
+  const hireDateLabel = hireSource
+    ? hireSource.toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      })
+    : null;
   const mentorTitle =
     access.activeMentorship?.mentor.title?.trim() ||
     access.activeMentorship?.mentor.canonicalTitle?.trim() ||
     null;
   const chairTitle =
-    access.activeMentorship?.chair?.title?.trim() ||
-    access.activeMentorship?.chair?.canonicalTitle?.trim() ||
+    pairingChair?.title?.trim() ||
+    pairingChair?.canonicalTitle?.trim() ||
     null;
 
   const participantOptions: WorkspaceParticipant[] = [];
@@ -961,10 +1001,10 @@ export async function loadMentorshipWorkspace(
       id: access.activeMentorship.mentorId,
       name: access.activeMentorship.mentor.name || access.activeMentorship.mentor.email,
     });
-    if (access.activeMentorship.chairId && access.activeMentorship.chair) {
+    if (pairingChairId && pairingChair) {
       participantOptions.push({
-        id: access.activeMentorship.chairId,
-        name: access.activeMentorship.chair.name || access.activeMentorship.chair.email,
+        id: pairingChairId,
+        name: pairingChair.name || pairingChair.email,
       });
     }
   }
@@ -984,14 +1024,9 @@ export async function loadMentorshipWorkspace(
       departmentName: person.orgDepartment?.name ?? null,
       hometown,
       location,
-      hireDateLabel: person.createdAt
-        ? person.createdAt.toLocaleDateString("en-US", {
-            month: "long",
-            day: "numeric",
-            year: "numeric",
-          })
-        : null,
+      hireDateLabel,
       gradeLabel,
+      mentorshipExempt: Boolean(person.mentorshipExempt),
     },
     accessLevel: access.level,
     isSelf: access.isSelf,
@@ -1012,12 +1047,10 @@ export async function loadMentorshipWorkspace(
       mentorName: lifecycle.mentorName,
       mentorEmail: access.activeMentorship?.mentor.email ?? null,
       mentorTitle,
-      chairId: access.activeMentorship?.chairId ?? null,
-      chairName:
-        access.activeMentorship?.chair?.name ||
-        access.activeMentorship?.chair?.email ||
-        null,
-      chairEmail: access.activeMentorship?.chair?.email ?? null,
+      // Same source as People roster: pairing chair only (never self / lane ghost).
+      chairId: pairingChairId,
+      chairName: pairingChair?.name || pairingChair?.email || null,
+      chairEmail: pairingChair?.email ?? null,
       chairTitle,
       statusLabel: access.activeMentorship ? "Active mentorship" : "No active mentorship",
       currentFocus,
@@ -1041,10 +1074,7 @@ export async function loadMentorshipWorkspace(
     timeline,
     relationships: {
       primaryMentorName: lifecycle.mentorName,
-      chairName:
-        access.activeMentorship?.chair?.name ||
-        access.activeMentorship?.chair?.email ||
-        null,
+      chairName: pairingChair?.name || pairingChair?.email || null,
       startedAtLabel: access.activeMentorship
         ? dateLabel(access.activeMentorship.startDate)
         : null,

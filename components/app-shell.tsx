@@ -7,8 +7,6 @@ import CommandBar from "@/components/command-bar";
 import { CommandModeProvider } from "@/components/command-center/command-mode";
 import type { CommandMode } from "@/lib/command-mode-cookie";
 import LogoutButton from "@/components/logout-button";
-import PageHelperFab from "@/components/page-helper-fab";
-import type { PageHelperRole } from "@/lib/page-helper/types";
 import { getUserTitle } from "@/lib/user-title";
 import { Entity360Provider } from "@/components/operations/entity-360-drawer";
 import { HelpAgentProvider } from "@/components/help-agent/help-agent-provider";
@@ -319,12 +317,6 @@ export default function AppShell({
         <CommandBar />
         {children}
       </main>
-      {!actionsOnlyPreviewActive ? (
-      <PageHelperFab
-        primaryRole={(primaryRole as PageHelperRole | null | undefined) ?? undefined}
-        roles={roles}
-      />
-      ) : null}
     </div>
     </CommandModeProvider>
     </HelpAgentProvider>

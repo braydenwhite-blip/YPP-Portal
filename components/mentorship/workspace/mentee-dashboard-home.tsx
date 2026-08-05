@@ -25,7 +25,7 @@ function personWithTitle(name: string | null | undefined, title: string | null |
 }
 
 function MetaField({ label, value }: { label: string; value: string | null | undefined }) {
-  if (!value) return null;
+  if (value == null || value === "") return null;
   return (
     <div className="min-w-0">
       <p className="m-0 text-[11px] font-medium text-ink-muted">{label}</p>
@@ -54,11 +54,19 @@ export async function MenteeDashboardHome({
   });
 
   const roleBadge = person.title
-    ? `${person.roleLabel} · ${person.title}`
+    ? person.title === person.roleLabel
+      ? person.roleLabel
+      : `${person.roleLabel} · ${person.title}`
     : person.roleLabel;
 
-  const mentorDisplay = personWithTitle(overview.mentorName, overview.mentorTitle);
-  const chairDisplay = personWithTitle(overview.chairName, overview.chairTitle);
+  const mentorDisplay = overview.mentorName
+    ? personWithTitle(overview.mentorName, overview.mentorTitle)
+    : person.mentorshipExempt
+      ? "Board member"
+      : "Not assigned";
+  const chairDisplay = overview.chairName
+    ? personWithTitle(overview.chairName, overview.chairTitle)
+    : "Not assigned";
 
   const canCreateReviewDoc =
     !workspace.isSelf &&
@@ -128,7 +136,7 @@ export async function MenteeDashboardHome({
             <MetaField label="Grade / Level" value={person.gradeLabel} />
             <MetaField label="Next Review" value={overview.nextReviewLabel} />
             <MetaField label="Hire Date" value={person.hireDateLabel} />
-            <MetaField label="Mentor" value={mentorDisplay ?? "Not paired yet"} />
+            <MetaField label="Mentor" value={mentorDisplay} />
           </div>
         </div>
       </section>

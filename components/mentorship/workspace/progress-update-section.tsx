@@ -697,7 +697,9 @@ function employeeProfileFromWorkspace(
     ? overview.mentorTitle
       ? `${overview.mentorName} (${overview.mentorTitle})`
       : overview.mentorName
-    : null;
+    : person.mentorshipExempt
+      ? "Board member"
+      : null;
   const chairDisplay = overview.chairName
     ? overview.chairTitle
       ? `${overview.chairName} (${overview.chairTitle})`

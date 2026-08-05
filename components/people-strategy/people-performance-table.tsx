@@ -59,14 +59,17 @@ function personProfileHref(id: string, personHrefBase = "/people"): string {
   return `${personHrefBase}/${id}?from=people`;
 }
 
-function stopRowNavigation(event: MouseEvent | KeyboardEvent) {
-  event.stopPropagation();
+/** Board members have no mentee mentorship home — don't send anyone there. */
+function canOpenPersonHome(
+  row: PeoplePerformanceRow,
+  personHrefBase: string
+): boolean {
+  if (!row.mentorshipExempt) return true;
+  return !personHrefBase.startsWith("/mentorship/people");
 }
 
-function truncatePlan(text: string, max = 90): string {
-  const cleaned = text.replace(/\s+/g, " ").trim();
-  if (cleaned.length <= max) return cleaned;
-  return `${cleaned.slice(0, max - 1).trimEnd()}…`;
+function stopRowNavigation(event: MouseEvent | KeyboardEvent) {
+  event.stopPropagation();
 }
 
 /**
@@ -103,10 +106,12 @@ export function PeoplePerformanceTable({
   const tableRows = dedupePeopleRows(rows);
 
   function openPerson(row: PeoplePerformanceRow) {
+    if (!canOpenPersonHome(row, personHrefBase)) return;
     router.push(personProfileHref(row.id, personHrefBase));
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>, row: PeoplePerformanceRow) {
+    if (!canOpenPersonHome(row, personHrefBase)) return;
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       openPerson(row);
@@ -132,16 +137,23 @@ export function PeoplePerformanceTable({
         const status = mentorReviewCellStatus(row.facts);
         const review = row.latestGoalReview;
         const overdue = row.facts.overdueActionCount;
+        const canOpen = canOpenPersonHome(row, personHrefBase);
+        const profileHref = personProfileHref(row.id, personHrefBase);
 
         return (
           <div
             key={row.id}
-            role="link"
-            tabIndex={0}
-            onClick={() => openPerson(row)}
-            onKeyDown={(event) => handleKeyDown(event, row)}
-            aria-label={`Open ${name}`}
-            className="group flex cursor-pointer flex-col gap-3 px-4 py-4 hover:bg-[#faf7ff] focus-visible:bg-[#faf7ff] focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#6b21c8] sm:flex-row sm:items-center sm:gap-4"
+            role={canOpen ? "link" : undefined}
+            tabIndex={canOpen ? 0 : undefined}
+            onClick={canOpen ? () => openPerson(row) : undefined}
+            onKeyDown={canOpen ? (event) => handleKeyDown(event, row) : undefined}
+            aria-label={canOpen ? `Open ${name}` : undefined}
+            className={cn(
+              "group flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:gap-4",
+              canOpen
+                ? "cursor-pointer hover:bg-[#faf7ff] focus-visible:bg-[#faf7ff] focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#6b21c8]"
+                : "cursor-default"
+            )}
           >
             <div className="flex min-w-0 flex-1 items-center gap-3">
               <span
@@ -152,13 +164,17 @@ export function PeoplePerformanceTable({
                 {initials}
               </span>
               <div className="min-w-0 flex-1">
-                <Link
-                  href={personProfileHref(row.id, personHrefBase)}
-                  onClick={stopRowNavigation}
-                  className="block truncate text-[15px] font-bold text-[#1c1a2e] no-underline group-hover:text-[#5a1da8]"
-                >
-                  {name}
-                </Link>
+                {canOpen ? (
+                  <Link
+                    href={profileHref}
+                    onClick={stopRowNavigation}
+                    className="block truncate text-[15px] font-bold text-[#1c1a2e] no-underline group-hover:text-[#5a1da8]"
+                  >
+                    {name}
+                  </Link>
+                ) : (
+                  <p className="m-0 truncate text-[15px] font-bold text-[#1c1a2e]">{name}</p>
+                )}
                 {meta ? (
                   <p className="m-0 mt-0.5 truncate text-[12.5px] text-[#9a9ab0]">{meta}</p>
                 ) : null}
@@ -190,25 +206,19 @@ export function PeoplePerformanceTable({
                   STATUS_TONE[status.tone]
                 )}
               >
-                {status.text === "—" ? "No review track" : status.text}
+                {row.mentorshipExempt
+                  ? "Board member"
+                  : status.text === "—"
+                    ? "No review track"
+                    : status.text}
               </span>
-              {review ? (
-                <div className="flex min-w-0 flex-col gap-0.5">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <RatingBadge rating={review.overallRating} />
-                    <span className="text-[11px] text-[#9a9ab0]">{review.cycleMonthLabel}</span>
-                  </div>
-                  {review.planOfAction ? (
-                    <p
-                      className="m-0 truncate text-[12px] leading-snug text-[#717189]"
-                      title={review.planOfAction}
-                    >
-                      {truncatePlan(review.planOfAction)}
-                    </p>
-                  ) : null}
+              {!row.mentorshipExempt && review ? (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <RatingBadge rating={review.overallRating} />
+                  <span className="text-[11px] text-[#9a9ab0]">{review.cycleMonthLabel}</span>
                 </div>
               ) : null}
-              {overdue > 0 ? (
+              {!row.mentorshipExempt && overdue > 0 ? (
                 <span className="text-[12px] font-semibold text-[#c0392b]">
                   {overdue} overdue action{overdue === 1 ? "" : "s"}
                 </span>
@@ -266,30 +276,40 @@ export function PeoplePerformanceTable({
                     <p
                       className={cn(
                         "m-0 truncate text-[13px] font-semibold",
-                        row.mentorName ? "text-[#3a3a52]" : "text-[#c0392b]"
+                        row.mentorshipExempt
+                          ? "text-[#3a3a52]"
+                          : row.mentorName
+                            ? "text-[#3a3a52]"
+                            : "text-[#c0392b]"
                       )}
                     >
-                      {row.mentorName ?? "Unassigned"}
+                      {row.mentorshipExempt
+                        ? "Board member"
+                        : (row.mentorName ?? "Unassigned")}
                     </p>
                   </div>
-                  <div>
-                    <p className="m-0 text-[11px] font-medium uppercase tracking-[0.04em] text-[#9a9ab0]">
-                      Role Chair
-                    </p>
-                    <p
-                      className={cn(
-                        "m-0 truncate text-[13px] font-semibold",
-                        row.chairName ? "text-[#3a3a52]" : "text-[#c0392b]"
-                      )}
-                    >
-                      {row.chairName ?? "Not assigned"}
-                    </p>
-                  </div>
+                  {!row.mentorshipExempt ? (
+                    <div>
+                      <p className="m-0 text-[11px] font-medium uppercase tracking-[0.04em] text-[#9a9ab0]">
+                        Role Chair
+                      </p>
+                      <p
+                        className={cn(
+                          "m-0 truncate text-[13px] font-semibold",
+                          row.chairName ? "text-[#3a3a52]" : "text-[#c0392b]"
+                        )}
+                      >
+                        {row.chairName ?? "Not assigned"}
+                      </p>
+                    </div>
+                  ) : null}
                 </div>
               )}
-              <span className="hidden text-[12px] font-semibold text-[#5a1da8] sm:inline">
-                Open →
-              </span>
+              {canOpen ? (
+                <span className="hidden text-[12px] font-semibold text-[#5a1da8] sm:inline">
+                  Open →
+                </span>
+              ) : null}
             </div>
           </div>
         );
