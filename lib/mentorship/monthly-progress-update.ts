@@ -103,53 +103,42 @@ export async function loadMonthlyProgressUpdate(input: {
   reviewId?: string | null;
   monthKey?: string | null;
 }): Promise<MonthlyProgressUpdateDoc | null> {
-  const mentorship = await prisma.mentorship.findFirst({
-    where: {
-      menteeId: input.personId,
-      status: "ACTIVE",
-    },
-    orderBy: { startDate: "desc" },
-    select: {
-      id: true,
-      startDate: true,
-      mentorId: true,
-      menteeId: true,
-      mentor: {
-        select: { id: true, name: true },
-      },
-      mentee: {
-        select: {
-          id: true,
-          name: true,
-          title: true,
-          canonicalTitle: true,
-          primaryRole: true,
-          adminSubtypes: true,
-          internalLevel: true,
-          ladder: true,
-        },
-      },
-    },
-  });
-
-  if (!mentorship) return null;
-
-  const isParty =
-    mentorship.mentorId === input.viewerId || mentorship.menteeId === input.viewerId;
   const isOfficer = input.viewerRoles.some((r) =>
     ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"].includes(r)
   );
-  if (!isParty && !isOfficer) return null;
 
+  // Prefer an explicit review copy (any pairing for this mentee) so PDF works
+  // for drafts, sent copies, and prior-mentorship documents.
   let review =
     input.reviewId
       ? await prisma.mentorGoalReview.findFirst({
           where: {
             id: input.reviewId,
             menteeId: input.personId,
-            mentorshipId: mentorship.id,
           },
           include: {
+            mentorship: {
+              select: {
+                id: true,
+                startDate: true,
+                mentorId: true,
+                menteeId: true,
+                status: true,
+                mentor: { select: { id: true, name: true } },
+                mentee: {
+                  select: {
+                    id: true,
+                    name: true,
+                    title: true,
+                    canonicalTitle: true,
+                    primaryRole: true,
+                    adminSubtypes: true,
+                    internalLevel: true,
+                    ladder: true,
+                  },
+                },
+              },
+            },
             goalRatings: {
               include: {
                 grDocumentGoal: {
@@ -167,10 +156,54 @@ export async function loadMonthlyProgressUpdate(input: {
         })
       : null;
 
+  const mentorshipFromReview = review?.mentorship ?? null;
+
+  const activeMentorship =
+    mentorshipFromReview ??
+    (await prisma.mentorship.findFirst({
+      where: {
+        menteeId: input.personId,
+        status: "ACTIVE",
+      },
+      orderBy: { startDate: "desc" },
+      select: {
+        id: true,
+        startDate: true,
+        mentorId: true,
+        menteeId: true,
+        status: true,
+        mentor: {
+          select: { id: true, name: true },
+        },
+        mentee: {
+          select: {
+            id: true,
+            name: true,
+            title: true,
+            canonicalTitle: true,
+            primaryRole: true,
+            adminSubtypes: true,
+            internalLevel: true,
+            ladder: true,
+          },
+        },
+      },
+    }));
+
+  if (!activeMentorship && !review) return null;
+
+  const mentorship = activeMentorship ?? mentorshipFromReview;
+  if (!mentorship) return null;
+
+  const isParty =
+    mentorship.mentorId === input.viewerId || mentorship.menteeId === input.viewerId;
+  if (!isParty && !isOfficer) return null;
+
   if (!review) {
     review = await prisma.mentorGoalReview.findFirst({
       where: {
-        mentorshipId: mentorship.id,
+        menteeId: input.personId,
+        ...(mentorship.id ? { mentorshipId: mentorship.id } : {}),
         ...(input.monthKey
           ? {
               cycleMonth: {
@@ -185,6 +218,28 @@ export async function loadMonthlyProgressUpdate(input: {
       },
       orderBy: [{ releasedToMenteeAt: "desc" }, { createdAt: "desc" }],
       include: {
+        mentorship: {
+          select: {
+            id: true,
+            startDate: true,
+            mentorId: true,
+            menteeId: true,
+            status: true,
+            mentor: { select: { id: true, name: true } },
+            mentee: {
+              select: {
+                id: true,
+                name: true,
+                title: true,
+                canonicalTitle: true,
+                primaryRole: true,
+                adminSubtypes: true,
+                internalLevel: true,
+                ladder: true,
+              },
+            },
+          },
+        },
         goalRatings: {
           include: {
             grDocumentGoal: {

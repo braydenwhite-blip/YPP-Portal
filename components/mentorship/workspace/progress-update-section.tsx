@@ -70,6 +70,8 @@ type ComposeState = {
   requiresChair: boolean;
   existingStatus: string | null;
   existingReviewId: string | null;
+  /** When set, this copy was already released to the mentee. */
+  releasedToMenteeAt: Date | null;
   cycleMonth: Date;
   documentTitle: string | null;
   rubric: ProgressRubricContext;
@@ -257,6 +259,7 @@ export async function ProgressUpdateSection({
         requiresChair: false,
         existingStatus: null,
         existingReviewId: selectedCopy?.id ?? null,
+        releasedToMenteeAt: selectedCopy?.releasedToMenteeAt ?? null,
         cycleMonth: selectedCycleMonth,
         documentTitle: readReviewDocumentTitle(
           selectedCopy?.nextMonthGoalDraftsJson,
@@ -283,6 +286,7 @@ export async function ProgressUpdateSection({
   const lockedPending =
     compose?.existingStatus === "PENDING_CHAIR_APPROVAL" &&
     Boolean(compose.existingReviewId);
+  const isSentCopy = Boolean(compose?.releasedToMenteeAt);
   const showWriteForm = canCompose && compose != null;
 
   const activeReviewId = compose?.existingReviewId ?? selectedCopy?.id ?? null;
@@ -313,11 +317,16 @@ export async function ProgressUpdateSection({
       title,
       statusLabel,
       href: `${progressBase}${progressBase.includes("?") ? "&" : "?"}reviewId=${encodeURIComponent(c.id)}`,
+      pdfHref: `/mentorship/people/${person.id}/monthly-update/print?reviewId=${encodeURIComponent(c.id)}&month=${encodeURIComponent(monthKey(c.cycleMonth))}`,
     };
   });
 
   const monthKeyValue = (d: Date) =>
     `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+
+  const activePdfHref = activeReviewId
+    ? `/mentorship/people/${person.id}/monthly-update/print?reviewId=${encodeURIComponent(activeReviewId)}&month=${encodeURIComponent(monthKeyValue(compose?.cycleMonth ?? selectedCycleMonth))}`
+    : null;
 
   // Mentor write path: only the Performance Review form (mockup).
   if (showWriteForm && compose) {
@@ -328,25 +337,50 @@ export async function ProgressUpdateSection({
             key={activeReviewId ?? "none"}
             copies={copyOptions}
             activeId={activeReviewId}
-            canEditMeta={Boolean(activeReviewId) && !lockedApproved}
-            initialTitle={
-              compose.documentTitle?.trim() ||
-              `${formatReviewPeriodLabel(compose.cycleMonth)} Performance Review`
-            }
-            initialMonthKey={monthKeyValue(compose.cycleMonth)}
           />
         ) : null}
 
-        {justSent ? (
+        {isSentCopy || justSent ? (
           <CardV2 padding="md" className="border-l-4 border-l-complete-700">
-            <p className="m-0 text-[14px] font-semibold text-ink">
-              {lockedApproved ? "Updated version sent" : "Sent"}
+            <p className="m-0 text-[11px] font-bold uppercase tracking-[0.08em] text-complete-800">
+              Review sent
+            </p>
+            <p className="m-0 mt-1 text-[14px] font-semibold text-ink">
+              {justSent && !isSentCopy
+                ? lockedApproved
+                  ? "Updated version sent"
+                  : "Sent"
+                : "You’re editing a review that was already sent"}
             </p>
             <p className="m-0 mt-1 text-[13px] text-ink-muted">
-              {menteeFirst} can open it under Past reviews below when released.
+              {menteeFirst} can already see this copy. Save and send again to push
+              an updated version. You can print a PDF anytime from the button below.
             </p>
+            {activePdfHref ? (
+              <div className="mt-3">
+                <a
+                  href={activePdfHref}
+                  className="inline-flex min-h-8 items-center justify-center rounded-full bg-brand-600 px-3.5 text-[12.5px] font-semibold text-white no-underline hover:brightness-95"
+                >
+                  Print / download PDF
+                </a>
+              </div>
+            ) : null}
           </CardV2>
+        ) : activePdfHref ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <a
+              href={activePdfHref}
+              className="inline-flex min-h-8 items-center justify-center rounded-full border border-line-soft bg-white px-3.5 text-[12.5px] font-semibold text-ink no-underline hover:border-brand-300 hover:text-brand-800"
+            >
+              Print / download PDF
+            </a>
+            <span className="text-[12.5px] text-ink-muted">
+              Works for drafts and sent copies.
+            </span>
+          </div>
         ) : null}
+
         {pendingChair ? (
           <CardV2 padding="md" className="border-l-4 border-l-progress-700">
             <p className="m-0 text-[14px] font-semibold text-ink">
@@ -385,7 +419,7 @@ export async function ProgressUpdateSection({
           menteeName={person.name}
           cycleLabel={periodLabel}
           requiresChairApproval={compose.requiresChair}
-          isUpdate={lockedApproved || lockedPending}
+          isUpdate={lockedApproved || lockedPending || isSentCopy}
           rubric={compose.rubric}
           bandReference={compose.bandReference}
           employee={employeeProfileFromWorkspace(workspace)}
@@ -397,6 +431,7 @@ export async function ProgressUpdateSection({
           initialGoals={compose.draft.goals}
           reviewId={compose.existingReviewId}
           reviewTeamAssign={reviewTeamAssign}
+          reviewSent={isSentCopy}
         />
 
         {released.length > 0 ? (
@@ -417,11 +452,19 @@ export async function ProgressUpdateSection({
                     {readReviewDocumentTitle(review.nextMonthGoalDraftsJson) ||
                       formatMonth(review.cycleMonth)}
                   </a>
-                  <StatusBadge
-                    tone={RATING_TONE[review.overallRating] ?? "neutral"}
-                  >
-                    {RATING_LABELS[review.overallRating] ?? review.overallRating}
-                  </StatusBadge>
+                  <span className="flex flex-wrap items-center gap-2">
+                    <StatusBadge
+                      tone={RATING_TONE[review.overallRating] ?? "neutral"}
+                    >
+                      {RATING_LABELS[review.overallRating] ?? review.overallRating}
+                    </StatusBadge>
+                    <a
+                      href={`/mentorship/people/${person.id}/monthly-update/print?reviewId=${encodeURIComponent(review.id)}&month=${encodeURIComponent(monthKey(review.cycleMonth))}`}
+                      className="text-[12px] font-semibold text-brand-700 no-underline hover:underline"
+                    >
+                      PDF
+                    </a>
+                  </span>
                 </li>
               ))}
             </ul>
@@ -449,15 +492,17 @@ export async function ProgressUpdateSection({
           <p className="m-0 mt-1 text-[13.5px] text-ink-muted">
             {isSelf
               ? "Reviews your mentor sends land here. Open one to read it, or download a PDF."
-              : !activeMentorshipId
-                ? "Assign a mentor before writing a review."
-                : "Open this tab once you can write a review for this mentorship."}
+              : !activeMentorshipId && allCopies.length > 0
+                ? "Select a copy below to open or print it. Assign a mentor to write a new review."
+                : !activeMentorshipId
+                  ? "Assign a mentor before writing a review."
+                  : "Open a copy above (or create a new review) to edit it here."}
           </p>
         </div>
-        {isSelf && activeReleased ? (
+        {activeReleased || selectedCopy ? (
           <div className="flex flex-wrap gap-2">
             <a
-              href={`/mentorship/people/${person.id}/monthly-update/print?reviewId=${encodeURIComponent(activeReleased.id)}&month=${encodeURIComponent(monthKey(activeReleased.cycleMonth))}`}
+              href={`/mentorship/people/${person.id}/monthly-update/print?reviewId=${encodeURIComponent((selectedCopy ?? activeReleased)!.id)}&month=${encodeURIComponent(monthKey((selectedCopy ?? activeReleased)!.cycleMonth))}`}
               className="inline-flex min-h-9 items-center justify-center rounded-full bg-brand-600 px-4 text-[13px] font-semibold text-white no-underline hover:brightness-95"
             >
               View & download PDF
@@ -466,19 +511,11 @@ export async function ProgressUpdateSection({
         ) : null}
       </header>
 
-      {isSelf && copyOptions.length > 1 ? (
+      {copyOptions.length > 0 ? (
         <ReviewCopySwitcher
           key={selectedCopy?.id ?? "none"}
           copies={copyOptions}
           activeId={selectedCopy?.id ?? activeReleased?.id ?? null}
-          canEditMeta={false}
-          initialTitle={
-            selectedCopy
-              ? readReviewDocumentTitle(selectedCopy.nextMonthGoalDraftsJson) ||
-                formatReviewPeriodLabel(selectedCycleMonth)
-              : formatReviewPeriodLabel(selectedCycleMonth)
-          }
-          initialMonthKey={monthKeyValue(selectedCycleMonth)}
         />
       ) : null}
 
@@ -486,7 +523,9 @@ export async function ProgressUpdateSection({
         <CardV2 padding="md">
           <p className="m-0 text-[14px] font-semibold text-ink">No active mentorship</p>
           <p className="m-0 mt-1 text-[13px] text-ink-muted">
-            Assign a mentor first, then come back to write the performance review.
+            {allCopies.length > 0
+              ? "You can still open and print existing copies above. Assign a mentor to write a new one."
+              : "Assign a mentor first, then come back to write the performance review."}
           </p>
         </CardV2>
       ) : null}
@@ -759,6 +798,8 @@ async function loadComposeState(args: {
   const reviewSelect = {
     id: true,
     status: true,
+    mentorshipId: true,
+    releasedToMenteeAt: true,
     overallRating: true,
     overallComments: true,
     planOfAction: true,
@@ -778,9 +819,11 @@ async function loadComposeState(args: {
     },
   } as const;
 
+  // Load by review id + mentee (not only the current ACTIVE pairing) so sent
+  // copies from a prior mentorship still open for edit / PDF.
   const existingById = reviewId
     ? await prisma.mentorGoalReview.findFirst({
-        where: { id: reviewId, mentorshipId: mentorship.id },
+        where: { id: reviewId, menteeId: personId },
         select: reviewSelect,
       })
     : null;
@@ -789,6 +832,7 @@ async function loadComposeState(args: {
     existingById ??
     (await prisma.mentorGoalReview.findFirst({
       where: {
+        menteeId: personId,
         mentorshipId: mentorship.id,
         cycleMonth: { gte: cycleMonth, lt: monthEnd },
       },
@@ -816,12 +860,14 @@ async function loadComposeState(args: {
   const review = existingForMonth ?? reflection?.goalReview ?? null;
   const cycleNumber = existingForMonth?.cycleNumber ?? reflection?.cycleNumber;
   const resolvedCycleMonth = review?.cycleMonth ?? cycleMonth;
+  const composeMentorshipId = review?.mentorshipId ?? mentorship.id;
 
+  const pathwayMentorshipId = composeMentorshipId;
   const viewer = await getSessionUser();
   const pathwayGoals = viewer
     ? await ensurePathwayCompetencyGoals({
         menteeId: personId,
-        mentorshipId,
+        mentorshipId: pathwayMentorshipId,
         actorId: viewer.id,
       }).catch(() => [])
     : [];
@@ -884,14 +930,31 @@ async function loadComposeState(args: {
     };
   });
 
+  // Chair / governance rules come from the ACTIVE pairing when present;
+  // fall back to the review's own mentorship if we're editing a prior copy.
+  let requiresChair = mentorshipRequiresChairApproval({
+    governanceMode: mentorship.governanceMode,
+    programGroup: mentorship.programGroup,
+  });
+  if (composeMentorshipId !== mentorship.id) {
+    const reviewMentorship = await prisma.mentorship.findUnique({
+      where: { id: composeMentorshipId },
+      select: { governanceMode: true, programGroup: true },
+    });
+    if (reviewMentorship) {
+      requiresChair = mentorshipRequiresChairApproval({
+        governanceMode: reviewMentorship.governanceMode,
+        programGroup: reviewMentorship.programGroup,
+      });
+    }
+  }
+
   return {
-    mentorshipId: mentorship.id,
-    requiresChair: mentorshipRequiresChairApproval({
-      governanceMode: mentorship.governanceMode,
-      programGroup: mentorship.programGroup,
-    }),
+    mentorshipId: composeMentorshipId,
+    requiresChair,
     existingStatus: review?.status ?? null,
     existingReviewId: review?.id ?? null,
+    releasedToMenteeAt: review?.releasedToMenteeAt ?? null,
     cycleMonth: resolvedCycleMonth,
     documentTitle: readReviewDocumentTitle(review?.nextMonthGoalDraftsJson),
     rubric,

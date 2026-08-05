@@ -92,8 +92,8 @@ export async function submitMonthlyProgressUpdate(
       mentor: { select: { name: true } },
     },
   });
-  if (!mentorship || mentorship.status !== "ACTIVE") {
-    throw new Error("Active mentorship not found.");
+  if (!mentorship) {
+    throw new Error("Mentorship not found.");
   }
   if (mentorship.menteeId !== data.menteeId) {
     throw new Error("Mentee does not match this mentorship.");
@@ -104,20 +104,12 @@ export async function submitMonthlyProgressUpdate(
     throw new Error("Only the assigned mentor can send a progress update.");
   }
 
-  const { cycleMonth: currentCycleMonth, cycleLabel: currentCycleLabel } =
-    getCurrentCycleMonth();
-  const requiresChair = mentorshipRequiresChairApproval({
-    governanceMode: mentorship.governanceMode,
-    programGroup: mentorship.programGroup,
-  });
-
-  // Prefer an explicit review document, else the newest review for the
-  // current month, else create a stub reflection for this month.
+  // Prefer an explicit review document (any pairing for this mentee), else the
+  // newest review for the current month on this mentorship.
   let existingMonthReview = data.reviewId
     ? await prisma.mentorGoalReview.findFirst({
         where: {
           id: data.reviewId,
-          mentorshipId: mentorship.id,
           menteeId: mentorship.menteeId,
         },
         select: {
@@ -125,9 +117,24 @@ export async function submitMonthlyProgressUpdate(
           status: true,
           selfReflectionId: true,
           cycleMonth: true,
+          mentorshipId: true,
+          releasedToMenteeAt: true,
         },
       })
     : null;
+
+  // New drafts still require an ACTIVE pairing; updating an existing copy
+  // (including sent ones) is allowed even if that pairing later completed.
+  if (!existingMonthReview && mentorship.status !== "ACTIVE") {
+    throw new Error("Active mentorship not found.");
+  }
+
+  const { cycleMonth: currentCycleMonth, cycleLabel: currentCycleLabel } =
+    getCurrentCycleMonth();
+  const requiresChair = mentorshipRequiresChairApproval({
+    governanceMode: mentorship.governanceMode,
+    programGroup: mentorship.programGroup,
+  });
 
   const cycleMonth = existingMonthReview?.cycleMonth ?? currentCycleMonth;
   const cycleLabel = existingMonthReview
@@ -153,6 +160,8 @@ export async function submitMonthlyProgressUpdate(
         status: true,
         selfReflectionId: true,
         cycleMonth: true,
+        mentorshipId: true,
+        releasedToMenteeAt: true,
       },
     });
   }

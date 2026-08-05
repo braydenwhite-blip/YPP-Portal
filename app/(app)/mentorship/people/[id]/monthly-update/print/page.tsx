@@ -7,7 +7,6 @@ import { ShareProgressUpdateControls } from "@/components/mentorship/workspace/s
 import { getSessionUser } from "@/lib/auth-supabase";
 import {
   loadMonthlyProgressUpdate,
-  MONTHLY_UPDATE_RATINGS,
   ratingLabel,
   type MonthlyProgressUpdateDoc,
 } from "@/lib/mentorship/monthly-progress-update";
@@ -15,122 +14,146 @@ import {
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Monthly Progress Update" };
 
-function RatingBoxes({ selected }: { selected: GoalRatingColor | null }) {
-  return (
-    <div className="mpu-ratings">
-      {MONTHLY_UPDATE_RATINGS.map((value) => {
-        const on = selected === value;
-        return (
-          <span key={value} className={`mpu-rating ${on ? "is-on" : ""}`}>
-            <span className="mpu-box" aria-hidden>
-              {on ? "☑" : "☐"}
-            </span>
-            {ratingLabel(value)}
-          </span>
-        );
-      })}
-    </div>
-  );
-}
-
-function Fact({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="mpu-fact">
-      <div className="mpu-fact-label">{label}</div>
-      <div className="mpu-fact-value">{value}</div>
-    </div>
-  );
+function ratingColor(rating: GoalRatingColor | null | undefined): string {
+  switch (rating) {
+    case "BEHIND_SCHEDULE":
+      return "#b91c1c";
+    case "GETTING_STARTED":
+      return "#c2410c";
+    case "ACHIEVED":
+      return "#047857";
+    case "ABOVE_AND_BEYOND":
+      return "#6b21c8";
+    default:
+      return "#717189";
+  }
 }
 
 function DocBody({ doc }: { doc: MonthlyProgressUpdateDoc }) {
   return (
-    <article className="mpu-doc">
-      <header className="mpu-header">
-        <p className="mpu-kicker">Youth Passion Project</p>
-        <h1 className="mpu-title">Monthly Progress Update</h1>
+    <article className="sheet">
+      <header className="sheet-top">
+        <p className="brand">Youth Passion Project</p>
+        <h1>Monthly Progress Update</h1>
+        <p className="who">
+          {doc.leaderName}
+          <span>·</span>
+          {doc.thisMonthLabel}
+        </p>
       </header>
 
-      <section className="mpu-grid">
-        <Fact label="Leader name" value={doc.leaderName} />
-        <Fact label="Position" value={doc.position} />
-        <Fact label="Class of" value={doc.classOf ?? "—"} />
-        <Fact label="Mentor" value={doc.mentorName} />
-        <Fact label="Start month" value={doc.startMonthLabel} />
-        <Fact label="This month" value={doc.thisMonthLabel} />
-      </section>
-
-      <section className="mpu-section">
-        <h2>Overall assessment</h2>
-        <div className="mpu-block">
-          <div className="mpu-label">Overall rating</div>
-          <RatingBoxes selected={doc.overallRating} />
+      <dl className="facts">
+        <div>
+          <dt>Role</dt>
+          <dd>{doc.position}</dd>
         </div>
-        {doc.achievementPoints ? (
-          <div className="mpu-block">
-            <div className="mpu-label">Achievement points</div>
-            <p className="mpu-body">
-              {doc.achievementPoints.earned}/{doc.achievementPoints.of}
+        <div>
+          <dt>Mentor</dt>
+          <dd>{doc.mentorName}</dd>
+        </div>
+        <div>
+          <dt>Class of</dt>
+          <dd>{doc.classOf ?? "—"}</dd>
+        </div>
+        <div>
+          <dt>Started</dt>
+          <dd>{doc.startMonthLabel}</dd>
+        </div>
+      </dl>
+
+      <section className="section">
+        <h2>Assessment</h2>
+
+        <div className="row">
+          <div>
+            <p className="label">Overall rating</p>
+            <p
+              className="rating"
+              style={{ color: ratingColor(doc.overallRating) }}
+            >
+              {doc.overallRating ? ratingLabel(doc.overallRating) : "Not rated"}
             </p>
           </div>
-        ) : null}
+        </div>
+
         {doc.overallComments ? (
-          <div className="mpu-block">
-            <div className="mpu-label">Overall comments</div>
-            <p className="mpu-body whitespace-pre-wrap">{doc.overallComments}</p>
+          <div className="field">
+            <p className="label">Comments</p>
+            <p className="prose whitespace-pre-wrap">{doc.overallComments}</p>
           </div>
         ) : null}
-        {doc.strengths ? (
-          <div className="mpu-block">
-            <div className="mpu-label">Strengths</div>
-            <p className="mpu-body whitespace-pre-wrap">{doc.strengths}</p>
+
+        {(doc.strengths || doc.areasForDevelopment) && (
+          <div className="pair">
+            {doc.strengths ? (
+              <div className="field">
+                <p className="label">Strengths</p>
+                <p className="prose whitespace-pre-wrap">{doc.strengths}</p>
+              </div>
+            ) : null}
+            {doc.areasForDevelopment ? (
+              <div className="field">
+                <p className="label">Areas for development</p>
+                <p className="prose whitespace-pre-wrap">
+                  {doc.areasForDevelopment}
+                </p>
+              </div>
+            ) : null}
           </div>
-        ) : null}
-        {doc.areasForDevelopment ? (
-          <div className="mpu-block">
-            <div className="mpu-label">Areas for development</div>
-            <p className="mpu-body whitespace-pre-wrap">{doc.areasForDevelopment}</p>
-          </div>
-        ) : null}
+        )}
       </section>
 
-      <section className="mpu-section">
+      <section className="section">
         <h2>Goals for next month</h2>
+
         {doc.goals.length === 0 ? (
-          <p className="mpu-muted">No goals captured for this month yet.</p>
+          <p className="empty">No goals captured yet.</p>
         ) : (
-          doc.goals.map((goal, index) => (
-            <div key={`${goal.title}-${index}`} className="mpu-goal">
-              <h3>
-                Goal category {index + 1} — {goal.title}
-              </h3>
-              {goal.collaborateWith ? (
-                <div className="mpu-block">
-                  <div className="mpu-label">Collaborate with</div>
-                  <p className="mpu-body">{goal.collaborateWith}</p>
+          <ol className="goals">
+            {doc.goals.map((goal, index) => (
+              <li key={`${goal.title}-${index}`}>
+                <div className="goal-head">
+                  <h3>
+                    <span>{index + 1}</span>
+                    {goal.title}
+                  </h3>
+                  {goal.rating ? (
+                    <p
+                      className="goal-rating"
+                      style={{ color: ratingColor(goal.rating) }}
+                    >
+                      {ratingLabel(goal.rating)}
+                    </p>
+                  ) : null}
                 </div>
-              ) : null}
-              <div className="mpu-block">
-                <div className="mpu-label">Current progress</div>
-                <RatingBoxes selected={goal.rating} />
-              </div>
-              {goal.objective ? (
-                <div className="mpu-block">
-                  <div className="mpu-label">Overall objective</div>
-                  <p className="mpu-body whitespace-pre-wrap">{goal.objective}</p>
-                </div>
-              ) : null}
-              {goal.actionItems.length > 0 ? (
-                <div className="mpu-block">
-                  <div className="mpu-label">Action items</div>
-                  <ul className="mpu-list">
-                    {goal.actionItems.map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-            </div>
-          ))
+
+                {goal.collaborateWith ? (
+                  <div className="field">
+                    <p className="label">Collaborate with</p>
+                    <p className="prose">{goal.collaborateWith}</p>
+                  </div>
+                ) : null}
+
+                {goal.objective ? (
+                  <div className="field">
+                    <p className="label">Objective</p>
+                    <p className="prose whitespace-pre-wrap">{goal.objective}</p>
+                  </div>
+                ) : null}
+
+                {goal.actionItems.length > 0 ? (
+                  <div className="field">
+                    <p className="label">Action items</p>
+                    <ul>
+                      {goal.actionItems.map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </li>
+            ))}
+          </ol>
         )}
       </section>
     </article>
@@ -150,7 +173,9 @@ export default async function MonthlyProgressUpdatePrintPage({
     getSessionUser(),
   ]);
 
-  if (!viewer) redirect(`/login?next=/mentorship/people/${id}/monthly-update/print`);
+  if (!viewer) {
+    redirect(`/login?next=/mentorship/people/${id}/monthly-update/print`);
+  }
 
   const doc = await loadMonthlyProgressUpdate({
     personId: id,
@@ -163,12 +188,12 @@ export default async function MonthlyProgressUpdatePrintPage({
   if (!doc) notFound();
 
   return (
-    <div className="mpu-page">
-      <div className="mpu-toolbar no-print">
-        <Link href={`/mentorship/people/${id}?section=progress`} className="mpu-back">
+    <div className="frame">
+      <div className="bar no-print">
+        <Link href={`/mentorship/people/${id}?section=progress`}>
           ← Back to Review
         </Link>
-        <div className="mpu-toolbar-actions">
+        <div className="bar-actions">
           <PrintMonthlyUpdateButton />
           {doc.reviewId ? (
             <ShareProgressUpdateControls
@@ -178,141 +203,241 @@ export default async function MonthlyProgressUpdatePrintPage({
               canNotifyMentee={viewer.id !== id}
               menteeFirstName={doc.leaderName.split(/\s+/)[0] || "them"}
               compact
+              hideDownload
             />
           ) : null}
         </div>
       </div>
+
       <DocBody doc={doc} />
+
       <style>{`
-        .mpu-page {
-          max-width: 820px;
-          margin: 0 auto;
-          padding: 24px 20px 64px;
-          color: #1c1917;
-          font-family: Georgia, "Times New Roman", serif;
-          background: #fff;
+        .frame {
+          min-height: 100vh;
+          padding: 28px 20px 72px;
+          background: #f3f1f7;
+          color: #1a1625;
+          font-family: var(--font-dm-sans-real), var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
+          -webkit-font-smoothing: antialiased;
         }
-        .mpu-toolbar {
+
+        .bar {
+          max-width: 720px;
+          margin: 0 auto 20px;
           display: flex;
           justify-content: space-between;
-          align-items: flex-start;
+          align-items: center;
           gap: 12px;
-          margin-bottom: 20px;
-          font-family: ui-sans-serif, system-ui, sans-serif;
           flex-wrap: wrap;
         }
-        .mpu-toolbar-actions {
-          display: flex;
-          flex-direction: column;
-          align-items: flex-end;
-          gap: 8px;
-        }
-        .mpu-back {
-          color: #57534e;
+        .bar a {
+          color: #6b21c8;
           text-decoration: none;
           font-size: 13px;
           font-weight: 600;
         }
-        .mpu-doc { display: flex; flex-direction: column; gap: 28px; }
-        .mpu-kicker {
+        .bar a:hover { opacity: 0.8; }
+        .bar-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          justify-content: flex-end;
+        }
+
+        .sheet {
+          max-width: 720px;
+          margin: 0 auto;
+          background: #fff;
+          border-radius: 20px;
+          padding: 48px 52px 56px;
+          box-shadow: 0 18px 50px rgba(40, 20, 80, 0.07);
+        }
+
+        .sheet-top { margin-bottom: 36px; }
+        .brand {
           margin: 0;
           font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 0.16em;
+          text-transform: uppercase;
+          color: #6b21c8;
+        }
+        .sheet-top h1 {
+          margin: 14px 0 0;
+          font-family: var(--font-playfair), var(--font-lora), Georgia, serif;
+          font-size: 34px;
+          font-weight: 600;
+          letter-spacing: -0.03em;
+          line-height: 1.12;
+          color: #1a1625;
+        }
+        .who {
+          margin: 14px 0 0;
+          font-size: 15px;
+          color: #6f6a7c;
+          font-weight: 500;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          align-items: center;
+        }
+        .who span { color: #cfc8db; }
+
+        .facts {
+          margin: 0 0 40px;
+          padding: 22px 0;
+          border-top: 1px solid #ece8f3;
+          border-bottom: 1px solid #ece8f3;
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 16px 20px;
+        }
+        .facts dt {
+          margin: 0;
+          font-size: 11px;
+          font-weight: 600;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          color: #9a94a8;
+        }
+        .facts dd {
+          margin: 7px 0 0;
+          font-size: 14px;
+          font-weight: 600;
+          color: #1a1625;
+          line-height: 1.35;
+        }
+
+        .section + .section { margin-top: 40px; }
+        .section h2 {
+          margin: 0 0 20px;
+          font-size: 12px;
+          font-weight: 700;
           letter-spacing: 0.12em;
           text-transform: uppercase;
-          color: #78716c;
-          font-family: ui-sans-serif, system-ui, sans-serif;
-          font-weight: 700;
+          color: #9a94a8;
         }
-        .mpu-title {
-          margin: 6px 0 0;
-          font-size: 28px;
+
+        .row {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 28px 48px;
+          margin-bottom: 8px;
+        }
+        .label {
+          margin: 0 0 6px;
+          font-size: 11px;
+          font-weight: 600;
+          letter-spacing: 0.05em;
+          text-transform: uppercase;
+          color: #9a94a8;
+        }
+        .rating {
+          margin: 0;
+          font-size: 20px;
           font-weight: 700;
           letter-spacing: -0.02em;
         }
-        .mpu-grid {
+
+        .field { margin-top: 22px; }
+        .prose {
+          margin: 0;
+          font-size: 15px;
+          line-height: 1.65;
+          color: #3d3950;
+        }
+        .pair {
           display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 14px 24px;
-          padding: 16px 0;
-          border-top: 1px solid #e7e5e4;
-          border-bottom: 1px solid #e7e5e4;
+          grid-template-columns: 1fr 1fr;
+          gap: 28px;
+          margin-top: 22px;
         }
-        .mpu-fact-label {
-          font-size: 11px;
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-          color: #78716c;
-          font-family: ui-sans-serif, system-ui, sans-serif;
-          font-weight: 700;
+
+        .empty {
+          margin: 0;
+          font-size: 14px;
+          color: #9a94a8;
         }
-        .mpu-fact-value {
-          margin-top: 4px;
-          font-size: 15px;
-          font-weight: 600;
+
+        .goals {
+          list-style: none;
+          margin: 0;
+          padding: 0;
         }
-        .mpu-section h2 {
-          margin: 0 0 12px;
-          font-size: 18px;
-          font-weight: 700;
+        .goals > li {
+          padding: 22px 0;
+          border-top: 1px solid #ece8f3;
         }
-        .mpu-goal {
-          border: 1px solid #e7e5e4;
-          border-radius: 12px;
-          padding: 14px 16px;
-          margin-bottom: 12px;
-          break-inside: avoid;
+        .goals > li:first-child {
+          border-top: none;
+          padding-top: 0;
         }
-        .mpu-goal h3 {
-          margin: 0 0 10px;
-          font-size: 15px;
-          font-weight: 700;
-        }
-        .mpu-block { margin-top: 10px; }
-        .mpu-label {
-          font-size: 11px;
-          text-transform: uppercase;
-          letter-spacing: 0.07em;
-          color: #78716c;
-          font-family: ui-sans-serif, system-ui, sans-serif;
-          font-weight: 700;
+        .goal-head {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 16px;
           margin-bottom: 4px;
         }
-        .mpu-body {
+        .goal-head h3 {
           margin: 0;
-          font-size: 14px;
-          line-height: 1.55;
-        }
-        .mpu-muted {
-          margin: 0 0 8px;
-          font-size: 13px;
-          color: #78716c;
-          font-family: ui-sans-serif, system-ui, sans-serif;
-        }
-        .mpu-list {
-          margin: 0;
-          padding-left: 1.2em;
-          font-size: 14px;
-          line-height: 1.5;
-        }
-        .mpu-ratings {
+          font-size: 16px;
+          font-weight: 700;
+          letter-spacing: -0.02em;
+          color: #1a1625;
+          line-height: 1.35;
           display: flex;
-          flex-wrap: wrap;
-          gap: 10px 16px;
-          font-family: ui-sans-serif, system-ui, sans-serif;
-          font-size: 13px;
+          gap: 10px;
         }
-        .mpu-rating { display: inline-flex; align-items: center; gap: 6px; color: #57534e; }
-        .mpu-rating.is-on { color: #1c1917; font-weight: 700; }
-        .mpu-box { font-size: 14px; }
+        .goal-head h3 span {
+          color: #b7b0c6;
+          font-weight: 600;
+          min-width: 1ch;
+        }
+        .goal-rating {
+          margin: 2px 0 0;
+          font-size: 13px;
+          font-weight: 700;
+          white-space: nowrap;
+        }
+        .goals ul {
+          margin: 0;
+          padding-left: 1.1em;
+          font-size: 14.5px;
+          line-height: 1.55;
+          color: #3d3950;
+        }
+        .goals ul li + li { margin-top: 4px; }
+
         .whitespace-pre-wrap { white-space: pre-wrap; }
+
         @media print {
           .no-print { display: none !important; }
-          .mpu-page { padding: 0; max-width: none; }
-          .mpu-goal { break-inside: avoid; }
+          .frame {
+            background: #fff;
+            padding: 0;
+            min-height: 0;
+          }
+          .sheet {
+            max-width: none;
+            margin: 0;
+            border-radius: 0;
+            box-shadow: none;
+            padding: 0;
+          }
+          .goals > li { break-inside: avoid; }
           a { color: inherit; text-decoration: none; }
         }
-        @media (max-width: 640px) {
-          .mpu-grid { grid-template-columns: 1fr; }
+
+        @media (max-width: 700px) {
+          .sheet { padding: 32px 22px 40px; border-radius: 16px; }
+          .sheet-top h1 { font-size: 28px; }
+          .facts { grid-template-columns: 1fr 1fr; }
+          .pair { grid-template-columns: 1fr; gap: 18px; }
+        }
+
+        @media (max-width: 420px) {
+          .facts { grid-template-columns: 1fr; }
         }
       `}</style>
     </div>

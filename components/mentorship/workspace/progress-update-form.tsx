@@ -327,6 +327,7 @@ export function ProgressUpdateForm({
   initialGoals,
   reviewId,
   reviewTeamAssign,
+  reviewSent = false,
 }: {
   mentorshipId: string;
   menteeId: string;
@@ -347,6 +348,8 @@ export function ProgressUpdateForm({
   reviewId?: string | null;
   /** When set, Mentor / Role Chair cells become assignable. */
   reviewTeamAssign?: ProgressReviewTeamAssign | null;
+  /** True when this copy was already released to the mentee. */
+  reviewSent?: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -463,7 +466,7 @@ export function ProgressUpdateForm({
 
   const primaryCta = requiresChairApproval
     ? "Send Review to Chair"
-    : isUpdate
+    : isUpdate || reviewSent
       ? "Send updated review"
       : "Send review to mentee";
 
@@ -472,11 +475,18 @@ export function ProgressUpdateForm({
 
   return (
     <div className="flex w-full flex-col gap-5">
-      <header>
-        <h2 className="m-0 text-[28px] font-bold tracking-[-0.03em] text-[#2e1065]">
-          Performance Review
-        </h2>
-        <p className="m-0 mt-1 text-[14px] text-ink-muted">{period}</p>
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="m-0 text-[28px] font-bold tracking-[-0.03em] text-[#2e1065]">
+            Performance Review
+          </h2>
+          <p className="m-0 mt-1 text-[14px] text-ink-muted">{period}</p>
+        </div>
+        {reviewSent ? (
+          <span className="inline-flex items-center rounded-full bg-complete-50 px-3 py-1 text-[12px] font-bold uppercase tracking-[0.06em] text-complete-800">
+            Review sent · Editing
+          </span>
+        ) : null}
       </header>
 
       {/* Employee + Review team */}
