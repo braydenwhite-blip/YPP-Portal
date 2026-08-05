@@ -29,14 +29,14 @@ export async function POST(request: Request) {
     const message =
       error instanceof Error ? error.message : "Invalid role selection";
     redirect(
-      `/admin/bulk-users?updated=0&failed=0&error=${encodeURIComponent(message)}`
+      `/admin?updated=0&failed=0&error=${encodeURIComponent(message)}`
     );
   }
 
   if (chapterId) {
     const chapter = await prisma.chapter.findUnique({ where: { id: chapterId }, select: { id: true } });
     if (!chapter) {
-      redirect(`/admin/bulk-users?updated=0&failed=0&error=${encodeURIComponent("Selected chapter does not exist")}`);
+      redirect(`/admin?updated=0&failed=0&error=${encodeURIComponent("Selected chapter does not exist")}`);
     }
   }
 
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
     .filter((email) => email.length > 0);
 
   if (emails.length === 0) {
-    redirect(`/admin/bulk-users?updated=0&failed=0&error=${encodeURIComponent("No emails provided")}`);
+    redirect(`/admin?updated=0&failed=0&error=${encodeURIComponent("No emails provided")}`);
   }
 
   let updated = 0;
@@ -90,5 +90,5 @@ export async function POST(request: Request) {
     updated++;
   }
 
-  redirect(`/admin/bulk-users?updated=${updated}&failed=${failed}${mode === "validate" ? "&dryRun=true" : ""}`);
+  redirect(`/admin?updated=${updated}&failed=${failed}${mode === "validate" ? "&dryRun=true" : ""}`);
 }

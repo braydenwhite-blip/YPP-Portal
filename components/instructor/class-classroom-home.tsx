@@ -15,12 +15,31 @@ import { formatEasternDateTime } from "@/lib/timezone-eastern";
 const DEFAULT_THEME = "#6b21c8";
 
 const ATTENDANCE_STATE_LABEL: Record<string, string> = {
-  MISSING: "Needs attendance",
-  PARTIAL: "In progress",
+  MISSING: "Take attendance",
+  PARTIAL: "Started",
   RECORDED: "Saved",
   FINALIZED: "Done",
-  "N/A": "Upcoming",
+  "N/A": "Coming up",
 };
+
+/** Split "Course — Cohort detail" into a short main title + optional detail. */
+function splitClassTitle(title: string): { main: string; detail: string | null } {
+  const parts = title.split(/\s+[—–-]\s+/).map((p) => p.trim()).filter(Boolean);
+  if (parts.length >= 2) {
+    return { main: parts[0]!, detail: parts.slice(1).join(" — ") };
+  }
+  return { main: title.trim() || "Class", detail: null };
+}
+
+/** "Cohort A · Session 4" → "Class 4" so the feed stays easy to scan. */
+function friendlySessionTitle(topic: string): string {
+  const cleaned = topic.trim();
+  const match = cleaned.match(/(?:^|[·\-—,])\s*Session\s+(\d+)\s*$/i);
+  if (match) return `Class ${match[1]}`;
+  const only = cleaned.match(/^Session\s+(\d+)$/i);
+  if (only) return `Class ${only[1]}`;
+  return cleaned || "Class";
+}
 
 type StreamClass = {
   id: string;
@@ -102,8 +121,8 @@ type StreamClass = {
 };
 
 /**
- * Instructor class home: banner, Home / People / Classwork,
- * announce bar + feed, upcoming sidebar. Ops tools stay one click away.
+ * Instructor class home: banner, Home / Work / People / Settings,
+ * message bar + feed, upcoming sidebar.
  */
 export function ClassClassroomHome({
   c,
@@ -129,10 +148,12 @@ export function ClassClassroomHome({
   const attendanceBySession = new Map(
     c.sessionAttendanceState.map((a) => [a.sessionId, a.state])
   );
+  const { main: titleMain, detail: titleDetail } = splitClassTitle(c.title);
   const schedule = formatClassScheduleLabel({
     meetingDays: c.meetingDays ?? [],
     meetingTime: c.meetingTime,
   });
+  const subtitle = [titleDetail, schedule].filter(Boolean).join(" · ");
 
   const upcomingSessions = c.sessions
     .filter((s) => !s.isCancelled && new Date(s.date) >= now)
@@ -144,7 +165,7 @@ export function ClassClassroomHome({
     { id: "home" as const, label: "Home", href: `/instructor/classes/${id}` },
     {
       id: "classwork" as const,
-      label: "Classwork",
+      label: "Work",
       href: `/instructor/classes/${id}?tab=classwork`,
     },
     {
@@ -170,9 +191,11 @@ export function ClassClassroomHome({
             ← Classes
           </Link>
           <h1 className="mt-3 max-w-3xl text-[28px] font-normal leading-tight tracking-[-0.02em] text-white sm:text-[34px]">
-            {c.title}
+            {titleMain}
           </h1>
-          <p className="mt-1 text-[14px] text-white/85">{schedule}</p>
+          {subtitle ? (
+            <p className="mt-1 text-[14px] text-white/85">{subtitle}</p>
+          ) : null}
         </div>
       </div>
 
@@ -210,16 +233,13 @@ export function ClassClassroomHome({
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
             <div className="flex flex-col gap-4">
               <div className="rounded-xl border border-[#e0e0e0] bg-white px-4 py-3 shadow-[0_1px_2px_rgba(60,64,67,0.08)]">
-                <p className="m-0 mb-2 text-[13px] text-[#5f6368]">
-                  Announce something to your class
-                </p>
                 <AnnouncementComposer offeringId={id} />
               </div>
 
               {c.openReviewRequests.length > 0 ? (
                 <div className="rounded-xl border border-[#f9ab00]/40 bg-[#fef7e0] px-4 py-3">
                   <p className="m-0 text-[14px] font-medium text-[#202124]">
-                    {c.openReviewRequests.length} attendance review
+                    {c.openReviewRequests.length} attendance check
                     {c.openReviewRequests.length === 1 ? "" : "s"} waiting
                   </p>
                   <div className="mt-2 flex flex-col gap-2">
@@ -227,7 +247,7 @@ export function ClassClassroomHome({
                       <div key={r.id} className="text-[13px] text-[#5f6368]">
                         {r.sessionDate
                           ? new Date(r.sessionDate).toLocaleDateString()
-                          : "A session"}{" "}
+                          : "A class"}{" "}
                         · {r.externalStatus}
                         <AttendanceReviewResponse requestId={r.id} />
                       </div>
@@ -239,15 +259,14 @@ export function ClassClassroomHome({
               {streamItems.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-[#dadce0] bg-white px-6 py-10 text-center">
                   <p className="m-0 text-[15px] text-[#5f6368]">
-                    Nothing posted yet. Share an announcement or open the
-                    next session.
+                    Nothing here yet. Post a message or open the next class.
                   </p>
                   {next ? (
                     <Link
                       href={`/instructor/classes/${id}/sessions/${next.id}`}
                       className="mt-4 inline-flex rounded-full bg-[#1967d2] px-4 py-2 text-[13px] font-medium text-white no-underline hover:bg-[#1557b0]"
                     >
-                      Open next session
+                      Open next class
                     </Link>
                   ) : null}
                 </div>
@@ -276,11 +295,11 @@ export function ClassClassroomHome({
             <aside className="flex flex-col gap-4">
               <div className="rounded-xl border border-[#e0e0e0] bg-white p-4">
                 <p className="m-0 text-[14px] font-medium text-[#202124]">
-                  Upcoming
+                  Coming up
                 </p>
                 {upcomingSessions.length === 0 ? (
                   <p className="m-0 mt-2 text-[13px] text-[#5f6368]">
-                    No upcoming sessions.
+                    Nothing coming up.
                   </p>
                 ) : (
                   <ul className="m-0 mt-3 flex list-none flex-col gap-3 p-0">
@@ -291,7 +310,7 @@ export function ClassClassroomHome({
                           className="block no-underline"
                         >
                           <p className="m-0 text-[13px] font-medium text-[#1967d2]">
-                            {s.topic}
+                            {friendlySessionTitle(s.topic)}
                           </p>
                           <p className="m-0 mt-0.5 text-[12px] text-[#5f6368]">
                             {dateTime(s.date, s.startTime)}
@@ -304,17 +323,16 @@ export function ClassClassroomHome({
               </div>
 
               <div className="rounded-xl border border-[#e0e0e0] bg-white p-4">
-                <p className="m-0 text-[14px] font-medium text-[#202124]">Class</p>
+                <p className="m-0 text-[14px] font-medium text-[#202124]">About</p>
                 <dl className="m-0 mt-3 flex flex-col gap-2 text-[13px]">
                   <div>
-                    <dt className="text-[#5f6368]">People</dt>
+                    <dt className="text-[#5f6368]">Students</dt>
                     <dd className="m-0 font-medium text-[#202124]">
                       <Link
                         href={`/instructor/classes/${id}/roster`}
                         className="text-[#1967d2] no-underline hover:underline"
                       >
-                        {currentStudents.length} student
-                        {currentStudents.length === 1 ? "" : "s"}
+                        {currentStudents.length}
                       </Link>
                     </dd>
                   </div>
@@ -346,16 +364,16 @@ export function ClassClassroomHome({
                 href={`/instructor/classes/${id}/roster`}
                 className="text-[13px] font-medium text-[#1967d2] no-underline hover:underline"
               >
-                Manage roster →
+                Edit list →
               </Link>
             </div>
 
             <h3 className="m-0 mb-2 text-[13px] font-medium uppercase tracking-[0.06em] text-[#5f6368]">
-              Current students ({currentStudents.length})
+              Students ({currentStudents.length})
             </h3>
             {currentStudents.length === 0 ? (
               <p className="rounded-xl border border-dashed border-[#dadce0] bg-white px-4 py-8 text-center text-[14px] text-[#5f6368]">
-                No students enrolled yet.
+                No students yet.
               </p>
             ) : (
               <ul className="m-0 divide-y divide-[#e0e0e0] overflow-hidden rounded-xl border border-[#e0e0e0] bg-white p-0">
@@ -372,7 +390,7 @@ export function ClassClassroomHome({
                         {e.student?.name ?? "Student"}
                       </p>
                       <p className="m-0 text-[12px] text-[#5f6368]">
-                        {personRoleLabel(e.student?.primaryRole)}
+                        {studentSubtitle(e.student)}
                       </p>
                     </div>
                   </li>
@@ -385,7 +403,7 @@ export function ClassClassroomHome({
             </h3>
             {currentParents.length === 0 ? (
               <p className="rounded-xl border border-dashed border-[#dadce0] bg-white px-4 py-6 text-center text-[14px] text-[#5f6368]">
-                No linked parents yet.
+                No parents linked yet.
               </p>
             ) : (
               <ul className="m-0 divide-y divide-[#e0e0e0] overflow-hidden rounded-xl border border-[#e0e0e0] bg-white p-0">
@@ -413,7 +431,7 @@ export function ClassClassroomHome({
 
             <details className="mt-6 rounded-xl border border-[#e0e0e0] bg-white">
               <summary className="cursor-pointer list-none px-4 py-3 text-[14px] font-medium text-[#202124] marker:content-none [&::-webkit-details-marker]:hidden">
-                Student feedback
+                Feedback
               </summary>
               <div className="border-t border-[#e0e0e0] px-4 py-3">
                 <StudentFeedbackPanel
@@ -473,11 +491,11 @@ function StreamCardBody({ item }: { item: StreamItem }) {
         aria-hidden
         className={
           item.kind === "announcement"
-            ? "mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#e6f4ea] text-[13px] font-semibold text-[#137333]"
-            : "mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#e8f0fe] text-[13px] font-semibold text-[#1967d2]"
+            ? "mt-0.5 flex h-9 shrink-0 items-center justify-center rounded-full bg-[#e6f4ea] px-2.5 text-[11px] font-semibold text-[#137333]"
+            : "mt-0.5 flex h-9 shrink-0 items-center justify-center rounded-full bg-[#e8f0fe] px-2.5 text-[11px] font-semibold text-[#1967d2]"
         }
       >
-        {item.kind === "announcement" ? "A" : "S"}
+        {item.kind === "announcement" ? "Post" : "Class"}
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -506,21 +524,13 @@ function initials(name: string | null | undefined) {
   return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 }
 
-const PERSON_ROLE_LABEL: Record<string, string> = {
-  ADMIN: "Admin",
-  STAFF: "Staff",
-  CHAPTER_PRESIDENT: "Chapter President",
-  HIRING_CHAIR: "Hiring Chair",
-  INSTRUCTOR: "Instructor",
-  MENTOR: "Mentor",
-  STUDENT: "Student",
-  PARENT: "Parent",
-  APPLICANT: "Applicant",
-};
-
-function personRoleLabel(role: string | null | undefined) {
-  if (!role) return "Student";
-  return PERSON_ROLE_LABEL[role] ?? role;
+function studentSubtitle(student: {
+  primaryRole?: string | null;
+  profile?: { grade?: string | null } | null;
+} | null | undefined) {
+  const grade = student?.profile?.grade?.trim();
+  if (grade) return grade.startsWith("Grade") ? grade : `Grade ${grade}`;
+  return "Student";
 }
 
 function buildStream(
@@ -539,8 +549,8 @@ function buildStream(
     items.push({
       key: `ann-${a.id}`,
       kind: "announcement",
-      title: a.title?.trim() || "Announcement",
-      meta: `${classAnnouncementStatusLabel(a.status)} · ${when}`,
+      title: a.title?.trim() || "Message",
+      meta: `${simpleAnnouncementStatus(a.status)} · ${when}`,
       body: a.body,
       sortAt: new Date(a.scheduledPublishAt ?? a.createdAt).getTime(),
     });
@@ -551,14 +561,23 @@ function buildStream(
     items.push({
       key: `ses-${s.id}`,
       kind: "session",
-      title: s.topic,
+      title: friendlySessionTitle(s.topic),
       meta: dateTime(s.date, s.startTime),
       href: `/instructor/classes/${c.id}/sessions/${s.id}`,
       badge: ATTENDANCE_STATE_LABEL[state] ?? state,
-      body: s.materialsUrl ? "Materials linked" : "Open to take attendance or prep",
+      body: undefined,
       sortAt: new Date(s.date).getTime(),
     });
   }
 
   return items.sort((a, b) => b.sortAt - a.sortAt);
+}
+
+function simpleAnnouncementStatus(status: string): string {
+  if (status === "PUBLISHED") return "Posted";
+  if (status === "SCHEDULED") return "Scheduled";
+  if (status === "DRAFT") return "Draft";
+  if (status === "PENDING_APPROVAL") return "Waiting";
+  if (status === "REJECTED") return "Not approved";
+  return classAnnouncementStatusLabel(status);
 }

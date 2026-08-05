@@ -15,10 +15,10 @@ export function ClassCompletionAction({ offeringId, offeringEnded, alreadyComple
   const [pending, setPending] = useState(false);
 
   if (alreadyCompleted) {
-    return <p className="rounded-2xl bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-900">This class is marked complete.</p>;
+    return <p className="rounded-2xl bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-900">This class is done.</p>;
   }
   if (!offeringEnded) {
-    return <p className="rounded-2xl bg-slate-50 p-3 text-sm text-slate-600">Completion becomes available after the last scheduled session date.</p>;
+    return <p className="rounded-2xl bg-slate-50 p-3 text-sm text-slate-600">You can finish the class after the last class day.</p>;
   }
 
   async function run() {
@@ -43,10 +43,10 @@ export function ClassCompletionAction({ offeringId, offeringEnded, alreadyComple
       {!result?.ok && (
         confirming ? (
           <div className="rounded-2xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-            <p>This marks all enrolled students complete and issues certificates where available. Continue?</p>
+            <p>This marks every student complete and sends certificates when available. Continue?</p>
             <div className="mt-2 flex gap-2">
               <button disabled={pending} onClick={run} className="min-h-11 rounded-lg bg-amber-600 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-50">
-                {pending ? "Completing…" : "Yes, complete class"}
+                {pending ? "Finishing…" : "Yes, finish class"}
               </button>
               <button type="button" onClick={() => setConfirming(false)} className="min-h-11 rounded-lg border px-3 py-2 text-sm font-semibold text-slate-700">
                 Cancel
@@ -55,7 +55,7 @@ export function ClassCompletionAction({ offeringId, offeringEnded, alreadyComple
           </div>
         ) : (
           <button onClick={() => setConfirming(true)} className="min-h-11 rounded-full bg-violet-700 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-800">
-            Complete class & issue certificates
+            Finish class & send certificates
           </button>
         )
       )}
@@ -143,10 +143,10 @@ export function AnnouncementComposer({ offeringId }: { offeringId: string }) {
       {result && (
         <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-2 text-sm text-emerald-900">
           {result.scheduled
-            ? "Announcement scheduled (Eastern Time)."
+            ? "Scheduled — it’ll post at the time you chose (Eastern Time)."
             : result.published
-              ? "Announcement published."
-              : "Sent for approval."}
+              ? "Posted to your class."
+              : "Waiting for approval."}
         </p>
       )}
       {open ? (
@@ -189,7 +189,7 @@ export function AnnouncementComposer({ offeringId }: { offeringId: string }) {
                   onChange={() => setPublishWhen("asap")}
                   className="sr-only"
                 />
-                ASAP
+                Now
               </label>
               <label
                 className={[
@@ -206,7 +206,7 @@ export function AnnouncementComposer({ offeringId }: { offeringId: string }) {
                   onChange={() => setPublishWhen("at")}
                   className="sr-only"
                 />
-                Specific time
+                Pick a time
               </label>
             </div>
             {publishWhen === "at" ? (
@@ -215,7 +215,7 @@ export function AnnouncementComposer({ offeringId }: { offeringId: string }) {
                   className="block text-[13px] font-medium text-[#202124]"
                   htmlFor="ann-at"
                 >
-                  Date & time (EST)
+                  Date & time
                 </label>
                 <input
                   id="ann-at"
@@ -225,13 +225,12 @@ export function AnnouncementComposer({ offeringId }: { offeringId: string }) {
                   className="mt-1 w-full rounded-lg border border-[#dadce0] p-3 text-sm"
                 />
                 <p className="m-0 mt-1.5 text-[12px] leading-4 text-[#5f6368]">
-                  Eastern Time (EST/EDT) — YPP’s main timezone. Families see the post at this
-                  time.
+                  Uses Eastern Time. Families see the post then.
                 </p>
               </div>
             ) : (
               <p className="m-0 text-[12px] text-[#5f6368]">
-                Posts immediately for your class.
+                Goes live right away.
               </p>
             )}
           </fieldset>
@@ -261,7 +260,7 @@ export function AnnouncementComposer({ offeringId }: { offeringId: string }) {
           onClick={() => setOpen(true)}
           className="min-h-10 w-full rounded-full border border-[#dadce0] bg-[#f8f9fa] px-4 py-2 text-left text-[14px] text-[#5f6368] hover:bg-[#f1f3f4] hover:text-[#202124]"
         >
-          Share with your class…
+          Write a message…
         </button>
       )}
     </div>

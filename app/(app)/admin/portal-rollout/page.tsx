@@ -214,7 +214,7 @@ export default async function AdminPortalRolloutPage() {
         <h3 style={{ marginTop: 0 }}>Quick Links</h3>
         <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
           <Link href="/admin/instructor-readiness" className="button secondary">Instructor Readiness</Link>
-          <Link href="/admin/bulk-users" className="button secondary">Bulk Users (Ian)</Link>
+          <Link href="/admin" className="button secondary">Users (Admin)</Link>
           <Link href="/curriculum" className="button secondary">Curriculum Catalog</Link>
           <Link href="/admin/announcements" className="button secondary">Announcements</Link>
         </div>

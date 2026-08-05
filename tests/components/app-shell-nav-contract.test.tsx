@@ -70,7 +70,7 @@ describe("app shell nav contract", () => {
       screen.queryByRole("link", { name: /Workshop Design Studio/i }),
     ).toBeNull();
     expect(screen.queryByRole("link", { name: /^Meetings$/i })).toBeNull();
-    expect(screen.queryByRole("link", { name: /Administration/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /^Admin$/i })).toBeNull();
     expect(
       screen.queryByRole("button", { name: /more navigation links/i }),
     ).toBeNull();

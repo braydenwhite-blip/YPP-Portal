@@ -104,8 +104,7 @@ export function ClassSettingsPanel({
     <div className="mx-auto max-w-2xl">
       <h2 className="m-0 text-[18px] font-normal text-[#202124]">Settings</h2>
       <p className="m-0 mt-1 text-[13px] text-[#5f6368]">
-        Theme and a few class details. Changes show on this class home for you and
-        students.
+        Color, name, and schedule for this class.
       </p>
 
       <form
@@ -113,9 +112,9 @@ export function ClassSettingsPanel({
         className="mt-6 space-y-6 rounded-xl border border-[#dadce0] bg-white p-5 shadow-[0_1px_2px_rgba(60,64,67,0.08)]"
       >
         <div>
-          <p className="m-0 text-[13px] font-medium text-[#202124]">Theme color</p>
+          <p className="m-0 text-[13px] font-medium text-[#202124]">Color</p>
           <p className="m-0 mt-0.5 text-[12px] text-[#5f6368]">
-            Used for the class banner and accents.
+            Banner color for this class.
           </p>
           <div
             className="mt-3 h-16 rounded-xl border border-black/10"
@@ -148,7 +147,7 @@ export function ClassSettingsPanel({
             })}
           </div>
           <label className="mt-3 block text-[12px] font-medium text-[#5f6368]" htmlFor="theme-custom">
-            Custom hex
+            Custom color
           </label>
           <input
             id="theme-custom"
@@ -216,7 +215,7 @@ export function ClassSettingsPanel({
 
         <div>
           <label className="block text-[13px] font-medium text-[#202124]" htmlFor="class-time">
-            Class time (EST)
+            Time
           </label>
           <input
             id="class-time"
@@ -234,7 +233,7 @@ export function ClassSettingsPanel({
             defaultChecked={enrollmentOpen}
             className="h-4 w-4 rounded border-[#dadce0]"
           />
-          Enrollment open for new students
+          New students can still join
         </label>
 
         {message ? (
@@ -253,7 +252,7 @@ export function ClassSettingsPanel({
           className="min-h-10 rounded-full bg-[#1967d2] px-4 text-[13px] font-medium text-white hover:bg-[#1557b0] disabled:opacity-50"
           style={{ backgroundColor: /^#[0-9a-fA-F]{6}$/.test(color) ? color : undefined }}
         >
-          {pending ? "Saving…" : "Save settings"}
+          {pending ? "Saving…" : "Save"}
         </button>
       </form>
     </div>

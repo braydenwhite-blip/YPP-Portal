@@ -42,7 +42,7 @@ function coverForClass(teachingClass: TeachingClass) {
   return COVER_PALETTE[hash % COVER_PALETTE.length]!;
 }
 function nextSessionLine(teachingClass: TeachingClass) {
-  if (!teachingClass.nextSession) return "No upcoming session";
+  if (!teachingClass.nextSession) return "Nothing coming up";
   const session = teachingClass.nextSession;
   const when = new Intl.DateTimeFormat("en-US", {
     weekday: "short",
@@ -54,7 +54,24 @@ function nextSessionLine(teachingClass: TeachingClass) {
     timeZone: teachingClass.timezone,
     timeZoneName: "short",
   }).format(session.state.startsAt);
-  return `${when} · ${session.topic}`;
+  return `${when} · ${friendlySessionTitle(session.topic)}`;
+}
+
+function friendlySessionTitle(topic: string): string {
+  const cleaned = topic.trim();
+  const match = cleaned.match(/(?:^|[·\-—,])\s*Session\s+(\d+)\s*$/i);
+  if (match) return `Class ${match[1]}`;
+  const only = cleaned.match(/^Session\s+(\d+)$/i);
+  if (only) return `Class ${only[1]}`;
+  return cleaned || "Class";
+}
+
+function splitClassTitle(title: string): { main: string; detail: string | null } {
+  const parts = title.split(/\s+[—–-]\s+/).map((p) => p.trim()).filter(Boolean);
+  if (parts.length >= 2) {
+    return { main: parts[0]!, detail: parts.slice(1).join(" — ") };
+  }
+  return { main: title.trim() || "Class", detail: null };
 }
 
 function needsAttention(teachingClass: TeachingClass) {
@@ -75,7 +92,7 @@ export function InstructorClassesList({ workspace }: { workspace: InstructorTeac
               Classes
             </h1>
             <p className="m-0 mt-1 text-[14px] text-[#5f6368]">
-              Your teaching classes — open one to run sessions, roster, and materials.
+              Open a class to teach, post work, or see your students.
             </p>
           </div>
           <Link
@@ -89,7 +106,7 @@ export function InstructorClassesList({ workspace }: { workspace: InstructorTeac
         {workspace.activeClasses.length === 0 ? (
           <EmptyStateV2
             title="No classes yet"
-            body="A class shows up here after you are assigned as lead instructor or accept a teaching assignment."
+            body="You’ll see a class here once you’re assigned to teach it."
           />
         ) : (
           <section
@@ -130,6 +147,10 @@ function ClassCard({
   const href = teachingClass.primaryAction?.href ?? `/instructor/classes/${teachingClass.id}`;
   const attention = !muted && needsAttention(teachingClass);
   const studentCount = teachingClass.roster.length;
+  const { main: titleMain, detail: titleDetail } = splitClassTitle(teachingClass.title);
+  const schedule =
+    teachingClass.scheduleLabel || teachingClass.deliveryMode.replaceAll("_", " ");
+  const coverSub = [titleDetail, schedule].filter(Boolean).join(" · ");
 
   return (
     <Link
@@ -156,10 +177,10 @@ function ClassCard({
           }}
         />
         <h2 className="relative m-0 line-clamp-2 text-[18px] font-medium leading-snug tracking-[-0.01em]">
-          {teachingClass.title}
+          {titleMain}
         </h2>
         <p className="relative m-0 mt-1.5 line-clamp-1 text-[12.5px] text-white/85">
-          {teachingClass.scheduleLabel || teachingClass.deliveryMode.replaceAll("_", " ")}
+          {coverSub}
         </p>
       </div>
 

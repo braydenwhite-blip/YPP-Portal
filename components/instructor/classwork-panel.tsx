@@ -31,25 +31,25 @@ const CREATE_KINDS = [
   {
     id: "assignment" as const,
     label: "Assignment",
-    hint: "Something students turn in",
+    hint: "Something to turn in",
     badge: "A",
   },
   {
     id: "material" as const,
     label: "Material",
-    hint: "Link, doc, or reading — no submit",
+    hint: "A link or reading",
     badge: "M",
   },
   {
     id: "question" as const,
     label: "Question",
-    hint: "Prompt for student responses",
+    hint: "Ask the class",
     badge: "Q",
   },
   {
     id: "note" as const,
     label: "Note",
-    hint: "Anything else for the class",
+    hint: "A quick note",
     badge: "N",
   },
 ];
@@ -69,6 +69,16 @@ function kindLabel(type: string) {
     default:
       return type;
   }
+}
+
+/** "Cohort A · Session 4" → "Class 4" */
+function friendlySessionTitle(topic: string): string {
+  const cleaned = topic.trim();
+  const match = cleaned.match(/(?:^|[·\-—,])\s*Session\s+(\d+)\s*$/i);
+  if (match) return `Class ${match[1]}`;
+  const only = cleaned.match(/^Session\s+(\d+)$/i);
+  if (only) return `Class ${only[1]}`;
+  return cleaned || "Class";
 }
 
 function formatDue(iso: string | Date | null | undefined) {
@@ -120,7 +130,7 @@ export function ClassworkPanel({
         setKind(null);
         router.refresh();
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Could not create classwork.");
+        setError(e instanceof Error ? e.message : "Could not post. Try again.");
       }
     });
   }
@@ -133,9 +143,9 @@ export function ClassworkPanel({
     <div className="mx-auto flex max-w-2xl flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="m-0 text-[18px] font-normal text-[#202124]">Classwork</h2>
+          <h2 className="m-0 text-[18px] font-normal text-[#202124]">Work</h2>
           <p className="m-0 mt-0.5 text-[13px] text-[#5f6368]">
-            Create anything for your class — assignments, materials, questions, or notes.
+            Assignments, materials, questions, and notes for your class.
           </p>
         </div>
         <div className="relative">
@@ -208,13 +218,13 @@ export function ClassworkPanel({
             className="mt-3 block text-[13px] font-medium text-[#202124]"
             htmlFor="cw-body"
           >
-            {kind === "material" ? "Description (optional)" : "Instructions / details"}
+            {kind === "material" ? "Details (optional)" : "Details"}
           </label>
           <textarea
             id="cw-body"
             name="body"
             rows={4}
-            placeholder="Write anything you want students to see…"
+            placeholder="Anything students should see…"
             className="mt-1 w-full rounded-lg border border-[#dadce0] p-3 text-sm"
           />
           {(kind === "material" || kind === "assignment" || kind === "note") && (
@@ -256,7 +266,7 @@ export function ClassworkPanel({
                 className="mt-3 block text-[13px] font-medium text-[#202124]"
                 htmlFor="cw-session"
               >
-                Tie to session (optional)
+                Link to a class day (optional)
               </label>
               <select
                 id="cw-session"
@@ -267,7 +277,7 @@ export function ClassworkPanel({
                 <option value="">None</option>
                 {activeSessions.map((s) => (
                   <option key={s.id} value={s.id}>
-                    {s.topic}
+                    {friendlySessionTitle(s.topic)}
                   </option>
                 ))}
               </select>
@@ -292,7 +302,7 @@ export function ClassworkPanel({
       {feed.length === 0 ? (
         <div className="rounded-xl border border-dashed border-[#dadce0] bg-white px-6 py-10 text-center">
           <p className="m-0 text-[15px] text-[#5f6368]">
-            Nothing here yet. Hit Create to add your first piece of classwork.
+            Nothing here yet. Hit Create to add something.
           </p>
         </div>
       ) : (
@@ -343,7 +353,7 @@ export function ClassworkPanel({
       )}
 
       <div className="rounded-xl border border-[#e0e0e0] bg-white p-4">
-        <p className="m-0 text-[14px] font-medium text-[#202124]">Finish class</p>
+        <p className="m-0 text-[14px] font-medium text-[#202124]">End of class</p>
         <div className="mt-2">
           <ClassCompletionAction
             offeringId={offeringId}

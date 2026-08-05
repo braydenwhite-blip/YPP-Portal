@@ -121,8 +121,7 @@ const SIDEBAR_BY_HREF: Record<string, { group: NavGroup; label: string; icon: st
   "/admin/chapter-reports": { group: "Chapters", label: "Chapter Reports", icon: "📊" },
 
   // Admin — true configuration & utilities.
-  "/admin": { group: "Admin", label: "Administration", icon: "🛠" },
-  "/admin/bulk-users": { group: "Admin", label: "Imports & Users", icon: "👥" },
+  "/admin": { group: "Admin", label: "Admin", icon: "🛠" },
   "/admin/analytics": { group: "Admin", label: "Analytics", icon: "📈" },
   "/help-agent": { group: "Admin", label: "Help Agent", icon: "🔎" },
   "/announcements": { group: "Admin", label: "Updates", icon: "📢" },
@@ -172,7 +171,6 @@ export const OFFICER_SIDEBAR_LINK_ORDER: string[] = [
   "/admin/chapter-reports",
   // Admin
   "/admin",
-  "/admin/bulk-users",
   "/admin/analytics",
   "/help-agent",
   "/announcements",

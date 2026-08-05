@@ -67,7 +67,7 @@ export async function POST(request: Request) {
     .filter((line) => line.length > 0);
 
   if (lines.length === 0) {
-    redirect("/admin/bulk-users?imported=0&failed=0&duplicates=0&invalid=0&error=Empty%20CSV");
+    redirect("/admin?imported=0&failed=0&duplicates=0&invalid=0&error=Empty%20CSV");
   }
 
   const headerParts = splitCsvRow(lines[0]).map((part) => part.toLowerCase());
@@ -161,6 +161,6 @@ export async function POST(request: Request) {
   }
 
   redirect(
-    `/admin/bulk-users?imported=${imported}&failed=${failed}&duplicates=${duplicates}&invalid=${invalid}&dryRun=${dryRun ? "true" : "false"}${firstError ? `&error=${encodeURIComponent(firstError)}` : ""}`
+    `/admin?imported=${imported}&failed=${failed}&duplicates=${duplicates}&invalid=${invalid}&dryRun=${dryRun ? "true" : "false"}${firstError ? `&error=${encodeURIComponent(firstError)}` : ""}`
   );
 }

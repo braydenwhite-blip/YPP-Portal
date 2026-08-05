@@ -259,6 +259,7 @@ export async function setUserAccess(input: unknown) {
 
   await prisma.$transaction(ops);
 
+  revalidatePath("/admin");
   revalidatePath("/admin/role-management");
   return { ok: true };
 }
@@ -314,6 +315,7 @@ export async function setUserGroup(input: unknown) {
 
   await prisma.$transaction(ops);
 
+  revalidatePath("/admin");
   revalidatePath("/admin/role-management");
   return { ok: true };
 }
@@ -341,6 +343,124 @@ export async function createCohort(input: unknown) {
     select: { id: true, name: true },
   });
 
+  revalidatePath("/admin");
   revalidatePath("/admin/role-management");
   return { ok: true, cohort };
+}
+
+const UpdateAdminUserRowSchema = z.object({
+  userId: z.string().min(1),
+  primaryRole: z.string().optional(),
+  chapterId: z.string().optional().default(KEEP),
+  cohortId: z.string().optional().default(KEEP),
+  /** Profile city/location. Pass null/"" to clear. Omit to leave unchanged. */
+  location: z.string().nullable().optional(),
+});
+
+/**
+ * Inline row save from the Admin Users table — role, chapter, cohort, and/or location.
+ * Only sends the fields that changed; others stay "__KEEP__".
+ */
+export async function updateAdminUserRow(input: unknown) {
+  await requireAdmin();
+  const data = UpdateAdminUserRowSchema.parse(input);
+
+  const user = await prisma.user.findUnique({
+    where: { id: data.userId },
+    select: {
+      id: true,
+      primaryRole: true,
+      roles: { select: { role: true } },
+      profile: { select: { id: true } },
+    },
+  });
+  if (!user) throw new Error("No user was found.");
+
+  const chapterPatch = await resolveChapterPatch(data.chapterId);
+  const cohortPatch = await resolveCohortPatch(data.cohortId);
+
+  const roleChanging = Boolean(data.primaryRole);
+  let primaryRole = user.primaryRole;
+  let roleList = user.roles.map((r) => r.role);
+
+  if (roleChanging && data.primaryRole) {
+    const access = resolveUserAccessSelection({
+      primaryRoleRaw: data.primaryRole.toUpperCase(),
+      roleValues: [data.primaryRole.toUpperCase()],
+    });
+    primaryRole = access.primaryRole;
+    // Keep extra roles (e.g. MENTOR) that aren't the old primary or ADMIN-derived clutter.
+    const extras = roleList.filter(
+      (r) => r !== user.primaryRole && r !== RoleType.ADMIN && r !== primaryRole
+    );
+    roleList = Array.from(new Set([primaryRole, ...extras, ...access.roles]));
+  }
+
+  const locationProvided = data.location !== undefined;
+  const nextLocation =
+    locationProvided && data.location != null && data.location.trim()
+      ? data.location.trim().slice(0, 120)
+      : locationProvided
+        ? null
+        : undefined;
+
+  const hasChapter = Object.keys(chapterPatch).length > 0;
+  const hasCohort = Object.keys(cohortPatch).length > 0;
+  if (!roleChanging && !hasChapter && !hasCohort && !locationProvided) {
+    return { ok: true };
+  }
+
+  const ops: Prisma.PrismaPromise<unknown>[] = [];
+
+  if (roleChanging || hasChapter || hasCohort) {
+    ops.push(
+      prisma.user.update({
+        where: { id: user.id },
+        data: {
+          ...(roleChanging ? { primaryRole } : {}),
+          ...chapterPatch,
+          ...cohortPatch,
+        },
+      })
+    );
+  }
+
+  if (roleChanging) {
+    ops.push(
+      prisma.userRole.deleteMany({ where: { userId: user.id } }),
+      prisma.userRole.createMany({
+        data: buildUserRoleRecords(user.id, roleList),
+      })
+    );
+  }
+
+  if (locationProvided) {
+    let city: string | null = null;
+    let stateProvince: string | null = null;
+    if (nextLocation) {
+      const [cityPart, ...rest] = nextLocation.split(",");
+      city = (cityPart ?? "").trim() || null;
+      const statePart = rest.join(",").trim();
+      stateProvince = statePart || null;
+    }
+    ops.push(
+      prisma.userProfile.upsert({
+        where: { userId: user.id },
+        create: {
+          userId: user.id,
+          city,
+          stateProvince,
+        },
+        update: {
+          city,
+          stateProvince,
+        },
+      })
+    );
+  }
+
+  await prisma.$transaction(ops);
+
+  revalidatePath("/admin");
+  return { ok: true };
 }

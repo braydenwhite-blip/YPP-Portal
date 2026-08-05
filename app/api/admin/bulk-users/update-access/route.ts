@@ -12,7 +12,7 @@ import { requireApiSession } from "@/lib/api-auth";
 function redirectWithError(message: string, email = ""): never {
   const emailParam = email ? `&manageUser=${encodeURIComponent(email)}` : "";
   redirect(
-    `/admin/bulk-users?accessError=${encodeURIComponent(message)}${emailParam}#manage-access`
+    `/admin?accessError=${encodeURIComponent(message)}${emailParam}#manage-access`
   );
 }
 
@@ -96,7 +96,7 @@ export async function POST(request: Request) {
   ]);
 
   redirect(
-    `/admin/bulk-users?accessUpdated=1&accessUser=${encodeURIComponent(
+    `/admin?accessUpdated=1&accessUser=${encodeURIComponent(
       email
     )}&manageUser=${encodeURIComponent(email)}#manage-access`
   );

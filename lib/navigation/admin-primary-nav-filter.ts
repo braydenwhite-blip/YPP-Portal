@@ -18,7 +18,6 @@ const OPPORTUNITIES_KEEP_ONLY = new Set(["/positions"]);
  */
 const ADMIN_PRIMARY_GROUP_KEEP_HREFS = new Set<string>([
   "/admin/training",
-  "/admin/bulk-users",
   // People
   "/admin/instructors",
   "/admin/instructor-applicants",

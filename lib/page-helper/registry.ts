@@ -312,12 +312,12 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
-    pattern: "/admin/bulk-users",
-    title: "Bulk User Management",
+    pattern: "/admin",
+    title: "Users",
     content: {
-      purpose: "This page helps you manage the bulk user management and keep the portal data or workflow organized.",
-      firstStep: "Review the current list, board, or settings first so you can decide which item needs action right now.",
-      nextStep: "After you save a change, the page refreshes the managed content so the next task is easier to track."
+      purpose: "Create and manage every user’s login, role, and chapter access.",
+      firstStep: "Add someone with New user, or search the list and edit their access.",
+      nextStep: "After you save, their access updates across the portal."
     }
   },
   {
@@ -1233,9 +1233,9 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     pattern: "/admin/role-management",
     title: "Role Management",
     content: {
-      purpose: "This page helps you manage user roles and keep portal access organized.",
-      firstStep: "Review the current list or settings first so you can decide which role assignment needs action right now.",
-      nextStep: "After you save a change, the page refreshes the managed content so the next task is easier to track."
+      purpose: "User roles live on the Admin Users tab now.",
+      firstStep: "Open Admin → Users to search someone and edit their role, chapter, or title.",
+      nextStep: "After you save, their access updates across the portal."
     }
   },
   {

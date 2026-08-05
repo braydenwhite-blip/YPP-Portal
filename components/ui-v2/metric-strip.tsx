@@ -33,7 +33,7 @@ export function MetricStrip({
   className?: string;
   "aria-label"?: string;
 }) {
-  const shown = metrics.slice(0, max);
+  const shown = (metrics ?? []).slice(0, max);
   if (shown.length === 0) return null;
   return (
     <div

@@ -1,141 +1,153 @@
-import Link from "next/link";
-import { redirect } from "next/navigation";
-
-import { CardV2, PageHeaderV2 } from "@/components/ui-v2";
-import { canAccessAdminRoute } from "@/lib/admin-capabilities";
-import { getSession } from "@/lib/auth-supabase";
+import { AdminBulkTools } from "@/components/admin/admin-bulk-tools";
+import { AdminCreateUser } from "@/components/admin/admin-create-user";
+import { AdminUsersTable } from "@/components/admin/admin-users-table";
+import { PageHeaderV2 } from "@/components/ui-v2";
+import { requireAdmin } from "@/lib/authorization-helpers";
+import { listOperatingChaptersForFilters } from "@/lib/chapters/operating";
+import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Admin — Pathways Portal",
+  title: "Users — Admin — Pathways Portal",
 };
 
+function readParam(
+  params: Record<string, string | string[] | undefined>,
+  key: string
+) {
+  const value = params[key];
+  return typeof value === "string" ? value : Array.isArray(value) ? value[0] ?? "" : "";
+}
+
 /**
- * Admin home (Knowledge OS V2 quick win — replaces the old redirect to
- * /admin/chapters). One calm page of domain groups; each admin sees only the
- * destinations their subtypes can reach. Pure navigation — no metrics here.
+ * ADMIN-only user management: every person, with inline role / cohort / chapter.
  */
+export default async function AdminHomePage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  await requireAdmin();
 
-type AdminDest = { href: string; label: string; description: string };
-type AdminDomain = { title: string; items: AdminDest[] };
+  const params = await searchParams;
+  const flash = {
+    imported: Number(params.imported ?? 0) || 0,
+    failed: Number(params.failed ?? 0) || 0,
+    duplicates: Number(params.duplicates ?? 0) || 0,
+    invalid: Number(params.invalid ?? 0) || 0,
+    updated: Number(params.updated ?? 0) || 0,
+    dryRun: String(params.dryRun ?? "false") === "true",
+    error: readParam(params, "error")
+      ? decodeURIComponent(readParam(params, "error"))
+      : undefined,
+  };
 
-const ADMIN_DOMAINS: AdminDomain[] = [
-  {
-    title: "People & Access",
-    items: [
-      {
-        href: "/people",
-        label: "People Hub",
-        description: "Find people, open records, manage classes, and (for leadership) performance check-ins",
+  const [users, chapters, cohorts] = await Promise.all([
+    prisma.user.findMany({
+      orderBy: [{ name: "asc" }],
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        primaryRole: true,
+        canonicalTitle: true,
+        ladder: true,
+        internalLevel: true,
+        archivedAt: true,
+        chapter: { select: { id: true, name: true, city: true } },
+        cohort: { select: { id: true, name: true } },
+        profile: { select: { city: true, stateProvince: true } },
+        roles: { select: { role: true } },
       },
-      { href: "/admin/classes", label: "Manage Classes", description: "Class review queue, publishing, rosters, and logistics gaps" },
-      { href: "/admin/bulk-users", label: "Users & Roles", description: "Import, export, and edit accounts, roles, and access" },
-      { href: "/admin/staff", label: "Staff", description: "Staff reflections and records" },
-      { href: "/admin/role-matrix", label: "Role Matrix", description: "Who can do what, by role and subtype" },
-      { href: "/admin/audit-log", label: "Audit Log", description: "Recorded admin and system actions" },
-    ],
-  },
-  {
-    title: "Hiring",
-    items: [
-      { href: "/admin/instructor-applicants", label: "Applicants", description: "Instructor and chapter president pipeline on one board" },
-      { href: "/admin/instructor-applicants/chair-settings", label: "Chair Assignment", description: "Assign the active Chair who makes final applicant decisions" },
-      { href: "/admin/instructor-readiness", label: "Onboarding Queue", description: "Training evidence, class approvals, and interview gates awaiting review" },
-      { href: "/admin/instructors", label: "Instructor Database", description: "Every instructor: status, classes, training, reviews" },
-      { href: "/admin/recruiting", label: "Recruiting", description: "Openings, outreach, and funnel" },
-    ],
-  },
-  {
-    title: "Mentorship & Advising",
-    items: [
-      { href: "/mentorship?view=admin", label: "Mentorship Ops", description: "Pairings, check-ins, goal reviews, approvals" },
-      { href: "/admin/mentor-match", label: "Mentor Matching", description: "Assign mentors to mentees" },
-      { href: "/admin/students", label: "Student Roster", description: "Students with enrollment, mentor, and advisor columns" },
-    ],
-  },
-  {
-    title: "Programs & Content",
-    items: [
-      { href: "/admin/classes", label: "Manage Classes", description: "Review, publish, and logistics for the class catalog" },
-      { href: "/admin/programs", label: "Programs", description: "Program and pathway administration" },
-      { href: "/admin/curricula", label: "Curricula", description: "Curriculum library and drafts" },
-      { href: "/admin/resource-library", label: "Resource Library", description: "Shared resources and materials" },
-    ],
-  },
-  {
-    title: "Partners & Chapters",
-    items: [
-      { href: "/partners", label: "Partner Database", description: "Every relationship — owner, contacts, open requests, next step" },
-      { href: "/admin/partners", label: "Partner Admin", description: "Add/edit partners, pipeline stages, and the partnership report" },
-      { href: "/admin/chapters", label: "Chapters", description: "Chapter records, presidents, and membership" },
-      { href: "/admin/chapter-reports", label: "Chapter Reports", description: "Per-chapter staffing, size, and recent activity" },
-    ],
-  },
-  {
-    title: "Communications",
-    items: [
-      { href: "/admin/announcements", label: "Announcements", description: "Portal-wide and chapter announcements" },
-      { href: "/admin/feedback", label: "Feedback", description: "Feedback inboxes and responses" },
-      { href: "/admin/reminders", label: "Reminders", description: "Scheduled reminder emails" },
-    ],
-  },
-  {
-    title: "Reports & Operations",
-    items: [
-      { href: "/admin/analytics", label: "Analytics", description: "Hiring, approvals, registrations, and workflow reliability" },
-      { href: "/admin/data-export", label: "Data Export", description: "CSV exports of portal records" },
-      { href: "/admin/feature-gates", label: "Feature Gates", description: "Feature rollout targeting" },
-      { href: "/admin/governance", label: "Governance", description: "Operating rules and violations" },
-      { href: "/admin/settings", label: "Portal Settings", description: "Business-rule thresholds (SLAs, row caps, feedback limits) used across modules" },
-    ],
-  },
-];
+    }),
+    listOperatingChaptersForFilters(),
+    prisma.cohort.findMany({
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+  ]);
 
-export default async function AdminHomePage() {
-  const session = await getSession();
-  if (!session?.user?.id) redirect("/login");
+  const activeCount = users.filter((u) => !u.archivedAt).length;
+  const archivedCount = users.length - activeCount;
 
-  const adminSubtypes = session.user.adminSubtypes ?? [];
+  function formatLocation(city: string | null | undefined, state: string | null | undefined) {
+    const parts = [city?.trim(), state?.trim()].filter(Boolean);
+    return parts.length ? parts.join(", ") : null;
+  }
 
-  const visibleDomains = ADMIN_DOMAINS.map((domain) => ({
-    ...domain,
-    items: domain.items.filter((item) =>
-      canAccessAdminRoute(adminSubtypes, item.href)
-    ),
-  })).filter((domain) => domain.items.length > 0);
+  const initialUsers = users.map((user) => ({
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    primaryRole: user.primaryRole,
+    roles: user.roles.map((r) => r.role),
+    canonicalTitle: user.canonicalTitle,
+    ladder: user.ladder,
+    internalLevel: user.internalLevel,
+    chapterId: user.chapter?.id ?? null,
+    chapterName: user.chapter?.name ?? null,
+    location: formatLocation(user.profile?.city, user.profile?.stateProvince),
+    cohortId: user.cohort?.id ?? null,
+    cohortName: user.cohort?.name ?? null,
+    archivedAt: user.archivedAt,
+  }));
+
+  const chapterOptions = chapters.map((c) => ({
+    id: c.id,
+    name: c.name,
+    city: c.city,
+  }));
+
+  const locationOptions = Array.from(
+    new Set(
+      [
+        ...users.map((u) => formatLocation(u.profile?.city, u.profile?.stateProvince)),
+        ...chapters.map((c) => c.city?.trim() || null),
+      ].filter((v): v is string => Boolean(v))
+    )
+  ).sort((a, b) => a.localeCompare(b));
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-6 py-10">
+    <div className="mx-auto w-full max-w-[1240px] px-4 py-7 sm:px-6 lg:px-8">
       <PageHeaderV2
         eyebrow="Admin"
-        title="Administration"
-        subtitle="Every admin tool, grouped by domain. You see only what your access covers."
-        className="mb-8"
-      />
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-        {visibleDomains.map((domain) => (
-          <CardV2 key={domain.title} padding="md" as="section">
-            <h2 className="mb-3 text-[15px] font-bold text-ink">{domain.title}</h2>
-            <ul className="flex flex-col">
-              {domain.items.map((item) => (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    className="group -mx-2 flex flex-col rounded-[8px] px-2 py-2 transition-colors duration-150 hover:bg-brand-50"
-                  >
-                    <span className="text-[13.5px] font-semibold text-brand-800 group-hover:text-brand-600">
-                      {item.label} →
-                    </span>
-                    <span className="text-[12.5px] text-ink-muted">
-                      {item.description}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </CardV2>
-        ))}
+        title="Users"
+        subtitle="Find someone, then change their role, grade, cohort, chapter, or location in the row."
+        className="mb-5"
+        actions={<AdminCreateUser chapters={chapters.map((c) => ({ id: c.id, name: c.name }))} />}
+      >
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px] text-ink-muted">
+          <span>
+            <span className="font-semibold text-ink">{activeCount}</span> people
+          </span>
+          <span className="text-line">·</span>
+          <span>
+            <span className="font-semibold text-ink">{chapters.length}</span> chapters
+          </span>
+          <span className="text-line">·</span>
+          <span>
+            <span className="font-semibold text-ink">{cohorts.length}</span> cohorts
+          </span>
+          {archivedCount > 0 ? (
+            <>
+              <span className="text-line">·</span>
+              <span>
+                <span className="font-semibold text-ink">{archivedCount}</span> archived
+              </span>
+            </>
+          ) : null}
+        </div>
+      </PageHeaderV2>
+
+      <div className="flex flex-col gap-4">
+        <AdminUsersTable
+          users={initialUsers}
+          chapters={chapterOptions}
+          cohorts={cohorts}
+          locationOptions={locationOptions}
+        />
+        <AdminBulkTools chapters={chapterOptions} flash={flash} />
       </div>
     </div>
   );
