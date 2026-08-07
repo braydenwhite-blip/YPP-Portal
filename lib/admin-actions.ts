@@ -76,152 +76,202 @@ export async function migrateMissingUsers(): Promise<AdminUserMigrationResult> {
   };
 }
 
-export async function createUser(formData: FormData) {
-  const session = await requireAdmin();
-  const name = getString(formData, "name");
-  const email = getString(formData, "email").toLowerCase();
-  const phone = getString(formData, "phone", false);
-  const password = getString(formData, "password");
-  const chapterId = getString(formData, "chapterId", false);
-  const access = resolveUserAccessSelection({
-    primaryRoleRaw: getString(formData, "primaryRole"),
-    roleValues: formData.getAll("roles").map(String),
-    adminSubtypeValues: formData.getAll("adminSubtypes").map(String),
-    defaultOwnerSubtypeRaw: getString(formData, "defaultOwnerSubtype", false),
-  });
-  const { primaryRole, roles, adminSubtypes, defaultOwnerSubtype } = access;
-  const adminSubtypeCreateData = buildUserAdminSubtypeRecords(
-    "user",
-    adminSubtypes,
-    defaultOwnerSubtype
-  ).map(({ subtype, isDefaultOwner }) => ({
-    subtype,
-    isDefaultOwner,
-  }));
+export type CreateUserResult =
+  | { ok: true; id: string }
+  | { ok: false; error: string };
 
-  const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) {
-    throw new Error("User already exists");
-  }
-
-  // The org-spine (ladder/level) is the source of truth for access. Derive and
-  // persist it from the chosen role/subtypes so new accounts are consistent and
-  // the tier guards work off the ladder immediately.
-  const spine = deriveSpineFromAccess({
-    primaryRole,
-    roles,
-    adminSubtypes,
-    explicitCanonicalTitle: getString(formData, "canonicalTitle", false) || null,
-  });
-
-  const passwordHash = await bcrypt.hash(password, 10);
-  const supabaseAdmin = createServiceClient();
-  const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-    email,
-    password_hash: passwordHash,
-    email_confirm: true,
-    user_metadata: {
-      name,
-      primaryRole,
-      chapterId: chapterId || null,
-      roles,
-      internalLevel: spine.internalLevel,
-    },
-  });
-
-  if (authError || !authData.user?.id) {
-    console.error("[Admin] Failed to create Supabase auth user:", authError?.message || "No user returned.");
-    throw new Error("Could not create the authentication account. Please try again.");
-  }
-
-  const userWriteData = {
-    name,
-    email,
-    phone: phone || null,
-    passwordHash,
-    primaryRole,
-    chapterId: chapterId || null,
-    emailVerified: new Date(),
-    supabaseAuthId: authData.user.id,
-    internalLevel: spine.internalLevel,
-    ladder: spine.ladder ?? undefined,
-    canonicalTitle: spine.canonicalTitle ?? undefined,
-  };
-
-  let newUser;
-
+export async function createUser(formData: FormData): Promise<CreateUserResult> {
   try {
-    const existingAfterAuthCreate = await prisma.user.findUnique({
-      where: { email },
-      select: { id: true, supabaseAuthId: true },
+    const session = await requireAdmin();
+    const name = getString(formData, "name");
+    const email = getString(formData, "email").toLowerCase();
+    const phone = getString(formData, "phone", false);
+    const password = getString(formData, "password");
+    const chapterId = getString(formData, "chapterId", false);
+
+    if (password.length < 8) {
+      return { ok: false, error: "Password must be at least 8 characters." };
+    }
+
+    const access = resolveUserAccessSelection({
+      primaryRoleRaw: getString(formData, "primaryRole"),
+      roleValues: formData.getAll("roles").map(String),
+      adminSubtypeValues: formData.getAll("adminSubtypes").map(String),
+      defaultOwnerSubtypeRaw: getString(formData, "defaultOwnerSubtype", false),
+    });
+    const { primaryRole, roles, adminSubtypes, defaultOwnerSubtype } = access;
+    const adminSubtypeCreateData = buildUserAdminSubtypeRecords(
+      "user",
+      adminSubtypes,
+      defaultOwnerSubtype
+    ).map(({ subtype, isDefaultOwner }) => ({
+      subtype,
+      isDefaultOwner,
+    }));
+
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) {
+      return { ok: false, error: "A user with that email already exists." };
+    }
+
+    // The org-spine (ladder/level) is the source of truth for access. Derive and
+    // persist it from the chosen role/subtypes so new accounts are consistent and
+    // the tier guards work off the ladder immediately.
+    const spine = deriveSpineFromAccess({
+      primaryRole,
+      roles,
+      adminSubtypes,
+      explicitCanonicalTitle: getString(formData, "canonicalTitle", false) || null,
     });
 
-    if (existingAfterAuthCreate) {
-      if (
-        existingAfterAuthCreate.supabaseAuthId &&
-        existingAfterAuthCreate.supabaseAuthId !== authData.user.id
-      ) {
-        throw new Error("User already exists");
-      }
+    const passwordHash = await bcrypt.hash(password, 10);
+    let supabaseAdmin;
+    try {
+      supabaseAdmin = createServiceClient();
+    } catch (envError) {
+      console.error("[Admin] Supabase service client unavailable:", envError);
+      return {
+        ok: false,
+        error:
+          "Auth is not configured on this deployment (missing Supabase service credentials).",
+      };
+    }
 
-      newUser = await prisma.user.update({
-        where: { id: existingAfterAuthCreate.id },
-        data: {
-          ...userWriteData,
-          roles: {
-            deleteMany: {},
-            create: roles.map((role) => ({ role })),
+    // Pass plaintext password so GoTrue hashes it — same path as public signup.
+    // (password_hash is only used for migrating existing bcrypt hashes.)
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: {
+        name,
+        primaryRole,
+        chapterId: chapterId || null,
+        roles,
+        internalLevel: spine.internalLevel,
+      },
+    });
+
+    if (authError || !authData.user?.id) {
+      const detail = authError?.message || "No user returned.";
+      console.error("[Admin] Failed to create Supabase auth user:", detail);
+      if (/already.*(registered|exists)/i.test(detail)) {
+        return {
+          ok: false,
+          error: "That email already has a login. Try a different email or reset their password.",
+        };
+      }
+      return {
+        ok: false,
+        error: `Could not create the login account: ${detail}`,
+      };
+    }
+
+    const userWriteData = {
+      name,
+      email,
+      phone: phone || null,
+      passwordHash,
+      primaryRole,
+      chapterId: chapterId || null,
+      emailVerified: new Date(),
+      supabaseAuthId: authData.user.id,
+      internalLevel: spine.internalLevel,
+      ladder: spine.ladder ?? undefined,
+      canonicalTitle: spine.canonicalTitle ?? undefined,
+    };
+
+    let newUser;
+
+    try {
+      const existingAfterAuthCreate = await prisma.user.findUnique({
+        where: { email },
+        select: { id: true, supabaseAuthId: true },
+      });
+
+      if (existingAfterAuthCreate) {
+        if (
+          existingAfterAuthCreate.supabaseAuthId &&
+          existingAfterAuthCreate.supabaseAuthId !== authData.user.id
+        ) {
+          throw new Error("A user with that email already exists.");
+        }
+
+        newUser = await prisma.user.update({
+          where: { id: existingAfterAuthCreate.id },
+          data: {
+            ...userWriteData,
+            roles: {
+              deleteMany: {},
+              create: roles.map((role) => ({ role })),
+            },
+            adminSubtypes: {
+              deleteMany: {},
+              ...(adminSubtypes.length > 0
+                ? {
+                    create: adminSubtypeCreateData,
+                  }
+                : {}),
+            },
           },
-          adminSubtypes: {
-            deleteMany: {},
+        });
+      } else {
+        newUser = await prisma.user.create({
+          data: {
+            ...userWriteData,
+            roles: {
+              create: roles.map((role) => ({ role })),
+            },
             ...(adminSubtypes.length > 0
               ? {
-                  create: adminSubtypeCreateData,
+                  adminSubtypes: {
+                    create: adminSubtypeCreateData,
+                  },
                 }
               : {}),
           },
-        },
-      });
-    } else {
-      newUser = await prisma.user.create({
-        data: {
-          ...userWriteData,
-          roles: {
-            create: roles.map((role) => ({ role })),
-          },
-          ...(adminSubtypes.length > 0
-            ? {
-                adminSubtypes: {
-                  create: adminSubtypeCreateData,
-                },
-              }
-            : {}),
-        },
-      });
+        });
+      }
+    } catch (error) {
+      try {
+        await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+      } catch (cleanupError) {
+        console.error("[Admin] Failed to clean up Supabase auth user after Prisma error:", cleanupError);
+      }
+      throw error;
     }
+
+    await logAuditEvent({
+      action: "USER_CREATED",
+      actorId: session.user.id,
+      targetType: "User",
+      targetId: newUser.id,
+      description: `Created user ${name} (${email}) with role ${primaryRole}`,
+      metadata: { roles, primaryRole, adminSubtypes, defaultOwnerSubtype },
+    });
+
+    await syncPersonSearchDocument(newUser.id).catch((err) => {
+      console.warn("[Admin] Person search sync failed after create:", err);
+    });
+    revalidatePath("/admin");
+    revalidatePath("/people");
+
+    return { ok: true, id: newUser.id };
   } catch (error) {
-    try {
-      await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
-    } catch (cleanupError) {
-      console.error("[Admin] Failed to clean up Supabase auth user after Prisma error:", cleanupError);
+    const message =
+      error instanceof Error ? error.message : "Could not create user.";
+    console.error("[Admin] createUser failed:", message);
+    if (/Unauthorized/i.test(message)) {
+      return { ok: false, error: "You need Admin access to create users." };
     }
-    throw error;
+    if (/Can't reach database|P1001|PrismaClientInitializationError/i.test(message)) {
+      return {
+        ok: false,
+        error: "Database is not reachable from this deployment. Check DATABASE_URL on Vercel.",
+      };
+    }
+    return { ok: false, error: message };
   }
-
-  await logAuditEvent({
-    action: "USER_CREATED",
-    actorId: session.user.id,
-    targetType: "User",
-    targetId: newUser.id,
-    description: `Created user ${name} (${email}) with role ${primaryRole}`,
-    metadata: { roles, primaryRole, adminSubtypes, defaultOwnerSubtype },
-  });
-
-  await syncPersonSearchDocument(newUser.id);
-  revalidatePath("/admin");
-  revalidatePath("/people");
-
-  return { id: newUser.id };
 }
 
 export async function createCourse(formData: FormData) {

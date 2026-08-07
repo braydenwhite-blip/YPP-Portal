@@ -72,7 +72,7 @@ describe("admin-actions createUser", () => {
 
     expect(createSupabaseUser).toHaveBeenCalledWith({
       email: "newuser@example.com",
-      password_hash: expect.any(String),
+      password: "Passw0rd123",
       email_confirm: true,
       user_metadata: {
         name: "New User",
@@ -205,7 +205,7 @@ describe("admin-actions createUser", () => {
 
     expect(createSupabaseUser).toHaveBeenCalledWith({
       email: "adminuser@example.com",
-      password_hash: expect.any(String),
+      password: "Passw0rd123",
       email_confirm: true,
       user_metadata: {
         name: "Admin User",
@@ -324,8 +324,9 @@ describe("admin-actions createUser", () => {
     formData.set("password", "Passw0rd123");
     formData.set("primaryRole", RoleType.STUDENT);
 
-    await expect(createUser(formData)).rejects.toThrow("Database write failed");
+    const result = await createUser(formData);
 
+    expect(result).toEqual({ ok: false, error: "Database write failed" });
     expect(deleteSupabaseUser).toHaveBeenCalledWith("auth-user-1");
   });
 });

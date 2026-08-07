@@ -43,7 +43,11 @@ export function AdminCreateUser({
     setError(null);
     setSuccess(false);
     try {
-      await createUser(formData);
+      const result = await createUser(formData);
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
       setSuccess(true);
       const form = document.getElementById(
         "admin-create-user-form"
@@ -115,8 +119,12 @@ export function AdminCreateUser({
               name="password"
               type="password"
               required
+              minLength={8}
               autoComplete="new-password"
             />
+            <span className="mt-1 block text-[12px] font-normal text-ink-muted">
+              At least 8 characters. They use this to sign in.
+            </span>
           </label>
           <label className="block text-[13px] font-medium text-ink">
             Phone <span className="font-normal text-ink-muted">(optional)</span>
