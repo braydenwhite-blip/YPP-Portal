@@ -21,7 +21,7 @@ function readParam(
 }
 
 /**
- * ADMIN-only user management: every person, with inline role / cohort / chapter.
+ * ADMIN-only user management: tap a person, then edit their details.
  */
 export default async function AdminHomePage({
   searchParams,
@@ -50,6 +50,8 @@ export default async function AdminHomePage({
         id: true,
         name: true,
         email: true,
+        phone: true,
+        title: true,
         primaryRole: true,
         canonicalTitle: true,
         ladder: true,
@@ -57,7 +59,24 @@ export default async function AdminHomePage({
         archivedAt: true,
         chapter: { select: { id: true, name: true, city: true } },
         cohort: { select: { id: true, name: true } },
-        profile: { select: { city: true, stateProvince: true } },
+        profile: {
+          select: {
+            city: true,
+            stateProvince: true,
+            school: true,
+            grade: true,
+            dateOfBirth: true,
+            parentEmail: true,
+            parentPhone: true,
+          },
+        },
+        alumniProfile: {
+          select: {
+            graduationYear: true,
+            college: true,
+            major: true,
+          },
+        },
         roles: { select: { role: true } },
       },
     }),
@@ -76,10 +95,28 @@ export default async function AdminHomePage({
     return parts.length ? parts.join(", ") : null;
   }
 
+  function formatSchoolYear(grade: number | null | undefined) {
+    if (grade == null || !Number.isFinite(grade)) return null;
+    const n = Math.trunc(grade);
+    if (n === 0) return "Kindergarten";
+    if (n >= 9 && n <= 12) {
+      const now = new Date();
+      const seniorSpring =
+        now.getMonth() >= 7 ? now.getFullYear() + 1 : now.getFullYear();
+      return `Class of ${seniorSpring + (12 - n)}`;
+    }
+    if (n < 1 || n > 12) return `Grade ${n}`;
+    const suffix =
+      n === 1 ? "st" : n === 2 ? "nd" : n === 3 ? "rd" : "th";
+    return `${n}${suffix} grade`;
+  }
+
   const initialUsers = users.map((user) => ({
     id: user.id,
     name: user.name,
     email: user.email,
+    phone: user.phone,
+    title: user.title,
     primaryRole: user.primaryRole,
     roles: user.roles.map((r) => r.role),
     canonicalTitle: user.canonicalTitle,
@@ -88,6 +125,15 @@ export default async function AdminHomePage({
     chapterId: user.chapter?.id ?? null,
     chapterName: user.chapter?.name ?? null,
     location: formatLocation(user.profile?.city, user.profile?.stateProvince),
+    school: user.profile?.school ?? null,
+    schoolYear: formatSchoolYear(user.profile?.grade),
+    schoolGrade: user.profile?.grade ?? null,
+    dateOfBirth: user.profile?.dateOfBirth ?? null,
+    parentEmail: user.profile?.parentEmail ?? null,
+    parentPhone: user.profile?.parentPhone ?? null,
+    graduationYear: user.alumniProfile?.graduationYear ?? null,
+    college: user.alumniProfile?.college ?? null,
+    major: user.alumniProfile?.major ?? null,
     cohortId: user.cohort?.id ?? null,
     cohortName: user.cohort?.name ?? null,
     archivedAt: user.archivedAt,
@@ -113,31 +159,19 @@ export default async function AdminHomePage({
       <PageHeaderV2
         eyebrow="Admin"
         title="Users"
-        subtitle="Find someone, then change their role, grade, cohort, chapter, or location in the row."
+        subtitle="Tap someone to see their profile and update access."
         className="mb-5"
         actions={<AdminCreateUser chapters={chapters.map((c) => ({ id: c.id, name: c.name }))} />}
       >
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px] text-ink-muted">
-          <span>
-            <span className="font-semibold text-ink">{activeCount}</span> people
-          </span>
-          <span className="text-line">·</span>
-          <span>
-            <span className="font-semibold text-ink">{chapters.length}</span> chapters
-          </span>
-          <span className="text-line">·</span>
-          <span>
-            <span className="font-semibold text-ink">{cohorts.length}</span> cohorts
-          </span>
+        <p className="m-0 text-[13px] text-ink-muted">
+          <span className="font-semibold text-ink">{activeCount}</span> people
           {archivedCount > 0 ? (
             <>
-              <span className="text-line">·</span>
-              <span>
-                <span className="font-semibold text-ink">{archivedCount}</span> archived
-              </span>
+              {" "}
+              · <span className="font-semibold text-ink">{archivedCount}</span> archived
             </>
           ) : null}
-        </div>
+        </p>
       </PageHeaderV2>
 
       <div className="flex flex-col gap-4">

@@ -86,7 +86,13 @@ async function runSessionQuery<T>(op: () => Promise<T>): Promise<T | null> {
     return await op();
   } catch (error) {
     if (isRecoverablePrismaTimeout(error)) {
-      console.error("[auth] Prisma user lookup timed out; treating as signed out.", error);
+      // Log a plain string only — forwarding the Prisma error object makes
+      // Next.js 16 surface a red "Console PrismaClientInitializationError"
+      // overlay even though we intentionally degrade to signed-out.
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(
+        `[auth] Prisma user lookup failed (${message.split("\n")[0]}); treating as signed out.`
+      );
       return null;
     }
     throw error;
