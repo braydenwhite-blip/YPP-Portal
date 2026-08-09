@@ -11,7 +11,7 @@ import { isLeadershipFullPortalExplorerEnabled } from "@/lib/navigation/leadersh
  * Programs Â· Actions sections for local testing.
  */
 
-/** Shipped CP sidebar â€” the 4 approved pages only. */
+/** Shipped CP sidebar — the 4 approved pages only. */
 export const CHAPTER_PRESIDENT_SIMPLE_ALLOWED_HREFS: ReadonlySet<string> = new Set([
   "/chapter",
   "/chapter/onboarding",
