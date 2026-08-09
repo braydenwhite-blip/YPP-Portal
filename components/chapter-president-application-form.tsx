@@ -3,17 +3,6 @@
 import { useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { submitChapterPresidentApplication } from "@/lib/chapter-president-application-actions";
-import FileUpload from "./file-upload";
-
-type FormField = {
-  id: string;
-  label: string;
-  fieldType: string;
-  required: boolean;
-  placeholder: string | null;
-  helpText: string | null;
-  options: string | null;
-};
 
 type Chapter = {
   id: string;
@@ -22,7 +11,6 @@ type Chapter = {
 
 interface CPApplicationFormProps {
   chapters: Chapter[];
-  customFields?: FormField[];
 }
 
 function SubmitButton() {
@@ -45,56 +33,23 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
   );
 }
 
-const HEAR_ABOUT_OPTIONS = [
-  "Word of mouth",
-  "TikTok",
-  "Instagram",
-  "A YPP staff member",
-  "A YPP student",
-  "Other",
-] as const;
-
 function wordCount(text: string) {
   return text.trim() === "" ? 0 : text.trim().split(/\s+/).length;
 }
 
-export default function ChapterPresidentApplicationForm({
-  chapters,
-  customFields = [],
-}: CPApplicationFormProps) {
+const APPLYING_WITH_OPTIONS = ["Individually", "With another candidate"] as const;
+
+export default function ChapterPresidentApplicationForm({ chapters }: CPApplicationFormProps) {
   const [state, formAction] = useFormState(submitChapterPresidentApplication, {
     status: "idle" as const,
     message: "",
   });
 
-  const [leadershipExperience, setLeadershipExperience] = useState("");
-  const [chapterVision, setChapterVision] = useState("");
   const [whyCP, setWhyCP] = useState("");
-  const [recruitmentPlan, setRecruitmentPlan] = useState("");
-  const [launchPlan, setLaunchPlan] = useState("");
-  const [customValues, setCustomValues] = useState<Record<string, string>>({});
-  const [country, setCountry] = useState("United States");
+  const [applyingWith, setApplyingWith] = useState<string>("Individually");
 
-  // How did you hear about us
-  const [hearAbout, setHearAbout] = useState("");
-  const [hearAboutDetail, setHearAboutDetail] = useState("");
-
-  // Document upload
-  const [documentUrl, setDocumentUrl] = useState("");
-
-  // Instructor information
-  const [instructorTeachingDesc, setInstructorTeachingDesc] = useState("");
-
-  const hearAboutNeedsName =
-    hearAbout === "A YPP staff member" || hearAbout === "A YPP student";
-  const hearAboutNeedsDetail = hearAbout === "Other";
-  const hearAboutCombined =
-    hearAboutDetail.trim()
-      ? `${hearAbout}: ${hearAboutDetail.trim()}`
-      : hearAbout;
-
-  const teachingWordCount = wordCount(instructorTeachingDesc);
-  const teachingOverLimit = teachingWordCount > 250;
+  const whyCPWordCount = wordCount(whyCP);
+  const whyCPOverLimit = whyCPWordCount > 150;
 
   if (state.status === "success") {
     return (
@@ -112,10 +67,6 @@ export default function ChapterPresidentApplicationForm({
     <div>
       <div className="section-title">Apply for Chapter President</div>
 
-      <div style={{ background: "#fef3c7", border: "1px solid #f59e0b", borderRadius: 8, padding: "10px 14px", marginBottom: 16, fontSize: 13 }}>
-        <strong>Note:</strong> This position requires an interview. After submitting, a reviewer will review your application and schedule an interview.
-      </div>
-
       {state.status === "error" && (
         <div style={{ background: "#fee2e2", color: "#dc2626", padding: 12, borderRadius: 8, marginBottom: 16, fontSize: 13 }}>
           {state.message}
@@ -124,563 +75,115 @@ export default function ChapterPresidentApplicationForm({
 
       <form action={formAction} className="form-grid">
 
-        {/* ── Section 1: Personal Information ── */}
-        <SectionHeader>Section 1 — Personal Information</SectionHeader>
+        {/* — Basic Information — */}
+        <SectionHeader>Basic Information</SectionHeader>
 
         <div className="form-row">
-          <label>Full Legal Name (First, Middle, and Last) <span style={{ color: "#dc2626" }}>*</span></label>
-          <input className="input" name="legalName" placeholder="e.g. Jane Marie Smith" required />
+          <label>Full Name <span style={{ color: "#dc2626" }}>*</span></label>
+          <input className="input" name="preferredFirstName" placeholder="Your full name" required />
         </div>
 
         <div className="form-row">
-          <label>Preferred First Name <span style={{ color: "#dc2626" }}>*</span></label>
-          <input className="input" name="preferredFirstName" placeholder="What would you like us to call you?" required />
+          <label>Phone Number <span style={{ color: "#dc2626" }}>*</span></label>
+          <input className="input" name="phoneNumber" type="tel" placeholder="(555) 123-4567" required />
         </div>
 
         <div className="form-row">
-          <label>Last Name <span style={{ color: "#dc2626" }}>*</span></label>
-          <input className="input" name="lastName" placeholder="Your last name" required />
+          <label>School and Current Grade <span style={{ color: "#dc2626" }}>*</span></label>
+          <div style={{ display: "flex", gap: 10 }}>
+            <input className="input" name="schoolName" placeholder="School name" required style={{ flex: 2 }} />
+            <select className="input" name="grade" required defaultValue="" style={{ flex: 1 }}>
+              <option value="" disabled>Grade</option>
+              <option value="9th grade">9th grade</option>
+              <option value="10th grade">10th grade</option>
+              <option value="11th grade">11th grade</option>
+              <option value="12th grade">12th grade</option>
+              <option value="Gap year / other">Gap year / other</option>
+            </select>
+          </div>
         </div>
 
         <div className="form-row">
-          <label>Phone Number (optional)</label>
-          <input className="input" name="phoneNumber" type="tel" placeholder="(555) 123-4567" />
+          <label>City and State <span style={{ color: "#dc2626" }}>*</span></label>
+          <div style={{ display: "flex", gap: 10 }}>
+            <input className="input" name="city" placeholder="City" required style={{ flex: 1 }} />
+            <input className="input" name="stateProvince" placeholder="State" required style={{ flex: 1 }} />
+          </div>
         </div>
 
         <div className="form-row">
-          <label>Date of Birth (optional)</label>
-          <input className="input" name="dateOfBirth" type="date" />
-        </div>
-
-        <div className="form-row">
-          <label>How did you hear about YPP? (optional)</label>
-          <select
-            className="input"
-            name="hearAboutYPPOption"
-            value={hearAbout}
-            onChange={(e) => {
-              setHearAbout(e.target.value);
-              setHearAboutDetail("");
-            }}
-          >
-            <option value="">Select one</option>
-            {HEAR_ABOUT_OPTIONS.map((opt) => (
-              <option key={opt} value={opt}>{opt}</option>
+          <label>What area would you like to lead a chapter in? <span style={{ color: "#dc2626" }}>*</span></label>
+          <select className="input" name="chapterId" defaultValue="" required>
+            <option value="" disabled>Select a chapter</option>
+            {chapters.map((ch) => (
+              <option key={ch.id} value={ch.id}>{ch.name}</option>
             ))}
           </select>
-          {(hearAboutNeedsName || hearAboutNeedsDetail) && (
-            <input
-              className="input"
-              style={{ marginTop: 6 }}
-              placeholder={hearAboutNeedsName ? "Enter their name" : "Please specify"}
-              value={hearAboutDetail}
-              onChange={(e) => setHearAboutDetail(e.target.value)}
-            />
-          )}
-          <input type="hidden" name="hearAboutYPP" value={hearAboutCombined} />
-        </div>
-
-        {/* ── Section 2: Location ── */}
-        <SectionHeader>Section 2 — Location</SectionHeader>
-
-        <div className="form-row">
-          <label>What town/city do you live in? <span style={{ color: "#dc2626" }}>*</span></label>
-          <input className="input" name="city" placeholder="e.g. Austin" required />
         </div>
 
         <div className="form-row">
-          <label>What state/province do you live in? <span style={{ color: "#dc2626" }}>*</span></label>
-          <input className="input" name="stateProvince" placeholder="e.g. Texas" required />
-        </div>
-
-        <div className="form-row">
-          <label>What is your ZIP code? <span style={{ color: "#dc2626" }}>*</span></label>
-          <input className="input" name="zipCode" placeholder="e.g. 78701" required />
-        </div>
-
-        <div className="form-row">
-          <label>What country do you live in? <span style={{ color: "#dc2626" }}>*</span></label>
-          <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, fontSize: 14 }}>
-            <input type="radio" name="country" value="United States" checked={country === "United States"} onChange={() => setCountry("United States")} required /> United States
-          </label>
-          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14 }}>
-            <input type="radio" name="country" value="Other" checked={country === "Other"} onChange={() => setCountry("Other")} /> Other:
-            {country === "Other" && (
-              <input className="input" name="countryOther" placeholder="Enter your country" style={{ flex: 1, marginBottom: 0 }} required />
-            )}
-          </label>
-        </div>
-
-        {/* ── Section 3: Academic Background ── */}
-        <SectionHeader>Section 3 — Academic Background</SectionHeader>
-
-        <div className="form-row">
-          <label>High School Name <span style={{ color: "#dc2626" }}>*</span></label>
-          <input className="input" name="schoolName" placeholder="e.g. Lincoln High School" required />
-        </div>
-
-        <div className="form-row">
-          <label>Current grade <span style={{ color: "#dc2626" }}>*</span></label>
-          <select className="input" name="grade" required defaultValue="">
-            <option value="" disabled>Select your grade</option>
-            <option value="9th grade">9th grade</option>
-            <option value="10th grade">10th grade</option>
-            <option value="11th grade">11th grade</option>
-            <option value="12th grade">12th grade</option>
-            <option value="Gap year / other">Gap year / other</option>
-          </select>
-        </div>
-
-        <div className="form-row">
-          <label>What year will you graduate from high school? <span style={{ color: "#dc2626" }}>*</span></label>
+          <label>Are you applying individually or with another candidate? <span style={{ color: "#dc2626" }}>*</span></label>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {["2026", "2027", "2028", "2029"].map((year) => (
-              <label key={year} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14 }}>
-                <input type="radio" name="graduationYear" value={year} required /> {year}
+            {APPLYING_WITH_OPTIONS.map((opt) => (
+              <label key={opt} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14 }}>
+                <input
+                  type="radio"
+                  name="applyingWith"
+                  value={opt}
+                  checked={applyingWith === opt}
+                  onChange={() => setApplyingWith(opt)}
+                  required
+                />
+                {opt}
               </label>
             ))}
           </div>
         </div>
 
-        <div className="form-row">
-          <label>GPA (optional)</label>
-          <input className="input" name="gpa" placeholder="e.g. 3.8 / 4.0" />
-        </div>
+        {applyingWith === "With another candidate" && (
+          <div className="form-row">
+            <label>Co-candidate&apos;s name <span style={{ color: "#dc2626" }}>*</span></label>
+            <input className="input" name="coCandidateName" placeholder="Their full name" required />
+          </div>
+        )}
+
+        {/* — Interest and Initial Plan — */}
+        <SectionHeader>Interest and Initial Plan</SectionHeader>
 
         <div className="form-row">
-          <label>Class Rank (optional)</label>
-          <input className="input" name="classRank" placeholder="e.g. Top 10%, 25 of 300" />
-        </div>
-
-        {/* ── Section 4: Chapter Details ── */}
-        <SectionHeader>Section 4 — Chapter Details</SectionHeader>
-
-        <div className="form-row">
-          <label>Chapter <span style={{ color: "#dc2626" }}>*</span></label>
-          <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 6px" }}>
-            Select the chapter you want to lead, or leave blank if proposing a new chapter.
-          </p>
-          <select className="input" name="chapterId" defaultValue="">
-            <option value="">Proposing a new chapter</option>
-            {chapters.map((ch) => (
-              <option key={ch.id} value={ch.id}>{ch.name}</option>
-            ))}
-          </select>
-          <p style={{ fontSize: 12, color: "var(--muted)", margin: "6px 0 0" }}>
-            Don&apos;t like any of the options? Email{" "}
-            <a href="mailto:support@youthpassionproject.org" className="link">
-              support@youthpassionproject.org
-            </a>{" "}
-            to hear about other opportunities.
-          </p>
-        </div>
-
-        <div className="form-row">
-          <label>Partner / Host School (optional)</label>
-          <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 6px" }}>
-            If proposing a new chapter, what school would it be based at?
-          </p>
-          <input className="input" name="partnerSchool" placeholder="e.g. Lincoln High School" />
-        </div>
-
-        <div className="form-row">
-          <label>Potential chapter location / community <span style={{ color: "#dc2626" }}>*</span></label>
-          <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 6px" }}>
-            Name the school, neighborhood, library, or community where this chapter would meet.
-          </p>
-          <input className="input" name="potentialChapterLocation" placeholder="e.g. Lincoln High School library" required />
-        </div>
-
-        <div className="form-row">
-          <label>Current YPP involvement, if any</label>
-          <textarea
-            className="input"
-            name="currentYppInvolvement"
-            rows={2}
-            placeholder="Tell us if you are a student, instructor, volunteer, referral, or new to YPP."
-          />
-        </div>
-
-        {/* ── Section 5: Essays & Background ── */}
-        <SectionHeader>Section 5 — Essays &amp; Background</SectionHeader>
-
-        <div className="form-row">
-          <label>Why do you want to be Chapter President? <span style={{ color: "#dc2626" }}>*</span></label>
-          <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 6px" }}>
-            Tell us what drives you to lead a YPP chapter and what you hope to achieve.
-          </p>
+          <label>Why do you want to become a YPP Chapter President? <span style={{ color: "#dc2626" }}>*</span></label>
+          <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 6px" }}>Max 150 words</p>
           <textarea
             name="whyChapterPresident"
             className="input"
-            rows={4}
+            rows={5}
             required
-            placeholder="Share your motivation for leading, what excites you about this role, and what impact you want to make..."
             value={whyCP}
             onChange={(e) => setWhyCP(e.target.value)}
           />
-          <span style={{ fontSize: 11, color: whyCP.length > 5000 ? "#dc2626" : "var(--muted)", marginTop: 4, display: "block", textAlign: "right" }}>
-            {whyCP.length} / 5,000
+          <span style={{ fontSize: 11, color: whyCPOverLimit ? "#dc2626" : "var(--muted)", marginTop: 4, display: "block", textAlign: "right" }}>
+            {whyCPWordCount} / 150 words{whyCPOverLimit && " — over limit"}
           </span>
         </div>
 
-        <div className="form-row">
-          <label>Leadership Experience <span style={{ color: "#dc2626" }}>*</span></label>
-          <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 6px" }}>
-            Describe your leadership experience and what qualifies you for this role.
-          </p>
-          <textarea
-            name="leadershipExperience"
-            className="input"
-            rows={5}
-            required
-            placeholder="Share your leadership roles, team management experience, community involvement..."
-            value={leadershipExperience}
-            onChange={(e) => setLeadershipExperience(e.target.value)}
-          />
-          <span style={{ fontSize: 11, color: leadershipExperience.length > 5000 ? "#dc2626" : "var(--muted)", marginTop: 4, display: "block", textAlign: "right" }}>
-            {leadershipExperience.length} / 5,000
-          </span>
-        </div>
+        {/* — Experience & Follow Through — */}
+        <SectionHeader>Experience &amp; Follow Through</SectionHeader>
 
         <div className="form-row">
-          <label>Prior Organizing or Club Experience <span style={{ color: "#dc2626" }}>*</span></label>
-          <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 6px" }}>
-            Have you helped start or run a club, organization, or event before? Describe it.
-          </p>
-          <textarea
-            name="priorOrganizing"
-            className="input"
-            rows={3}
-            required
-            placeholder="Describe any experience founding, running, or coordinating clubs, teams, or events..."
-          />
-        </div>
-
-        <div className="form-row">
-          <label>Community or service experience <span style={{ color: "#dc2626" }}>*</span></label>
-          <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 6px" }}>
-            Share any volunteering, mentoring, outreach, service, or community-building work you have done.
-          </p>
-          <textarea
-            name="communityServiceExperience"
-            className="input"
-            rows={3}
-            required
-            placeholder="Describe where you served, who you worked with, and what you learned..."
-          />
-        </div>
-
-        <div className="form-row">
-          <label>Extracurricular Activities &amp; Clubs <span style={{ color: "#dc2626" }}>*</span></label>
-          <textarea
-            name="extracurriculars"
-            className="input"
-            rows={3}
-            required
-            placeholder="List clubs, sports, volunteer work, or other activities you participate in..."
-          />
-        </div>
-
-        <div className="form-row">
-          <label>Special Skills or Certifications (optional)</label>
-          <textarea
-            name="specialSkills"
-            className="input"
-            rows={2}
-            placeholder="e.g. Bilingual (Spanish/English), public speaking, graphic design, event planning..."
-          />
-        </div>
-
-        {/* ── Section 6: Chapter Vision & Planning ── */}
-        <SectionHeader>Section 6 — Chapter Vision &amp; Planning</SectionHeader>
-
-        <div className="form-row">
-          <label>Chapter Vision <span style={{ color: "#dc2626" }}>*</span></label>
-          <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 6px" }}>
-            What is your vision for the chapter? What would you focus on?
-          </p>
-          <textarea
-            name="chapterVision"
-            className="input"
-            rows={5}
-            required
-            placeholder="Describe your goals for the chapter, programs you'd like to run, how you'd engage students..."
-            value={chapterVision}
-            onChange={(e) => setChapterVision(e.target.value)}
-          />
-          <span style={{ fontSize: 11, color: chapterVision.length > 5000 ? "#dc2626" : "var(--muted)", marginTop: 4, display: "block", textAlign: "right" }}>
-            {chapterVision.length} / 5,000
-          </span>
-        </div>
-
-        <div className="form-row">
-          <label>Recruitment Plan <span style={{ color: "#dc2626" }}>*</span></label>
-          <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 6px" }}>
-            How will you recruit instructors and students to your chapter?
-          </p>
-          <textarea
-            name="recruitmentPlan"
-            className="input"
-            rows={4}
-            required
-            placeholder="Describe your strategy for finding and onboarding instructors and students..."
-            value={recruitmentPlan}
-            onChange={(e) => setRecruitmentPlan(e.target.value)}
-          />
-          <span style={{ fontSize: 11, color: recruitmentPlan.length > 3000 ? "#dc2626" : "var(--muted)", marginTop: 4, display: "block", textAlign: "right" }}>
-            {recruitmentPlan.length} / 3,000
-          </span>
-        </div>
-
-        <div className="form-row">
-          <label>Launch Plan &amp; Timeline <span style={{ color: "#dc2626" }}>*</span></label>
-          <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 6px" }}>
-            What are your milestones for the first semester? When do you want to launch?
-          </p>
-          <textarea
-            name="launchPlan"
-            className="input"
-            rows={4}
-            required
-            placeholder="Outline key milestones: first meeting, first lesson, target student count, etc..."
-            value={launchPlan}
-            onChange={(e) => setLaunchPlan(e.target.value)}
-          />
-          <span style={{ fontSize: 11, color: launchPlan.length > 3000 ? "#dc2626" : "var(--muted)", marginTop: 4, display: "block", textAlign: "right" }}>
-            {launchPlan.length} / 3,000
-          </span>
-        </div>
-
-        <div className="form-row">
-          <label>First 3 actions if accepted <span style={{ color: "#dc2626" }}>*</span></label>
-          <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 6px" }}>
-            List the first three things you would do to start or strengthen the chapter.
-          </p>
-          <textarea
-            name="firstThreeActions"
-            className="input"
-            rows={3}
-            required
-            placeholder={"1. ...\n2. ...\n3. ..."}
-          />
-        </div>
-
-        {/* ── Section 7: Availability ── */}
-        <SectionHeader>Section 7 — Availability</SectionHeader>
-
-        <div className="form-row">
-          <label>Interview Availability <span style={{ color: "#dc2626" }}>*</span></label>
-          <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 6px" }}>
-            When are you generally available for an interview?
-          </p>
-          <input name="availability" className="input" required placeholder="e.g., Weekday evenings after 5pm, Saturday mornings" />
-        </div>
-
-        <div className="form-row">
-          <label>Hours per week you can commit <span style={{ color: "#dc2626" }}>*</span></label>
-          <input className="input" name="hoursPerWeek" type="number" min={1} max={40} placeholder="e.g. 8" required />
-        </div>
-
-        <div className="form-row">
-          <label>Preferred chapter launch date (optional)</label>
-          <input className="input" name="preferredStartDate" type="date" />
-        </div>
-
-        {/* ── Section 8: Referrals ── */}
-        <SectionHeader>Section 8 — Referrals (Recommended)</SectionHeader>
-
-        <div className="form-row">
-          <label>Student referral emails (optional)</label>
-          <textarea
-            className="input"
-            name="referralEmails"
-            placeholder="student1@example.com, student2@example.com"
-            rows={3}
-          />
-          <p style={{ fontSize: 12, color: "var(--muted)", margin: "6px 0 0" }}>
-            RECOMMENDED: Please enter the emails of as many high school students as you would like to recommend YPP to. Please separate each email address with a comma. Referring YPP to other students using this field will help us see your devotion!
-          </p>
-        </div>
-
-        {/* ── Section 9: Supporting Document ── */}
-        <SectionHeader>Section 9 — Supporting Document (Optional)</SectionHeader>
-
-        <div className="form-row">
-          <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 10px", lineHeight: 1.5 }}>
-            Upload one document to strengthen your application — a résumé, a list of current awards or credentials, or anything else that helps us get to know you better.
-          </p>
-          <FileUpload
-            category="APPLICATION_RESUME"
-            entityType="CHAPTER_PRESIDENT_APPLICATION"
-            accept=".pdf,.doc,.docx,image/jpeg,image/png,image/webp"
-            maxSizeMB={10}
-            label="Upload Document"
-            onUploadComplete={(file) => setDocumentUrl(file.url)}
-            currentFileUrl={documentUrl || null}
-          />
-          <input type="hidden" name="documentUrl" value={documentUrl} />
-        </div>
-
-        {/* ── Section 10: Instructor Information ── */}
-        <SectionHeader>Section 10 — Instructor Information (Optional)</SectionHeader>
-
-        <div className="form-row">
-          <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 12px", lineHeight: 1.5 }}>
-            If you are also interested in becoming a YPP instructor, please fill out this section. It is completely optional and will not affect your Chapter President application.
-          </p>
-        </div>
-
-        <div className="form-row">
-          <label>Please select which application position pertains to you? (optional)</label>
-          <select className="input" name="instructorApplicantPosition" defaultValue="">
-            <option value="">Select one</option>
-            <option value="Chapter President Only">Chapter President Only</option>
-            <option value="Instructor Only">Instructor Only</option>
-            <option value="Both Chapter President and Instructor">Both Chapter President and Instructor</option>
+          <label>How many hours can you consistently commit each week? <span style={{ color: "#dc2626" }}>*</span></label>
+          <select className="input" name="hoursPerWeek" required defaultValue="">
+            <option value="" disabled>Select one</option>
+            <option value="1">Fewer than 2 hours</option>
+            <option value="2">2-3 hours</option>
+            <option value="4">3-5 hours</option>
+            <option value="6">More than 5 hours</option>
           </select>
         </div>
 
         <div className="form-row">
-          <label>Do you have a class in mind that you would teach? (optional)</label>
-          <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 6px" }}>
-            Please type N/A if not applicable yet.
-          </p>
-          <input
-            className="input"
-            name="classInMind"
-            placeholder="e.g. Introduction to Public Speaking, Creative Writing, N/A"
-          />
+          <label>Are there any major commitments that could affect your availability?</label>
+          <textarea className="input" name="availabilityConflicts" rows={3} placeholder="Optional — sports, jobs, other commitments, etc." />
         </div>
-
-        <div className="form-row">
-          <label>Describe your experience with teaching, tutoring, or youth empowerment (optional)</label>
-          <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 6px" }}>
-            Please include why YOU would be an applicant who should be hired to become an instructor at Youth Passion Project. Limit: 250 words.
-          </p>
-          <textarea
-            name="instructorTeachingDesc"
-            className="input"
-            rows={5}
-            placeholder="Share your teaching or mentoring experience and why you would make a great YPP instructor..."
-            value={instructorTeachingDesc}
-            onChange={(e) => setInstructorTeachingDesc(e.target.value)}
-          />
-          <span style={{ fontSize: 11, color: teachingOverLimit ? "#dc2626" : "var(--muted)", marginTop: 4, display: "block", textAlign: "right" }}>
-            {teachingWordCount} / 250 words{teachingOverLimit && " — over limit"}
-          </span>
-        </div>
-
-        {/* ── Section 11: Optional Demographics ── */}
-        <SectionHeader>Section 11 — Optional Demographics</SectionHeader>
-
-        <div className="form-row">
-          <label>Race/Ethnicity (optional — for program tracking only)</label>
-          <select className="input" name="ethnicity" defaultValue="">
-            <option value="">Prefer not to say</option>
-            <option value="American Indian or Alaska Native">American Indian or Alaska Native</option>
-            <option value="Asian or Asian American">Asian or Asian American</option>
-            <option value="Black or African American">Black or African American</option>
-            <option value="Hispanic or Latino">Hispanic or Latino</option>
-            <option value="Middle Eastern or North African">Middle Eastern or North African</option>
-            <option value="Native Hawaiian or Pacific Islander">Native Hawaiian or Pacific Islander</option>
-            <option value="White or Caucasian">White or Caucasian</option>
-            <option value="Two or more races">Two or more races</option>
-            <option value="Other">Other</option>
-          </select>
-        </div>
-
-        {/* ── Dynamic custom fields from form template ── */}
-        {customFields.length > 0 && (
-          <>
-            <SectionHeader>Additional Questions</SectionHeader>
-            {customFields.map((field) => (
-              <div className="form-row" key={field.id}>
-                <label>
-                  {field.label}
-                  {field.required && <span style={{ color: "#dc2626" }}> *</span>}
-                </label>
-                {field.helpText && (
-                  <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 6px" }}>{field.helpText}</p>
-                )}
-
-                {field.fieldType === "SHORT_TEXT" && (
-                  <input
-                    name={`custom_field_${field.id}`}
-                    className="input"
-                    required={field.required}
-                    placeholder={field.placeholder ?? ""}
-                    value={customValues[field.id] || ""}
-                    onChange={(e) => setCustomValues((v) => ({ ...v, [field.id]: e.target.value }))}
-                  />
-                )}
-
-                {field.fieldType === "LONG_TEXT" && (
-                  <textarea
-                    name={`custom_field_${field.id}`}
-                    className="input"
-                    rows={4}
-                    required={field.required}
-                    placeholder={field.placeholder ?? ""}
-                    value={customValues[field.id] || ""}
-                    onChange={(e) => setCustomValues((v) => ({ ...v, [field.id]: e.target.value }))}
-                  />
-                )}
-
-                {field.fieldType === "MULTIPLE_CHOICE" && field.options && (
-                  <select
-                    name={`custom_field_${field.id}`}
-                    className="input"
-                    required={field.required}
-                    value={customValues[field.id] || ""}
-                    onChange={(e) => setCustomValues((v) => ({ ...v, [field.id]: e.target.value }))}
-                  >
-                    <option value="">Select an option...</option>
-                    {(() => {
-                      try {
-                        return (JSON.parse(field.options) as string[]).map((opt) => (
-                          <option key={opt} value={opt}>{opt}</option>
-                        ));
-                      } catch { return null; }
-                    })()}
-                  </select>
-                )}
-
-                {field.fieldType === "RATING_SCALE" && (
-                  <div style={{ display: "flex", gap: 8 }}>
-                    {[1, 2, 3, 4, 5].map((n) => (
-                      <label key={n} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 14, cursor: "pointer" }}>
-                        <input
-                          type="radio"
-                          name={`custom_field_${field.id}`}
-                          value={String(n)}
-                          required={field.required}
-                          checked={customValues[field.id] === String(n)}
-                          onChange={(e) => setCustomValues((v) => ({ ...v, [field.id]: e.target.value }))}
-                        />
-                        {n}
-                      </label>
-                    ))}
-                  </div>
-                )}
-
-                {field.fieldType === "FILE_UPLOAD" && (
-                  <>
-                    <FileUpload
-                      category="OTHER"
-                      entityType="APPLICATION_CUSTOM"
-                      accept="*"
-                      maxSizeMB={10}
-                      label="Upload File"
-                      compact
-                      onUploadComplete={(file) => setCustomValues((v) => ({ ...v, [field.id]: file.url }))}
-                    />
-                    <input type="hidden" name={`custom_file_${field.id}`} value={customValues[field.id] || ""} />
-                  </>
-                )}
-              </div>
-            ))}
-          </>
-        )}
 
         <SubmitButton />
       </form>

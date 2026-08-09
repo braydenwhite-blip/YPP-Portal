@@ -4,19 +4,19 @@ import { isLeadershipFullPortalExplorerEnabled } from "@/lib/navigation/leadersh
 /**
  * Chapter President navigation.
  *
- * Default (shipped): Home · Mentorship · Actions · Applicants —
- * same leadership sidebar as Admin / Staff.
+ * Shipped: Dashboard Â· Onboarding Â· Chapter Goals & Resources Â· Recruiting
+ * (the 4 approved CP Portal pages).
  *
- * Full explorer (`LEADERSHIP_FULL_PORTAL_EXPLORER=true`): chapter ops + People ·
- * Programs · Actions sections for local testing.
+ * Full explorer (`LEADERSHIP_FULL_PORTAL_EXPLORER=true`): chapter ops + People Â·
+ * Programs Â· Actions sections for local testing.
  */
 
-/** Shipped CP sidebar — leadership links only. */
+/** Shipped CP sidebar â€” the 4 approved pages only. */
 export const CHAPTER_PRESIDENT_SIMPLE_ALLOWED_HREFS: ReadonlySet<string> = new Set([
-  "/",
-  "/mentorship",
-  "/actions",
-  "/chapter-lead/instructor-applicants",
+  "/chapter",
+  "/chapter/onboarding",
+  "/chapter/resources",
+  "/chapter/recruiting",
 ]);
 
 /** Full CP sidebar used when the leadership explorer flag is on. */
@@ -68,86 +68,22 @@ export function chapterPresidentAllowedHrefs(
     : CHAPTER_PRESIDENT_SIMPLE_ALLOWED_HREFS;
 }
 
-/** Section emoji shown on each sidebar group header. */
-export const CHAPTER_PRESIDENT_MINIMAL_GROUP_EMOJI: Partial<Record<NavGroup, string>> = {
-  Chapters: "🏘",
-  People: "👥",
-  Programs: "🎓",
-  Actions: "✅",
-  "Profile & Settings": "⚙️",
-};
+/** Section labels shown on each sidebar group header. No emoji per Portal Rules. */
+export const CHAPTER_PRESIDENT_MINIMAL_GROUP_EMOJI: Partial<Record<NavGroup, string>> = {};
 
 const SIDEBAR_BY_HREF: Record<string, { group: NavGroup; label: string; icon: string }> = {
-  // Shortcuts (extracted into the "core" row, not shown under a group header)
-  "/": { group: "Start Here", label: "Home", icon: "🏠" },
-  "/chapter": { group: "Start Here", label: "Chapter Home", icon: "🧭" },
-
-  // Chapter — the day-to-day operating surfaces
-  "/chapter/recruiting": { group: "Chapters", label: "Recruiting", icon: "🧑‍💼" },
-  "/chapter-lead/instructor-applicants": { group: "Chapters", label: "Applicants", icon: "📝" },
-  "/chapter-lead/instructor-readiness": { group: "Chapters", label: "Instructor Readiness", icon: "✅" },
-  "/chapter/student-intake": { group: "Chapters", label: "Student Intake", icon: "🧭" },
-  "/chapter/calendar": { group: "Chapters", label: "Calendar & Events", icon: "🗓" },
-  "/chapter/channels": { group: "Chapters", label: "Channels", icon: "💬" },
-  "/chapter/updates": { group: "Chapters", label: "Announcements", icon: "📢" },
-  "/chapter/invites": { group: "Chapters", label: "Invite Links", icon: "🔗" },
-  "/chapter/marketing": { group: "Chapters", label: "Marketing", icon: "📊" },
-  "/chapter/achievements": { group: "Chapters", label: "Milestones", icon: "🏆" },
-  "/chapter/leaderboard": { group: "Chapters", label: "XP Leaderboard", icon: "🥇" },
-
-  // People — chapter members and the wider people directory
-  "/people": { group: "People", label: "People", icon: "👥" },
-  "/chapter/members": { group: "People", label: "Members", icon: "👥" },
-  "/chapter/students": { group: "People", label: "Students", icon: "🎓" },
-  "/chapter/instructors": { group: "People", label: "Instructors", icon: "👩‍🏫" },
-
-  // Programs — learning, mentorship, pathways
-  "/mentorship": { group: "Programs", label: "Mentorship", icon: "🤝" },
-  "/curriculum": { group: "Programs", label: "Curriculum", icon: "📖" },
-  "/pathways": { group: "Programs", label: "Pathways", icon: "🗺" },
-
-  // Actions — action items and initiatives
-  "/actions": { group: "Actions", label: "Actions", icon: "✅" },
-  "/operations/initiatives": { group: "Actions", label: "Initiatives", icon: "🎯" },
-
-  // Account
-  "/chapter/settings": { group: "Profile & Settings", label: "Chapter Settings", icon: "⚙️" },
-  "/notifications": { group: "Profile & Settings", label: "Notifications", icon: "🔔" },
-  "/settings/personalization": { group: "Profile & Settings", label: "Account", icon: "👤" },
+  "/chapter": { group: "Start Here", label: "Dashboard", icon: "" },
+  "/chapter/onboarding": { group: "Start Here", label: "Onboarding", icon: "" },
+  "/chapter/resources": { group: "Start Here", label: "Chapter Goals & Resources", icon: "" },
+  "/chapter/recruiting": { group: "Start Here", label: "Recruiting", icon: "" },
 };
 
 /** Order of links within the chapter-president sidebar (lower = earlier). */
 export const CHAPTER_PRESIDENT_SIDEBAR_LINK_ORDER: string[] = [
-  "/",
   "/chapter",
-  // Chapter
+  "/chapter/onboarding",
+  "/chapter/resources",
   "/chapter/recruiting",
-  "/chapter-lead/instructor-applicants",
-  "/chapter-lead/instructor-readiness",
-  "/chapter/student-intake",
-  "/chapter/calendar",
-  "/chapter/channels",
-  "/chapter/updates",
-  "/chapter/invites",
-  "/chapter/marketing",
-  "/chapter/achievements",
-  "/chapter/leaderboard",
-  // People
-  "/people",
-  "/chapter/members",
-  "/chapter/students",
-  "/chapter/instructors",
-  // Programs
-  "/mentorship",
-  "/curriculum",
-  "/pathways",
-  // Actions
-  "/actions",
-  "/operations/initiatives",
-  // Account
-  "/chapter/settings",
-  "/notifications",
-  "/settings/personalization",
 ];
 
 export function chapterPresidentMinimalLinkOrderIndex(href: string): number {

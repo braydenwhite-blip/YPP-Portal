@@ -10607,9 +10607,9 @@ model ChapterPresidentApplication {
   status      ChapterPresidentApplicationStatus @default(SUBMITTED)
 
   // --- Core application essays ---
-  leadershipExperience String @db.Text
-  chapterVision        String @db.Text
-  availability         String
+  leadershipExperience String? @db.Text
+  chapterVision        String? @db.Text
+  availability         String?
 
   // --- Personal Information ---
   legalName          String?
@@ -10659,6 +10659,9 @@ model ChapterPresidentApplication {
   // --- Availability details ---
   hoursPerWeek       Int?
   preferredStartDate String?
+  applyingWith          String?
+  coCandidateName       String?
+  availabilityConflicts String? @db.Text
 
   // --- Optional demographics ---
   ethnicity String?

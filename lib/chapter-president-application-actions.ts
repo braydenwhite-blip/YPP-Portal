@@ -87,15 +87,18 @@ export async function submitChapterPresidentApplication(
       return { status: "error", message: "You already have a chapter president application." };
     }
 
-    const leadershipExperience = getString(formData, "leadershipExperience");
-    const chapterVision = getString(formData, "chapterVision");
-    const availability = getString(formData, "availability");
+    const leadershipExperience = getString(formData, "leadershipExperience", false);
+    const chapterVision = getString(formData, "chapterVision", false);
+    const availability = getString(formData, "availability", false);
+    const applyingWith = getString(formData, "applyingWith", false);
+    const coCandidateName = getString(formData, "coCandidateName", false);
+    const availabilityConflicts = getString(formData, "availabilityConflicts", false);
     const chapterId = getString(formData, "chapterId", false) || null;
 
     // Personal info
     const legalName = getString(formData, "legalName", false);
     const preferredFirstName = getString(formData, "preferredFirstName", false);
-    const lastName = getString(formData, "lastName");
+    const lastName = getString(formData, "lastName", false);
     if (lastName.length > 100) {
       return { status: "error", message: "Last name should be under 100 characters." };
     }
@@ -208,6 +211,9 @@ export async function submitChapterPresidentApplication(
           leadershipExperience,
           chapterVision,
           availability,
+          applyingWith: applyingWith || null,
+          coCandidateName: coCandidateName || null,
+          availabilityConflicts: availabilityConflicts || null,
           legalName: legalName || null,
           preferredFirstName: preferredFirstName || null,
           lastName,

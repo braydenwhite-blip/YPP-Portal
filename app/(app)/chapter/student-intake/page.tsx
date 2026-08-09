@@ -41,7 +41,7 @@ export default async function ChapterStudentIntakePage() {
       <div className="topbar">
         <div>
           <Link href="/chapter" style={{ color: "var(--muted)", fontSize: 13 }}>
-            &larr; Chapter OS
+            &larr; Chapter
           </Link>
           <h1 className="page-title">Student Intake Board</h1>
           <p className="page-subtitle">

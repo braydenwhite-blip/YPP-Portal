@@ -118,8 +118,7 @@ export default async function ApplyChapterPresidentPage() {
       <div className="card">
         <ChapterPresidentApplicationForm
           chapters={chapters}
-          customFields={customFields}
-        />
+      />
       </div>
     </div>
   );
