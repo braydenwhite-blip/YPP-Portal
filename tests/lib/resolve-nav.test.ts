@@ -662,29 +662,29 @@ describe("chapter-president section navigation", () => {
     });
   }
 
-  it("pins Actions in Top Tools for chapter presidents without Meetings", () => {
+  it("pins the chapter president 4-page set without Meetings", () => {
     const model = cpModel();
     const coreHrefs = model.core.map((item) => item.href);
     expect(coreHrefs).toEqual([
-      "/",
-      "/mentorship",
-      "/actions",
-      "/chapter-lead/instructor-applicants",
+      "/chapter",
+      "/chapter/onboarding",
+      "/chapter/resources",
+      "/chapter/recruiting",
     ]);
     expect(coreHrefs).not.toContain("/meetings");
   });
 
-  it("gives chapter presidents Home, Mentorship, Actions, and Applicants", () => {
+  it("gives chapter presidents Chapter, Onboarding, Resources, and Recruiting", () => {
     const model = cpModel();
     const visibleHrefs = model.visible.map((item) => item.href);
     expect(visibleHrefs).toEqual([
-      "/",
-      "/mentorship",
-      "/actions",
-      "/chapter-lead/instructor-applicants",
+      "/chapter",
+      "/chapter/onboarding",
+      "/chapter/resources",
+      "/chapter/recruiting",
     ]);
     expect(visibleHrefs).not.toContain("/meetings");
-    expect(visibleHrefs).not.toContain("/chapter");
+    expect(visibleHrefs).not.toContain("/");
     expect(visibleHrefs).not.toContain("/work");
     expect(visibleHrefs).not.toContain("/command-center");
     expect(model.more).toHaveLength(0);
