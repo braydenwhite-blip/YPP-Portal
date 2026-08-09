@@ -31,7 +31,7 @@ afterAll(() => {
 });
 
 describe("app shell nav contract", () => {
-  it("gives ADMIN the simple leadership nav (Home, Mentorship, Actions, Admin)", async () => {
+  it("gives ADMIN the simple leadership nav (Home, Mentorship, Actions, Users, Applicants)", async () => {
     render(
       <Nav
         roles={["ADMIN"]}
@@ -57,12 +57,16 @@ describe("app shell nav contract", () => {
       "href",
       "/actions",
     );
-    expect(screen.getByRole("link", { name: /^Admin$/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /^Applicants$/i })).toHaveAttribute(
       "href",
-      "/admin",
+      "/admin/applicants",
+    );
+    expect(screen.getByRole("link", { name: /^Users$/i })).toHaveAttribute(
+      "href",
+      "/admin/users",
     );
     expect(screen.queryByRole("link", { name: /^People$/i })).toBeNull();
-    expect(screen.queryByRole("link", { name: /^Applicants$/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /^Admin$/i })).toBeNull();
 
     expect(screen.queryByRole("link", { name: /^Work$/i })).toBeNull();
     expect(screen.queryByRole("link", { name: /Command Center/i })).toBeNull();
@@ -133,7 +137,7 @@ describe("app shell nav contract", () => {
       }
     });
 
-    it("shows the four leadership links for admins", () => {
+    it("shows the five leadership links for admins", () => {
       render(
         <Nav
           roles={["ADMIN"]}
@@ -150,6 +154,7 @@ describe("app shell nav contract", () => {
       expect(
         screen.getByRole("link", { name: /^Actions$/i }),
       ).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: /^Users$/i })).toBeInTheDocument();
       expect(
         screen.getByRole("link", { name: /^Applicants$/i }),
       ).toBeInTheDocument();
