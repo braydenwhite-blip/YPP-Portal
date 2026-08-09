@@ -212,6 +212,7 @@ export function AdminUsersTable({
   const [locations, setLocations] = useState(locationOptions);
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [phoneEditorOpen, setPhoneEditorOpen] = useState(false);
   const [toast, setToast] = useState<{ tone: "success" | "danger"; text: string } | null>(
     null
   );
@@ -274,12 +275,22 @@ export function AdminUsersTable({
                 : `Showing ${filtered.length} of ${users.length}`}
             </p>
           </div>
-          <SearchInputV2
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search people…"
-            wrapClassName="w-full sm:min-w-[18rem] sm:max-w-[22rem]"
-          />
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+            <Button
+              type="button"
+              variant="secondary"
+              size="md"
+              onClick={() => setPhoneEditorOpen(true)}
+            >
+              Phones
+            </Button>
+            <SearchInputV2
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search people…"
+              wrapClassName="w-full sm:min-w-[16rem] sm:max-w-[20rem]"
+            />
+          </div>
         </div>
 
         {filtered.length === 0 ? (
@@ -354,6 +365,15 @@ export function AdminUsersTable({
         />
       ) : null}
 
+      <PhoneQuickEditor
+        open={phoneEditorOpen}
+        users={users}
+        onClose={() => setPhoneEditorOpen(false)}
+        onPatch={patchUser}
+        onSaved={(text) => setToast({ tone: "success", text })}
+        onError={(text) => setToast({ tone: "danger", text })}
+      />
+
       <ToastV2 open={Boolean(toast)} tone={toast?.tone === "danger" ? "danger" : "success"}>
         <div className="flex items-center gap-3">
           <span>{toast?.text}</span>
@@ -407,6 +427,166 @@ function draftFromUser(user: AdminUserRow): Draft {
     college: user.college ?? "",
     major: user.major ?? "",
   };
+}
+
+function PhoneQuickEditor({
+  open,
+  users,
+  onClose,
+  onPatch,
+  onSaved,
+  onError,
+}: {
+  open: boolean;
+  users: AdminUserRow[];
+  onClose: () => void;
+  onPatch: (id: string, patch: Partial<AdminUserRow>) => void;
+  onSaved: (text: string) => void;
+  onError: (text: string) => void;
+}) {
+  const titleId = useId();
+  const [missingOnly, setMissingOnly] = useState(true);
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  const rows = useMemo(() => {
+    const active = users.filter((u) => !u.archivedAt);
+    const sorted = [...active].sort((a, b) => {
+      const aMissing = !(a.phone ?? "").trim();
+      const bMissing = !(b.phone ?? "").trim();
+      if (aMissing !== bMissing) return aMissing ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+    if (!missingOnly) return sorted;
+    return sorted.filter((u) => {
+      const draft = drafts[u.id];
+      const phone = draft !== undefined ? draft : u.phone ?? "";
+      return !phone.trim();
+    });
+  }, [users, missingOnly, drafts]);
+
+  const missingCount = users.filter(
+    (u) => !u.archivedAt && !(u.phone ?? "").trim()
+  ).length;
+
+  function phoneValue(user: AdminUserRow) {
+    return drafts[user.id] !== undefined ? drafts[user.id]! : user.phone ?? "";
+  }
+
+  function savePhone(user: AdminUserRow) {
+    const next = phoneValue(user).trim();
+    const prev = (user.phone ?? "").trim();
+    if (next === prev) return;
+
+    setSavingId(user.id);
+    startTransition(async () => {
+      try {
+        await updateAdminUserRow({
+          userId: user.id,
+          phone: next || null,
+        });
+        onPatch(user.id, { phone: next || null });
+        setDrafts((d) => {
+          const copy = { ...d };
+          delete copy[user.id];
+          return copy;
+        });
+        onSaved(next ? `Saved phone for ${user.name}` : `Cleared phone for ${user.name}`);
+      } catch (e) {
+        onError(e instanceof Error ? e.message : "Could not save phone.");
+      } finally {
+        setSavingId(null);
+      }
+    });
+  }
+
+  return (
+    <ModalV2 open={open} onClose={onClose} labelledBy={titleId} size="lg">
+      <div>
+        <h2
+          id={titleId}
+          className="m-0 text-[20px] font-bold tracking-[-0.01em] text-ink"
+        >
+          Phone numbers
+        </h2>
+        <p className="m-0 mt-1 text-[13.5px] text-ink-muted">
+          Name on the left, phone on the right. Tab through and blur to save.
+        </p>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <label className="inline-flex items-center gap-2 text-[13px] font-medium text-ink">
+          <input
+            type="checkbox"
+            className="h-4 w-4"
+            checked={missingOnly}
+            onChange={(e) => setMissingOnly(e.target.checked)}
+          />
+          Missing only
+          <span className="font-normal text-ink-muted">({missingCount})</span>
+        </label>
+        <span className="text-[12.5px] text-ink-muted">
+          {rows.length} shown
+        </span>
+      </div>
+
+      <div className="max-h-[min(60vh,520px)] overflow-y-auto rounded-[12px] border border-line">
+        {rows.length === 0 ? (
+          <div className="px-4 py-10 text-center text-[13.5px] text-ink-muted">
+            {missingOnly
+              ? "Everyone has a phone number."
+              : "No active people to show."}
+          </div>
+        ) : (
+          <ul className="m-0 list-none divide-y divide-line-soft p-0">
+            {rows.map((user) => {
+              const busy = pending && savingId === user.id;
+              return (
+                <li
+                  key={user.id}
+                  className="m-0 grid grid-cols-1 items-center gap-2 px-3 py-2.5 sm:grid-cols-[minmax(0,1fr)_12rem] sm:gap-3 sm:px-4"
+                >
+                  <div className="min-w-0">
+                    <p className="m-0 truncate text-[13.5px] font-semibold text-ink">
+                      {user.name}
+                    </p>
+                    <p className="m-0 truncate text-[12px] text-ink-muted">
+                      {user.email}
+                    </p>
+                  </div>
+                  <input
+                    className={fieldClass + " !mt-0"}
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="off"
+                    placeholder="Phone"
+                    value={phoneValue(user)}
+                    disabled={busy}
+                    onChange={(e) =>
+                      setDrafts((d) => ({ ...d, [user.id]: e.target.value }))
+                    }
+                    onBlur={() => savePhone(user)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.currentTarget.blur();
+                      }
+                    }}
+                  />
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+
+      <ModalFooterV2 className="!mt-1 !border-0 !px-0 !pb-0">
+        <Button type="button" variant="ghost" size="md" onClick={onClose}>
+          Done
+        </Button>
+      </ModalFooterV2>
+    </ModalV2>
+  );
 }
 
 function UserDetailModal({
