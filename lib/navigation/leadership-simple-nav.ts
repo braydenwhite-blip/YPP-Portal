@@ -1,8 +1,8 @@
-import type { NavRole } from "@/lib/navigation/types";
+﻿import type { NavRole } from "@/lib/navigation/types";
 
 /**
- * Leadership / hiring sidebar — shipped default.
- * Home · Mentorship · Actions · Applicants
+ * Leadership / hiring sidebar â€” shipped default.
+ * Home Â· Mentorship Â· Actions Â· Applicants
  * (Hiring Chair keeps People/directory instead of Mentorship.)
  *
  * Set `LEADERSHIP_FULL_PORTAL_EXPLORER=true` locally to unlock the full
@@ -25,17 +25,19 @@ const MENTORSHIP_SIMPLE_NAV_ROLES: ReadonlySet<NavRole> = new Set<NavRole>([
 const NETWORK_APPLICANTS = "/admin/instructor-applicants";
 const CHAPTER_APPLICANTS = "/chapter-lead/instructor-applicants";
 
-/** Core pins when the full leadership explorer is on (pre–simple-nav IA). */
+/** Core pins when the full leadership explorer is on (preâ€“simple-nav IA). */
 export const LEADERSHIP_FULL_CORE_NAV_MAP: Partial<Record<NavRole, string[]>> = {
   ADMIN: ["/", "/mentorship", "/actions", "/admin"],
   STAFF: ["/", "/mentorship", "/actions", "/leadership-pathway"],
   HIRING_CHAIR: ["/", "/admin/instructor-applicants", "/people", "/actions", "/meetings"],
-  CHAPTER_PRESIDENT: ["/", "/chapter", "/mentorship", "/actions"],
+  CHAPTER_PRESIDENT: ["/chapter", "/chapter/onboarding", "/chapter/resources", "/chapter/recruiting"],
 };
 
 export function leadershipSimpleNavHrefs(primaryRole: NavRole): readonly string[] {
-  const applicants =
-    primaryRole === "CHAPTER_PRESIDENT" ? CHAPTER_APPLICANTS : NETWORK_APPLICANTS;
+  if (primaryRole === "CHAPTER_PRESIDENT") {
+    return ["/chapter", "/chapter/onboarding", "/chapter/resources", "/chapter/recruiting"];
+  }
+  const applicants = NETWORK_APPLICANTS;
   if (MENTORSHIP_SIMPLE_NAV_ROLES.has(primaryRole)) {
     return ["/", "/mentorship", "/actions", applicants];
   }
