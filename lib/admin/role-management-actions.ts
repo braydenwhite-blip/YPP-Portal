@@ -348,18 +348,43 @@ export async function createCohort(input: unknown) {
   return { ok: true, cohort };
 }
 
+const optionalText = z
+  .string()
+  .nullable()
+  .optional()
+  .transform((value) => {
+    if (value === undefined) return undefined;
+    if (value == null) return null;
+    const trimmed = value.trim();
+    return trimmed ? trimmed : null;
+  });
+
 const UpdateAdminUserRowSchema = z.object({
   userId: z.string().min(1),
+  name: z.string().trim().min(1).max(120).optional(),
+  email: z.string().trim().email().max(200).optional(),
+  phone: optionalText,
+  title: optionalText,
   primaryRole: z.string().optional(),
+  /** Canonical org title (Manager, Board Member, …). "__CLEAR__" unsets. */
+  orgTitle: z.string().optional(),
   chapterId: z.string().optional().default(KEEP),
   cohortId: z.string().optional().default(KEEP),
   /** Profile city/location. Pass null/"" to clear. Omit to leave unchanged. */
   location: z.string().nullable().optional(),
+  school: optionalText,
+  schoolGrade: z.number().int().min(1).max(12).nullable().optional(),
+  dateOfBirth: optionalText,
+  parentEmail: optionalText,
+  parentPhone: optionalText,
+  graduationYear: z.number().int().min(1950).max(2100).nullable().optional(),
+  college: optionalText,
+  major: optionalText,
 });
 
 /**
- * Inline row save from the Admin Users table — role, chapter, cohort, and/or location.
- * Only sends the fields that changed; others stay "__KEEP__".
+ * Full person save from the Admin Users detail modal — identity, profile,
+ * school/alumni facts, and access (role / org title / chapter / cohort).
  */
 export async function updateAdminUserRow(input: unknown) {
   await requireAdmin();
@@ -369,12 +394,27 @@ export async function updateAdminUserRow(input: unknown) {
     where: { id: data.userId },
     select: {
       id: true,
+      name: true,
+      email: true,
       primaryRole: true,
+      supabaseAuthId: true,
       roles: { select: { role: true } },
       profile: { select: { id: true } },
+      alumniProfile: { select: { id: true } },
     },
   });
   if (!user) throw new Error("No user was found.");
+
+  if (data.email && data.email.toLowerCase() !== user.email.toLowerCase()) {
+    const taken = await prisma.user.findFirst({
+      where: {
+        email: { equals: data.email, mode: "insensitive" },
+        NOT: { id: user.id },
+      },
+      select: { id: true },
+    });
+    if (taken) throw new Error("Another account already uses that email.");
+  }
 
   const chapterPatch = await resolveChapterPatch(data.chapterId);
   const cohortPatch = await resolveCohortPatch(data.cohortId);
@@ -389,12 +429,22 @@ export async function updateAdminUserRow(input: unknown) {
       roleValues: [data.primaryRole.toUpperCase()],
     });
     primaryRole = access.primaryRole;
-    // Keep extra roles (e.g. MENTOR) that aren't the old primary or ADMIN-derived clutter.
     const extras = roleList.filter(
       (r) => r !== user.primaryRole && r !== RoleType.ADMIN && r !== primaryRole
     );
     roleList = Array.from(new Set([primaryRole, ...extras, ...access.roles]));
   }
+
+  const orgTitleProvided = data.orgTitle !== undefined;
+  const ladderPatch = orgTitleProvided
+    ? resolveLadderPatch(data.orgTitle ?? CLEAR)
+    : {};
+  const nextCanonicalTitle =
+    orgTitleProvided && data.orgTitle && data.orgTitle !== CLEAR && data.orgTitle !== NONE
+      ? normalizeTitle(data.orgTitle)
+      : orgTitleProvided
+        ? null
+        : undefined;
 
   const locationProvided = data.location !== undefined;
   const nextLocation =
@@ -404,25 +454,34 @@ export async function updateAdminUserRow(input: unknown) {
         ? null
         : undefined;
 
-  const hasChapter = Object.keys(chapterPatch).length > 0;
-  const hasCohort = Object.keys(cohortPatch).length > 0;
-  if (!roleChanging && !hasChapter && !hasCohort && !locationProvided) {
-    return { ok: true };
-  }
+  const profileTouched =
+    locationProvided ||
+    data.school !== undefined ||
+    data.schoolGrade !== undefined ||
+    data.dateOfBirth !== undefined ||
+    data.parentEmail !== undefined ||
+    data.parentPhone !== undefined;
+
+  const alumniTouched =
+    data.graduationYear !== undefined ||
+    data.college !== undefined ||
+    data.major !== undefined;
+
+  const userData: Prisma.UserUpdateInput = {
+    ...(data.name !== undefined ? { name: data.name } : {}),
+    ...(data.email !== undefined ? { email: data.email.toLowerCase() } : {}),
+    ...(data.phone !== undefined ? { phone: data.phone } : {}),
+    ...(data.title !== undefined ? { title: data.title } : {}),
+    ...(roleChanging ? { primaryRole } : {}),
+    ...chapterPatch,
+    ...cohortPatch,
+    ...ladderPatch,
+  };
 
   const ops: Prisma.PrismaPromise<unknown>[] = [];
 
-  if (roleChanging || hasChapter || hasCohort) {
-    ops.push(
-      prisma.user.update({
-        where: { id: user.id },
-        data: {
-          ...(roleChanging ? { primaryRole } : {}),
-          ...chapterPatch,
-          ...cohortPatch,
-        },
-      })
-    );
+  if (Object.keys(userData).length > 0) {
+    ops.push(prisma.user.update({ where: { id: user.id }, data: userData }));
   }
 
   if (roleChanging) {
@@ -434,32 +493,93 @@ export async function updateAdminUserRow(input: unknown) {
     );
   }
 
-  if (locationProvided) {
-    let city: string | null = null;
-    let stateProvince: string | null = null;
-    if (nextLocation) {
-      const [cityPart, ...rest] = nextLocation.split(",");
-      city = (cityPart ?? "").trim() || null;
-      const statePart = rest.join(",").trim();
-      stateProvince = statePart || null;
+  if (orgTitleProvided) {
+    ops.push(...adminShapeOpsForTitle(user.id, nextCanonicalTitle ?? null));
+  }
+
+  if (profileTouched) {
+    let city: string | null | undefined = undefined;
+    let stateProvince: string | null | undefined = undefined;
+    if (locationProvided) {
+      if (nextLocation) {
+        const [cityPart, ...rest] = nextLocation.split(",");
+        city = (cityPart ?? "").trim() || null;
+        stateProvince = rest.join(",").trim() || null;
+      } else {
+        city = null;
+        stateProvince = null;
+      }
     }
+
+    const profileData = {
+      ...(city !== undefined ? { city } : {}),
+      ...(stateProvince !== undefined ? { stateProvince } : {}),
+      ...(data.school !== undefined ? { school: data.school } : {}),
+      ...(data.schoolGrade !== undefined ? { grade: data.schoolGrade } : {}),
+      ...(data.dateOfBirth !== undefined ? { dateOfBirth: data.dateOfBirth } : {}),
+      ...(data.parentEmail !== undefined ? { parentEmail: data.parentEmail } : {}),
+      ...(data.parentPhone !== undefined ? { parentPhone: data.parentPhone } : {}),
+    };
+
     ops.push(
       prisma.userProfile.upsert({
         where: { userId: user.id },
         create: {
           userId: user.id,
-          city,
-          stateProvince,
+          city: city ?? null,
+          stateProvince: stateProvince ?? null,
+          school: data.school ?? null,
+          grade: data.schoolGrade ?? null,
+          dateOfBirth: data.dateOfBirth ?? null,
+          parentEmail: data.parentEmail ?? null,
+          parentPhone: data.parentPhone ?? null,
+        },
+        update: profileData,
+      })
+    );
+  }
+
+  if (alumniTouched) {
+    ops.push(
+      prisma.alumniProfile.upsert({
+        where: { userId: user.id },
+        create: {
+          userId: user.id,
+          graduationYear: data.graduationYear ?? null,
+          college: data.college ?? null,
+          major: data.major ?? null,
         },
         update: {
-          city,
-          stateProvince,
+          ...(data.graduationYear !== undefined
+            ? { graduationYear: data.graduationYear }
+            : {}),
+          ...(data.college !== undefined ? { college: data.college } : {}),
+          ...(data.major !== undefined ? { major: data.major } : {}),
         },
       })
     );
   }
 
+  if (ops.length === 0) return { ok: true };
+
   await prisma.$transaction(ops);
+
+  if (
+    data.email &&
+    data.email.toLowerCase() !== user.email.toLowerCase() &&
+    user.supabaseAuthId
+  ) {
+    const { ensureSupabaseAuthUser } = await import("@/lib/portal-auth-utils");
+    await ensureSupabaseAuthUser({
+      email: data.email.toLowerCase(),
+      existingSupabaseAuthId: user.supabaseAuthId,
+      name: data.name ?? user.name,
+      portalArchived: false,
+      primaryRole: String(primaryRole),
+      prismaUserId: user.id,
+      roles: roleList.map(String),
+    });
+  }
 
   revalidatePath("/admin");
   return { ok: true };

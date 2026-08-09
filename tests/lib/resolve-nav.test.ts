@@ -319,7 +319,7 @@ describe("resolveNavModel", () => {
     expect(hrefs(model)).not.toContain("/interviews");
   });
 
-  it("keeps admin users on Home, Mentorship, Actions, and Applicants", () => {
+  it("keeps admin users on Home, Mentorship, Actions, and Users", () => {
     const model = resolveNavModel({
       roles: ["ADMIN"],
       primaryRole: "ADMIN",
@@ -334,13 +334,13 @@ describe("resolveNavModel", () => {
       "/",
       "/mentorship",
       "/actions",
-      "/admin/instructor-applicants",
+      "/admin",
     ]);
     expect(model.core.map((item) => item.href)).toEqual([
       "/",
       "/mentorship",
       "/actions",
-      "/admin/instructor-applicants",
+      "/admin",
     ]);
     expect(model.more).toHaveLength(0);
   });
@@ -404,7 +404,7 @@ describe("resolveNavModel", () => {
     const coreHrefs = model.core.map((item) => item.href);
     expect(coreHrefs).toContain("/mentorship");
     expect(coreHrefs).toContain("/actions");
-    expect(coreHrefs).toContain("/admin/instructor-applicants");
+    expect(coreHrefs).toContain("/admin");
     expect(coreHrefs).not.toContain("/meetings");
     // The retired Work hub is no longer pinned (or present at all).
     expect(coreHrefs).not.toContain("/work");
@@ -437,7 +437,7 @@ describe("resolveNavModel", () => {
     });
 
     const visibleHrefs = hrefs(model);
-    expect(visibleHrefs).toContain("/admin/instructor-applicants");
+    expect(visibleHrefs).toContain("/admin");
     expect(visibleHrefs).toContain("/mentorship");
     expect(visibleHrefs).toContain("/actions");
     expect(visibleHrefs).not.toContain("/admin/bulk-users");
@@ -452,7 +452,7 @@ describe("resolveNavModel", () => {
       process.env.PORTAL_SLIM_NAV = "false";
     });
 
-    it("shows Home, Mentorship, Actions, and Applicants for admins", () => {
+    it("shows Home, Mentorship, Actions, and Users for admins", () => {
       const model = resolveNavModel({
         roles: ["ADMIN"],
         adminSubtypes: ["SUPER_ADMIN"],
@@ -470,14 +470,14 @@ describe("resolveNavModel", () => {
         "/",
         "/mentorship",
         "/actions",
-        "/admin/instructor-applicants",
+        "/admin",
       ]);
       expect(model.leadershipSimpleNav).toBe(true);
       expect(model.officerSlimNav).toBe(false);
       expect(model.more).toHaveLength(0);
     });
 
-    it("adds hiring-chair applicant routes to the slim stack", () => {
+    it("pins Users for admins and keeps hiring chair queue out of the slim stack", () => {
       const model = resolveNavModel({
         roles: ["ADMIN"],
         adminSubtypes: ["HIRING_ADMIN"],
@@ -490,12 +490,12 @@ describe("resolveNavModel", () => {
       });
 
       const visibleHrefs = hrefs(model);
-      expect(visibleHrefs).toContain("/admin/instructor-applicants");
+      expect(visibleHrefs).toContain("/admin");
       expect(visibleHrefs).not.toContain(
         "/admin/instructor-applicants/chair-queue",
       );
       expect(visibleHrefs).not.toContain("/admin/bulk-users");
-      expect(visibleHrefs).not.toContain("/admin");
+      expect(visibleHrefs).not.toContain("/admin/instructor-applicants");
     });
 
     it("hides People hub from leadership preview pilots without officer roles", () => {
@@ -560,7 +560,7 @@ describe("resolveNavModel", () => {
       "/",
       "/mentorship",
       "/actions",
-      "/admin/instructor-applicants",
+      "/admin",
     ]);
     expect(hrefs(model)).not.toContain("/admin/curricula");
     expect(hrefs(model)).not.toContain("/admin/recruiting");
@@ -580,7 +580,7 @@ describe("resolveNavModel", () => {
       "/",
       "/mentorship",
       "/actions",
-      "/admin/instructor-applicants",
+      "/admin",
     ]);
     expect(hrefs(model)).not.toContain("/admin/mentorship");
   });
@@ -599,20 +599,20 @@ describe("officer section navigation (simple leadership IA)", () => {
     });
   }
 
-  it("shows only Home, Mentorship, Actions, and Applicants", () => {
+  it("shows only Home, Mentorship, Actions, and Admin", () => {
     const model = officerModel();
     expect(hrefs(model)).toEqual([
       "/",
       "/mentorship",
       "/actions",
-      "/admin/instructor-applicants",
+      "/admin",
     ]);
     expect(model.more).toHaveLength(0);
     expect(model.core.map((item) => item.label)).toEqual([
       "Home",
       "Mentorship",
       "Actions",
-      "Applicants",
+      "Admin",
     ]);
   });
 

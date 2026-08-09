@@ -32,18 +32,23 @@ export default function AppError({
           return to the dashboard.
         </p>
 
-        {process.env.NODE_ENV === "development" && (
-          <details className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg text-left">
+        {error.message ? (
+          <pre className="mt-4 max-h-48 overflow-auto rounded-lg border border-red-200 bg-red-50 p-4 text-left text-xs text-red-900 whitespace-pre-wrap">
+            {error.message}
+            {error.digest ? `\n\ndigest: ${error.digest}` : ""}
+          </pre>
+        ) : null}
+
+        {process.env.NODE_ENV === "development" && error.stack ? (
+          <details className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg text-left">
             <summary className="cursor-pointer font-semibold mb-2">
-              Error Details (Development Only)
+              Stack (Development Only)
             </summary>
             <pre className="text-xs overflow-auto text-red-900 whitespace-pre-wrap">
-              {error.message}
-              {"\n\n"}
               {error.stack}
             </pre>
           </details>
-        )}
+        ) : null}
 
         <div className="flex gap-3 justify-center mt-6">
           <button
