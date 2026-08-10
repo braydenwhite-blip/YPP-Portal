@@ -11,13 +11,20 @@ import { signOutLegacyBypass } from "@/lib/legacy-auth-actions";
 // and we stop looping so the user gets a real next step instead of a spinner.
 const RETRY_DELAYS = [5, 10, 20];
 
-export default function SessionUnavailablePage() {
+export default function SessionUnavailablePage({
+  reason = "unavailable",
+}: {
+  /** "unavailable" = database blip (retryable). "missing" = no portal profile
+   *  linked to this sign-in, which no amount of retrying will fix. */
+  reason?: "unavailable" | "missing";
+}) {
   const router = useRouter();
   const [isRefreshing, startRefresh] = useTransition();
   const [attempt, setAttempt] = useState(0);
   const [secondsLeft, setSecondsLeft] = useState(RETRY_DELAYS[0]);
 
-  const autoRetriesExhausted = attempt >= RETRY_DELAYS.length;
+  const profileMissing = reason === "missing";
+  const autoRetriesExhausted = profileMissing || attempt >= RETRY_DELAYS.length;
 
   useEffect(() => {
     if (autoRetriesExhausted || isRefreshing) return;
@@ -71,18 +78,23 @@ export default function SessionUnavailablePage() {
         }}
       >
         <h1 style={{ marginTop: 0, fontSize: "1.25rem" }}>
-          We couldn&apos;t load your account
+          {profileMissing
+            ? "Your account isn't set up yet"
+            : "We couldn't load your account"}
         </h1>
         <p style={{ color: "#555", lineHeight: 1.5 }}>
-          Your sign-in is valid, but we couldn&apos;t resolve your profile
-          right now. This is usually a brief database hiccup.
+          {profileMissing
+            ? "Your sign-in worked, but this email has no active portal profile linked to it. An admin needs to create your profile — or link it to this email — before you can get in."
+            : "Your sign-in is valid, but we couldn't reach the database to load your profile. This is usually a brief hiccup."}
         </p>
         <p style={{ color: "#888", fontSize: "0.875rem" }}>
           {isRefreshing
             ? "Retrying…"
-            : autoRetriesExhausted
-              ? "Still not loading. Try again, or sign out and sign back in — if it keeps happening, contact the portal team."
-              : `Retrying automatically in ${secondsLeft}s…`}
+            : profileMissing
+              ? "Retrying won't change this. Sign out and back in if you have another email, or contact the portal team."
+              : autoRetriesExhausted
+                ? "Still not loading. Try again, or sign out and sign back in — if it keeps happening, contact the portal team."
+                : `Retrying automatically in ${secondsLeft}s…`}
         </p>
         <div
           style={{
