@@ -1,7 +1,7 @@
 import { cookies, headers } from "next/headers";
 import AppShell from "@/components/app-shell";
 import SessionUnavailablePage from "@/components/session-unavailable-page";
-import { getSession } from "@/lib/auth-supabase";
+import { getSessionResolution } from "@/lib/auth-supabase";
 import { COMMAND_MODE_COOKIE, parseCommandMode } from "@/lib/command-mode-cookie";
 import {
   ensurePortalOnboardingComplete,
@@ -50,11 +50,16 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await getSession();
+  const resolution = await getSessionResolution();
 
-  if (!session?.user) {
-    return <SessionUnavailablePage />;
+  if (resolution.status !== "ok") {
+    // `unavailable` is a database blip worth retrying; `missing` means the
+    // sign-in is valid but no active profile is linked to it, which retrying
+    // can never fix — the screen says so instead of looping.
+    return <SessionUnavailablePage reason={resolution.status} />;
   }
+
+  const session = { user: resolution.user };
 
   const roles = [...(session.user.roles ?? [])];
   const primaryRole = session.user.primaryRole ?? null;
