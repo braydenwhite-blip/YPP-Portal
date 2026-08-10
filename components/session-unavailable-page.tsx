@@ -1,29 +1,45 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserClient } from "@/lib/supabase/client";
 import { signOutLegacyBypass } from "@/lib/legacy-auth-actions";
 
+// Auto-retry schedule, in seconds. Most session-resolution failures are
+// transient database timeouts that recover within a few seconds; if all of
+// these pass without recovering, the problem is very unlikely to be transient
+// and we stop looping so the user gets a real next step instead of a spinner.
+const RETRY_DELAYS = [5, 10, 20];
+
 export default function SessionUnavailablePage() {
   const router = useRouter();
-  const [retrying, setRetrying] = useState(false);
-  const [secondsLeft, setSecondsLeft] = useState(5);
+  const [isRefreshing, startRefresh] = useTransition();
+  const [attempt, setAttempt] = useState(0);
+  const [secondsLeft, setSecondsLeft] = useState(RETRY_DELAYS[0]);
 
-  // Auto-retry once after 5s — most session-resolution failures are
-  // transient database timeouts that recover within a few seconds.
+  const autoRetriesExhausted = attempt >= RETRY_DELAYS.length;
+
   useEffect(() => {
+    if (autoRetriesExhausted || isRefreshing) return;
+
     if (secondsLeft <= 0) {
-      router.refresh();
+      // Refresh, then arm the next (longer) countdown. If the refresh works the
+      // layout renders the app and this component unmounts; if it doesn't, we
+      // keep counting down instead of freezing on "0s".
+      startRefresh(() => router.refresh());
+      setAttempt((n) => n + 1);
+      setSecondsLeft(RETRY_DELAYS[Math.min(attempt + 1, RETRY_DELAYS.length - 1)]);
       return;
     }
+
     const t = window.setTimeout(() => setSecondsLeft((n) => n - 1), 1000);
     return () => window.clearTimeout(t);
-  }, [secondsLeft, router]);
+  }, [secondsLeft, attempt, autoRetriesExhausted, isRefreshing, router]);
 
-  async function handleRetryNow() {
-    setRetrying(true);
-    router.refresh();
+  function handleRetryNow() {
+    setAttempt(0);
+    setSecondsLeft(RETRY_DELAYS[0]);
+    startRefresh(() => router.refresh());
   }
 
   async function handleSignOut() {
@@ -62,7 +78,11 @@ export default function SessionUnavailablePage() {
           right now. This is usually a brief database hiccup.
         </p>
         <p style={{ color: "#888", fontSize: "0.875rem" }}>
-          Retrying automatically in {secondsLeft}s…
+          {isRefreshing
+            ? "Retrying…"
+            : autoRetriesExhausted
+              ? "Still not loading. Try again, or sign out and sign back in — if it keeps happening, contact the portal team."
+              : `Retrying automatically in ${secondsLeft}s…`}
         </p>
         <div
           style={{
@@ -77,9 +97,9 @@ export default function SessionUnavailablePage() {
             type="button"
             className="button"
             onClick={handleRetryNow}
-            disabled={retrying}
+            disabled={isRefreshing}
           >
-            {retrying ? "Retrying…" : "Retry now"}
+            {isRefreshing ? "Retrying…" : "Retry now"}
           </button>
           <button
             type="button"
