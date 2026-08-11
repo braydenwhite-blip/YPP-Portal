@@ -62,14 +62,21 @@ const sessionUserSelect = {
   },
 } as const;
 
+/**
+ * Thrown when the session lookup could not reach the database. Distinct from
+ * "this identity has no portal profile" — the caller can retry this one.
+ */
+export class SessionDatabaseUnavailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SessionDatabaseUnavailableError";
+  }
+}
+
 function isRecoverablePrismaTimeout(error: unknown): boolean {
   if (!error) return false;
   const message = error instanceof Error ? error.message : String(error);
   // Postgres statement_timeout (57014) and connection pool timeout (P2024).
-  // We degrade to "signed out" rather than 500 the page, but we do NOT
-  // retry: the user is already waiting on a struggling database, and a
-  // retry just doubles their wait for the same likely-failing outcome.
-  // Downstream requests will pick up the session once the pool recovers.
   return (
     message.includes("57014") ||
     message.includes("canceling statement due to statement timeout") ||
@@ -81,21 +88,36 @@ function isRecoverablePrismaTimeout(error: unknown): boolean {
   );
 }
 
-async function runSessionQuery<T>(op: () => Promise<T>): Promise<T | null> {
+/**
+ * Runs a session lookup, retrying once after a short pause. Pool-timeout blips
+ * usually clear within a few hundred milliseconds, and one in-request retry is
+ * far cheaper than the alternative the client is left with — a full page
+ * refresh that re-runs the whole layout against the same struggling pool.
+ * If it still fails we raise, so the caller can say "database unavailable"
+ * rather than silently mislabelling the user as signed out.
+ */
+async function runSessionQuery<T>(op: () => Promise<T>): Promise<T> {
   try {
     return await op();
   } catch (error) {
-    if (isRecoverablePrismaTimeout(error)) {
+    if (!isRecoverablePrismaTimeout(error)) throw error;
+
+    await new Promise((resolve) => setTimeout(resolve, 250));
+
+    try {
+      return await op();
+    } catch (retryError) {
+      if (!isRecoverablePrismaTimeout(retryError)) throw retryError;
       // Log a plain string only — forwarding the Prisma error object makes
       // Next.js 16 surface a red "Console PrismaClientInitializationError"
-      // overlay even though we intentionally degrade to signed-out.
-      const message = error instanceof Error ? error.message : String(error);
+      // overlay even though we handle this intentionally.
+      const message =
+        retryError instanceof Error ? retryError.message : String(retryError);
       console.warn(
-        `[auth] Prisma user lookup failed (${message.split("\n")[0]}); treating as signed out.`
+        `[auth] Prisma user lookup failed after retry (${message.split("\n")[0]}).`
       );
-      return null;
+      throw new SessionDatabaseUnavailableError(message.split("\n")[0]);
     }
-    throw error;
   }
 }
 
@@ -140,9 +162,17 @@ async function resolvePrismaUserForSession(where: {
 }
 
 /**
- * One Supabase + Prisma resolution per RSC request (layout + page both call getSession).
+ * Why a session could not be produced. `missing` means the sign-in is valid but
+ * no active portal profile is linked to it (never provisioned, email mismatch,
+ * or archived) — that is permanent until someone fixes the account, so callers
+ * must not sit in a retry loop on it. `unavailable` is the retryable one.
  */
-export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
+export type SessionResolution =
+  | { status: "ok"; user: SessionUser }
+  | { status: "missing" }
+  | { status: "unavailable" };
+
+async function resolveSessionUser(): Promise<SessionUser | null> {
   const demoLegacySession = isHiringDemoModeEnabled()
     ? await getLegacySessionFromCookies()
     : null;
@@ -269,6 +299,28 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
     canonicalTitle: resolvedUser.canonicalTitle,
     awards: resolvedUser.awards,
   };
+}
+
+/**
+ * One Supabase + Prisma resolution per RSC request (layout + page both call
+ * getSession). Reports *why* there is no session so the shell can tell a
+ * retryable outage apart from an account that simply is not provisioned.
+ */
+export const getSessionResolution = cache(async (): Promise<SessionResolution> => {
+  try {
+    const user = await resolveSessionUser();
+    return user ? { status: "ok", user } : { status: "missing" };
+  } catch (error) {
+    if (error instanceof SessionDatabaseUnavailableError) {
+      return { status: "unavailable" };
+    }
+    throw error;
+  }
+});
+
+export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
+  const resolution = await getSessionResolution();
+  return resolution.status === "ok" ? resolution.user : null;
 });
 
 /**

@@ -10,7 +10,7 @@ const INSTRUCTOR_AND_APPLICANT_ROLES: NavRole[] = ["APPLICANT", "INSTRUCTOR", "A
 const MENTOR_ROLES: NavRole[] = ["MENTOR", "CHAPTER_PRESIDENT", "ADMIN"];
 const MY_PROGRAM_ROLES: NavRole[] = ["STUDENT", "INSTRUCTOR", "CHAPTER_PRESIDENT", "ADMIN", "STAFF"];
 const APPLICANT_ROLES: NavRole[] = ["APPLICANT", "STUDENT", "INSTRUCTOR", "STAFF", "ADMIN"];
-// Like APPLICANT_ROLES but excludes APPLICANT â€” used for the broader
+// Like APPLICANT_ROLES but excludes APPLICANT — used for the broader
 // "My Applications" tracker, since applicants already have "My Application"
 // (singular) pointing at /application-status and the plural view would
 // redirect right back for them.
@@ -41,7 +41,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/application-status",
       label: "My Application",
-      icon: "ðŸ“‹",
+      icon: "📋",
       roles: INSTRUCTOR_APPLICANT_ONLY,
       dashboardDescription: "Track the status of your instructor application.",
       dashboardPriority: 1,
@@ -50,7 +50,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/my-interview",
       label: "My Interview",
-      icon: "ðŸŽ¤",
+      icon: "🎤",
       roles: INSTRUCTOR_APPLICANT_ONLY,
       dashboardDescription: "Schedule and track your application interview.",
       dashboardPriority: 2,
@@ -59,7 +59,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/instructor-onboarding",
       label: "Instructor Onboarding",
-      icon: "ðŸ§­",
+      icon: "🧭",
       roles: INSTRUCTOR_ROLES,
       searchAliases: ["Onboarding Guide", "Instructor Guide", "Portal Walkthrough"],
       dashboardDescription: "Read the instructor onboarding guide and portal walkthrough.",
@@ -72,7 +72,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/parent",
       label: "Parent Portal",
-      icon: "ðŸ ",
+      icon: "🏠",
       roles: PARENT_ONLY,
       dashboardDescription: "View your linked students and progress signals.",
       dashboardPriority: 3,
@@ -80,7 +80,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/parent/student-intake/new",
       label: "Start Student Journey",
-      icon: "ðŸ§­",
+      icon: "🧭",
       roles: PARENT_ONLY,
       dashboardDescription: "Begin a new parent-led student intake journey.",
       dashboardPriority: 4,
@@ -88,7 +88,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/parent/resources",
       label: "Resources",
-      icon: "ðŸ“š",
+      icon: "📚",
       roles: PARENT_ONLY,
       dashboardDescription: "Access parent guidance and support resources.",
       dashboardPriority: 12,
@@ -96,7 +96,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/parent/connect",
       label: "Connect Student",
-      icon: "ðŸ”—",
+      icon: "🔗",
       roles: PARENT_ONLY,
       dashboardDescription: "Connect and manage student link requests.",
       dashboardPriority: 11,
@@ -107,21 +107,21 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/",
       label: "Home",
-      icon: "â–£",
+      icon: "▣",
       dashboardDescription: "Your home base: what's assigned to you and what needs attention first.",
       dashboardPriority: 1,
     },
     {
-      href: "/admin",
-      label: "Admin",
-      icon: "ðŸ› ",
+      href: "/admin/users",
+      label: "Users",
+      icon: "🛠",
       roles: ADMIN_ONLY,
-      dashboardDescription: "Create and manage users â€” roles, chapters, and access.",
+      dashboardDescription: "Create and manage users — roles, chapters, and access.",
       dashboardPriority: 2,
       coreEligible: true,
       searchAliases: [
+        "Admin",
         "Administration",
-        "Users",
         "Bulk Users",
         "Role Management",
         "Create user",
@@ -131,7 +131,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/interviews",
       label: "Interviews",
-      icon: "ðŸŽ¤",
+      icon: "🎤",
       roles: INTERVIEW_ROLES,
       coreEligible: false,
       dashboardDescription: "Run interview scheduling, confirmations, and outcomes in one place.",
@@ -141,7 +141,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/scheduling",
       label: "Scheduling",
-      icon: "ðŸ—“",
+      icon: "🗓",
       roles: ["APPLICANT", "STUDENT", "INSTRUCTOR", "STAFF", "ADMIN", "CHAPTER_PRESIDENT", "MENTOR"] as NavRole[],
       dashboardDescription: "See interviews, mentorship, and college-advisor scheduling work in one place.",
       dashboardPriority: 8,
@@ -149,38 +149,38 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/announcements",
       label: "Updates",
-      icon: "ðŸ“¢",
+      icon: "📢",
       dashboardDescription: "Read chapter and platform updates.",
       dashboardPriority: 25,
     },
     {
       href: "/messages",
       label: "Messages",
-      icon: "âœ‰",
+      icon: "✉",
       roles: ["STUDENT", "INSTRUCTOR", "ADMIN", "CHAPTER_PRESIDENT", "MENTOR", "STAFF", "APPLICANT", "PARENT"] as NavRole[],
       badgeKey: "messages",
       dashboardBadgeKey: "unread_messages",
       dashboardDescription: "Open direct, parent, and interview conversations in one shared inbox.",
       dashboardPriority: 9,
     },
-    { href: "/feedback/anonymous", label: "Anonymous Feedback", icon: "ðŸ’¬" },
+    { href: "/feedback/anonymous", label: "Anonymous Feedback", icon: "💬" },
   ]),
 
   ...groupLinks("Learning", 300, [
     {
       href: "/my-chapter",
       label: "My Chapter",
-      icon: "ðŸ ",
+      icon: "🏠",
       roles: STUDENT_ONLY,
       dashboardDescription: "See your chapter's members, president, and updates.",
       dashboardPriority: 4,
     },
-    { href: "/pathways", label: "Pathways", icon: "ðŸ—º" },
-    { href: "/curriculum", label: "Curriculum Catalog", icon: "ðŸ“–" },
+    { href: "/pathways", label: "Pathways", icon: "🗺" },
+    { href: "/curriculum", label: "Curriculum Catalog", icon: "📖" },
     {
       href: "/my-classes",
       label: "My Classes",
-      icon: "ðŸŽ“",
+      icon: "🎓",
       roles: STUDENT_ONLY,
       searchAliases: ["My Courses"],
     },
@@ -192,6 +192,7 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardDescription: "Due work from all your classes in one list.",
       dashboardPriority: 5,
     },
+
     {
       href: "/my-classes/feedback",
       label: "Feedback",
@@ -206,82 +207,82 @@ export const NAV_CATALOG: NavLink[] = [
       roles: STUDENT_ONLY,
       dashboardDescription: "Your finalized attendance record across all classes.",
     },
-    { href: "/curriculum/schedule", label: "My Schedule", icon: "ðŸ“…", roles: STUDENT_ONLY },
+    { href: "/curriculum/schedule", label: "My Schedule", icon: "📅", roles: STUDENT_ONLY },
     {
       href: "/curriculum/recommended",
       label: "Recommended Classes",
-      icon: "â­",
+      icon: "⭐",
       roles: STUDENT_ONLY,
       searchAliases: ["Recommended", "Recommended Courses"],
     },
-    { href: "/learn/modules", label: "Modules", icon: "ðŸ“¦", roles: STUDENT_ONLY },
-    { href: "/learn/workshops", label: "Workshops", icon: "ðŸ”§", roles: STUDENT_ONLY },
-    { href: "/learn/style-quiz", label: "Style Quiz", icon: "ðŸ§©", roles: STUDENT_ONLY },
-    { href: "/learn/challenges", label: "Challenge Learning", icon: "âš¡", roles: STUDENT_ONLY },
-    { href: "/learn/practice", label: "Practice Log", icon: "ðŸ‹", roles: STUDENT_ONLY },
-    { href: "/learn/progress", label: "My Progress", icon: "ðŸ“ˆ", roles: STUDENT_ONLY },
+    { href: "/learn/modules", label: "Modules", icon: "📦", roles: STUDENT_ONLY },
+    { href: "/learn/workshops", label: "Workshops", icon: "🔧", roles: STUDENT_ONLY },
+    { href: "/learn/style-quiz", label: "Style Quiz", icon: "🧩", roles: STUDENT_ONLY },
+    { href: "/learn/challenges", label: "Challenge Learning", icon: "⚡", roles: STUDENT_ONLY },
+    { href: "/learn/practice", label: "Practice Log", icon: "🏋", roles: STUDENT_ONLY },
+    { href: "/learn/progress", label: "My Progress", icon: "📈", roles: STUDENT_ONLY },
     {
       href: "/student-training",
       label: "Training Academy",
-      icon: "ðŸ«",
+      icon: "🏫",
       roles: STUDENT_ONLY,
       searchAliases: ["Training", "Student Training"],
       dashboardDescription: "Complete assigned modules, checkpoints, quizzes, and evidence submissions.",
       dashboardPriority: 6,
     },
-    { href: "/programs", label: "Programs Catalog", icon: "ðŸŽ¯" },
+    { href: "/programs", label: "Programs Catalog", icon: "🎯" },
   ]),
 
   ...groupLinks("Progress", 400, [
     {
       href: "/my-growth",
       label: "My Growth",
-      icon: "ðŸŒ±",
+      icon: "🌱",
       requiresGrowthOs: true,
       searchAliases: ["Growth", "Journey", "Student Operating System", "My Journey"],
       dashboardDescription:
-        "Your unified growth journey â€” vision, goals, achievements, and what to do next.",
+        "Your unified growth journey — vision, goals, achievements, and what to do next.",
       dashboardPriority: 2,
     },
     {
       href: "/goals",
       label: "My Goals",
-      icon: "ðŸŽ¯",
+      icon: "🎯",
       // Mentors / leadership use Review & G&R on /people (canAccessMentorship
-      // redirects them off this route â€” see lib/mentorship-access.ts).
+      // redirects them off this route — see lib/mentorship-access.ts).
       // Students and parents keep this as their goals home.
       roles: ["STUDENT", "PARENT"] as NavRole[],
       dashboardDescription: "Track progress against your active goals.",
       dashboardPriority: 12,
     },
-    { href: "/analytics", label: "Analytics", icon: "ðŸ“Š", roles: STUDENT_ONLY },
-    { href: "/learn/path-generator", label: "Learning Paths", icon: "ðŸ§­", roles: STUDENT_ONLY },
-    { href: "/pathways/progress", label: "Pathway Progress", icon: "ðŸ“ˆ", roles: STUDENT_ONLY },
+    { href: "/analytics", label: "Analytics", icon: "📊", roles: STUDENT_ONLY },
+    { href: "/learn/path-generator", label: "Learning Paths", icon: "🧭", roles: STUDENT_ONLY },
+    { href: "/pathways/progress", label: "Pathway Progress", icon: "📈", roles: STUDENT_ONLY },
     {
       href: "/projects/tracker",
       label: "Project Tracker",
-      icon: "ðŸ“",
+      icon: "📝",
       roles: STUDENT_ONLY,
       searchAliases: ["My Projects"],
     },
     {
       href: "/activities",
       label: "Activities",
-      icon: "ðŸ§­",
+      icon: "🧭",
       roles: STUDENT_ONLY,
       searchAliases: ["Activity Hub"],
       dashboardDescription: "Choose your next challenge, try-it, incubator, or project action.",
       dashboardPriority: 7,
     },
-    { href: "/motivation", label: "Motivation", icon: "ðŸ”¥", roles: STUDENT_ONLY },
-    // /reflections/streaks removed â€” it read the retired ReflectionForm models
+    { href: "/motivation", label: "Motivation", icon: "🔥", roles: STUDENT_ONLY },
+    // /reflections/streaks removed — it read the retired ReflectionForm models
     // that students never wrote to. /reflection now redirects to
     // the Reflection section of /mentorship?view=me, the self-input for the mentorship
     // review loop, so it no longer needs its own nav entry.
     {
       href: "/admin/reflections",
       label: "Reflection archive",
-      icon: "ðŸ’­",
+      icon: "💭",
       roles: ADMIN_ONLY,
       dashboardDescription: "Read-only archive of retired self-reflection submissions.",
       dashboardPriority: 9,
@@ -289,7 +290,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/instructor-training",
       label: "Instructor Training",
-      icon: "ðŸŽ“",
+      icon: "🎓",
       searchAliases: ["Training Academy", "Training"],
       roles: INSTRUCTOR_ROLES,
       dashboardDescription: "Complete all required academy modules to unlock offering approval.",
@@ -299,7 +300,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/instructor/lesson-design-studio",
       label: "Lesson Design Studio",
-      icon: "ðŸŽ¨",
+      icon: "🎨",
       roles: INSTRUCTOR_AND_APPLICANT_ROLES,
       dashboardDescription: "Continue your studio journey by browsing examples, completing the guided tour, and building a full curriculum in one studio.",
       dashboardPriority: 17,
@@ -310,17 +311,17 @@ export const NAV_CATALOG: NavLink[] = [
       // instructors don't see this in their sidebar).
       href: "/instructor/workshop-design-studio",
       label: "Workshop Design Studio",
-      icon: "ðŸ› ï¸",
+      icon: "🛠️",
       roles: INSTRUCTOR_ROLES,
       requiresSummerWorkshopSubtype: true,
-      dashboardDescription: "Propose the focused workshop you'll lead at camp â€” design your own or pick from the approved library.",
+      dashboardDescription: "Propose the focused workshop you'll lead at camp — design your own or pick from the approved library.",
       dashboardPriority: 17,
       searchAliases: ["Workshop Proposal", "Workshop Outline"],
     },
     {
       href: "/lesson-plans",
       label: "Lesson Plans",
-      icon: "ðŸ“‹",
+      icon: "📋",
       roles: INSTRUCTOR_ROLES,
       featureKey: "INSTRUCTOR_TEACHING_TOOLS",
       dashboardDescription: "Draft and refine lesson plans for upcoming sessions.",
@@ -329,14 +330,14 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/instructor/lesson-plans/templates",
       label: "Plan Templates",
-      icon: "ðŸ“„",
+      icon: "📄",
       roles: INSTRUCTOR_ROLES,
       featureKey: "INSTRUCTOR_TEACHING_TOOLS",
     },
     {
       href: "/instructor",
       label: "Instructor Home",
-      icon: "ðŸ ",
+      icon: "🏠",
       roles: INSTRUCTOR_ROLES,
       coreEligible: false,
       dashboardDescription: "Your teaching command center: next session, classes, and what needs attention.",
@@ -344,7 +345,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/instructor/classes",
       label: "Classes",
-      icon: "ðŸŽ“",
+      icon: "🎓",
       roles: INSTRUCTOR_ROLES,
       dashboardDescription: "Every accepted teaching responsibility, shown once with its next real action.",
       dashboardPriority: 1,
@@ -352,7 +353,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/instructor/availability",
       label: "My Availability",
-      icon: "ðŸ—“ï¸",
+      icon: "🗓️",
       roles: INSTRUCTOR_ROLES,
       coreEligible: false,
       dashboardDescription: "Set the weekly days and times you're available to teach.",
@@ -360,15 +361,15 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/instructor/onboarding",
       label: "Onboarding",
-      icon: "âœ…",
+      icon: "✅",
       roles: INSTRUCTOR_ROLES,
       coreEligible: false,
-      dashboardDescription: "Your onboarding checklist â€” profile, policies, training, availability, and first-class readiness.",
+      dashboardDescription: "Your onboarding checklist — profile, policies, training, availability, and first-class readiness.",
     },
     {
       href: "/instructor/training",
       label: "My Certifications",
-      icon: "ðŸ…",
+      icon: "🏅",
       roles: INSTRUCTOR_ROLES,
       coreEligible: false,
       dashboardDescription: "Your certification progress, plus a link to the full training subsystem.",
@@ -376,7 +377,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/instructor/performance",
       label: "My Performance",
-      icon: "ðŸ“ˆ",
+      icon: "📈",
       roles: INSTRUCTOR_ROLES,
       coreEligible: false,
       dashboardDescription: "Evidence-based preparation, attendance, and certification signals.",
@@ -384,7 +385,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/instructor/support",
       label: "Get Support",
-      icon: "ðŸ†˜",
+      icon: "🆘",
       roles: INSTRUCTOR_ROLES,
       coreEligible: false,
       dashboardDescription: "Request help with logistics, materials, roster, scheduling, attendance, or student support.",
@@ -392,7 +393,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/instructor/schedule",
       label: "Schedule",
-      icon: "ðŸ“…",
+      icon: "📅",
       roles: INSTRUCTOR_ROLES,
       dashboardDescription: "Assigned teaching sessions without unrelated portal events.",
       dashboardPriority: 2,
@@ -400,7 +401,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/instructor/workspace",
       label: "Instructor Workspace",
-      icon: "ðŸ§©",
+      icon: "🧩",
       roles: INSTRUCTOR_ROLES,
       featureKey: "INSTRUCTOR_TEACHING_TOOLS",
       dashboardDescription: "Plan curricula, lesson plans, offerings, and readiness in one workspace.",
@@ -409,14 +410,14 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/instructor/curriculum-builder",
       label: "Curriculum Builder",
-      icon: "ðŸ› ",
+      icon: "🛠",
       roles: INSTRUCTOR_ROLES,
       featureKey: "INSTRUCTOR_TEACHING_TOOLS",
     },
     {
       href: "/instructor/class-settings",
       label: "Class Settings",
-      icon: "âš™",
+      icon: "⚙",
       roles: INSTRUCTOR_ROLES,
       featureKey: "INSTRUCTOR_TEACHING_TOOLS",
       dashboardDescription: "Manage class offerings, schedules, and publish settings.",
@@ -425,53 +426,53 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/instructor/peer-observation",
       label: "Peer Observation",
-      icon: "ðŸ‘",
+      icon: "👁",
       roles: INSTRUCTOR_ROLES,
       featureKey: "INSTRUCTOR_TEACHING_TOOLS",
     },
     {
       href: "/instructor/mentee-health",
       label: "Mentee Health",
-      icon: "ðŸ’š",
+      icon: "💚",
       roles: INSTRUCTOR_ROLES,
     },
   ]),
 
   ...groupLinks("Challenges", 500, [
-    { href: "/challenges", label: "Challenges", icon: "âš¡" },
-    { href: "/challenges/daily", label: "Daily Challenges", icon: "ðŸŒŸ" },
-    { href: "/challenges/weekly", label: "Weekly Prompts", icon: "ðŸ“" },
-    { href: "/challenges/streaks", label: "Streaks", icon: "ðŸ”¥" },
-    { href: "/challenges/nominate", label: "Nominate Challenge", icon: "ðŸ‘" },
-    { href: "/challenges/passport", label: "Passion Passport", icon: "ðŸ“˜" },
-    { href: "/competitions", label: "Competitions", icon: "ðŸ†" },
-    { href: "/competitions/checklist", label: "Competition Checklist", icon: "â˜‘" },
-    { href: "/showcases", label: "Seasonal Events", icon: "ðŸŽ‰" },
-    { href: "/leaderboards", label: "Leaderboards", icon: "ðŸ“Š" },
-    { href: "/rewards", label: "Rewards", icon: "ðŸŽ" },
-    { href: "/achievements/badges", label: "Badge Gallery", icon: "ðŸ…" },
-    { href: "/student-of-month", label: "Student of the Month", icon: "â­" },
-    { href: "/wall-of-fame", label: "Wall of Fame", icon: "ðŸ›" },
+    { href: "/challenges", label: "Challenges", icon: "⚡" },
+    { href: "/challenges/daily", label: "Daily Challenges", icon: "🌟" },
+    { href: "/challenges/weekly", label: "Weekly Prompts", icon: "📝" },
+    { href: "/challenges/streaks", label: "Streaks", icon: "🔥" },
+    { href: "/challenges/nominate", label: "Nominate Challenge", icon: "👍" },
+    { href: "/challenges/passport", label: "Passion Passport", icon: "📘" },
+    { href: "/competitions", label: "Competitions", icon: "🏆" },
+    { href: "/competitions/checklist", label: "Competition Checklist", icon: "☑" },
+    { href: "/showcases", label: "Seasonal Events", icon: "🎉" },
+    { href: "/leaderboards", label: "Leaderboards", icon: "📊" },
+    { href: "/rewards", label: "Rewards", icon: "🎁" },
+    { href: "/achievements/badges", label: "Badge Gallery", icon: "🏅" },
+    { href: "/student-of-month", label: "Student of the Month", icon: "⭐" },
+    { href: "/wall-of-fame", label: "Wall of Fame", icon: "🏛" },
   ]),
 
   ...groupLinks("Projects", 600, [
-    { href: "/incubator", label: "Project Incubator", icon: "ðŸš€" },
-    { href: "/incubator/apply", label: "Apply", icon: "ðŸ“©" },
-    { href: "/mentor/incubator", label: "Project Mentoring", icon: "ðŸ§­", roles: MENTOR_ROLES },
-    { href: "/showcase", label: "Student Showcase", icon: "ðŸŽ¨" },
-    { href: "/showcase/submit", label: "Share Your Work", icon: "ðŸ“¤" },
+    { href: "/incubator", label: "Project Incubator", icon: "🚀" },
+    { href: "/incubator/apply", label: "Apply", icon: "📩" },
+    { href: "/mentor/incubator", label: "Project Mentoring", icon: "🧭", roles: MENTOR_ROLES },
+    { href: "/showcase", label: "Student Showcase", icon: "🎨" },
+    { href: "/showcase/submit", label: "Share Your Work", icon: "📤" },
   ]),
 
   ...groupLinks("Opportunities", 700, [
-    { href: "/internships", label: "Opportunities", icon: "ðŸ’¼" },
-    { href: "/service-projects", label: "Service Projects", icon: "ðŸ¤" },
-    { href: "/resource-exchange", label: "Resource Exchange", icon: "ðŸ”„" },
-    { href: "/portfolio/templates", label: "Portfolio Templates", icon: "ðŸ“‚" },
-    { href: "/events/map", label: "Chapter Events Map", icon: "ðŸ—º" },
+    { href: "/internships", label: "Opportunities", icon: "💼" },
+    { href: "/service-projects", label: "Service Projects", icon: "🤝" },
+    { href: "/resource-exchange", label: "Resource Exchange", icon: "🔄" },
+    { href: "/portfolio/templates", label: "Portfolio Templates", icon: "📂" },
+    { href: "/events/map", label: "Chapter Events Map", icon: "🗺" },
     {
       href: "/positions",
       label: "Open Positions",
-      icon: "ðŸ“Œ",
+      icon: "📌",
       roles: APPLICANT_ROLES,
       searchAliases: ["Leadership/Instructor Openings"],
       dashboardDescription: "Browse active hiring openings and role details.",
@@ -480,7 +481,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/applications/social-media",
       label: "Social Media Apply",
-      icon: "ðŸ“£",
+      icon: "📣",
       roles: APPLICANT_ROLES,
       searchAliases: [
         "Social Media Manager",
@@ -489,13 +490,13 @@ export const NAV_CATALOG: NavLink[] = [
         "TikTok",
       ],
       dashboardDescription:
-        "Apply to join YPPâ€™s social media team creating content and growing our community.",
+        "Apply to join YPP’s social media team creating content and growing our community.",
       dashboardPriority: 13,
     },
     {
       href: "/applications",
       label: "My Applications",
-      icon: "ðŸ“¨",
+      icon: "📨",
       roles: APPLICANT_ROLES_EXCLUDING_APPLICANT,
       dashboardDescription: "Track your submitted applications and interview status.",
       dashboardPriority: 8,
@@ -504,7 +505,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/instructor/certification-pathway",
       label: "Cert Pathway",
-      icon: "ðŸ“œ",
+      icon: "📜",
       roles: ["INSTRUCTOR", "ADMIN"],
     },
   ]),
@@ -513,20 +514,20 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/my-advisees",
       label: "My Advisees",
-      icon: "ðŸ§­",
-      // Student Advisor dashboard â€” the page itself only lists students
+      icon: "🧭",
+      // Student Advisor dashboard — the page itself only lists students
       // actually assigned to the viewer, so the link is offered to the
       // instructor-tier roles that can hold the role.
       coreEligible: false,
       roles: INSTRUCTOR_ROLES,
       searchAliases: ["Student Advisor", "Advisees", "Advising"],
-      dashboardDescription: "Students assigned to you for advising â€” check-ins, next steps, and follow-ups.",
+      dashboardDescription: "Students assigned to you for advising — check-ins, next steps, and follow-ups.",
       dashboardPriority: 6,
     },
     {
       href: "/my-leadership",
       label: "My Leadership",
-      icon: "ðŸ›ï¸",
+      icon: "🏛️",
       coreEligible: false,
       roles: INSTRUCTOR_ROLES,
       searchAliases: ["Leadership Roles", "Contributions", "Leadership & Contributions"],
@@ -536,7 +537,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/actions",
       label: "Actions",
-      icon: "âœ…",
+      icon: "✅",
       // My Actions is per-record guarded server-side and can be used by any
       // portal user who is assigned as Lead, Executing, or Input.
       roles: [
@@ -559,13 +560,13 @@ export const NAV_CATALOG: NavLink[] = [
         "Overdue",
         "Waiting on",
       ],
-      dashboardDescription: "Everything you lead, are executing, or owe input on â€” sorted by deadline.",
+      dashboardDescription: "Everything you lead, are executing, or owe input on — sorted by deadline.",
       dashboardPriority: 5,
     },
     {
       href: "/operations/initiatives",
       label: "Initiatives",
-      icon: "ðŸŽ¯",
+      icon: "🎯",
       roles: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"] as NavRole[],
       requiresActionTracker: true,
       requiresOperationsHub: true,
@@ -577,18 +578,18 @@ export const NAV_CATALOG: NavLink[] = [
         "Initiative plan",
       ],
       dashboardDescription:
-        "Quarterly initiatives â€” open one to see linked actions and next steps.",
+        "Quarterly initiatives — open one to see linked actions and next steps.",
       dashboardPriority: 4,
     },
     // The separate Work hub and Command Center were retired in the navigation
-    // overhaul â€” the portal is organized around real YPP objects with Home as the
+    // overhaul — the portal is organized around real YPP objects with Home as the
     // single starting point. Their routes (/work, /command-center) now redirect,
     // so they are intentionally absent from the catalog (nav + search + site-map).
     {
       href: "/browse",
       label: "Browse",
-      icon: "ðŸ—‚ï¸",
-      // The database mode â€” one front door to every record list and search.
+      icon: "🗂️",
+      // The database mode — one front door to every record list and search.
       roles: ["ADMIN", "STAFF", "HIRING_CHAIR"] as NavRole[],
       searchAliases: [
         "Browse",
@@ -599,14 +600,14 @@ export const NAV_CATALOG: NavLink[] = [
         "Directory",
         "Raw data",
       ],
-      dashboardDescription: "Search every record â€” people, partners, actions, meetings, and more.",
+      dashboardDescription: "Search every record — people, partners, actions, meetings, and more.",
       dashboardPriority: 7,
     },
     {
       href: "/decide",
       label: "Decisions",
-      icon: "âš–ï¸",
-      // Decision operating system â€” leadership choices, ownership gaps, blockers.
+      icon: "⚖️",
+      // Decision operating system — leadership choices, ownership gaps, blockers.
       roles: ["ADMIN", "STAFF", "HIRING_CHAIR"] as NavRole[],
       searchAliases: [
         "Decide",
@@ -623,8 +624,8 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/delegate",
       label: "Owners",
-      icon: "ðŸ¤",
-      // Ownership & accountability â€” assign owners, reassign overdue, batch tools.
+      icon: "🤝",
+      // Ownership & accountability — assign owners, reassign overdue, batch tools.
       roles: ["ADMIN", "STAFF", "HIRING_CHAIR"] as NavRole[],
       searchAliases: [
         "Delegate",
@@ -641,8 +642,8 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/review",
       label: "Weekly Review",
-      icon: "ðŸ“Š",
-      // Weekly operating review â€” what changed, what needs review, next week.
+      icon: "📊",
+      // Weekly operating review — what changed, what needs review, next week.
       roles: ["ADMIN", "STAFF", "HIRING_CHAIR"] as NavRole[],
       searchAliases: [
         "Review",
@@ -659,8 +660,8 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/follow-up",
       label: "Follow Ups",
-      icon: "ðŸ””",
-      // Waiting-on / outreach desk â€” who we're waiting on, what's overdue.
+      icon: "🔔",
+      // Waiting-on / outreach desk — who we're waiting on, what's overdue.
       roles: ["ADMIN", "STAFF", "HIRING_CHAIR"] as NavRole[],
       searchAliases: [
         "Follow Up",
@@ -677,9 +678,9 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/operations/data-360",
       label: "Connected data",
-      icon: "ðŸ§ ",
+      icon: "🧠",
       // Officer-tier and above only (mirrors requireOfficer()), like the
-      // Command Center. Secondary surface â€” never a pinned core link.
+      // Command Center. Secondary surface — never a pinned core link.
       coreEligible: false,
       roles: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"] as NavRole[],
       requiresActionTracker: true,
@@ -694,16 +695,16 @@ export const NAV_CATALOG: NavLink[] = [
         "Unified Timeline",
       ],
       dashboardDescription:
-        "Every person, class, partner, meeting, and action in one connected picture â€” with a unified work board and needs-attention queue.",
+        "Every person, class, partner, meeting, and action in one connected picture — with a unified work board and needs-attention queue.",
       dashboardPriority: 6,
     },
     {
       href: "/data-360",
       label: "Org intelligence",
-      icon: "ðŸ“Š",
+      icon: "📊",
       // Leadership intelligence surface (mirrors requireLeadership(); everyone
       // who clears that guard carries the ADMIN role). Quantitative, score-free,
-      // drill-down-first â€” intentionally distinct from "Connected data" (the
+      // drill-down-first — intentionally distinct from "Connected data" (the
       // operational work board) above. Reads data directly, so it is NOT gated
       // behind the action-tracker / operations-hub feature flags.
       coreEligible: false,
@@ -719,13 +720,13 @@ export const NAV_CATALOG: NavLink[] = [
         "Dashboard",
       ],
       dashboardDescription:
-        "Quantitative organizational intelligence â€” KPIs, growth trends, and a factual needs-attention panel across YPP.",
+        "Quantitative organizational intelligence — KPIs, growth trends, and a factual needs-attention panel across YPP.",
       dashboardPriority: 6,
     },
     {
       href: "/operations/instructor-pairing",
       label: "Instructor pairing",
-      icon: "ðŸ§©",
+      icon: "🧩",
       // Guided pairing/coverage cockpit. Officer-tier (mirrors requireOfficer()).
       coreEligible: false,
       roles: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"] as NavRole[],
@@ -739,13 +740,13 @@ export const NAV_CATALOG: NavLink[] = [
         "Partner coverage",
       ],
       dashboardDescription:
-        "Which classes need instructors, who's a fit, and what pairing is blocked â€” as guided lanes, not a table.",
+        "Which classes need instructors, who's a fit, and what pairing is blocked — as guided lanes, not a table.",
       dashboardPriority: 6,
     },
     {
       href: "/operations/advising",
       label: "Advising center",
-      icon: "ðŸŽ“",
+      icon: "🎓",
       // Guided student-advising cockpit. Officer-tier (mirrors requireOfficer()).
       coreEligible: false,
       roles: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"] as NavRole[],
@@ -760,13 +761,13 @@ export const NAV_CATALOG: NavLink[] = [
         "Advising command center",
       ],
       dashboardDescription:
-        "Which students need advisors, which pairings need a kickoff or follow-up, and who's overloaded â€” one guided cockpit.",
+        "Which students need advisors, which pairings need a kickoff or follow-up, and who's overloaded — one guided cockpit.",
       dashboardPriority: 6,
     },
     {
       href: "/people",
       label: "People",
-      icon: "ðŸ‘¥",
+      icon: "👥",
       // Directory / find for Hiring Chair. Leadership performance roster lives
       // on Mentorship home; `/people` redirects there for those roles.
       roles: ["HIRING_CHAIR"] as NavRole[],
@@ -782,12 +783,12 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 3,
     },
     // /people/develop (the Leadership Development cockpit) folded into the
-    // unified Mentorship Command Center â€” it redirects to
+    // unified Mentorship Command Center — it redirects to
     // /mentorship?view=admin and its search aliases moved onto /mentorship.
     {
       href: "/partners",
       label: "Partners",
-      icon: "ðŸ¤",
+      icon: "🤝",
       // Master Partner database (Knowledge OS V2 front door). Officer-tier.
       roles: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"] as NavRole[],
       searchAliases: [
@@ -799,13 +800,13 @@ export const NAV_CATALOG: NavLink[] = [
         "Relationship leads",
       ],
       dashboardDescription:
-        "Every partner relationship â€” owner, contacts, open requests, agreements, and the next step.",
+        "Every partner relationship — owner, contacts, open requests, agreements, and the next step.",
       dashboardPriority: 3,
     },
     {
       href: "/help-agent",
       label: "YPP Help Agent",
-      icon: "ðŸ”Ž",
+      icon: "🔎",
       // The global deterministic search/command layer (Knowledge OS V2).
       // Reachable from every page via âŒ˜K and the sidebar trigger; this entry
       // adds nav-search discoverability. Not an AI chatbot.
@@ -828,14 +829,14 @@ export const NAV_CATALOG: NavLink[] = [
         "Find",
       ],
       dashboardDescription:
-        "Find any person, partner, class, meeting, or action â€” and open its record preview from anywhere.",
+        "Find any person, partner, class, meeting, or action — and open its record preview from anywhere.",
       dashboardPriority: 7,
     },
     {
       href: "/operations",
       label: "Operations",
-      icon: "ðŸ§­",
-      // Secondary surface, not a pinned core link â€” keep it out of the capped
+      icon: "🧭",
+      // Secondary surface, not a pinned core link — keep it out of the capped
       // per-role "core" map (validate-nav enforces those limits).
       coreEligible: false,
       // Role-aware page (each role sees a tailored operating picture), so the
@@ -866,7 +867,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/actions/all",
       label: "All Actions",
-      icon: "ðŸ—‚ï¸",
+      icon: "🗂️",
       coreEligible: false,
       // Officer-tier and above only (mirrors requireOfficer()).
       roles: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"] as NavRole[],
@@ -885,7 +886,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/actions/responsibility",
       label: "Responsibility Map",
-      icon: "ðŸ—ºï¸",
+      icon: "🗺️",
       coreEligible: false,
       // Officer-tier and above only (mirrors requireOfficer()).
       roles: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"] as NavRole[],
@@ -903,12 +904,12 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 6,
     },
     {
-      // Canonical Meetings home â€” the single front door for every meeting
+      // Canonical Meetings home — the single front door for every meeting
       // (officer + impact). It previews and routes; it is not a second hub.
       href: "/meetings",
       label: "Meetings",
-      icon: "ðŸ“…",
-      // Leadership-only â€” hidden from officer-tier sidebars; reachable by URL for
+      icon: "📅",
+      // Leadership-only — hidden from officer-tier sidebars; reachable by URL for
       // Sr. Leadership / Board (requireLeadership() on routes).
       roles: ["ADMIN"] as NavRole[],
       coreEligible: false,
@@ -924,13 +925,13 @@ export const NAV_CATALOG: NavLink[] = [
         "Follow-ups",
       ],
       dashboardDescription:
-        "One place for every meeting â€” today, upcoming, needs prep, and recent. Open any meeting to run it.",
+        "One place for every meeting — today, upcoming, needs prep, and recent. Open any meeting to run it.",
       dashboardPriority: 6,
     },
     {
       href: "/my-weekly-impact",
       label: "My Weekly Impact",
-      icon: "ðŸ“",
+      icon: "📝",
       // Any contributor on an Impact team fills this out (the page self-gates on
       // the Weekly Team Briefs flag and the signed-in session).
       roles: ["INSTRUCTOR", "MENTOR", "CHAPTER_PRESIDENT", "STAFF", "ADMIN", "HIRING_CHAIR"] as NavRole[],
@@ -943,13 +944,13 @@ export const NAV_CATALOG: NavLink[] = [
         "My Impact",
       ],
       dashboardDescription:
-        "Add your part to your team's one weekly Impact presentation â€” what you did, what you'll show, and what you need.",
+        "Add your part to your team's one weekly Impact presentation — what you did, what you'll show, and what you need.",
       dashboardPriority: 4,
     },
     {
       href: "/leadership-pathway",
       label: "Leadership Pathway",
-      icon: "ðŸªœ",
+      icon: "🪜",
       roles: ["INSTRUCTOR", "MENTOR", "CHAPTER_PRESIDENT", "ADMIN", "STAFF"] as NavRole[],
       searchAliases: [
         "Role",
@@ -968,11 +969,11 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/mentorship",
       label: "Mentorship",
-      icon: "ðŸ¤",
+      icon: "🤝",
       // Three POVs, one hub: the mentor coaching console (multi-mentee
       // Kanban), the leadership command center (cohort review-cycle
       // launcher, templates, committees, analytics), and a viewer's own
-      // mentee POV (check-ins, G&R doc, reviews â€” same components rendered
+      // mentee POV (check-ins, G&R doc, reviews — same components rendered
       // in-hub as on /people/[id]'s Review & G&R block, so their own
       // development is one toggle away, not a separate destination).
       roles: [
@@ -1002,13 +1003,13 @@ export const NAV_CATALOG: NavLink[] = [
         "Members",
       ],
       dashboardDescription:
-        "Mentorship home â€” role cards plus people workload for leadership.",
+        "Mentorship home — role cards plus people workload for leadership.",
       dashboardPriority: 3,
     },
     {
       href: "/mentorship/chair",
       label: "Review Approvals",
-      icon: "âœ…",
+      icon: "✅",
       roles: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "MENTOR"] as NavRole[],
       searchAliases: [
         "Chair Queue",
@@ -1023,18 +1024,18 @@ export const NAV_CATALOG: NavLink[] = [
     // /my-mentor now redirects to /mentorship?view=me (the mentee POV, which
     // renders natively in-hub). Its old detail subroutes (goals, progress,
     // reflection, schedule, resources, awards, help) redirect to that same
-    // hub â€” the ?section= params they append are currently inert there.
+    // hub — the ?section= params they append are currently inert there.
     // Retired nav entries (pages still live or redirecting):
-    //  - "Review Cycles" (/mentorship/cycles) â€” the cohort launcher stays a
+    //  - "Review Cycles" (/mentorship/cycles) — the cohort launcher stays a
     //    live leadership page, reached from the admin cockpit's overview.
-    //  - "Review Inbox" (/mentorship/reviews) â€” redirects to Mentorship home;
+    //  - "Review Inbox" (/mentorship/reviews) — redirects to Mentorship home;
     //    chair approvals live at /mentorship/chair.
-    //  - "Committee Queue" (/mentorship/committee) â€” now a redirect; the
+    //  - "Committee Queue" (/mentorship/committee) — now a redirect; the
     //    quarterly queue renders on /mentorship itself.
     {
       href: "/mentorship/mentees",
       label: "My Mentees",
-      icon: "ðŸ‘¥",
+      icon: "👥",
       roles: MENTOR_ROLES,
       dashboardDescription: "Review mentee progress and follow-up needs.",
       dashboardPriority: 5,
@@ -1043,7 +1044,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/mentorship/feedback",
       label: "Feedback Portal",
-      icon: "ðŸ’¬",
+      icon: "💬",
       roles: MENTOR_ROLES,
       searchAliases: ["Mentee Feedback", "Feedback Requests", "Review Work"],
       dashboardDescription: "Respond to private feedback requests on mentee projects, drafts, and work samples.",
@@ -1052,7 +1053,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/mentorship/ask",
       label: "Ask a Mentor",
-      icon: "â“",
+      icon: "❓",
       roles: MENTOR_ROLES,
       searchAliases: ["Mentor Commons", "Mentor Q&A", "Answer Questions"],
       dashboardDescription: "Answer public questions and grow the shared mentor knowledge commons.",
@@ -1061,7 +1062,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/mentorship/resources",
       label: "Mentor Resources",
-      icon: "ðŸ“š",
+      icon: "📚",
       roles: MENTOR_ROLES,
       searchAliases: ["Resource Commons", "Mentor Playbooks"],
       dashboardDescription: "Search and publish shared playbooks, templates, and resources from mentoring work.",
@@ -1074,7 +1075,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/my-program",
       label: "My Program",
-      icon: "ðŸŽ¯",
+      icon: "🎯",
       roles: MY_PROGRAM_ROLES,
       searchAliases: ["My Mentor", "Support Hub", "Program Hub"],
       dashboardDescription: "Open your support hub for reflections, next steps, awards, rewards, and recognition.",
@@ -1082,7 +1083,7 @@ export const NAV_CATALOG: NavLink[] = [
     // /my-program/gr removed: it was a permanentRedirect into
     // /mentorship?view=me&section=goals, and the Mentorship entry below
     // already covers "My Goals" for instructors/officers via its search
-    // aliases â€” a second nav entry pointing at the same destination was
+    // aliases — a second nav entry pointing at the same destination was
     // redundant, not a second surface.
     // Removed from nav:
     //   /mentorship-program           -> redirects to /mentorship
@@ -1091,30 +1092,30 @@ export const NAV_CATALOG: NavLink[] = [
     //                                    mentee detail page; mentee surface
     //                                    is the monthly self-reflection form
     //                                    accessed from the mentee dashboard.
-    // /mentorship-program/chair removed from nav â€” it is a legacy redirect to
+    // /mentorship-program/chair removed from nav — it is a legacy redirect to
     // /mentorship/reviews, which already surfaces for ADMIN via MENTOR_ROLES.
     // Two "Chair Queue" entries created a duplicate visible label for admins.
     {
       href: "/mentorship/awards",
       label: "Awards",
-      icon: "ðŸ†",
+      icon: "🏆",
       roles: ["MENTOR", "CHAPTER_PRESIDENT", "ADMIN"] as NavRole[],
       dashboardDescription: "Nominate mentees for Bronze, Silver, Gold, and Lifetime achievement awards.",
     },
-    // /my-mentor/awards removed from nav â€” awards are a supporting detail of
+    // /my-mentor/awards removed from nav — awards are a supporting detail of
     // the Mentorship hub's "My development" view (its Recognition section).
     // A separate top-level entry duplicated the product.
     {
       href: "/my-program/achievement-journey",
       label: "Achievement Journey",
-      icon: "ðŸ†",
+      icon: "🏆",
       roles: ["INSTRUCTOR", "CHAPTER_PRESIDENT", "ADMIN", "STAFF"] as NavRole[],
       dashboardDescription: "Visualize your tier progress, earning velocity, and point history.",
     },
     {
       href: "/instructor-growth",
       label: "Instructor Growth",
-      icon: "ðŸ“ˆ",
+      icon: "📈",
       roles: ["INSTRUCTOR", "CHAPTER_PRESIDENT", "ADMIN"] as NavRole[],
       dashboardDescription: "Track private instructor XP, tiers, badges, and semester momentum.",
       dashboardPriority: 7,
@@ -1122,7 +1123,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/instructor-growth/review",
       label: "Growth Review Board",
-      icon: "ðŸ—‚ï¸",
+      icon: "🗂️",
       roles: ["MENTOR", "CHAPTER_PRESIDENT", "ADMIN"] as NavRole[],
       dashboardDescription: "Review pending instructor growth claims in mentor and leadership lanes.",
       dashboardPriority: 7,
@@ -1130,60 +1131,60 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/my-program/schedule",
       label: "Schedule Meeting",
-      icon: "ðŸ“…",
+      icon: "📅",
       roles: ["INSTRUCTOR", "CHAPTER_PRESIDENT", "ADMIN", "STAFF"] as NavRole[],
       dashboardDescription: "Request a meeting with your mentor or manage upcoming sessions.",
     },
     // Removed from nav:
     //   /mentorship/schedule, /mentorship/calendar, /mentorship-program/schedule
-    //   â€” mentorship meetings are logged on /mentorship/people/[id], not scheduled.
+    //   — mentorship meetings are logged on /mentorship/people/[id], not scheduled.
     {
       href: "/peer-recognition",
       label: "Peer Recognition",
-      icon: "ðŸŽ‰",
+      icon: "🎉",
       dashboardDescription: "Send kudos and celebrate your teammates' contributions.",
     },
     {
       href: "/my-program/certificate",
       label: "My Certificate",
-      icon: "ðŸ“œ",
+      icon: "📜",
       roles: ["INSTRUCTOR", "CHAPTER_PRESIDENT", "ADMIN", "STAFF"] as NavRole[],
       dashboardDescription: "Download your achievement certificate and volunteer hours verification letter.",
     },
     {
       href: "/college-advisor/roadmap",
       label: "College Roadmap",
-      icon: "ðŸŽ“",
+      icon: "🎓",
       roles: ["INSTRUCTOR", "CHAPTER_PRESIDENT", "ADMIN", "STAFF"] as NavRole[],
       dashboardDescription: "Follow your personalized college readiness journey from exploration to transition.",
     },
     {
       href: "/college-advisor/activities",
       label: "Activities Builder",
-      icon: "ðŸ“‹",
+      icon: "📋",
       roles: ["INSTRUCTOR", "CHAPTER_PRESIDENT", "ADMIN", "STAFF"] as NavRole[],
       dashboardDescription: "Build your extracurricular portfolio and export in Common App format.",
     },
     {
       href: "/alumni-network",
       label: "Alumni Network",
-      icon: "ðŸ¤",
+      icon: "🤝",
       dashboardDescription: "Connect with YPP alumni, attend panel events, and send intro requests.",
     },
-    { href: "/events", label: "Events & Prep", icon: "ðŸ“…" },
-    { href: "/calendar", label: "Calendar", icon: "ðŸ—“" },
+    { href: "/events", label: "Events & Prep", icon: "📅" },
+    { href: "/calendar", label: "Calendar", icon: "🗓" },
     {
       href: "/office-hours",
       label: "Office Hours",
-      icon: "ðŸ•’",
+      icon: "🕒",
       dashboardDescription: "Host or book office hours support sessions.",
       dashboardPriority: 20,
     },
-    { href: "/check-in", label: "Check-In", icon: "âœ”", roles: STUDENT_ONLY },
+    { href: "/check-in", label: "Check-In", icon: "✔", roles: STUDENT_ONLY },
     {
       href: "/attendance",
       label: "Attendance",
-      icon: "ðŸ“‹",
+      icon: "📋",
       roles: INSTRUCTOR_ROLES,
       dashboardDescription: "Record and review class attendance sessions.",
       dashboardPriority: 11,
@@ -1191,7 +1192,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/instructor/parent-feedback",
       label: "Parent Feedback",
-      icon: "ðŸ’¬",
+      icon: "💬",
       roles: ["INSTRUCTOR", "CHAPTER_PRESIDENT"] as NavRole[],
       dashboardDescription: "View parent feedback and communications for your classes.",
       dashboardPriority: 13,
@@ -1202,7 +1203,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/chapter/hub",
       label: "Chapter Hub",
-      icon: "ðŸ˜",
+      icon: "🏘",
       dashboardDescription: "Open one page with every chapter tool and directory link.",
       dashboardPriority: 1,
       coreEligible: true,
@@ -1211,31 +1212,31 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/chapters",
       label: "Find a Chapter",
-      icon: "ðŸ”",
+      icon: "🔍",
       dashboardDescription: "Browse chapters and find a community near you.",
       dashboardPriority: 26,
     },
     {
       href: "/join-chapter",
       label: "Join a Chapter",
-      icon: "ðŸ¤",
+      icon: "🤝",
       dashboardDescription: "Pick a chapter to join and start your journey.",
       dashboardPriority: 25,
     },
     {
       href: "/chapter/apply",
       label: "Apply for CP",
-      icon: "ðŸ—º",
+      icon: "🗺",
       dashboardDescription: "Apply to become a chapter president and lead a YPP chapter.",
       dashboardPriority: 13,
     },
     {
       href: "/chapter",
       label: "Chapter",
-      icon: "ðŸ§­",
+      icon: "🧭",
       roles: CHAPTER_PRESIDENT_ONLY,
       dashboardDescription:
-        "Run your chapter in five lanes: Partners, Students, Instructors, Actions, and Meetings â€” plus this week's numbers and your launch checklist.",
+        "Run your chapter in five lanes: Partners, Students, Instructors, Actions, and Meetings — plus this week's numbers and your launch checklist.",
       dashboardPriority: 1,
       searchAliases: [
         "Dashboard",
@@ -1256,10 +1257,10 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/chapter/impact",
       label: "Impact Meeting",
-      icon: "ðŸ“Š",
+      icon: "📊",
       roles: CHAPTER_PRESIDENT_ONLY,
       dashboardDescription:
-        "Your generated weekly brief â€” what changed, current numbers, wins, risks, decisions, and next-week commitments â€” ready to present.",
+        "Your generated weekly brief — what changed, current numbers, wins, risks, decisions, and next-week commitments — ready to present.",
       dashboardPriority: 3,
       searchAliases: [
         "Impact Meeting",
@@ -1273,7 +1274,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/chapter/calendar",
       label: "Chapter Calendar",
-      icon: "ðŸ—“",
+      icon: "🗓",
       roles: CHAPTER_PRESIDENT_ONLY,
       dashboardDescription: "Create chapter events, recurring series, and public calendar items.",
       dashboardPriority: 4,
@@ -1281,7 +1282,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/chapter/student-intake",
       label: "Student Intake",
-      icon: "ðŸ§­",
+      icon: "🧭",
       roles: ["CHAPTER_PRESIDENT", "ADMIN"] as NavRole[],
       dashboardDescription: "Review parent-led student journeys and launch early support plans.",
       dashboardPriority: 5,
@@ -1289,19 +1290,19 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/chapter/onboarding",
       label: "CP Onboarding",
-      icon: "ðŸŽ“",
+      icon: "🎓",
       roles: CHAPTER_PRESIDENT_ONLY,
     },
     {
       href: "/chapter/resources",
       label: "Chapter Goals & Resources",
-      icon: "",
+      icon: "📚",
       roles: CHAPTER_PRESIDENT_ONLY,
     },
     {
       href: "/chapter/recruiting",
       label: "Chapter Recruiting",
-      icon: "ðŸ§‘â€ðŸ’¼",
+      icon: "🧑‍💼",
       roles: CHAPTER_PRESIDENT_ONLY,
       dashboardDescription: "Manage openings, candidates, interviews, and decisions.",
       dashboardPriority: 2,
@@ -1310,14 +1311,14 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/chapter/channels",
       label: "Chapter Channels",
-      icon: "ðŸ’¬",
+      icon: "💬",
       dashboardDescription: "Discussion channels for your chapter community.",
       dashboardPriority: 22,
     },
     {
       href: "/chapter/updates",
       label: "Chapter Announcements",
-      icon: "ðŸ“¢",
+      icon: "📢",
       roles: CHAPTER_PRESIDENT_ONLY,
       coreEligible: false,
       dashboardDescription: "Post announcements and updates to your chapter.",
@@ -1327,14 +1328,14 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/chapter/members",
       label: "Chapter Members",
-      icon: "ðŸ‘¥",
+      icon: "👥",
       dashboardDescription: "View and search your chapter's member directory.",
       dashboardPriority: 21,
     },
     {
       href: "/chapter/students",
       label: "Chapter Students",
-      icon: "ðŸŽ“",
+      icon: "🎓",
       roles: CHAPTER_PRESIDENT_ONLY,
       coreEligible: false,
       dashboardDescription: "Track student rosters, enrollment, and engagement.",
@@ -1344,7 +1345,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/chapter/instructors",
       label: "Chapter Instructors",
-      icon: "ðŸ‘©â€ðŸ«",
+      icon: "👩‍🏫",
       roles: CHAPTER_PRESIDENT_ONLY,
       coreEligible: false,
       dashboardDescription: "Monitor instructor training, courses, and goals.",
@@ -1354,7 +1355,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/chapter/marketing",
       label: "Chapter Marketing",
-      icon: "ðŸ“Š",
+      icon: "📊",
       roles: CHAPTER_PRESIDENT_ONLY,
       coreEligible: false,
       dashboardDescription: "Log outreach metrics and track growth goals.",
@@ -1364,21 +1365,21 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/chapter/leaderboard",
       label: "XP Leaderboard",
-      icon: "ðŸ¥‡",
+      icon: "🥇",
       dashboardDescription: "See who's leading in XP within your chapter.",
       dashboardPriority: 25,
     },
     {
       href: "/chapter/achievements",
       label: "Chapter Achievements",
-      icon: "ðŸŽ¯",
+      icon: "🎯",
       dashboardDescription: "Track your chapter's collective milestones and achievements.",
       dashboardPriority: 26,
     },
     {
       href: "/chapter/invites",
       label: "Invite Links",
-      icon: "ðŸ”—",
+      icon: "🔗",
       roles: CHAPTER_PRESIDENT_ONLY,
       dashboardDescription: "Create and manage shareable invite links to grow your chapter.",
       dashboardPriority: 23,
@@ -1386,14 +1387,14 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/chapters/leaderboard",
       label: "Network Chapter Leaderboard",
-      icon: "ðŸ†",
+      icon: "🏆",
       dashboardDescription: "See how chapters across the network are growing.",
       dashboardPriority: 24,
     },
     {
       href: "/admin/chapters",
       label: "Chapter Command",
-      icon: "ðŸ¢",
+      icon: "🏢",
       roles: ADMIN_ONLY,
       dashboardDescription: "Launch, support, and manage every chapter across the national pipeline.",
       dashboardPriority: 3,
@@ -1402,7 +1403,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/admin/chapters/map",
       label: "Chapter Map",
-      icon: "ðŸ—º",
+      icon: "🗺",
       roles: ADMIN_ONLY,
       dashboardDescription: "See where chapters exist, where they're launching, and where the gaps are.",
       dashboardPriority: 23,
@@ -1410,7 +1411,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/admin/chapters/analytics",
       label: "Chapter Analytics",
-      icon: "ðŸ“ˆ",
+      icon: "📈",
       roles: ADMIN_ONLY,
       dashboardDescription: "National growth metrics: applications, approvals, and chapters per state.",
       dashboardPriority: 23,
@@ -1418,7 +1419,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/chapter/settings",
       label: "Chapter Settings",
-      icon: "âš™ï¸",
+      icon: "⚙️",
       roles: CHAPTER_PRESIDENT_ONLY,
       dashboardDescription: "Customize your chapter profile, branding, and join policy.",
       dashboardPriority: 20,
@@ -1426,7 +1427,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/chapter-lead/instructor-applicants",
       label: "Applicants",
-      icon: "ðŸ“",
+      icon: "📝",
       roles: CHAPTER_PRESIDENT_ONLY,
       dashboardDescription: "Review and manage instructor applications on your chapter's hiring board.",
       dashboardPriority: 6,
@@ -1439,7 +1440,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/chapter-lead/instructor-readiness",
       label: "Chapter Readiness",
-      icon: "âœ…",
+      icon: "✅",
       roles: CHAPTER_PRESIDENT_ONLY,
       dashboardDescription: "Clear instructor training and interview blockers for your chapter.",
       dashboardPriority: 7,
@@ -1449,7 +1450,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/chapter-lead/portal-rollout",
       label: "Rollout Command",
-      icon: "ðŸ—“",
+      icon: "🗓",
       roles: CHAPTER_PRESIDENT_ONLY,
       dashboardDescription: "Track chapter rollout timeline, owners, and blockers.",
       dashboardPriority: 5,
@@ -1457,39 +1458,39 @@ export const NAV_CATALOG: NavLink[] = [
   ]),
 
   ...groupLinks("Profile & Settings", 1000, [
-    { href: "/certificates", label: "My Certificates", icon: "ðŸ“œ" },
+    { href: "/certificates", label: "My Certificates", icon: "📜" },
     {
       href: "/alumni",
       label: "Alumni Directory",
-      icon: "ðŸŽ“",
+      icon: "🎓",
       requiresAward: true,
     },
     {
       href: "/college-advisor",
       label: "College Advisor",
-      icon: "ðŸ§‘â€ðŸ’»",
+      icon: "🧑‍💻",
       requiresAward: true,
     },
     {
       href: "/advisor-dashboard",
       label: "Advisor Dashboard",
-      icon: "ðŸ“‹",
+      icon: "📋",
       requiresAward: true,
     },
     {
       href: "/profile",
       label: "My Profile",
-      icon: "ðŸ‘¤",
+      icon: "👤",
       hideForPrimaryRoles: ["INSTRUCTOR"],
     },
-    { href: "/profile/timeline", label: "My Journey", icon: "ðŸ›¤" },
-    { href: "/profile/xp", label: "XP & Levels", icon: "â¬†" },
-    { href: "/profile/certifications", label: "Certifications", icon: "ðŸ…" },
-    { href: "/settings/personalization", label: "Profile & Settings", icon: "ðŸ‘¤" },
+    { href: "/profile/timeline", label: "My Journey", icon: "🛤" },
+    { href: "/profile/xp", label: "XP & Levels", icon: "⬆" },
+    { href: "/profile/certifications", label: "Certifications", icon: "🏅" },
+    { href: "/settings/personalization", label: "Profile & Settings", icon: "👤" },
     {
       href: "/notifications",
       label: "Notifications",
-      icon: "ðŸ””",
+      icon: "🔔",
       badgeKey: "notifications",
       dashboardBadgeKey: "unread_notifications",
       dashboardDescription: "Review unread alerts and updates.",
@@ -1498,11 +1499,11 @@ export const NAV_CATALOG: NavLink[] = [
   ]),
 
   ...groupLinks("Admin People", 1100, [
-    { href: "/admin/students", label: "All Students", icon: "ðŸ‘¨â€ðŸŽ“", roles: ADMIN_ONLY },
+    { href: "/admin/students", label: "All Students", icon: "👨‍🎓", roles: ADMIN_ONLY },
     {
       href: "/admin/leadership",
       label: "Leadership Roles",
-      icon: "ðŸ›ï¸",
+      icon: "🏛️",
       coreEligible: false,
       roles: ADMIN_ONLY,
       searchAliases: [
@@ -1512,19 +1513,19 @@ export const NAV_CATALOG: NavLink[] = [
         "Senior Lead Expectations",
       ],
       dashboardDescription:
-        "Assign and track leadership roles â€” Student Advisors, mentors, reviewers, committee, and ownership areas.",
+        "Assign and track leadership roles — Student Advisors, mentors, reviewers, committee, and ownership areas.",
       dashboardPriority: 6,
     },
     {
       href: "/admin/instructors",
       label: "All Instructors",
-      icon: "ðŸ‘©â€ðŸ«",
+      icon: "👩‍🏫",
       roles: ADMIN_ONLY,
     },
     {
       href: "/admin/instructor-assignments",
       label: "Instructor Assignments",
-      icon: "ðŸ§©",
+      icon: "🧩",
       roles: ADMIN_ONLY,
       dashboardDescription: "Assign regular instructors to class offerings and track coverage.",
       dashboardPriority: 5,
@@ -1537,14 +1538,14 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/admin/review-routing",
       label: "Review Routing Exceptions",
-      icon: "ðŸ§­",
+      icon: "🧭",
       roles: ADMIN_ONLY,
       searchAliases: ["Review exceptions", "Self finalize", "Board approval routing"],
     },
     {
       href: "/admin/settings",
       label: "Portal Settings",
-      icon: "âš™ï¸",
+      icon: "⚙️",
       roles: ADMIN_ONLY,
       searchAliases: [
         "Settings",
@@ -1560,7 +1561,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/admin/teams",
       label: "Teams",
-      icon: "ðŸ§©",
+      icon: "🧩",
       roles: ADMIN_ONLY,
       searchAliases: ["Teams", "Team config", "Weekly Impact teams", "Team membership"],
       dashboardDescription:
@@ -1569,7 +1570,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/admin/parent-approvals",
       label: "Parent Approvals",
-      icon: "âœ”",
+      icon: "✔",
       roles: ADMIN_ONLY,
       badgeKey: "approvals",
       dashboardDescription: "Approve or reject pending parent-student link requests.",
@@ -1577,10 +1578,10 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardBadgeKey: "pending_parent_approvals",
     },
     {
-      href: "/admin/instructor-applicants",
+      href: "/admin/applicants",
       label: "Applicants",
-      icon: "ðŸ“",
-      roles: HIRING_CHAIR_ADMIN_ROLES,
+      icon: "📝",
+      roles: ADMIN_ONLY,
       dashboardDescription:
         "Review instructor and chapter president applications across all chapters.",
       dashboardPriority: 4,
@@ -1590,16 +1591,32 @@ export const NAV_CATALOG: NavLink[] = [
         "Network Applicants",
         "CP Applicants",
         "Chapter President Applicants",
+        "admin/instructor-applicants",
+      ],
+      dashboardBadgeKey: "instructor_applicants",
+    },
+    {
+      href: "/admin/instructor-applicants",
+      label: "Applicants",
+      icon: "📝",
+      roles: ["HIRING_CHAIR", "STAFF"] as NavRole[],
+      dashboardDescription:
+        "Review instructor and chapter president applications across all chapters.",
+      dashboardPriority: 4,
+      searchAliases: [
+        "Instructor Applicants",
+        "Network Instructor Applicants",
+        "Network Applicants",
       ],
       dashboardBadgeKey: "instructor_applicants",
     },
     {
       href: "/admin/instructor-applicants/chair-settings",
       label: "Chair Assignment",
-      icon: "ðŸª‘",
+      icon: "🪑",
       roles: ADMIN_ONLY,
       dashboardDescription:
-        "Assign the active Chair â€” the one person who can make final applicant decisions.",
+        "Assign the active Chair — the one person who can make final applicant decisions.",
       searchAliases: [
         "Chair Assignment",
         "Active Chair",
@@ -1611,25 +1628,25 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/admin/form-templates",
       label: "Form Templates",
-      icon: "ðŸ“",
+      icon: "📝",
       roles: ADMIN_ONLY,
     },
     {
       href: "/admin/application-cohorts",
       label: "Application Cohorts",
-      icon: "ðŸ‘¥",
+      icon: "👥",
       roles: ADMIN_ONLY,
     },
     {
       href: "/admin/parent-feedback",
       label: "Parent Feedback",
-      icon: "ðŸ’¬",
+      icon: "💬",
       roles: ADMIN_ONLY,
     },
     {
       href: "/admin/instructor-review-questions",
       label: "Mentorship review questions",
-      icon: "â“",
+      icon: "❓",
       roles: ADMIN_ONLY,
       searchAliases: [
         "Mentorship review questions",
@@ -1644,7 +1661,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/admin/instructor-readiness",
       label: "Network Readiness",
-      icon: "âœ…",
+      icon: "✅",
       roles: ADMIN_ONLY,
       dashboardDescription: "Resolve training, interview, and teaching-level readiness across all chapters.",
       dashboardPriority: 5,
@@ -1654,12 +1671,12 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/admin/portal-rollout",
       label: "Rollout Command",
-      icon: "ðŸ—“",
+      icon: "🗓",
       roles: ADMIN_ONLY,
       dashboardDescription: "Track launch timeline, ownership, and blockers.",
       dashboardPriority: 6,
     },
-    { href: "/admin/staff", label: "Staff Reflections", icon: "ðŸ“", roles: ADMIN_ONLY },
+    { href: "/admin/staff", label: "Staff Reflections", icon: "📝", roles: ADMIN_ONLY },
     {
       // Legacy Position-based hiring pipeline (Application/Decision models).
       // Distinct from the modern InstructorApplication board at
@@ -1667,7 +1684,7 @@ export const NAV_CATALOG: NavLink[] = [
       // who saw two "Applications" entries side-by-side.
       href: "/admin/applications",
       label: "Position Applications (Legacy)",
-      icon: "ðŸ“‹",
+      icon: "📋",
       roles: ADMIN_ONLY,
       dashboardDescription: "Legacy position-based hiring pipeline. Modern instructor applications live in Network Applicants.",
       dashboardPriority: 3,
@@ -1677,7 +1694,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/admin/recruiting",
       label: "Recruiting Center",
-      icon: "ðŸ§‘â€ðŸ’¼",
+      icon: "🧑‍💼",
       roles: ADMIN_ONLY,
       dashboardDescription: "Create chapter openings and monitor interview/decision flow.",
       dashboardPriority: 4,
@@ -1686,32 +1703,32 @@ export const NAV_CATALOG: NavLink[] = [
   ]),
 
   ...groupLinks("Admin Content", 1200, [
-    { href: "/admin/announcements", label: "Manage Updates", icon: "ðŸ“¢", roles: ADMIN_ONLY },
-    { href: "/admin/rollout-comms", label: "Rollout Comms", icon: "âœ‰ï¸", roles: ADMIN_ONLY },
-    { href: "/admin/programs", label: "Manage Programs", icon: "ðŸ“¦", roles: ADMIN_ONLY },
+    { href: "/admin/announcements", label: "Manage Updates", icon: "📢", roles: ADMIN_ONLY },
+    { href: "/admin/rollout-comms", label: "Rollout Comms", icon: "✉️", roles: ADMIN_ONLY },
+    { href: "/admin/programs", label: "Manage Programs", icon: "📦", roles: ADMIN_ONLY },
     {
       href: "/admin/classes",
       label: "Class Operations",
-      icon: "ðŸ«",
+      icon: "🏫",
       roles: ADMIN_ONLY,
       coreEligible: false,
       dashboardDescription: "Manage class offerings, sections, rosters, and scheduling across the network.",
       searchAliases: ["Classes", "Sections", "Class management", "Class operations"],
     },
-    { href: "/admin/training", label: "Training Modules", icon: "ðŸ«", roles: ADMIN_ONLY },
-    // /admin/goals removed from nav â€” it manages the deprecated pre-G&R goals
+    { href: "/admin/training", label: "Training Modules", icon: "🏫", roles: ADMIN_ONLY },
+    // /admin/goals removed from nav — it manages the deprecated pre-G&R goals
     // stack, now dark by default (isLegacyGoalsAdminEnabled). Instructor/
     // officer goal admin lives in the Mentorship cockpit's Goals tab.
-    // /admin/reflection-forms removed â€” the legacy form builder now redirects
+    // /admin/reflection-forms removed — the legacy form builder now redirects
     // to the read-only /admin/reflections archive.
-    { href: "/admin/challenges", label: "Challenges Mgmt", icon: "âš¡", roles: ["ADMIN", "INSTRUCTOR", "CHAPTER_PRESIDENT"] },
-    { href: "/admin/activities", label: "Activities Mgmt", icon: "ðŸ§­", roles: ["ADMIN", "INSTRUCTOR", "CHAPTER_PRESIDENT"] },
-    { href: "/admin/passions", label: "Passion Areas", icon: "ðŸŒ", roles: ["ADMIN", "INSTRUCTOR", "CHAPTER_PRESIDENT"] },
-    { href: "/admin/incubator", label: "Incubator Mgmt", icon: "ðŸš€", roles: ["ADMIN", "INSTRUCTOR", "CHAPTER_PRESIDENT"] },
+    { href: "/admin/challenges", label: "Challenges Mgmt", icon: "⚡", roles: ["ADMIN", "INSTRUCTOR", "CHAPTER_PRESIDENT"] },
+    { href: "/admin/activities", label: "Activities Mgmt", icon: "🧭", roles: ["ADMIN", "INSTRUCTOR", "CHAPTER_PRESIDENT"] },
+    { href: "/admin/passions", label: "Passion Areas", icon: "🌍", roles: ["ADMIN", "INSTRUCTOR", "CHAPTER_PRESIDENT"] },
+    { href: "/admin/incubator", label: "Incubator Mgmt", icon: "🚀", roles: ["ADMIN", "INSTRUCTOR", "CHAPTER_PRESIDENT"] },
     {
       href: "/admin/curricula",
       label: "Curriculum Review",
-      icon: "ðŸ“",
+      icon: "📝",
       roles: ["ADMIN", "CHAPTER_PRESIDENT"] as NavRole[],
       dashboardDescription: "Review and approve instructor-submitted curricula before they go live.",
       dashboardPriority: 8,
@@ -1720,7 +1737,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/admin/course-library",
       label: "Course Library",
-      icon: "ðŸ“š",
+      icon: "📚",
       roles: ADMIN_ONLY,
       dashboardDescription:
         "Curate the courses instructors pick from instead of building from scratch.",
@@ -1729,7 +1746,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/admin/workshop-library",
       label: "Workshop Library",
-      icon: "ðŸŽ’",
+      icon: "🎒",
       roles: ADMIN_ONLY,
       dashboardDescription: "Curate the workshops Summer Workshop applicants can pick from.",
       dashboardPriority: 9,
@@ -1737,7 +1754,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/admin/workshop-reviews",
       label: "Workshop Reviews",
-      icon: "ðŸ§",
+      icon: "🧐",
       roles: ["ADMIN", "CHAPTER_PRESIDENT"] as NavRole[],
       dashboardDescription: "Score Summer Workshop Instructor proposals and committed decisions.",
       dashboardPriority: 9,
@@ -1745,7 +1762,7 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/admin/opportunities",
       label: "Workshop & Camp Assignments",
-      icon: "ðŸŽ¯",
+      icon: "🎯",
       roles: ADMIN_ONLY,
       dashboardDescription: "Manage partner camps and workshops, see uncovered slots, and assign instructors.",
       dashboardPriority: 9,
@@ -1761,7 +1778,7 @@ export const NAV_CATALOG: NavLink[] = [
       // "Partners" is the master database at /partners now; this is the
       // admin CRUD/pipeline tool (renamed to keep visible labels unique).
       label: "Partner Admin",
-      icon: "ðŸ¤",
+      icon: "🤝",
       roles: ADMIN_ONLY,
       dashboardDescription: "Add/edit partners, move pipeline stages, and run the partnership report.",
       dashboardPriority: 9,
@@ -1773,34 +1790,34 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/admin/analytics",
       label: "Analytics",
-      icon: "ðŸ“ˆ",
+      icon: "📈",
       roles: ADMIN_ONLY,
       dashboardDescription: "Monitor usage, outcomes, and platform health.",
       dashboardPriority: 22,
     },
-    { href: "/admin/chapter-reports", label: "Chapter Reports", icon: "ðŸ“Š", roles: ADMIN_ONLY },
-    { href: "/admin/pathway-tracking", label: "Pathway Tracking", icon: "ðŸ›¤", roles: ADMIN_ONLY },
-    { href: "/admin/pathways", label: "Manage Pathways", icon: "ðŸ—º", roles: ADMIN_ONLY },
-    { href: "/admin/audit-log", label: "Audit Log", icon: "ðŸ—’", roles: ADMIN_ONLY },
-    { href: "/admin/governance", label: "Governance & Risk", icon: "ðŸ›¡", roles: ADMIN_ONLY },
-    { href: "/admin/role-matrix", label: "Role Matrix Audit", icon: "ðŸ‘¥", roles: ADMIN_ONLY },
-    { href: "/admin/volunteer-hours", label: "Volunteer Hours", icon: "â°", roles: ADMIN_ONLY },
-    { href: "/admin/export", label: "Data Export", icon: "ðŸ“¥", roles: ADMIN_ONLY },
-    { href: "/admin/data-export", label: "Export Tools", icon: "ðŸ’¾", roles: ADMIN_ONLY },
+    { href: "/admin/chapter-reports", label: "Chapter Reports", icon: "📊", roles: ADMIN_ONLY },
+    { href: "/admin/pathway-tracking", label: "Pathway Tracking", icon: "🛤", roles: ADMIN_ONLY },
+    { href: "/admin/pathways", label: "Manage Pathways", icon: "🗺", roles: ADMIN_ONLY },
+    { href: "/admin/audit-log", label: "Audit Log", icon: "🗒", roles: ADMIN_ONLY },
+    { href: "/admin/governance", label: "Governance & Risk", icon: "🛡", roles: ADMIN_ONLY },
+    { href: "/admin/role-matrix", label: "Role Matrix Audit", icon: "👥", roles: ADMIN_ONLY },
+    { href: "/admin/volunteer-hours", label: "Volunteer Hours", icon: "⏰", roles: ADMIN_ONLY },
+    { href: "/admin/export", label: "Data Export", icon: "📥", roles: ADMIN_ONLY },
+    { href: "/admin/data-export", label: "Export Tools", icon: "💾", roles: ADMIN_ONLY },
   ]),
 
   ...groupLinks("Admin Operations", 1400, [
     {
       href: "/admin/feature-gates",
       label: "Feature Access",
-      icon: "ðŸ”‘",
+      icon: "🔑",
       roles: ADMIN_ONLY,
       dashboardDescription: "Grant or revoke per-user feature access (e.g., optional modules, Teaching Tools).",
     },
     {
       href: "/admin/hiring-committee",
       label: "Hiring Chair Queue",
-      icon: "âœ…",
+      icon: "✅",
       roles: ADMIN_ONLY,
       dashboardDescription: "Approve or return hiring decisions before they are finalized.",
       dashboardBadgeKey: "pending_hiring_decisions",
@@ -1808,17 +1825,17 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/admin/waitlist",
       label: "Waitlist",
-      icon: "â³",
+      icon: "⏳",
       roles: ADMIN_ONLY,
       dashboardDescription: "Process waitlist entries and enrollment offers.",
       dashboardPriority: 6,
       dashboardBadgeKey: "waitlist_waiting",
     },
-    { href: "/admin/reminders", label: "Reminders", icon: "ðŸ””", roles: ADMIN_ONLY },
+    { href: "/admin/reminders", label: "Reminders", icon: "🔔", roles: ADMIN_ONLY },
     {
       href: "/admin/email-templates",
       label: "Email Templates",
-      icon: "âœ‰ï¸",
+      icon: "✉️",
       roles: ADMIN_ONLY,
       dashboardDescription: "Customize the subject and body of automated portal emails.",
       searchAliases: ["Email Templates", "Edit Emails", "Email Copy"],
@@ -1826,34 +1843,34 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/admin/emergency-broadcast",
       label: "Emergency Broadcast",
-      icon: "ðŸš¨",
+      icon: "🚨",
       roles: ADMIN_ONLY,
     },
-    // "Mentorship Ops" (/admin/mentorship) folded into the unified hub â€” the
+    // "Mentorship Ops" (/admin/mentorship) folded into the unified hub — the
     // eight-tab cockpit now renders at /mentorship?view=admin and the old URL
     // redirects there. Its search aliases moved onto the /mentorship entry.
-    { href: "/admin/alumni", label: "Manage Alumni", icon: "ðŸŽ“", roles: ADMIN_ONLY },
-    { href: "/admin/unlock-approvals", label: "Unlock Approvals", icon: "ðŸ”“", roles: ADMIN_ONLY, dashboardDescription: "Review and approve section unlock recommendations from mentors." },
+    { href: "/admin/alumni", label: "Manage Alumni", icon: "🎓", roles: ADMIN_ONLY },
+    { href: "/admin/unlock-approvals", label: "Unlock Approvals", icon: "🔓", roles: ADMIN_ONLY, dashboardDescription: "Review and approve section unlock recommendations from mentors." },
     {
       href: "/workflows",
       label: "Workflows",
-      icon: "âš™ï¸",
+      icon: "⚙️",
       roles: OFFICER_ROLES,
       searchAliases: ["Workflow Engine", "Processes", "MissionOS", "Workflow Runner"],
-      dashboardDescription: "Run any business process as a reusable workflow â€” hiring, onboarding, launches, and more.",
+      dashboardDescription: "Run any business process as a reusable workflow — hiring, onboarding, launches, and more.",
       coreEligible: false,
     },
     {
       href: "/admin/workflow-templates",
       label: "Workflow Templates",
-      icon: "ðŸ§©",
+      icon: "🧩",
       roles: ADMIN_ONLY,
       searchAliases: ["Workflow Builder", "Process Templates", "Workflow Blueprints"],
       dashboardDescription: "Design reusable workflow templates with stages, steps, automation, and exit criteria.",
       coreEligible: false,
     },
     // The legacy "Action Center" sidebar entry was retired in the Phase 5
-    // consolidation â€” the People Strategy Action Tracker (/actions/*) is now the
+    // consolidation — the People Strategy Action Tracker (/actions/*) is now the
     // single canonical surface. The old /admin/action-center pages remain
     // reachable by direct URL until the leadership data is migrated across (see
     // scripts/migrate-leadership-action-items.ts).

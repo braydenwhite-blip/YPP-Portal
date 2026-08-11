@@ -254,6 +254,7 @@ export async function createUser(formData: FormData): Promise<CreateUserResult> 
       console.warn("[Admin] Person search sync failed after create:", err);
     });
     revalidatePath("/admin");
+    revalidatePath("/admin/users");
     revalidatePath("/people");
 
     return { ok: true, id: newUser.id };

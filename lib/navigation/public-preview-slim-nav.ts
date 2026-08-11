@@ -37,6 +37,7 @@ const PUBLIC_GATE_NAV_HREFS = [
 
 /** Hiring surfaces already published on the public gate for officer-tier users. */
 const OFFICER_PUBLISHED_HIRING_HREFS = [
+  "/admin/applicants",
   "/admin/instructor-applicants",
   "/admin/external-applicants",
 ] as const;

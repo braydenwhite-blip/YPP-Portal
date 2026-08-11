@@ -2,8 +2,8 @@
 
 /**
  * Leadership / hiring sidebar — shipped default.
- * Home · Mentorship · Actions · Applicants
- * Admins also get Users (/admin) so account management stays one click away.
+ * Home · Mentorship · Actions · Applicants (role-specific board)
+ * Admins only: Applicants (`/admin/applicants`) + Users (`/admin/users`).
  * Chapter Presidents get their own fixed 4-page set instead.
  * (Hiring Chair keeps People/directory instead of Mentorship.)
  *
@@ -24,28 +24,30 @@ const MENTORSHIP_SIMPLE_NAV_ROLES: ReadonlySet<NavRole> = new Set<NavRole>([
   "CHAPTER_PRESIDENT",
 ]);
 
+/** Admin-only network applicants front door. */
+const ADMIN_APPLICANTS = "/admin/applicants";
+/** Staff / hiring-chair board (same underlying page, different nav entry). */
 const NETWORK_APPLICANTS = "/admin/instructor-applicants";
 const CHAPTER_APPLICANTS = "/chapter-lead/instructor-applicants";
-const ADMIN_USERS = "/admin";
+const ADMIN_USERS = "/admin/users";
 
 /** Core pins when the full leadership explorer is on (pre-simple-nav IA). */
 export const LEADERSHIP_FULL_CORE_NAV_MAP: Partial<Record<NavRole, string[]>> = {
-  ADMIN: ["/", "/mentorship", "/actions", "/admin"],
+  ADMIN: ["/", "/mentorship", "/actions", ADMIN_APPLICANTS, ADMIN_USERS],
   STAFF: ["/", "/mentorship", "/actions", "/leadership-pathway"],
-  HIRING_CHAIR: ["/", "/admin/instructor-applicants", "/people", "/actions", "/meetings"],
+  HIRING_CHAIR: ["/", NETWORK_APPLICANTS, "/people", "/actions", "/meetings"],
   CHAPTER_PRESIDENT: ["/chapter", "/chapter/onboarding", "/chapter/resources", "/chapter/recruiting"],
 };
 
 export function leadershipSimpleNavHrefs(primaryRole: NavRole): readonly string[] {
+  if (primaryRole === "ADMIN") {
+    return ["/", "/mentorship", "/actions", ADMIN_APPLICANTS, ADMIN_USERS];
+  }
   if (primaryRole === "CHAPTER_PRESIDENT") {
     return ["/chapter", "/chapter/onboarding", "/chapter/resources", "/chapter/recruiting"];
   }
   const applicants =
     primaryRole === "CHAPTER_PRESIDENT" ? CHAPTER_APPLICANTS : NETWORK_APPLICANTS;
-  if (primaryRole === "ADMIN") {
-    // Admin-only users hub — keep it in Top Tools, not buried.
-    return ["/", "/mentorship", "/actions", ADMIN_USERS];
-  }
   if (MENTORSHIP_SIMPLE_NAV_ROLES.has(primaryRole)) {
     return ["/", "/mentorship", "/actions", applicants];
   }

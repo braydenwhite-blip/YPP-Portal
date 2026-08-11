@@ -407,7 +407,7 @@ function hiringDemoHrefsForRole(primaryRole: NavRole): string[] | null {
     return ["/application-status"];
   }
   if (primaryRole === "ADMIN") {
-    return ["/admin/instructor-applicants"];
+    return ["/admin/applicants"];
   }
   if (primaryRole === "CHAPTER_PRESIDENT") {
     return ["/chapter-lead/instructor-applicants"];

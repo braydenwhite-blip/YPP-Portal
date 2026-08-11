@@ -38,7 +38,9 @@ const ADMIN_SEGMENT_DOMAIN: Record<string, AdminRouteDomain> = {
   training: "UNIVERSAL",
   "bulk-users": "UNIVERSAL",
   reflections: "UNIVERSAL",
-  // Unified applicants board — every admin needs this front door.
+  // Users hub + applicants board — every admin needs these front doors.
+  users: "UNIVERSAL",
+  applicants: "UNIVERSAL",
   "instructor-applicants": "UNIVERSAL",
 
   // Baseline — cross-cutting tools shared by every admin with a subtype.
@@ -145,9 +147,9 @@ export function resolveAdminRouteDomain(pathname: string): AdminRouteDomain | nu
   if (path !== "/admin" && !path.startsWith("/admin/")) {
     return null;
   }
-  // The /admin landing (Knowledge OS V2 admin home) is universal — every
-  // admin lands there and sees only the domains their subtypes can reach.
-  if (path === "/admin") {
+  // The /admin and /admin/users landings are universal — every admin can
+  // reach account management and sees only domains their subtypes unlock.
+  if (path === "/admin" || path === "/admin/users") {
     return "UNIVERSAL";
   }
 

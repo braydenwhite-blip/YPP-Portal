@@ -107,7 +107,9 @@ const SIDEBAR_BY_HREF: Record<string, { group: NavGroup; label: string; icon: st
   "/actions/responsibility": { group: "Actions", label: "Responsibility Map", icon: "🗺️" },
 
   // Applicants — application review workflows.
+  "/admin/applicants": { group: "Applicants", label: "Applicants", icon: "📝" },
   "/admin/instructor-applicants": { group: "Applicants", label: "Applicants", icon: "📝" },
+  "/admin/users": { group: "Admin", label: "Users", icon: "🛠" },
   "/interviews": { group: "Applicants", label: "Interviews", icon: "🎤" },
   "/positions": { group: "Applicants", label: "Open Positions", icon: "📌" },
 
@@ -121,7 +123,7 @@ const SIDEBAR_BY_HREF: Record<string, { group: NavGroup; label: string; icon: st
   "/admin/chapter-reports": { group: "Chapters", label: "Chapter Reports", icon: "📊" },
 
   // Admin — true configuration & utilities.
-  "/admin": { group: "Admin", label: "Admin", icon: "🛠" },
+  "/admin": { group: "Admin", label: "Users", icon: "🛠" },
   "/admin/analytics": { group: "Admin", label: "Analytics", icon: "📈" },
   "/help-agent": { group: "Admin", label: "Help Agent", icon: "🔎" },
   "/announcements": { group: "Admin", label: "Updates", icon: "📢" },
@@ -159,7 +161,7 @@ export const OFFICER_SIDEBAR_LINK_ORDER: string[] = [
   "/actions/all",
   "/actions/responsibility",
   // Applicants
-  "/admin/instructor-applicants",
+  "/admin/applicants",
   "/interviews",
   "/positions",
   // Partners
@@ -170,7 +172,8 @@ export const OFFICER_SIDEBAR_LINK_ORDER: string[] = [
   "/admin/chapters",
   "/admin/chapter-reports",
   // Admin
-  "/admin",
+  "/admin/applicants",
+  "/admin/users",
   "/admin/analytics",
   "/help-agent",
   "/announcements",

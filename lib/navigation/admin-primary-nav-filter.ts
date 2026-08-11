@@ -20,6 +20,8 @@ const ADMIN_PRIMARY_GROUP_KEEP_HREFS = new Set<string>([
   "/admin/training",
   // People
   "/admin/instructors",
+  "/admin/users",
+  "/admin/applicants",
   "/admin/instructor-applicants",
   "/admin/students",
   "/admin/leadership",
@@ -28,8 +30,6 @@ const ADMIN_PRIMARY_GROUP_KEEP_HREFS = new Set<string>([
   "/admin/classes",
   "/admin/programs",
   "/admin/curricula",
-  // Applicants (instructor + CP on one board)
-  "/admin/instructor-applicants",
   // Partners
   "/admin/partners",
   // Chapters

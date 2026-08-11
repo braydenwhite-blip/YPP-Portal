@@ -270,6 +270,14 @@ async function importOneCurriculum(prisma, curriculum, opts) {
       });
       counters.beatsSoftDeleted += orphanBeats.length;
     }
+  }, {
+    // Each curriculum can have dozens of beats, each upserted as its own
+    // round-trip query inside this interactive transaction. Prisma's default
+    // 5000ms timeout is too tight for that during `vercel-build` (cold/slow
+    // DB connections), so raise both the in-transaction work timeout and the
+    // time we're willing to wait to acquire a transaction slot.
+    timeout: 60_000,
+    maxWait: 10_000,
   });
 }
 
