@@ -13,6 +13,8 @@ const SIDEBAR_BY_HREF: Record<string, { group: NavGroup; label: string; icon: st
   "/": { group: "Start Here", label: "Home", icon: "🏠" },
   "/my-classes": { group: "Learning", label: "My classes", icon: "🎓" },
   "/my-classes/assignments": { group: "Learning", label: "Assignments", icon: "📝" },
+  "/my-classes/feedback": { group: "Learning", label: "Feedback", icon: "" },
+  "/my-classes/attendance": { group: "Learning", label: "Attendance", icon: "" },
   "/curriculum": { group: "Learning", label: "Browse classes", icon: "📖" },
   "/pathways": { group: "Learning", label: "Pathways", icon: "🗺" },
   "/my-growth": { group: "Progress", label: "My Growth", icon: "🌱" },
@@ -39,6 +41,8 @@ const SIDEBAR_BY_HREF: Record<string, { group: NavGroup; label: string; icon: st
 export const STUDENT_SIDEBAR_LINK_ORDER: string[] = [
   "/my-classes",
   "/my-classes/assignments",
+  "/my-classes/feedback",
+  "/my-classes/attendance",
   "/curriculum",
   "/pathways",
   "/student-training",

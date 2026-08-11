@@ -150,3 +150,22 @@ export async function toggleAnnouncementActive(formData: FormData) {
   revalidatePath("/admin/announcements");
   revalidatePath("/");
 }
+export async function getAnnouncementsForUser(userId: string, limit = 5) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { chapterId: true },
+  });
+
+  const now = new Date();
+
+  return prisma.announcement.findMany({
+    where: {
+      isActive: true,
+      targetRoles: { has: "STUDENT" },
+      OR: [{ chapterId: null }, { chapterId: user?.chapterId ?? undefined }],
+      AND: [{ OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] }],
+    },
+    orderBy: { publishedAt: "desc" },
+    take: limit,
+  });
+}

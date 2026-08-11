@@ -46,6 +46,12 @@ export default async function MyClassesPage({
           <Link href="/my-classes/assignments" className="button secondary">
             Assignments
           </Link>
+          <Link href="/my-classes/feedback" className="button secondary">
+            Feedback
+          </Link>
+          <Link href="/my-classes/attendance" className="button secondary">
+            Attendance
+          </Link>
           <Link href="/curriculum" className="button secondary">
             Browse classes
           </Link>

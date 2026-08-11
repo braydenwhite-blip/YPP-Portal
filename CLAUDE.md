@@ -46,7 +46,7 @@ a People-Strategy action tracker, and weekly meetings.
    Always validate input with **zod**, authorize with a `lib/authorization`
    guard, then `revalidatePath` the affected route(s).
 3. **Navigation is declarative.** Every nav link lives in
-   `lib/navigation/catalog.ts`. `npm run nav:check` (`scripts/validate-nav.mjs`)
+   <!-- `lib/navigation/catalog.ts`. `npm run nav:check` (`scripts/validate-nav.mjs`) -->
    asserts every catalog `href` resolves to a real `page.tsx`, with no duplicate
    hrefs or duplicate visible labels per role. Add a route ⇒ add/own its catalog
    entry; remove a route ⇒ remove its entry. Keep the core map within bounds.

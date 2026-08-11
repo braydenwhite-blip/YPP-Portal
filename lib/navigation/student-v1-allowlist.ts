@@ -1,7 +1,7 @@
 import type { NavRole } from "@/lib/navigation/types";
 
 /** Bump when the href set changes so dashboard cache partitions stay correct. */
-export const STUDENT_V1_ALLOWLIST_VERSION = "6";
+export const STUDENT_V1_ALLOWLIST_VERSION = "7";
 
 /**
  * Default student nav: classes, work, schedule, progress, chapter, account.
@@ -12,6 +12,8 @@ export const STUDENT_V1_ALLOWED_HREFS: ReadonlySet<string> = new Set([
   "/",
   "/my-classes",
   "/my-classes/assignments",
+  "/my-classes/feedback",
+  "/my-classes/attendance",
   "/curriculum",
   "/curriculum/schedule",
   "/calendar",
