@@ -452,11 +452,42 @@ function studentAssignmentsHubActive(
   return pathname.startsWith("/curriculum/") && pathname.includes("/assignments");
 }
 
+/** CP sidebar siblings that should NOT light up My Chapter (`/chapter/hub`). */
+const CHAPTER_PRESIDENT_NON_HUB_PREFIXES = [
+  "/chapter/instructors",
+  "/chapter/impact",
+] as const;
+
+/**
+ * When My Chapter is in the nav, other `/chapter/*` tools (members, invites,
+ * settings, calendar, …) belong to hub — not Dashboard. Classes / Recruiting /
+ * Analytics keep their own prefixes.
+ */
+function chapterHubOwnsPathname(
+  pathname: string,
+  candidateHrefs: readonly string[],
+): boolean {
+  if (!candidateHrefs.includes("/chapter/hub")) return false;
+  if (!pathname.startsWith("/chapter/")) return false;
+  if (pathname === "/chapter/hub" || pathname.startsWith("/chapter/hub/")) return false;
+  for (const prefix of CHAPTER_PRESIDENT_NON_HUB_PREFIXES) {
+    if (pathname === prefix || pathname.startsWith(`${prefix}/`)) return false;
+  }
+  return true;
+}
+
 function navHrefMatchesPathnameForActive(
   pathname: string,
   href: string,
   candidateHrefs: readonly string[],
 ): boolean {
+  // With My Chapter present, Dashboard must not claim every `/chapter/*` route.
+  if (href === "/chapter" && candidateHrefs.includes("/chapter/hub")) {
+    return pathname === "/chapter";
+  }
+  if (href === "/chapter/hub" && chapterHubOwnsPathname(pathname, candidateHrefs)) {
+    return true;
+  }
   if (pathMatchesHref(pathname, href)) return true;
   if (href === "/actions" && pathname.startsWith("/actions")) {
     return true;

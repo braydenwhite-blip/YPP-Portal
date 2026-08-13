@@ -1,12 +1,14 @@
 import { prisma } from "@/lib/prisma";
 
 /**
- * Chapters currently open for hiring / applicant signup.
+ * Chapters currently open for hiring / applicant signup / analytics.
  * Keep this list in sync with real operating chapters (not historical rows).
  */
 export const OPERATING_CHAPTERS = [
   { name: "The Bronx", city: "Bronx", region: "Northeast" },
   { name: "Scarsdale", city: "Scarsdale", region: "Northeast" },
+  { name: "Lower Manhattan", city: "New York", region: "Northeast" },
+  { name: "Brooklyn Bay Ridge", city: "Brooklyn", region: "Northeast" },
 ] as const;
 
 export const OPERATING_CHAPTER_NAMES = OPERATING_CHAPTERS.map((c) => c.name);
@@ -22,6 +24,22 @@ export const CHAPTER_REQUIRED_ROLES = [
   "PARENT",
 ] as const;
 
+/** Alternate DB names we treat as the same operating chapter (avoid duplicates). */
+function nameAliases(name: OperatingChapterName): string[] {
+  switch (name) {
+    case "The Bronx":
+      return ["The Bronx", "Bronx"];
+    case "Scarsdale":
+      return ["Scarsdale"];
+    case "Lower Manhattan":
+      return ["Lower Manhattan", "Manhattan"];
+    case "Brooklyn Bay Ridge":
+      return ["Brooklyn Bay Ridge", "Bay Ridge", "Brooklyn"];
+    default:
+      return [name];
+  }
+}
+
 /**
  * Idempotent: create any missing operating chapter and make sure it is public
  * and unarchived so it appears in filters and applicant dropdowns.
@@ -32,15 +50,12 @@ export async function ensureOperatingChapters(): Promise<
   const results: Array<{ id: string; name: string; isPublic: boolean }> = [];
 
   for (const chapter of OPERATING_CHAPTERS) {
+    const aliases = nameAliases(chapter.name);
     const existing = await prisma.chapter.findFirst({
       where: {
-        OR: [
-          { name: chapter.name },
-          // Accept a short name variant so we don't create a duplicate.
-          ...(chapter.name === "The Bronx" ? [{ name: "Bronx" }] : []),
-        ],
+        OR: aliases.map((name) => ({ name })),
       },
-      select: { id: true, name: true, isPublic: true, archivedAt: true },
+      select: { id: true, name: true, isPublic: true, archivedAt: true, lifecycleStatus: true },
     });
 
     if (!existing) {
@@ -61,7 +76,8 @@ export async function ensureOperatingChapters(): Promise<
     const needsRepair =
       !existing.isPublic ||
       existing.archivedAt != null ||
-      existing.name !== chapter.name;
+      existing.name !== chapter.name ||
+      existing.lifecycleStatus === "PROSPECT";
 
     if (needsRepair) {
       const updated = await prisma.chapter.update({
@@ -73,6 +89,7 @@ export async function ensureOperatingChapters(): Promise<
           isPublic: true,
           archivedAt: null,
           archivedById: null,
+          lifecycleStatus: "ACTIVE",
         },
         select: { id: true, name: true, isPublic: true },
       });
@@ -104,7 +121,7 @@ export async function listOperatingChaptersForFilters(): Promise<
   });
 }
 
-/** Infer Bronx vs Scarsdale from free text / legacy chapter names. */
+/** Infer an operating chapter from free text / legacy chapter names. */
 export function inferOperatingChapterName(
   hint: string | null | undefined
 ): OperatingChapterName | null {
@@ -121,6 +138,23 @@ export function inferOperatingChapterName(
   if (normalized === "scarsdale" || normalized.includes("scarsdale")) {
     return "Scarsdale";
   }
+  if (
+    normalized === "lower manhattan" ||
+    normalized === "manhattan" ||
+    normalized.includes("lower manhattan") ||
+    (normalized.includes("manhattan") && !normalized.includes("upper"))
+  ) {
+    return "Lower Manhattan";
+  }
+  if (
+    normalized === "brooklyn bay ridge" ||
+    normalized === "bay ridge" ||
+    normalized.includes("bay ridge") ||
+    normalized === "brooklyn" ||
+    normalized.includes("brooklyn")
+  ) {
+    return "Brooklyn Bay Ridge";
+  }
   return null;
 }
 
@@ -136,15 +170,17 @@ export async function requireOperatingChapterId(
     if (opts?.allowNull) return null;
     throw new Error(
       opts?.label
-        ? `${opts.label} requires The Bronx or Scarsdale.`
-        : "Chapter must be The Bronx or Scarsdale."
+        ? `${opts.label} requires an operating chapter.`
+        : "Chapter must be an operating chapter."
     );
   }
 
   const operating = await ensureOperatingChapters();
   const match = operating.find((c) => c.id === chapterId);
   if (!match) {
-    throw new Error("Only The Bronx and Scarsdale are valid chapters.");
+    throw new Error(
+      `Only ${OPERATING_CHAPTER_NAMES.join(", ")} are valid chapters.`
+    );
   }
   return match.id;
 }
@@ -160,7 +196,7 @@ export type UserChapterRepairRow = {
 };
 
 /**
- * Remap users off archived / non-operating chapters onto Bronx or Scarsdale.
+ * Remap users off archived / non-operating chapters onto an operating chapter.
  * Also assigns a default operating chapter when a chapter-required role has null.
  * Leaves ADMIN / STAFF / HIRING_CHAIR / APPLICANT null alone (network-wide OK).
  */

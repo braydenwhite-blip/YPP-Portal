@@ -4,8 +4,10 @@
  * Leadership / hiring sidebar — shipped default.
  * Home · Mentorship · Actions · Applicants (role-specific board)
  * Admins only: Applicants (`/admin/applicants`) + Users (`/admin/users`).
- * Chapter Presidents get their own fixed 4-page set instead.
- * (Hiring Chair keeps People/directory instead of Mentorship.)
+ * Chapter Presidents get their own fixed set:
+ * Dashboard · My Chapter · Classes · Analytics · Mentorship.
+ * (Recruiting is reached from My Chapter. Hiring Chair keeps People/directory
+ * instead of Mentorship.)
  *
  * Set `LEADERSHIP_FULL_PORTAL_EXPLORER=true` locally to unlock the full
  * officer / chapter-president catalog for testing.
@@ -36,7 +38,13 @@ export const LEADERSHIP_FULL_CORE_NAV_MAP: Partial<Record<NavRole, string[]>> = 
   ADMIN: ["/", "/mentorship", "/actions", ADMIN_APPLICANTS, ADMIN_USERS],
   STAFF: ["/", "/mentorship", "/actions", "/leadership-pathway"],
   HIRING_CHAIR: ["/", NETWORK_APPLICANTS, "/people", "/actions", "/meetings"],
-  CHAPTER_PRESIDENT: ["/chapter", "/chapter/onboarding", "/chapter/resources", "/chapter/recruiting"],
+  CHAPTER_PRESIDENT: [
+    "/chapter",
+    "/chapter/hub",
+    "/chapter/instructors",
+    "/chapter/impact",
+    "/mentorship",
+  ],
 };
 
 export function leadershipSimpleNavHrefs(primaryRole: NavRole): readonly string[] {
@@ -44,7 +52,13 @@ export function leadershipSimpleNavHrefs(primaryRole: NavRole): readonly string[
     return ["/", "/mentorship", "/actions", ADMIN_APPLICANTS, ADMIN_USERS];
   }
   if (primaryRole === "CHAPTER_PRESIDENT") {
-    return ["/chapter", "/chapter/onboarding", "/chapter/resources", "/chapter/recruiting"];
+    return [
+      "/chapter",
+      "/chapter/hub",
+      "/chapter/instructors",
+      "/chapter/impact",
+      "/mentorship",
+    ];
   }
   const applicants =
     primaryRole === "CHAPTER_PRESIDENT" ? CHAPTER_APPLICANTS : NETWORK_APPLICANTS;

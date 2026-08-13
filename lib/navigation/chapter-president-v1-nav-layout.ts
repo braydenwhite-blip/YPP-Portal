@@ -4,19 +4,20 @@ import { isLeadershipFullPortalExplorerEnabled } from "@/lib/navigation/leadersh
 /**
  * Chapter President navigation.
  *
- * Shipped: Dashboard Â· Onboarding Â· Chapter Goals & Resources Â· Recruiting
- * (the 4 approved CP Portal pages).
+ * Shipped: Dashboard · My Chapter · Classes · Analytics · Mentorship.
+ * Recruiting lives under My Chapter (not a sidebar pin).
  *
- * Full explorer (`LEADERSHIP_FULL_PORTAL_EXPLORER=true`): chapter ops + People Â·
- * Programs Â· Actions sections for local testing.
+ * Full explorer (`LEADERSHIP_FULL_PORTAL_EXPLORER=true`): chapter ops + People ·
+ * Programs · Actions sections for local testing.
  */
 
-/** Shipped CP sidebar — the 4 approved pages only. */
+/** Shipped CP sidebar — president operating set. */
 export const CHAPTER_PRESIDENT_SIMPLE_ALLOWED_HREFS: ReadonlySet<string> = new Set([
   "/chapter",
-  "/chapter/onboarding",
-  "/chapter/resources",
-  "/chapter/recruiting",
+  "/chapter/hub",
+  "/chapter/instructors",
+  "/mentorship",
+  "/chapter/impact",
 ]);
 
 /** Full CP sidebar used when the leadership explorer flag is on. */
@@ -24,6 +25,7 @@ export const CHAPTER_PRESIDENT_FULL_ALLOWED_HREFS: ReadonlySet<string> = new Set
   "/",
   "/chapter",
   // Chapter operations
+  "/chapter/hub",
   "/chapter/members",
   "/chapter/students",
   "/chapter/instructors",
@@ -31,6 +33,7 @@ export const CHAPTER_PRESIDENT_FULL_ALLOWED_HREFS: ReadonlySet<string> = new Set
   "/chapter/channels",
   "/chapter/updates",
   "/chapter/recruiting",
+  "/chapter/impact",
   "/chapter-lead/instructor-applicants",
   "/chapter-lead/instructor-readiness",
   "/chapter/student-intake",
@@ -68,22 +71,26 @@ export function chapterPresidentAllowedHrefs(
     : CHAPTER_PRESIDENT_SIMPLE_ALLOWED_HREFS;
 }
 
-/** Section labels shown on each sidebar group header. No emoji per Portal Rules. */
-export const CHAPTER_PRESIDENT_MINIMAL_GROUP_EMOJI: Partial<Record<NavGroup, string>> = {};
+/** Section emoji on each sidebar group header (minimal CP sidebar is a single group). */
+export const CHAPTER_PRESIDENT_MINIMAL_GROUP_EMOJI: Partial<Record<NavGroup, string>> = {
+  "Start Here": "✨",
+};
 
 const SIDEBAR_BY_HREF: Record<string, { group: NavGroup; label: string; icon: string }> = {
-  "/chapter": { group: "Start Here", label: "Dashboard", icon: "" },
-  "/chapter/onboarding": { group: "Start Here", label: "Onboarding", icon: "" },
-  "/chapter/resources": { group: "Start Here", label: "Chapter Goals & Resources", icon: "" },
-  "/chapter/recruiting": { group: "Start Here", label: "Recruiting", icon: "" },
+  "/chapter": { group: "Start Here", label: "Dashboard", icon: "🏠" },
+  "/chapter/hub": { group: "Start Here", label: "My Chapter", icon: "🗺" },
+  "/chapter/instructors": { group: "Start Here", label: "Classes", icon: "🎓" },
+  "/chapter/impact": { group: "Start Here", label: "Analytics", icon: "📊" },
+  "/mentorship": { group: "Start Here", label: "Mentorship", icon: "🤝" },
 };
 
 /** Order of links within the chapter-president sidebar (lower = earlier). */
 export const CHAPTER_PRESIDENT_SIDEBAR_LINK_ORDER: string[] = [
   "/chapter",
-  "/chapter/onboarding",
-  "/chapter/resources",
-  "/chapter/recruiting",
+  "/chapter/hub",
+  "/chapter/instructors",
+  "/chapter/impact",
+  "/mentorship",
 ];
 
 export function chapterPresidentMinimalLinkOrderIndex(href: string): number {

@@ -7,6 +7,37 @@ import { prisma } from "@/lib/prisma";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Chapter — Pathways Portal" };
 
+const DASHBOARD_LINKS = [
+  {
+    href: "/chapter/hub",
+    icon: "🗺",
+    title: "My Chapter",
+    body: "Members, recruiting, calendar, invites, and chapter settings.",
+    cta: "Open My Chapter",
+  },
+  {
+    href: "/chapter/instructors",
+    icon: "🎓",
+    title: "Classes",
+    body: "See instructors and open classroom dashboards for your chapter.",
+    cta: "Open Classes",
+  },
+  {
+    href: "/chapter/impact",
+    icon: "📊",
+    title: "Analytics",
+    body: "Track chapter impact and reporting for leadership.",
+    cta: "Open Analytics",
+  },
+  {
+    href: "/mentorship",
+    icon: "🤝",
+    title: "Mentorship",
+    body: "Goals, reviews, and coaching for your chapter’s people.",
+    cta: "Open Mentorship",
+  },
+] as const;
+
 export default async function ChapterHomePage() {
   const ctx = await getChapterViewerContext();
 
@@ -55,7 +86,8 @@ export default async function ChapterHomePage() {
     ? [onboarding.metTeam, onboarding.setChapterGoals, onboarding.reviewedResources, onboarding.introMessageSent]
     : [];
   const onboardingDone = onboardingSteps.filter(Boolean).length;
-  const onboardingComplete = onboarding?.status === "COMPLETED" || (onboardingSteps.length > 0 && onboardingSteps.every(Boolean));
+  const onboardingComplete =
+    onboarding?.status === "COMPLETED" || (onboardingSteps.length > 0 && onboardingSteps.every(Boolean));
   const showOnboardingBanner = onboarding != null && !onboardingComplete;
 
   return (
@@ -74,31 +106,20 @@ export default async function ChapterHomePage() {
         </div>
       )}
 
-      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <CardV2 padding="lg" as="li" className="list-none">
-          <h2 className="text-[15px] font-semibold text-ink">Onboarding</h2>
-          <p className="mt-1 text-[13px] text-ink-muted">Complete the setup steps for your chapter.</p>
-          <ButtonLink href="/chapter/onboarding" variant="secondary" size="sm" className="mt-4">
-            Go to Onboarding
-          </ButtonLink>
-        </CardV2>
-
-        <CardV2 padding="lg" as="li" className="list-none">
-          <h2 className="text-[15px] font-semibold text-ink">Chapter Goals & Resources</h2>
-          <p className="mt-1 text-[13px] text-ink-muted">Set chapter goals and review shared resources.</p>
-          <ButtonLink href="/chapter/resources" variant="secondary" size="sm" className="mt-4">
-            Go to Goals & Resources
-          </ButtonLink>
-        </CardV2>
-
-        <CardV2 padding="lg" as="li" className="list-none">
-          <h2 className="text-[15px] font-semibold text-ink">Recruiting</h2>
-          <p className="mt-1 text-[13px] text-ink-muted">Review applications and manage open positions.</p>
-          <ButtonLink href="/chapter/recruiting" variant="secondary" size="sm" className="mt-4">
-            Go to Recruiting
-          </ButtonLink>
-        </CardV2>
-      </div>
+      <ul className="mt-6 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3">
+        {DASHBOARD_LINKS.map((link) => (
+          <CardV2 key={link.href} padding="lg" as="li" className="list-none">
+            <p className="m-0 text-[22px] leading-none" aria-hidden>
+              {link.icon}
+            </p>
+            <h2 className="mt-3 text-[15px] font-semibold text-ink">{link.title}</h2>
+            <p className="mt-1 text-[13px] text-ink-muted">{link.body}</p>
+            <ButtonLink href={link.href} variant="secondary" size="sm" className="mt-4">
+              {link.cta}
+            </ButtonLink>
+          </CardV2>
+        ))}
+      </ul>
     </div>
   );
 }

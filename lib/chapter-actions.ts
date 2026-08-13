@@ -159,7 +159,7 @@ export async function getChapterInstructors() {
 
   return prisma.user.findMany({
     where: {
-      chapterId: isAdmin ? undefined : chapterId,
+      chapterId: isAdmin ? undefined : chapterId ?? "__none__",
       ...whereUserHasRole(RoleType.INSTRUCTOR),
     },
     include: {
@@ -168,6 +168,23 @@ export async function getChapterInstructors() {
         include: {
           enrollments: { select: { id: true } },
         },
+      },
+      classOfferingsInstructed: {
+        where: isAdmin || !chapterId ? undefined : { chapterId },
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          enrollmentOpen: true,
+          startDate: true,
+          endDate: true,
+          themeColor: true,
+          deliveryMode: true,
+          meetingDays: true,
+          meetingTime: true,
+          _count: { select: { enrollments: true } },
+        },
+        orderBy: { startDate: "desc" },
       },
       goals: {
         include: {

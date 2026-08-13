@@ -81,6 +81,26 @@ describe("resolveNavActiveHref", () => {
     ];
     expect(resolveNavActiveHref("/profile", candidates)).toBe("/profile");
   });
+
+  it("maps chapter members/settings to My Chapter, not Dashboard", () => {
+    const candidates = [
+      "/chapter",
+      "/chapter/hub",
+      "/chapter/instructors",
+      "/chapter/impact",
+      "/mentorship",
+    ];
+    expect(resolveNavActiveHref("/chapter", candidates)).toBe("/chapter");
+    expect(resolveNavActiveHref("/chapter/hub", candidates)).toBe("/chapter/hub");
+    expect(resolveNavActiveHref("/chapter/members", candidates)).toBe("/chapter/hub");
+    expect(resolveNavActiveHref("/chapter/invites", candidates)).toBe("/chapter/hub");
+    expect(resolveNavActiveHref("/chapter/settings", candidates)).toBe("/chapter/hub");
+    expect(resolveNavActiveHref("/chapter/recruiting", candidates)).toBe("/chapter/hub");
+    expect(resolveNavActiveHref("/chapter/instructors", candidates)).toBe(
+      "/chapter/instructors",
+    );
+    expect(resolveNavActiveHref("/chapter/impact", candidates)).toBe("/chapter/impact");
+  });
 });
 
 describe("resolveNavModel", () => {
@@ -662,31 +682,40 @@ describe("chapter-president section navigation", () => {
     });
   }
 
-  it("pins the chapter president 4-page set without Meetings", () => {
+  it("pins the chapter president sidebar for chapter ops", () => {
     const model = cpModel();
     const coreHrefs = model.core.map((item) => item.href);
     expect(coreHrefs).toEqual([
       "/chapter",
-      "/chapter/onboarding",
-      "/chapter/resources",
-      "/chapter/recruiting",
+      "/chapter/hub",
+      "/chapter/instructors",
+      "/chapter/impact",
+      "/mentorship",
     ]);
     expect(coreHrefs).not.toContain("/meetings");
+    expect(coreHrefs).not.toContain("/chapter/recruiting");
   });
 
-  it("gives chapter presidents Chapter, Onboarding, Resources, and Recruiting", () => {
+  it("gives chapter presidents Dashboard, My Chapter, Classes, Analytics, Mentorship", () => {
     const model = cpModel();
     const visibleHrefs = model.visible.map((item) => item.href);
     expect(visibleHrefs).toEqual([
       "/chapter",
-      "/chapter/onboarding",
-      "/chapter/resources",
-      "/chapter/recruiting",
+      "/chapter/hub",
+      "/chapter/instructors",
+      "/chapter/impact",
+      "/mentorship",
+    ]);
+    expect(model.visible.map((item) => item.label)).toEqual([
+      "Dashboard",
+      "My Chapter",
+      "Classes",
+      "Analytics",
+      "Mentorship",
     ]);
     expect(visibleHrefs).not.toContain("/meetings");
     expect(visibleHrefs).not.toContain("/");
-    expect(visibleHrefs).not.toContain("/work");
-    expect(visibleHrefs).not.toContain("/command-center");
+    expect(visibleHrefs).not.toContain("/chapter/recruiting");
     expect(model.more).toHaveLength(0);
   });
 });

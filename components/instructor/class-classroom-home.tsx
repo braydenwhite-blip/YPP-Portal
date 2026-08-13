@@ -105,6 +105,20 @@ type StreamClass = {
     studentId: string;
     studentName: string | null;
   }>;
+  instructor?: {
+    id: string;
+    name: string | null;
+    email?: string | null;
+  } | null;
+  regularInstructorAssignments?: Array<{
+    id: string;
+    role: string;
+    instructor: {
+      id: string;
+      name: string | null;
+      email?: string | null;
+    };
+  }>;
   assignments?: Array<{
     id: string;
     title: string;
@@ -142,6 +156,7 @@ export function ClassClassroomHome({
   const currentParents = (c.classParents ?? []).filter((p) =>
     currentStudentIds.has(p.studentId),
   );
+  const instructors = buildClassInstructors(c);
   const next = c.sessions.find(
     (s) => !s.isCancelled && new Date(s.date) >= now
   );
@@ -369,6 +384,34 @@ export function ClassClassroomHome({
             </div>
 
             <h3 className="m-0 mb-2 text-[13px] font-medium uppercase tracking-[0.06em] text-[#5f6368]">
+              Instructors ({instructors.length})
+            </h3>
+            {instructors.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-[#dadce0] bg-white px-4 py-6 text-center text-[14px] text-[#5f6368]">
+                No instructors listed yet.
+              </p>
+            ) : (
+              <ul className="m-0 mb-8 divide-y divide-[#e0e0e0] overflow-hidden rounded-xl border border-[#e0e0e0] bg-white p-0">
+                {instructors.map((person) => (
+                  <li key={person.id} className="flex items-center gap-3 px-4 py-3">
+                    <span
+                      aria-hidden
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#e6f4ea] text-[13px] font-medium text-[#137333]"
+                    >
+                      {initials(person.name)}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="m-0 truncate text-[14px] font-medium text-[#202124]">
+                        {person.name ?? "Instructor"}
+                      </p>
+                      <p className="m-0 text-[12px] text-[#5f6368]">{person.roleLabel}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <h3 className="m-0 mb-2 text-[13px] font-medium uppercase tracking-[0.06em] text-[#5f6368]">
               Students ({currentStudents.length})
             </h3>
             {currentStudents.length === 0 ? (
@@ -522,6 +565,62 @@ function initials(name: string | null | undefined) {
   if (parts.length === 0) return "?";
   if (parts.length === 1) return parts[0].slice(0, 1).toUpperCase();
   return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+}
+
+function instructorRoleLabel(role: string | null | undefined) {
+  switch (role) {
+    case "LEAD":
+      return "Lead instructor";
+    case "CO_INSTRUCTOR":
+      return "Co-instructor";
+    case "ASSISTANT":
+      return "Assistant";
+    case "BACKUP":
+      return "Backup instructor";
+    default:
+      return "Instructor";
+  }
+}
+
+function buildClassInstructors(c: StreamClass): Array<{
+  id: string;
+  name: string | null;
+  roleLabel: string;
+}> {
+  const byId = new Map<string, { id: string; name: string | null; roleLabel: string; rank: number }>();
+
+  const put = (id: string, name: string | null, role: string | null | undefined, rank: number) => {
+    const existing = byId.get(id);
+    if (existing && existing.rank <= rank) return;
+    byId.set(id, {
+      id,
+      name,
+      roleLabel: instructorRoleLabel(role),
+      rank,
+    });
+  };
+
+  if (c.instructor?.id) {
+    put(c.instructor.id, c.instructor.name, "LEAD", 0);
+  }
+
+  for (const assignment of c.regularInstructorAssignments ?? []) {
+    const person = assignment.instructor;
+    if (!person?.id) continue;
+    const rank =
+      assignment.role === "LEAD"
+        ? 0
+        : assignment.role === "CO_INSTRUCTOR"
+          ? 1
+          : assignment.role === "ASSISTANT"
+            ? 2
+            : 3;
+    put(person.id, person.name, assignment.role, rank);
+  }
+
+  return Array.from(byId.values())
+    .sort((a, b) => a.rank - b.rank || (a.name ?? "").localeCompare(b.name ?? ""))
+    .map(({ id, name, roleLabel }) => ({ id, name, roleLabel }));
 }
 
 function studentSubtitle(student: {

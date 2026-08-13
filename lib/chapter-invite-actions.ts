@@ -4,6 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import crypto from "crypto";
+import { z } from "zod";
+import { sendNotificationEmail } from "@/lib/email";
+import { getBaseUrl } from "@/lib/portal-auth-utils";
 
 // Cast for models not yet in generated Prisma client
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -15,6 +18,93 @@ const db = prisma as any;
 
 function generateInviteCode(): string {
   return crypto.randomBytes(4).toString("hex"); // 8 char hex code
+}
+
+const InviteMemberSchema = z.object({
+  name: z.string().trim().min(1, "Name is required").max(120),
+  email: z.string().trim().email("Enter a valid email").max(200),
+});
+
+/**
+ * Create a single-use invite and email it to someone by name + email.
+ */
+export async function inviteChapterMemberByEmail(input: unknown) {
+  const session = await getSession();
+  if (!session?.user?.id) throw new Error("Unauthorized");
+
+  const parsed = InviteMemberSchema.safeParse(input);
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues[0]?.message || "Invalid invite details");
+  }
+  const data = parsed.data;
+  const email = data.email.toLowerCase();
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    include: {
+      roles: true,
+      chapter: { select: { id: true, name: true } },
+    },
+  });
+
+  const isLead = user?.roles.some((r) => r.role === "CHAPTER_PRESIDENT" || r.role === "ADMIN");
+  if (!isLead || !user?.chapterId || !user.chapter) throw new Error("Unauthorized");
+
+  const existing = await prisma.user.findUnique({
+    where: { email },
+    select: { id: true, chapterId: true, name: true },
+  });
+
+  if (existing?.chapterId === user.chapterId) {
+    throw new Error(`${existing.name || email} is already in your chapter.`);
+  }
+
+  if (existing?.chapterId) {
+    throw new Error(`${existing.name || email} already belongs to another chapter.`);
+  }
+
+  const invite = await db.chapterInvite.create({
+    data: {
+      chapterId: user.chapterId,
+      createdById: user.id,
+      code: generateInviteCode(),
+      label: `Invite for ${data.name}`,
+      maxUses: 1,
+      expiresAt: (() => {
+        const d = new Date();
+        d.setDate(d.getDate() + 14);
+        return d;
+      })(),
+    },
+  });
+
+  const baseUrl = await getBaseUrl();
+  const inviteUrl = `${baseUrl}/invite/${invite.code}`;
+  const inviterName = user.name?.split(" ")[0] || "A chapter lead";
+
+  const emailResult = await sendNotificationEmail({
+    to: email,
+    name: data.name,
+    title: `You're invited to join ${user.chapter.name}`,
+    body: `${inviterName} invited you to join the ${user.chapter.name} chapter on YPP Pathways. Open the link below to accept and get started.`,
+    link: inviteUrl,
+    linkText: "Join chapter",
+  });
+
+  revalidatePath("/chapter/invites");
+  revalidatePath("/chapter/members");
+  revalidatePath("/chapter/hub");
+
+  if (!emailResult.success) {
+    return {
+      ok: true as const,
+      emailed: false as const,
+      inviteUrl,
+      warning: emailResult.error || "Invite created, but the email could not be sent.",
+    };
+  }
+
+  return { ok: true as const, emailed: true as const, inviteUrl };
 }
 
 /**
