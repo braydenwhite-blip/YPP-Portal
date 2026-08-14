@@ -339,7 +339,7 @@ describe("resolveNavModel", () => {
     expect(hrefs(model)).not.toContain("/interviews");
   });
 
-  it("keeps admin users on Home, Mentorship, Actions, Users, and Applicants", () => {
+  it("keeps admin users on Home, Mentorship, Actions, Applicants, Users, and Chapters", () => {
     const model = resolveNavModel({
       roles: ["ADMIN"],
       primaryRole: "ADMIN",
@@ -356,6 +356,7 @@ describe("resolveNavModel", () => {
       "/actions",
       "/admin/applicants",
       "/admin/users",
+      "/admin/chapters",
     ]);
     expect(model.core.map((item) => item.href)).toEqual([
       "/",
@@ -363,6 +364,7 @@ describe("resolveNavModel", () => {
       "/actions",
       "/admin/applicants",
       "/admin/users",
+      "/admin/chapters",
     ]);
     expect(model.more).toHaveLength(0);
   });
@@ -476,7 +478,7 @@ describe("resolveNavModel", () => {
       process.env.PORTAL_SLIM_NAV = "false";
     });
 
-    it("shows Home, Mentorship, Actions, Users, and Applicants for admins", () => {
+    it("shows Home, Mentorship, Actions, Users, Applicants, and Chapters for admins", () => {
       const model = resolveNavModel({
         roles: ["ADMIN"],
         adminSubtypes: ["SUPER_ADMIN"],
@@ -496,6 +498,7 @@ describe("resolveNavModel", () => {
         "/actions",
         "/admin/applicants",
         "/admin/users",
+        "/admin/chapters",
       ]);
       expect(model.leadershipSimpleNav).toBe(true);
       expect(model.officerSlimNav).toBe(false);
@@ -588,6 +591,7 @@ describe("resolveNavModel", () => {
       "/actions",
       "/admin/applicants",
       "/admin/users",
+      "/admin/chapters",
     ]);
     expect(hrefs(model)).not.toContain("/admin/curricula");
     expect(hrefs(model)).not.toContain("/admin/recruiting");
@@ -609,6 +613,7 @@ describe("resolveNavModel", () => {
       "/actions",
       "/admin/applicants",
       "/admin/users",
+      "/admin/chapters",
     ]);
     expect(hrefs(model)).not.toContain("/admin/mentorship");
   });
@@ -627,7 +632,7 @@ describe("officer section navigation (simple leadership IA)", () => {
     });
   }
 
-  it("shows only Home, Mentorship, Actions, Users, and Applicants", () => {
+  it("shows only Home, Mentorship, Actions, Applicants, Users, and Chapters", () => {
     const model = officerModel();
     expect(hrefs(model)).toEqual([
       "/",
@@ -635,6 +640,7 @@ describe("officer section navigation (simple leadership IA)", () => {
       "/actions",
       "/admin/applicants",
       "/admin/users",
+      "/admin/chapters",
     ]);
     expect(model.more).toHaveLength(0);
     expect(model.core.map((item) => item.label)).toEqual([
@@ -643,6 +649,7 @@ describe("officer section navigation (simple leadership IA)", () => {
       "Actions",
       "Applicants",
       "Users",
+      "Chapters",
     ]);
   });
 
@@ -688,6 +695,7 @@ describe("chapter-president section navigation", () => {
     expect(coreHrefs).toEqual([
       "/chapter",
       "/chapter/hub",
+      "/partners",
       "/chapter/instructors",
       "/chapter/impact",
       "/mentorship",
@@ -696,12 +704,13 @@ describe("chapter-president section navigation", () => {
     expect(coreHrefs).not.toContain("/chapter/recruiting");
   });
 
-  it("gives chapter presidents Dashboard, My Chapter, Classes, Analytics, Mentorship", () => {
+  it("gives chapter presidents Dashboard, My Chapter, Partners, Classes, Analytics, Mentorship", () => {
     const model = cpModel();
     const visibleHrefs = model.visible.map((item) => item.href);
     expect(visibleHrefs).toEqual([
       "/chapter",
       "/chapter/hub",
+      "/partners",
       "/chapter/instructors",
       "/chapter/impact",
       "/mentorship",
@@ -709,6 +718,7 @@ describe("chapter-president section navigation", () => {
     expect(model.visible.map((item) => item.label)).toEqual([
       "Dashboard",
       "My Chapter",
+      "Partners",
       "Classes",
       "Analytics",
       "Mentorship",

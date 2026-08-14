@@ -102,6 +102,7 @@ export default async function ChapterImpactPage({
           model={leaderboardClient}
           focusChapterId={chapterId}
           overviewHref={overviewHref}
+          isLeadership={ctx.isLeadership}
         />
       </div>
     );

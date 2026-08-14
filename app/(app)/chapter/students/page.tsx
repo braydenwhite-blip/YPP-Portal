@@ -77,14 +77,14 @@ export default async function ChapterStudentsPage() {
         <div className="card" style={{ textAlign: "center", padding: 32 }}>
           <h2 style={{ margin: "0 0 6px", fontSize: 18 }}>No students yet</h2>
           <p style={{ color: "var(--muted)", marginBottom: 16 }}>
-            Grow your chapter by sharing an invite link or opening recruiting.
+            Share an invite link so families can join, or review parent-led applications on Student Intake.
           </p>
           <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
             <Link href="/chapter/invites" className="button" style={{ textDecoration: "none" }}>
-              Create Invite Link
+              Create invite link
             </Link>
-            <Link href="/chapter/recruiting" className="button outline" style={{ textDecoration: "none" }}>
-              Open Recruiting
+            <Link href="/chapter/student-intake" className="button outline" style={{ textDecoration: "none" }}>
+              Student Intake
             </Link>
           </div>
         </div>

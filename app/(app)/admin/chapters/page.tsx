@@ -12,17 +12,22 @@ import {
 } from "@/lib/chapters/lifecycle";
 import { CHAPTER_HEALTH_LABELS } from "@/lib/chapters/health";
 import {
-  PageHeaderV2,
-  CardV2,
-  StatusBadge,
-  StatCardV2,
-  ViewSwitcher,
-  EmptyStateV2,
+  AdvancedFilters,
   ButtonLink,
+  EmptyStateV2,
+  FilterChipLink,
+  MetricStrip,
+  PageHeaderV2,
+  StatusBadge,
+  TrackerRow,
+  TrackerShell,
 } from "@/components/ui-v2";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Chapter Command — Pathways Portal" };
+
+/** Primary lifecycle views shown in the switcher. Everything else lives under More filters. */
+const PRIMARY_VIEWS = new Set(["all", "launching", "active", "needs_support", "at_risk"]);
 
 function fmtDate(d: Date | null): string {
   if (!d) return "—";
@@ -35,6 +40,14 @@ function relDays(d: Date, now: Date): string {
   if (days === 1) return "1 day ago";
   if (days < 30) return `${days} days ago`;
   return fmtDate(d);
+}
+
+function chaptersHref(opts: { view?: string; state?: string }): string {
+  const params = new URLSearchParams();
+  if (opts.view && opts.view !== "all") params.set("view", opts.view);
+  if (opts.state) params.set("state", opts.state);
+  const qs = params.toString();
+  return qs ? `/admin/chapters?${qs}` : "/admin/chapters";
 }
 
 export default async function AdminChaptersPage({
@@ -56,177 +69,205 @@ export default async function AdminChaptersPage({
     ]);
   const now = new Date();
 
-  const stateQuery = sp.state ? `&state=${encodeURIComponent(sp.state)}` : "";
+  const primaryViews = viewCounts.filter((v) => PRIMARY_VIEWS.has(v.key));
+  const signalViews = viewCounts.filter((v) => !PRIMARY_VIEWS.has(v.key));
+  const activeSignal = signalViews.find((v) => v.key === requestedView);
+  const deepFilterCount = (activeSignal ? 1 : 0) + (sp.state ? 1 : 0);
 
-  const tiles = [
-    { label: "All chapters", value: summary.total, href: "/admin/chapters", accent: "neutral" as const },
-    { label: "Launching", value: summary.launching, href: "/admin/chapters?view=launching", accent: "brand" as const },
-    { label: "Active", value: summary.active, href: "/admin/chapters?view=active", accent: "success" as const },
-    { label: "Needs support", value: summary.needsSupport, href: "/admin/chapters?view=needs_support", accent: "warning" as const },
-    { label: "At risk", value: summary.atRisk, href: "/admin/chapters?view=at_risk", accent: "danger" as const },
-    { label: "Missing weekly update", value: summary.missingWeeklyUpdate, href: "/admin/chapters?view=missing_weekly_update", accent: "warning" as const },
-    { label: "Decisions needed", value: summary.decisionsNeeded, href: "/admin/chapters?view=decisions_needed", accent: "danger" as const },
-    { label: "Bottlenecks", value: summary.bottlenecks, href: "/admin/chapters?view=bottlenecks", accent: "warning" as const },
-    { label: "No upcoming meeting", value: summary.noUpcomingMeeting, href: "/admin/chapters?view=no_upcoming_meeting", accent: "warning" as const },
-    { label: "Ready to scale", value: summary.readyToScale, href: "/admin/chapters?view=ready_to_scale", accent: "success" as const },
-  ];
+  const countLabel = [
+    `${cards.length} chapter${cards.length === 1 ? "" : "s"}`,
+    activeSignal ? activeSignal.label.toLowerCase() : null,
+    sp.state ? sp.state : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-8">
-      <PageHeaderV2
-        eyebrow="Leadership"
-        title="Chapter Command"
-        subtitle="Launch, support, track, and manage every chapter nationally — one operating system, no spreadsheets."
-        actions={
-          <div className="flex flex-wrap gap-2">
-            <ButtonLink href="/admin/chapters/map" variant="secondary" size="sm">
-              Chapter map
-            </ButtonLink>
-            <ButtonLink href="/admin/chapters/analytics" variant="secondary" size="sm">
-              Analytics
-            </ButtonLink>
-          </div>
-        }
-      />
-
-      <ChapterIntegrityPanel issues={integrityIssues} />
-
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
-        {tiles.map((t) => (
-          <StatCardV2
-            key={t.label}
-            label={t.label}
-            value={t.value}
-            href={t.href}
-            accent={t.accent}
-            selected={
-              (t.href === "/admin/chapters" && requestedView === "all") ||
-              t.href.includes(`view=${requestedView}`)
-            }
-          />
-        ))}
-      </div>
-
-      <ViewSwitcher
-        aria-label="Chapter views"
-        views={viewCounts.map((v) => ({
-          key: v.key,
-          label: v.label,
-          href: `/admin/chapters?view=${v.key}${stateQuery}`,
-          active: v.key === requestedView,
-          count: v.count,
-        }))}
-      />
-
-      {states.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 text-[12.5px]">
-          <span className="font-semibold text-ink-muted">State:</span>
-          <Link
-            href={`/admin/chapters?view=${requestedView}`}
-            className={`rounded-full border px-2.5 py-1 ${!sp.state ? "border-brand-300 bg-brand-50 text-brand-800" : "border-line text-ink-muted hover:bg-surface-soft"}`}
-          >
-            All
-          </Link>
-          {states.map((s) => (
-            <Link
-              key={s}
-              href={`/admin/chapters?view=${requestedView}&state=${encodeURIComponent(s)}`}
-              className={`rounded-full border px-2.5 py-1 ${sp.state === s ? "border-brand-300 bg-brand-50 text-brand-800" : "border-line text-ink-muted hover:bg-surface-soft"}`}
-            >
-              {s}
-            </Link>
-          ))}
+    <TrackerShell
+      className="px-6 py-8"
+      eyebrow="Leadership"
+      title="Chapter Command"
+      subtitle="Every chapter nationally — health, next steps, goals, and support in one place."
+      primaryAction={
+        <ButtonLink href="/chapter/impact/goals" variant="primary" size="md">
+          Goals
+        </ButtonLink>
+      }
+      secondaryAction={
+        <div className="flex flex-wrap gap-2">
+          <ButtonLink href="/admin/chapters/map" variant="secondary" size="md">
+            Map
+          </ButtonLink>
+          <ButtonLink href="/admin/chapters/analytics" variant="secondary" size="md">
+            Analytics
+          </ButtonLink>
         </div>
-      )}
+      }
+      metrics={
+        <MetricStrip
+          aria-label="Chapter pipeline"
+          metrics={[
+            {
+              label: "All chapters",
+              value: summary.total,
+              href: chaptersHref({ state: sp.state }),
+            },
+            {
+              label: "Launching",
+              value: summary.launching,
+              href: chaptersHref({ view: "launching", state: sp.state }),
+            },
+            {
+              label: "Active",
+              value: summary.active,
+              href: chaptersHref({ view: "active", state: sp.state }),
+            },
+            {
+              label: "Needs support",
+              value: summary.needsSupport,
+              href: chaptersHref({ view: "needs_support", state: sp.state }),
+              tone: summary.needsSupport > 0 ? "attention" : "default",
+            },
+            {
+              label: "At risk",
+              value: summary.atRisk,
+              href: chaptersHref({ view: "at_risk", state: sp.state }),
+              tone: summary.atRisk > 0 ? "attention" : "default",
+            },
+          ]}
+        />
+      }
+      views={primaryViews.map((v) => ({
+        key: v.key,
+        label: v.label,
+        href: chaptersHref({ view: v.key, state: sp.state }),
+        active: v.key === requestedView || (requestedView === "all" && v.key === "all"),
+        count: v.count,
+      }))}
+      filters={
+        <AdvancedFilters
+          label="More filters"
+          defaultOpen={deepFilterCount > 0}
+          hint={
+            deepFilterCount > 0
+              ? [activeSignal?.label, sp.state].filter(Boolean).join(" · ")
+              : undefined
+          }
+        >
+          {signalViews.map((v) => (
+            <FilterChipLink
+              key={v.key}
+              href={chaptersHref({ view: v.key, state: sp.state })}
+              active={v.key === requestedView}
+              count={v.count}
+            >
+              {v.label}
+            </FilterChipLink>
+          ))}
+          {states.length > 0 ? (
+            <>
+              <span aria-hidden className="mx-1 h-5 w-px bg-line" />
+              <FilterChipLink
+                href={chaptersHref({ view: requestedView })}
+                active={!sp.state}
+              >
+                All states
+              </FilterChipLink>
+              {states.map((s) => (
+                <FilterChipLink
+                  key={s}
+                  href={chaptersHref({ view: requestedView, state: s })}
+                  active={sp.state === s}
+                >
+                  {s}
+                </FilterChipLink>
+              ))}
+            </>
+          ) : null}
+        </AdvancedFilters>
+      }
+      count={countLabel}
+    >
+      <ChapterIntegrityPanel issues={integrityIssues} />
 
       {cards.length === 0 ? (
         <EmptyStateV2
           title="No chapters in this view"
-          body="Try another view, or create a chapter below. Approved Chapter President applications also create chapters automatically."
+          body="Try another filter, or create a chapter below. Approved Chapter President applications also create chapters automatically."
         />
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {cards.map((c) => (
-            <CardV2 key={c.id} as="article" padding="md" className="flex flex-col gap-2">
-              <div className="flex items-start justify-between gap-2">
-                <Link
-                  href={`/admin/chapters/${c.id}`}
-                  className="text-[15px] font-bold text-brand-800 hover:underline"
-                >
-                  {c.name}
-                </Link>
-                <StatusBadge tone={chapterLifecycleTone(c.lifecycleStatus)}>
-                  {chapterLifecycleLabel(c.lifecycleStatus)}
-                </StatusBadge>
-              </div>
-              <p className="text-[12.5px] text-ink-muted">
-                {[c.city, c.state].filter(Boolean).join(", ") || "Location not set"}
-                {c.partnerSchool ? ` · ${c.partnerSchool}` : ""}
-              </p>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px] text-ink">
-                <span>
-                  <span className="text-ink-muted">CP:</span> {c.president?.name ?? "Unassigned"}
-                </span>
-                <span>
-                  <span className="text-ink-muted">Members:</span> {c.memberCount}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <StatusBadge tone={c.health.tone} withDot title={c.health.reasons.join("; ")}>
-                  {CHAPTER_HEALTH_LABELS[c.health.label]}
-                </StatusBadge>
-                <span className="text-[12.5px] text-ink">{c.nextStep}</span>
-              </div>
-              {c.blocker && (
-                <p className="text-[12.5px] font-medium text-blocked-700">⚠ {c.blocker}</p>
-              )}
-              {(c.flags.missingWeeklyUpdate ||
-                c.radar.decisionsNeeded > 0 ||
-                c.radar.bottlenecks.length > 0 ||
-                c.radar.readyToScale) && (
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {c.flags.missingWeeklyUpdate && (
-                    <StatusBadge tone="warning">
-                      {c.radar.weeklyUpdate === "DRAFT" ? "Weekly update not submitted" : "Missing weekly update"}
+        <ul className="m-0 flex list-none flex-col gap-2 p-0">
+          {cards.map((c) => {
+            const location = [c.city, c.state].filter(Boolean).join(", ") || null;
+            const metaParts = [
+              location,
+              c.president?.name ? `CP · ${c.president.name}` : "CP unassigned",
+              `${c.memberCount} member${c.memberCount === 1 ? "" : "s"}`,
+              `Active ${relDays(c.lastActivityAt, now)}`,
+            ];
+            const signalBits = [
+              c.flags.missingWeeklyUpdate
+                ? c.radar.weeklyUpdate === "DRAFT"
+                  ? "Weekly update draft"
+                  : "Missing weekly update"
+                : null,
+              c.radar.decisionsNeeded > 0
+                ? `${c.radar.decisionsNeeded} decision${c.radar.decisionsNeeded === 1 ? "" : "s"}`
+                : null,
+              c.radar.bottlenecks[0]?.label ?? null,
+              c.radar.readyToScale ? "Ready to scale" : null,
+            ].filter(Boolean);
+
+            return (
+              <TrackerRow
+                key={c.id}
+                title={c.name}
+                href={`/admin/chapters/${c.id}`}
+                status={{
+                  label: CHAPTER_HEALTH_LABELS[c.health.label],
+                  tone: c.health.tone,
+                  title: c.health.reasons.join("; ") || undefined,
+                }}
+                meta={
+                  <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <StatusBadge tone={chapterLifecycleTone(c.lifecycleStatus)}>
+                      {chapterLifecycleLabel(c.lifecycleStatus)}
                     </StatusBadge>
-                  )}
-                  {c.radar.decisionsNeeded > 0 && (
-                    <StatusBadge tone="danger">
-                      {c.radar.decisionsNeeded === 1
-                        ? "1 decision needed"
-                        : `${c.radar.decisionsNeeded} decisions needed`}
-                    </StatusBadge>
-                  )}
-                  {c.radar.bottlenecks.slice(0, 2).map((b) => (
-                    <StatusBadge key={b.key} tone="warning" title={b.detail}>
-                      {b.label}
-                    </StatusBadge>
-                  ))}
-                  {c.radar.readyToScale && (
-                    <StatusBadge tone="success" withDot>
-                      Ready to scale
-                    </StatusBadge>
-                  )}
-                </div>
-              )}
-              <div className="mt-1 flex items-center justify-between border-t border-line-soft pt-2 text-[11.5px] text-ink-muted">
-                <span>Next meeting: {fmtDate(c.upcomingMeetingAt)}</span>
-                <span title={`${c.radar.expectations.headline}`}>
-                  {c.radar.expectations.metCount}/{c.radar.expectations.total} expectations
-                </span>
-                <span>Active {relDays(c.lastActivityAt, now)}</span>
-              </div>
-              <div className="flex items-center gap-3 text-[11.5px]">
-                <Link href={`/chapter/impact?chapter=${c.id}`} className="font-semibold text-brand-800 hover:underline">
-                  Impact brief
-                </Link>
-                <Link href={`/admin/chapters/${c.id}`} className="font-semibold text-brand-800 hover:underline">
-                  Chapter 360
-                </Link>
-              </div>
-            </CardV2>
-          ))}
-        </div>
+                    <span>{metaParts.join(" · ")}</span>
+                    {signalBits.length > 0 ? (
+                      <span className="text-progress-700">{signalBits.join(" · ")}</span>
+                    ) : null}
+                  </span>
+                }
+                nextStep={
+                  c.blocker ? (
+                    <span className="text-blocked-700">⚠ {c.blocker}</span>
+                  ) : (
+                    <>
+                      {c.nextStep}
+                      {c.upcomingMeetingAt
+                        ? ` · Next meeting ${fmtDate(c.upcomingMeetingAt)}`
+                        : ""}
+                    </>
+                  )
+                }
+                action={
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href={`/chapter/impact?chapter=${c.id}`}
+                      className="text-[12.5px] font-semibold text-brand-700 no-underline hover:underline"
+                    >
+                      Brief
+                    </Link>
+                    <ButtonLink href={`/admin/chapters/${c.id}`} variant="secondary" size="sm">
+                      Open
+                    </ButtonLink>
+                  </div>
+                }
+              />
+            );
+          })}
+        </ul>
       )}
 
       <details className="mt-2 rounded-[14px] border border-line-card bg-surface p-5 shadow-card">
@@ -246,20 +287,37 @@ export default async function AdminChaptersPage({
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="flex flex-col gap-1 text-[13px] font-medium text-ink">
               City
-              <input name="city" maxLength={120} className="rounded-lg border border-line px-3 py-2 text-[14px] font-normal" />
+              <input
+                name="city"
+                maxLength={120}
+                className="rounded-lg border border-line px-3 py-2 text-[14px] font-normal"
+              />
             </label>
             <label className="flex flex-col gap-1 text-[13px] font-medium text-ink">
               Region / State
-              <input name="region" maxLength={120} className="rounded-lg border border-line px-3 py-2 text-[14px] font-normal" />
+              <input
+                name="region"
+                maxLength={120}
+                className="rounded-lg border border-line px-3 py-2 text-[14px] font-normal"
+              />
             </label>
           </div>
           <label className="flex flex-col gap-1 text-[13px] font-medium text-ink">
             Partner school (optional)
-            <input name="partnerSchool" maxLength={120} className="rounded-lg border border-line px-3 py-2 text-[14px] font-normal" />
+            <input
+              name="partnerSchool"
+              maxLength={120}
+              className="rounded-lg border border-line px-3 py-2 text-[14px] font-normal"
+            />
           </label>
           <label className="flex flex-col gap-1 text-[13px] font-medium text-ink">
             Internal notes (admin-only)
-            <textarea name="programNotes" rows={3} maxLength={2000} className="rounded-lg border border-line px-3 py-2 text-[14px] font-normal" />
+            <textarea
+              name="programNotes"
+              rows={3}
+              maxLength={2000}
+              className="rounded-lg border border-line px-3 py-2 text-[14px] font-normal"
+            />
           </label>
           <button
             type="submit"
@@ -269,6 +327,6 @@ export default async function AdminChaptersPage({
           </button>
         </form>
       </details>
-    </div>
+    </TrackerShell>
   );
 }

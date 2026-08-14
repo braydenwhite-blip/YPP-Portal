@@ -96,7 +96,8 @@ const ALWAYS_HIDDEN_HREFS = new Set([
   /**
    * Chapter links are consolidated into a single "Chapter Hub" entry
    * to keep the sidebar compact. The destination pages remain reachable
-   * via the hub (and by URL).
+   * via the hub (and by URL). Leadership "Chapters" (`/admin/chapters`)
+   * is intentionally visible for ADMIN/STAFF — not listed here.
    */
   "/chapters",
   "/join-chapter",
@@ -107,7 +108,6 @@ const ALWAYS_HIDDEN_HREFS = new Set([
   "/chapter/leaderboard",
   "/chapter/achievements",
   "/chapters/leaderboard",
-  "/admin/chapters",
   /** Action Tracker — one sidebar link (/actions); rest via in-page nav or search. */
   "/actions/all",
   "/actions/command-center",

@@ -491,10 +491,12 @@ export function ChapterAnalyticsLeaderboard({
   model,
   focusChapterId,
   overviewHref,
+  isLeadership = false,
 }: {
   model: LeaderboardModel;
   focusChapterId?: string | null;
   overviewHref: string;
+  isLeadership?: boolean;
 }) {
   // Start with no cell selected so the full table uses the viewport width.
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
@@ -514,6 +516,14 @@ export function ChapterAnalyticsLeaderboard({
             <span className="rounded-full bg-[#6b21c8] px-2.5 py-0.5 text-[11px] font-semibold text-white">
               Leaderboard
             </span>
+            {isLeadership ? (
+              <Link
+                href="/chapter/impact/goals"
+                className="rounded-full border border-[#e2e8f0] bg-white/90 px-2.5 py-0.5 text-[11px] font-semibold text-[#64748b] shadow-sm transition hover:border-[#c4b5fd] hover:text-[#6b21c8]"
+              >
+                Goals
+              </Link>
+            ) : null}
             <h1 className="text-[20px] font-bold tracking-tight text-[#1e1b4b] sm:text-[22px]">
               Chapter Leaderboard
             </h1>

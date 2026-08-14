@@ -3,6 +3,7 @@ import {
   ChapterInstructorsClassroom,
   type ChapterInstructorRow,
 } from "@/components/chapter/chapter-instructors-classroom";
+import { ButtonLink } from "@/components/ui-v2";
 import { getChapterInstructors } from "@/lib/chapter-actions";
 import { getChapterViewerContext } from "@/lib/chapters/access";
 import { prisma } from "@/lib/prisma";
@@ -101,12 +102,17 @@ export default async function ChapterInstructorsPage() {
               One row per instructor — open a class for the same classroom view they use.
             </p>
           </div>
-          <ChapterAddClassButton
-            instructors={rows}
-            templates={templateOptions}
-            locations={locationOptions}
-            chapterId={chapterId}
-          />
+          <div className="flex flex-wrap gap-2">
+            <ButtonLink href="/chapter-lead/instructor-applicants" variant="secondary" size="md">
+              Application board
+            </ButtonLink>
+            <ChapterAddClassButton
+              instructors={rows}
+              templates={templateOptions}
+              locations={locationOptions}
+              chapterId={chapterId}
+            />
+          </div>
         </header>
 
         <ChapterInstructorsClassroom

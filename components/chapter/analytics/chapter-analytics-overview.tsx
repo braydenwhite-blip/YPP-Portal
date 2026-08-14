@@ -16,6 +16,7 @@ import {
 } from "recharts";
 
 import { ModalV2 } from "@/components/ui-v2";
+import { setAnalyticsCategoryNote } from "@/lib/chapters/analytics-goals-actions";
 import type { ChapterOverviewModel, TrendPoint } from "@/lib/chapters/analytics-types";
 import type { AnalyticsRangeMonths } from "@/lib/chapters/analytics-types";
 import {
@@ -257,6 +258,51 @@ function CategoryTrendChart({
   );
 }
 
+function NotesEditor({
+  chapterId,
+  category,
+  monthKey,
+  initialValue,
+}: {
+  chapterId: string;
+  category: AnalyticsCategoryKey;
+  monthKey: string;
+  initialValue: string | null;
+}) {
+  const [value, setValue] = useState(initialValue ?? "");
+  const [pending, startTransition] = useTransition();
+  const [saved, setSaved] = useState(false);
+
+  function commit() {
+    if (value === (initialValue ?? "")) return;
+    startTransition(async () => {
+      const res = await setAnalyticsCategoryNote({ chapterId, category, monthKey, body: value });
+      if (res.ok) {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 1500);
+      }
+    });
+  }
+
+  return (
+    <div className="rounded-xl border border-[#f0ecf6] bg-[#fafafa] p-3">
+      <div className="mb-1.5 flex items-center justify-between">
+        <h3 className="text-[11px] font-bold uppercase tracking-[0.05em] text-[#9aa2b1]">Notes this month</h3>
+        {saved ? <span className="text-[10px] font-semibold text-[#16a34a]">Saved</span> : null}
+      </div>
+      <textarea
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={commit}
+        disabled={pending}
+        placeholder="Context, blockers, or plans for this category…"
+        rows={3}
+        className="w-full resize-none rounded-lg border border-[#e5e7eb] bg-white px-3 py-2 text-[13px] text-[#111827] outline-none transition focus:border-[#c4b5fd] focus:ring-2 focus:ring-[#ede9fe]"
+      />
+    </div>
+  );
+}
+
 function CategoryDetailModal({
   open,
   category,
@@ -273,16 +319,36 @@ function CategoryDetailModal({
   const monthCells = model.heatmap.filter((h) => h.category === category);
   const kpis = categoryKpis(model, category);
   const titleId = `analytics-category-${category}`;
+  const currentMonthKey = model.months[model.months.length - 1]?.key ?? "";
 
   return (
-    <ModalV2 open={open} onClose={onClose} labelledBy={titleId} size="lg" className="max-w-[720px]">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          <span className="h-3 w-3 rounded-full" style={{ background: accent }} />
+    <ModalV2 open={open} onClose={onClose} labelledBy={titleId} size="lg" className="max-w-[760px] !p-0 overflow-hidden">
+      <div
+        className="flex items-start justify-between gap-3 px-6 py-5"
+        style={{
+          background: `linear-gradient(135deg, ${accent}1a 0%, ${accent}05 100%)`,
+          borderBottom: `1px solid ${accent}33`,
+        }}
+      >
+        <div className="flex items-center gap-3">
+          <span
+            className="flex h-9 w-9 items-center justify-center rounded-xl text-[13px] font-bold text-white shadow-sm"
+            style={{ background: accent }}
+          >
+            {category === "students" ? "S" : category === "instructors" ? "I" : category === "partners" ? "P" : "Q"}
+          </span>
           <div>
-            <h2 id={titleId} className="text-[18px] font-bold text-[#111827]">
-              {CATEGORY_LABELS[category]}
-            </h2>
+            <div className="flex items-center gap-2">
+              <h2 id={titleId} className="text-[19px] font-bold tracking-tight text-[#111827]">
+                {CATEGORY_LABELS[category]}
+              </h2>
+              <span
+                className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.04em] text-white"
+                style={{ background: accent }}
+              >
+                Detailed view
+              </span>
+            </div>
             <p className="text-[12px] text-[#6b7280]">
               {model.chapterName} · month {model.monthsActive} pace
             </p>
@@ -291,20 +357,21 @@ function CategoryDetailModal({
         <button
           type="button"
           onClick={onClose}
-          className="rounded-lg px-2 py-1 text-[18px] leading-none text-[#9aa2b1] hover:bg-[#f3f4f6]"
+          className="rounded-lg px-2 py-1 text-[18px] leading-none text-[#9aa2b1] hover:bg-white/70"
           aria-label="Close"
         >
           ×
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {kpis.map((k) => (
-          <div key={k.label} className="rounded-xl border border-[#f0ecf6] bg-[#fafafa] px-3 py-2.5">
-            <Kpi label={k.label} value={k.value} accent={k.accent} />
-          </div>
-        ))}
-      </div>
+      <div className="flex flex-col gap-4 px-6 py-5">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {kpis.map((k) => (
+            <div key={k.label} className="rounded-xl border border-[#f0ecf6] bg-[#fafafa] px-3 py-2.5">
+              <Kpi label={k.label} value={k.value} accent={k.accent} />
+            </div>
+          ))}
+        </div>
 
       {category === "instructors" ? (
         <div>
@@ -370,7 +437,15 @@ function CategoryDetailModal({
               </div>
             );
           })}
+          </div>
         </div>
+
+        <NotesEditor
+          chapterId={model.chapterId}
+          category={category}
+          monthKey={currentMonthKey}
+          initialValue={model.notes[category]}
+        />
       </div>
     </ModalV2>
   );
@@ -476,6 +551,14 @@ export function ChapterAnalyticsOverview({
               >
                 Leaderboard
               </Link>
+              {includeChapterInQuery ? (
+                <Link
+                  href="/chapter/impact/goals"
+                  className="rounded-full border border-[#e5e7eb] bg-white px-3 py-1 text-[12px] font-semibold text-[#4b5563] hover:border-[#c7d2fe] hover:text-[#4338ca]"
+                >
+                  Goals
+                </Link>
+              ) : null}
             </div>
           </div>
         </div>

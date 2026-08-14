@@ -14,9 +14,9 @@ import {
   ANALYTICS_METRIC_KEYS,
   CATEGORY_PRIMARY_METRIC,
   analyticsPanelKey,
-  expectedAtMonth,
   formatMetricCell,
   lastNMonths,
+  monthKey,
   monthLongLabel,
   monthsActiveAsOf,
   pacePercent,
@@ -35,6 +35,7 @@ import type {
   PaceCell,
   TrendPoint,
 } from "./analytics-types";
+import { loadGoalOverrides, resolveExpected, type GoalOverrides } from "./analytics-goals";
 import { ensureOperatingChapters, OPERATING_CHAPTER_NAMES } from "./operating";
 
 export type {
@@ -54,9 +55,16 @@ function emptySnapshot(): MetricSnapshot {
   return { partners: 0, instructors: 0, students: 0, classes: 0, retention: 0, quality: 0 };
 }
 
-function expectedSnapshot(monthsActive: number): MetricSnapshot {
+function expectedSnapshot(
+  monthsActive: number,
+  overrides: GoalOverrides,
+  chapterId: string,
+  monthKey: string
+): MetricSnapshot {
   const out = emptySnapshot();
-  for (const key of ANALYTICS_METRIC_KEYS) out[key] = expectedAtMonth(key, monthsActive);
+  for (const key of ANALYTICS_METRIC_KEYS) {
+    out[key] = resolveExpected(overrides, chapterId, key, monthKey, monthsActive);
+  }
   return out;
 }
 
@@ -246,9 +254,12 @@ function buildPaceCell(
   metric: AnalyticsMetricKey,
   actual: number,
   monthsActive: number,
-  discussedOn: string | null
+  discussedOn: string | null,
+  overrides: GoalOverrides,
+  chapterId: string,
+  monthKey: string
 ): PaceCell {
-  const expected = expectedAtMonth(metric, monthsActive);
+  const expected = resolveExpected(overrides, chapterId, metric, monthKey, monthsActive);
   return {
     metric,
     actual,
@@ -284,7 +295,31 @@ export async function loadChapterAnalyticsOverview(
   const monthsActive = monthsActiveAsOf(launch, now);
   const months = lastNMonths(now, rangeMonths);
   const current = snapshotForChapter(chapterId, now, raw);
-  const expected = expectedSnapshot(monthsActive);
+  const nowMonthKey = monthKey(now.getUTCFullYear(), now.getUTCMonth());
+
+  const overrides = await loadGoalOverrides(
+    [chapterId],
+    months.map((m) => m.key)
+  );
+  const expected = expectedSnapshot(monthsActive, overrides, chapterId, nowMonthKey);
+
+  const notesRows = await prisma.chapterAnalyticsNote.findMany({
+    where: { chapterId, category: { in: [...ANALYTICS_CATEGORY_KEYS] }, monthKey: nowMonthKey },
+    select: { category: true, body: true },
+  });
+  const notes: Record<AnalyticsCategoryKey, string | null> = {
+    students: null,
+    instructors: null,
+    partners: null,
+    quality: null,
+  };
+  for (const row of notesRows) {
+    if (ANALYTICS_CATEGORY_KEYS.includes(row.category as AnalyticsCategoryKey)) {
+      notes[row.category as AnalyticsCategoryKey] = row.body;
+    }
+  }
+
+  const hasCustomGoals = overrides.defaults.size > 0 || overrides.exceptions.size > 0;
 
   const heatmap: MonthlyCategoryCell[] = [];
   const trends: Record<AnalyticsCategoryKey, TrendPoint[]> = {
@@ -302,7 +337,7 @@ export async function loadChapterAnalyticsOverview(
     for (const category of ANALYTICS_CATEGORY_KEYS) {
       const metric = CATEGORY_PRIMARY_METRIC[category];
       const actual = snap[metric];
-      const exp = expectedAtMonth(metric, monthsThen);
+      const exp = resolveExpected(overrides, chapterId, metric, month.key, monthsThen);
       const status = paceStatus(actual, exp);
       heatmap.push({
         category,
@@ -379,6 +414,8 @@ export async function loadChapterAnalyticsOverview(
       },
     },
     chapters: allChapters,
+    notes,
+    hasCustomGoals,
   };
 }
 
@@ -414,6 +451,7 @@ export async function loadChapterAnalyticsLeaderboard(
 
   const chapterIds = chapters.map((c) => c.id);
   const raw = await loadChapterRaw(chapterIds);
+  const overrides = await loadGoalOverrides(chapterIds, [asOfKey]);
 
   const discussMarkers = await prisma.actionItem.findMany({
     where: {
@@ -488,7 +526,15 @@ export async function loadChapterAnalyticsLeaderboard(
     for (const metric of ANALYTICS_METRIC_KEYS) {
       const key = analyticsPanelKey(chapter.id, metric);
       const discussed = discussedMap.get(key);
-      const cell = buildPaceCell(metric, snap[metric], monthsActive, discussed?.on ?? null);
+      const cell = buildPaceCell(
+        metric,
+        snap[metric],
+        monthsActive,
+        discussed?.on ?? null,
+        overrides,
+        chapter.id,
+        asOfKey
+      );
       cells[metric] = cell;
       if (metric !== "quality" && metric !== "retention") {
         scoreSum += cell.percentOfExpected;

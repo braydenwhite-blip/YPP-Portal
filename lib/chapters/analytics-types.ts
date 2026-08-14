@@ -59,6 +59,10 @@ export type ChapterOverviewModel = {
     };
   };
   chapters: Array<{ id: string; name: string }>;
+  /** Current-month free-text note per category, keyed by AnalyticsCategoryKey. */
+  notes: Record<AnalyticsCategoryKey, string | null>;
+  /** Whether any month in `heatmap` used a DB-backed goal (default or exception) rather than the ramp. */
+  hasCustomGoals: boolean;
 };
 
 export type LeaderboardRow = {

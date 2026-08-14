@@ -120,6 +120,30 @@ export default async function ChapterHubPage() {
 
   const quickLinks: QuickLink[] = [
     {
+      href: "/partners",
+      label: "Partners",
+      icon: "🏫",
+      description: "Add schools & organizations",
+    },
+    {
+      href: "/chapter/invites",
+      label: "Invite students",
+      icon: "🔗",
+      description: "Share links for families to join",
+    },
+    {
+      href: "/chapter/student-intake",
+      label: "Student Intake",
+      icon: "🎒",
+      description: "Review parent-led student journeys",
+    },
+    {
+      href: "/chapter-lead/instructor-applicants",
+      label: "Instructor applicants",
+      icon: "📝",
+      description: "Your chapter hiring board",
+    },
+    {
       href: "/chapter/members",
       label: "Members",
       icon: "👥",
@@ -130,6 +154,12 @@ export default async function ChapterHubPage() {
       label: "Classes",
       icon: "🎓",
       description: "Instructors and classrooms",
+    },
+    {
+      href: "/chapter/students",
+      label: "Student roster",
+      icon: "📋",
+      description: "Who’s enrolled and who needs a nudge",
     },
     {
       href: "/chapter/calendar",
@@ -181,8 +211,14 @@ export default async function ChapterHubPage() {
                   {instructors} instructors · {classes} classes · {students} students
                 </p>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <ButtonLink href="/chapter/members" variant="primary" size="md">
+          <div className="flex flex-wrap gap-2">
+                <ButtonLink href="/partners" variant="primary" size="md">
+                  Add partners
+                </ButtonLink>
+                <ButtonLink href="/chapter/invites" variant="secondary" size="md">
+                  Invite students
+                </ButtonLink>
+                <ButtonLink href="/chapter/members" variant="secondary" size="md">
                   View members
                 </ButtonLink>
               </div>
@@ -226,7 +262,7 @@ export default async function ChapterHubPage() {
           <h2 className="m-0 mb-3 text-[13px] font-semibold uppercase tracking-[0.06em] text-[#80868b]">
             Jump to
           </h2>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {quickLinks.map((link) => (
               <Link
                 key={link.href}
