@@ -22,6 +22,7 @@ import {
   type WeeklyUpdateState,
 } from "@/lib/chapters/radar";
 import { PARTNER_WON_STAGES, PARTNER_ACTIVE_STAGES } from "@/lib/partners-constants";
+import { ensureOperatingChapters } from "@/lib/chapters/operating";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -347,6 +348,9 @@ function matchesView(card: ChapterCommandCard, viewKey: string): boolean {
 
 export async function loadLeadershipChapters(opts?: { view?: string; state?: string }) {
   const now = new Date();
+  // Self-heal so Lower Manhattan / Brooklyn Bay Ridge (and future operating
+  // chapters) always appear in Chapter Command without a manual seed step.
+  await ensureOperatingChapters();
   const all = await enrichAllChapters(now);
 
   const viewCounts = CHAPTER_COMMAND_VIEWS.map((v) => ({

@@ -17,6 +17,7 @@ import "server-only";
 
 import { prisma } from "@/lib/prisma";
 import { addWeeks, weekStartFor } from "@/lib/weekly-meetings/week";
+import { ensureOperatingChapters } from "@/lib/chapters/operating";
 
 import {
   CHAPTER_EXPECTATION_LIST,
@@ -53,6 +54,9 @@ export async function loadChapterComparison(
   workflowInstances: WorkflowAnalyticsInstance[],
   opts: { chapterIds?: string[] } = {}
 ): Promise<ChapterComparison> {
+  if (!opts.chapterIds) {
+    await ensureOperatingChapters();
+  }
   const chapters = await prisma.chapter.findMany({
     where: {
       archivedAt: null,

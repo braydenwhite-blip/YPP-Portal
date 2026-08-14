@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
+import { ensureOperatingChapters } from "@/lib/chapters/operating";
 import { createStudentIntakeCase } from "@/lib/student-intake-actions";
 
 export default async function ParentStudentIntakeNewPage() {
@@ -16,7 +17,9 @@ export default async function ParentStudentIntakeNewPage() {
     redirect("/");
   }
 
+  await ensureOperatingChapters();
   const chapters = await prisma.chapter.findMany({
+    where: { archivedAt: null },
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });

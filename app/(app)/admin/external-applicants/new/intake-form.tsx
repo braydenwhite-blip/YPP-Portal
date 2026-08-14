@@ -9,6 +9,7 @@ import {
   createExternalInstructorApplicantFromForm,
   createExternalStaffApplicantFromForm,
 } from "@/lib/external-applicant-intake";
+import { operatingChapterNamesList } from "@/lib/chapters/operating-chapters";
 
 interface StaffPosition {
   id: string;
@@ -211,7 +212,7 @@ export default function ExternalApplicantIntakeForm({
             title={isStaff ? "Location" : "Which chapter?"}
             hint={
               isStaff
-                ? "Type where they are based. Suggestions include The Bronx and Scarsdale — or enter anything else."
+                ? `Type where they are based. Suggestions include ${operatingChapterNamesList()} — or enter anything else.`
                 : isCP
                   ? "Optional — leave blank if they are founding a new chapter."
                   : "Chapter they would teach or lead with — must match exactly."
@@ -223,7 +224,7 @@ export default function ExternalApplicantIntakeForm({
                   className={inputClass}
                   name="location"
                   list="staff-location-suggestions"
-                  placeholder="e.g. The Bronx, Scarsdale, Riverdale…"
+                  placeholder={`e.g. ${operatingChapterNamesList(" · ")}…`}
                   autoComplete="off"
                 />
                 <datalist id="staff-location-suggestions">
