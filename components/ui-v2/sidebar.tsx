@@ -105,16 +105,10 @@ export const sidebarLinkVariants = cva(
       active: {
         true: [
           "font-semibold text-[var(--nav-purple-800)]",
-          "bg-linear-to-r from-[rgba(99,102,241,0.16)] via-[rgba(99,102,241,0.07)] to-[rgba(255,255,255,0.65)]",
-          "border-[rgba(99,102,241,0.15)] shadow-[inset_0_1px_0_rgba(255,255,255,0.75),0_4px_14px_rgba(99,102,241,0.1)]",
-          "before:absolute before:left-0 before:top-2 before:bottom-2 before:w-[3px]",
-          "before:rounded-r-full before:bg-linear-to-b before:from-[var(--ypp-purple)] before:to-[var(--ypp-purple-400)]",
+          "border-[rgba(107,33,200,0.14)] bg-[#f3edff]",
         ],
         false: [
-          "hover:-translate-y-0.5 hover:text-[var(--nav-purple-800)]",
-          "hover:border-[rgba(99,102,241,0.18)]",
-          "hover:bg-[radial-gradient(130%_200%_at_10%_0%,rgba(255,255,255,0.98)_0%,rgba(237,233,254,0.88)_40%,rgba(224,219,254,0.55)_100%)]",
-          "hover:shadow-[0_8px_22px_rgba(99,102,241,0.14),0_3px_8px_rgba(59,15,110,0.07),inset_0_1px_0_rgba(255,255,255,0.92)]",
+          "hover:text-[var(--nav-purple-800)] hover:bg-[#f7f4ff]",
         ],
       },
       nested: {
@@ -132,14 +126,13 @@ export const sidebarIconVariants = cva(
     "flex shrink-0 items-center justify-center rounded-full leading-none",
     "bg-linear-to-[145deg] from-[rgba(99,102,241,0.11)] to-[rgba(99,102,241,0.06)]",
     "shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]",
-    "transition-all duration-[180ms] ease-[cubic-bezier(0.34,1.2,0.64,1)]",
-    "group-hover:scale-[1.06] group-hover:from-[rgba(99,102,241,0.22)] group-hover:to-[rgba(99,102,241,0.11)]",
-    "group-hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_4px_12px_rgba(99,102,241,0.15)]",
+    "transition-colors duration-150",
+    "group-hover:from-[rgba(99,102,241,0.16)] group-hover:to-[rgba(99,102,241,0.08)]",
   ],
   {
     variants: {
       active: {
-        true: "from-[rgba(99,102,241,0.26)] to-[rgba(99,102,241,0.13)] shadow-[0_0_0_1px_rgba(99,102,241,0.2),inset_0_1px_0_rgba(255,255,255,0.55)]",
+        true: "from-[#ede5ff] to-[#f3edff]",
         false: "",
       },
       nested: {

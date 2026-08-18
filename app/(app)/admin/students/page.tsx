@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { ActionCommandBar } from "@/components/people-strategy/action-command-bar";
 import { StatCard } from "@/components/people-strategy/stat-card";
 import { MasterDirectoryBanner } from "@/components/people/master-directory-banner";
+import { ApplicantCsvImport } from "@/components/instructor-applicants/applicant-csv-import";
 import StudentTable from "./student-table";
 
 export default async function AdminStudentsPage() {
@@ -83,6 +84,7 @@ export default async function AdminStudentsPage() {
         title="All Students"
         subtitle="Every learner across every chapter — search, filter, and manage enrollments, mentors, and achievements in one place."
         meta={`${totals.students} students · ${chapters.length} chapters`}
+        actions={<ApplicantCsvImport enabled kinds={["student"]} defaultRole="student" />}
       />
 
       <div className="psuite-stat-strip">

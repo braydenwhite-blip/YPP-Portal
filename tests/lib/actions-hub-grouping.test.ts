@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { ActionItemWithRelations } from "@/lib/people-strategy/action-queries";
-import { groupActionsByDepartment } from "@/lib/people-strategy/actions-hub-grouping";
+import { groupActionsByChapter, groupActionsByDepartment } from "@/lib/people-strategy/actions-hub-grouping";
 
 function item(partial: Partial<ActionItemWithRelations> & { id: string }): ActionItemWithRelations {
   return {
@@ -63,5 +63,33 @@ describe("groupActionsByDepartment", () => {
     const groups = groupActionsByDepartment([shared], new Date("2026-06-22"));
     expect(groups).toHaveLength(2);
     expect(groups.every((group) => group.items.some((row) => row.id === "shared"))).toBe(true);
+  });
+});
+
+describe("groupActionsByChapter", () => {
+  it("groups tagged actions by chapter name and ignores untagged rows", () => {
+    const groups = groupActionsByChapter(
+      [
+        item({
+          id: "bronx",
+          chapterId: "c-bronx",
+          chapter: { id: "c-bronx", name: "The Bronx", lifecycleStatus: "ACTIVE" },
+        }),
+        item({
+          id: "scarsdale",
+          chapterId: "c-scarsdale",
+          chapter: { id: "c-scarsdale", name: "Scarsdale", lifecycleStatus: "ACTIVE" },
+        }),
+        item({ id: "national", chapterId: null, chapter: null }),
+      ],
+      new Date("2026-06-22")
+    );
+
+    expect(groups.map((g) => g.name)).toEqual(["Scarsdale", "The Bronx"]);
+    expect(groups.every((g) => g.slug === "chapters")).toBe(true);
+    expect(groups.flatMap((g) => g.items.map((row) => row.id)).sort()).toEqual([
+      "bronx",
+      "scarsdale",
+    ]);
   });
 });

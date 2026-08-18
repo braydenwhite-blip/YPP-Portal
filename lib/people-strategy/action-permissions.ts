@@ -38,6 +38,8 @@ export type ActionViewer = {
   roles: string[];
   primaryRole?: string | null;
   adminSubtypes?: string[];
+  /** Chapter a Chapter President leads. National officers leave this unset. */
+  ledChapterId?: string | null;
 };
 
 /** Minimal projection of an ActionItem needed to decide access. */
@@ -46,11 +48,43 @@ export type ActionAccessShape = {
   createdById?: string | null;
   visibility: ActionItemVisibility;
   assignments: Array<{ userId: string; role: ActionAssignmentRole }>;
+  /** Dedicated chapter tag on the action, if any. */
+  chapterId?: string | null;
+  /** Home chapters of the lead and assignees — used to scope Chapter President views. */
+  peopleChapterIds?: string[];
 };
 
 /** Officer-tier and above (includes every ADMIN-tier user). */
 export function isOfficerTier(user: ActionViewer): boolean {
   return hasAnyRole(user.roles, [...OFFICER_TIER_ROLES], user.primaryRole ?? null);
+}
+
+/** National officers who may browse the whole tracker (not a chapter-only president). */
+export function isNetworkActionOfficer(user: ActionViewer): boolean {
+  if (isLeadershipOrBoard(user)) return true;
+  return hasAnyRole(
+    user.roles,
+    ["ADMIN", "STAFF", "HIRING_CHAIR"],
+    user.primaryRole ?? null,
+  );
+}
+
+/**
+ * Chapter President who is not also national staff/admin. They see their own
+ * assigned work plus actions for people in the chapter they lead — not other chapters.
+ */
+export function isChapterScopedActionOfficer(user: ActionViewer): boolean {
+  if (isNetworkActionOfficer(user)) return false;
+  return hasRole(user.roles, "CHAPTER_PRESIDENT", user.primaryRole ?? null);
+}
+
+export function actionBelongsToLedChapter(
+  action: ActionAccessShape,
+  ledChapterId: string,
+): boolean {
+  if (!ledChapterId) return false;
+  if (action.chapterId === ledChapterId) return true;
+  return (action.peopleChapterIds ?? []).includes(ledChapterId);
 }
 
 /** Leadership or Board (SUPER_ADMIN stands in for Board). Both can view everything. */
@@ -99,8 +133,9 @@ export function hasAssignmentRole(
 /**
  * Who can SEE an action.
  * - Leadership / Board: all actions.
- * - ALL_LEADERSHIP: officer-tier can browse everything; assigned members see
- *   their own LEAD / EXECUTING / INPUT rows.
+ * - ALL_LEADERSHIP: national officers can browse everything; assigned members see
+ *   their own LEAD / EXECUTING / INPUT rows. Chapter presidents also see work
+ *   tagged to their chapter or owned by people in it — never other chapters.
  * - OFFICERS_ONLY: only assigned officer-tier users (plus Leadership / Board).
  */
 export function canViewAction(user: ActionViewer, action: ActionAccessShape): boolean {
@@ -113,8 +148,15 @@ export function canViewAction(user: ActionViewer, action: ActionAccessShape): bo
     return officer && assigned;
   }
 
+  if (assigned) return true;
+  if (action.createdById === user.id) return true;
+
+  if (isChapterScopedActionOfficer(user)) {
+    return Boolean(user.ledChapterId) && actionBelongsToLedChapter(action, user.ledChapterId!);
+  }
+
   if (officer) return true;
-  return assigned;
+  return false;
 }
 
 /** Only officer-tier and above may create actions. */

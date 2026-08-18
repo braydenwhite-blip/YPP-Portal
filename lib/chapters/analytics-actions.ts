@@ -119,7 +119,11 @@ export async function addAnalyticsMetricAction(input: unknown): Promise<Analytic
     where: { id: data.chapterId },
     select: { presidentId: true },
   });
-  const leadId = chapter?.presidentId ?? viewer.user.id;
+  // CPs own what they create on their chapter. Leadership assigns the sitting CP
+  // when one exists so the tracker always has a named lead.
+  const leadId = viewer.isLeadership
+    ? chapter?.presidentId ?? viewer.user.id
+    : viewer.user.id;
   const deadline = new Date(data.deadlineStart);
   if (Number.isNaN(deadline.getTime())) return { ok: false, error: "Invalid deadline" };
 
@@ -137,10 +141,17 @@ export async function addAnalyticsMetricAction(input: unknown): Promise<Analytic
       sourceType: "COMMAND_CENTER",
       sourceId: `chapter-analytics:action:${data.metric}:${Date.now()}`,
       relatedEntityId: `${data.chapterId}:${data.metric}`,
+      assignments: {
+        create: [
+          { userId: leadId, role: "LEAD" },
+          { userId: leadId, role: "EXECUTING" },
+        ],
+      },
     },
   });
 
   revalidatePath("/chapter/impact");
+  revalidatePath("/actions");
   return { ok: true };
 }
 

@@ -34,11 +34,30 @@ function chipStyle(slug: string | null, active: boolean): CSSProperties {
   };
 }
 
+type ChapterOption = { id: string; name: string };
+
+const CHAPTER_VALUE_PREFIX = "chapter:";
+
+function chapterSelectValue(id: string): string {
+  return `${CHAPTER_VALUE_PREFIX}${id}`;
+}
+
+function parseChapterSelectValue(value: string): string | null {
+  if (!value.startsWith(CHAPTER_VALUE_PREFIX)) return null;
+  return value.slice(CHAPTER_VALUE_PREFIX.length) || null;
+}
+
 type BaseProps = {
   id?: string;
   label?: string;
   hint?: string;
   departments: ActionDepartmentOption[];
+  /** Operating chapters shown in the same picker as teams. */
+  chapters?: ChapterOption[];
+  chapterId?: string;
+  onChapterChange?: (chapterId: string) => void;
+  /** When true, the selected chapter cannot be cleared (chapter presidents). */
+  lockChapter?: boolean;
   allowEmpty?: boolean;
   required?: boolean;
   compact?: boolean;
@@ -74,6 +93,10 @@ function SimpleDepartmentPicker(props: SinglePickerProps | MultiPickerProps) {
     label = "Department",
     hint,
     departments,
+    chapters = [],
+    chapterId = "",
+    onChapterChange,
+    lockChapter = false,
     allowEmpty = true,
     required = false,
     compact = false,
@@ -96,7 +119,21 @@ function SimpleDepartmentPicker(props: SinglePickerProps | MultiPickerProps) {
   }
 
   function addDepartment(departmentId: string) {
-    if (!departmentId) return;
+    if (!departmentId) {
+      if (!props.multiple) {
+        props.onChange("");
+        if (!lockChapter) onChapterChange?.("");
+      }
+      return;
+    }
+    const pickedChapterId = parseChapterSelectValue(departmentId);
+    if (pickedChapterId) {
+      if (lockChapter) return;
+      onChapterChange?.(pickedChapterId);
+      if (!props.multiple) props.onChange("");
+      return;
+    }
+    if (!props.multiple && !lockChapter) onChapterChange?.("");
     if (props.multiple) {
       if (selectedIds.includes(departmentId)) return;
       props.onChange([...selectedIds, departmentId]);
@@ -107,6 +144,7 @@ function SimpleDepartmentPicker(props: SinglePickerProps | MultiPickerProps) {
 
   if (!props.multiple) {
     const groups = groupActionDepartments(departments);
+    const selectValue = chapterId ? chapterSelectValue(chapterId) : props.value;
     return (
       <div className="ps-field" id={id}>
         <label className="ps-label" htmlFor={id ? `${id}-select` : undefined}>
@@ -117,8 +155,8 @@ function SimpleDepartmentPicker(props: SinglePickerProps | MultiPickerProps) {
         <select
           id={id ? `${id}-select` : undefined}
           className={selectClass}
-          value={props.value}
-          onChange={(e) => props.onChange(e.target.value)}
+          value={selectValue}
+          onChange={(e) => addDepartment(e.target.value)}
         >
           {allowEmpty ? <option value="">No department</option> : null}
           {groups.map((group) => (
@@ -130,12 +168,29 @@ function SimpleDepartmentPicker(props: SinglePickerProps | MultiPickerProps) {
               ))}
             </optgroup>
           ))}
+          {chapters.length > 0 ? (
+            <optgroup label="Chapters">
+              {chapters.map((chapter) => (
+                <option
+                  key={chapter.id}
+                  value={chapterSelectValue(chapter.id)}
+                  disabled={lockChapter && chapterId === chapter.id}
+                >
+                  {chapter.name}
+                </option>
+              ))}
+            </optgroup>
+          ) : null}
         </select>
       </div>
     );
   }
 
   const available = departments.filter((department) => !selectedIds.includes(department.id));
+  const selectedChapter = chapters.find((chapter) => chapter.id === chapterId) ?? null;
+  const availableChapters = chapters.filter((chapter) => chapter.id !== chapterId);
+  const hasSelection = selectedIds.length > 0 || Boolean(selectedChapter);
+  const hasAvailable = available.length > 0 || availableChapters.length > 0;
 
   return (
     <div className="ps-field" id={id}>
@@ -145,8 +200,23 @@ function SimpleDepartmentPicker(props: SinglePickerProps | MultiPickerProps) {
       </span>
       {hint ? <p className="m-0 mb-2 text-[12.5px] text-ink-muted">{hint}</p> : null}
 
-      {selectedIds.length > 0 ? (
+      {hasSelection ? (
         <div className="mb-2 flex flex-wrap gap-1.5">
+          {selectedChapter ? (
+            <span className="inline-flex items-center gap-1 rounded-full border border-line-soft bg-surface-muted px-2.5 py-1 text-[12.5px] font-semibold text-ink">
+              {selectedChapter.name}
+              {!lockChapter ? (
+                <button
+                  type="button"
+                  className="m-0 border-0 bg-transparent p-0 text-[14px] leading-none text-ink-muted hover:text-ink"
+                  aria-label={`Remove ${selectedChapter.name}`}
+                  onClick={() => onChapterChange?.("")}
+                >
+                  ×
+                </button>
+              ) : null}
+            </span>
+          ) : null}
           {selectedIds.map((departmentId) => {
             const department = departmentById(departments, departmentId);
             if (!department) return null;
@@ -172,22 +242,35 @@ function SimpleDepartmentPicker(props: SinglePickerProps | MultiPickerProps) {
         <p className="m-0 mb-2 text-[12.5px] text-ink-muted">Optional — skip if no team yet.</p>
       )}
 
-      {available.length > 0 ? (
+      {hasAvailable ? (
         <select
           id={id ? `${id}-select` : undefined}
           className={selectClass}
           value=""
-          aria-label={selectedIds.length > 0 ? "Add another team" : "Pick a team"}
+          aria-label={hasSelection ? "Add another team" : "Pick a team"}
           onChange={(e) => addDepartment(e.target.value)}
         >
-          <option value="">{selectedIds.length > 0 ? "Add another team…" : "Pick a team…"}</option>
-          {available.map((department) => (
-            <option key={department.id} value={department.id}>
-              {department.name}
-            </option>
-          ))}
+          <option value="">{hasSelection ? "Add another team…" : "Pick a team…"}</option>
+          {available.length > 0 ? (
+            <optgroup label="Teams">
+              {available.map((department) => (
+                <option key={department.id} value={department.id}>
+                  {department.name}
+                </option>
+              ))}
+            </optgroup>
+          ) : null}
+          {availableChapters.length > 0 ? (
+            <optgroup label="Chapters">
+              {availableChapters.map((chapter) => (
+                <option key={chapter.id} value={chapterSelectValue(chapter.id)}>
+                  {chapter.name}
+                </option>
+              ))}
+            </optgroup>
+          ) : null}
         </select>
-      ) : selectedIds.length > 0 ? (
+      ) : hasSelection ? (
         <p className="m-0 text-[12.5px] text-ink-muted">All teams selected.</p>
       ) : null}
 
@@ -309,9 +392,9 @@ function ChipDepartmentPicker(props: SinglePickerProps | MultiPickerProps) {
  * (multi: dropdown + removable pills). Pass `variant="chips"` for the legacy grid.
  */
 export function ActionDepartmentPicker(props: SinglePickerProps | MultiPickerProps) {
-  const { departments, variant = "simple" } = props;
+  const { departments, chapters = [], variant = "simple" } = props;
 
-  if (departments.length === 0) return null;
+  if (departments.length === 0 && chapters.length === 0) return null;
   if (variant === "chips") return <ChipDepartmentPicker {...props} />;
   return <SimpleDepartmentPicker {...props} />;
 }

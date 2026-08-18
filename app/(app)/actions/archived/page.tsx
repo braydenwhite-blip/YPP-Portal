@@ -2,7 +2,6 @@ import { notFound, redirect } from "next/navigation";
 
 import { cookies } from "next/headers";
 import { ActionsHub } from "@/components/people-strategy/actions-hub";
-import type { ActionsHubTab } from "@/components/people-strategy/actions-hub-tabs";
 import skin from "@/components/ui-v2/portal-skin.module.css";
 import { getSession } from "@/lib/auth-supabase";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
@@ -13,9 +12,11 @@ import {
 import { isOfficerTierFromAuth } from "@/lib/public-gate";
 import {
   getMyArchivedActionItems,
+  getActionsForChapter,
   listActionChapters,
   listActionDepartments,
   listVisibleArchivedActionItems,
+  loadActionViewer,
 } from "@/lib/people-strategy/action-queries";
 import {
   applyActionFilters,
@@ -25,8 +26,8 @@ import {
 } from "@/lib/people-strategy/action-filters";
 import {
   canCreateAction,
+  isChapterScopedActionOfficer,
   isOfficerTier,
-  type ActionViewer,
 } from "@/lib/people-strategy/action-permissions";
 import { filterActionsByInitiative } from "@/lib/people-strategy/strategic-initiative-summary";
 import { getInitiativeDef } from "@/lib/people-strategy/strategic-initiatives";
@@ -39,9 +40,11 @@ function firstParam(v: string | string[] | undefined): string | undefined {
   return Array.isArray(v) ? v[0] : v;
 }
 
-function hubFilterLens(filters: ActionFilters): ActionFilters {
+function hubFilterLens(filters: ActionFilters, chapterScope: boolean): ActionFilters {
   return {
     ...filters,
+    department: chapterScope ? "ALL" : filters.department,
+    chapter: chapterScope ? "ALL" : filters.chapter,
     status: "ALL",
     priority: "ALL",
     actionType: "ALL",
@@ -62,12 +65,7 @@ export default async function ArchivedActionsPage({
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
-  const viewer: ActionViewer = {
-    id: session.user.id,
-    roles: session.user.roles,
-    primaryRole: session.user.primaryRole,
-    adminSubtypes: session.user.adminSubtypes,
-  };
+  const viewer = await loadActionViewer();
 
   const cookieStore = await cookies();
   const actionsOnlyPreviewCookie =
@@ -95,6 +93,7 @@ export default async function ArchivedActionsPage({
   const initiativeDef = initiativeParam ? getInitiativeDef(initiativeParam) : null;
 
   const officer = actionsOnlyPreview ? false : isOfficerTier(viewer);
+  const chapterScope = officer && isChapterScopedActionOfficer(viewer);
   const canCreate = actionsOnlyPreview ? false : canCreateAction(viewer);
   const archivedScope =
     actionsOnlyPreview || !officer || whoParam !== "all" ? "me" : "all";
@@ -107,9 +106,13 @@ export default async function ArchivedActionsPage({
   try {
     [myItems, allItems, departments, chapters] = await Promise.all([
       getMyArchivedActionItems(session.user.id, viewer),
-      officer ? listVisibleArchivedActionItems(viewer) : Promise.resolve([]),
-      actionsOnlyPreview ? Promise.resolve([]) : listActionDepartments(),
-      officer ? listActionChapters() : Promise.resolve([]),
+      officer
+        ? chapterScope && viewer.ledChapterId
+          ? getActionsForChapter(viewer.ledChapterId, viewer)
+          : listVisibleArchivedActionItems(viewer)
+        : Promise.resolve([]),
+      actionsOnlyPreview || chapterScope ? Promise.resolve([]) : listActionDepartments(),
+      officer && !chapterScope ? listActionChapters() : Promise.resolve([]),
     ]);
   } catch (error) {
     console.error("[actions/archived] Failed to load archived actions:", error);
@@ -117,7 +120,7 @@ export default async function ArchivedActionsPage({
 
   const now = new Date();
   const filters = parseActionFilters(params);
-  const hubFilters = hubFilterLens(filters);
+  const hubFilters = hubFilterLens(filters, chapterScope);
   const filtersActive = hasActiveHubFilters(hubFilters);
 
   const createHref = initiativeDef
@@ -147,6 +150,7 @@ export default async function ArchivedActionsPage({
         actionsOnlyPreview={actionsOnlyPreview}
         hubBasePath="/actions/archived"
         activeTabArchivedScope={archivedScope}
+        chapterScope={chapterScope}
       />
     </div>
   );

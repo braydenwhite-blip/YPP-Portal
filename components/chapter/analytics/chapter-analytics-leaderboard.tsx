@@ -3,18 +3,17 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 
+import { cn } from "@/components/ui-v2";
 import {
   addAnalyticsMetricAction,
   markAnalyticsMetricDiscussed,
   toggleAnalyticsMetricAction,
 } from "@/lib/chapters/analytics-actions";
-import type { LeaderboardModel, MetricPanelModel } from "@/lib/chapters/analytics-types";
+import type { LeaderboardModel, MetricPanelModel, PaceCell } from "@/lib/chapters/analytics-types";
 import {
   analyticsPanelKey,
-  MATURE_TARGETS,
   METRIC_LABELS,
   type AnalyticsMetricKey,
-  type PaceStatus,
 } from "@/lib/chapters/analytics-pace";
 
 const LEADERBOARD_METRICS: AnalyticsMetricKey[] = [
@@ -59,78 +58,16 @@ const RECOMMENDED: Record<AnalyticsMetricKey, string[]> = {
   ],
 };
 
-const OWNER_COLORS = ["#6366f1", "#0d9488", "#c026d3", "#ea580c", "#2563eb", "#7c3aed"];
-
-/** Leaderboard status chips — soft pastels like the product mock. */
-const CHIP: Record<
-  PaceStatus,
-  { wrap: string; icon: string; label: string }
-> = {
-  above: {
-    wrap: "border-[#86efac] bg-[#dcfce7] text-[#14532d]",
-    icon: "check",
-    label: "Above & Beyond",
-  },
-  on_track: {
-    wrap: "border-[#bbf7d0] bg-[#f0fdf4] text-[#166534]",
-    icon: "check",
-    label: "On Track",
-  },
-  needs_attention: {
-    wrap: "border-[#fdba74] bg-[#fff7ed] text-[#9a3412]",
-    icon: "dash",
-    label: "Needs Attention",
-  },
-  at_risk: {
-    wrap: "border-[#fca5a5] bg-[#fef2f2] text-[#991b1b]",
-    icon: "exclaim",
-    label: "At Risk",
-  },
+const COLUMN_LABELS: Record<AnalyticsMetricKey, string> = {
+  partners: "Partners",
+  instructors: "Instructors",
+  students: "Students",
+  classes: "Classes",
+  retention: "Retention",
+  quality: "Quality",
 };
 
-function goalLabel(metric: AnalyticsMetricKey): string {
-  if (metric === "quality") return String(MATURE_TARGETS.quality);
-  return "70%";
-}
-
-function StatusGlyph({ kind }: { kind: string }) {
-  if (kind === "check") {
-    return (
-      <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden>
-        <path d="M2.5 6.2 4.8 8.5 9.5 3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    );
-  }
-  if (kind === "dash") {
-    return (
-      <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden>
-        <path d="M2.5 6h7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      </svg>
-    );
-  }
-  return (
-    <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden>
-      <circle cx="6" cy="6" r="4.2" stroke="currentColor" strokeWidth="1.5" />
-      <path d="M6 3.6v3.2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      <circle cx="6" cy="8.6" r="0.7" fill="currentColor" />
-    </svg>
-  );
-}
-
-function ShieldIcon() {
-  return (
-    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[linear-gradient(145deg,#ede9fe_0%,#e0e7ff_100%)] text-[#6b21c8]">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
-        <path
-          d="M12 3l7 3v5c0 5-3 8.5-7 10-4-1.5-7-5-7-10V6l7-3z"
-          stroke="currentColor"
-          strokeWidth="1.7"
-          fill="rgba(107,33,200,0.08)"
-        />
-      </svg>
-    </span>
-  );
-}
+const OWNER_COLORS = ["#6366f1", "#0d9488", "#c026d3", "#ea580c", "#2563eb", "#7c3aed"];
 
 function InitialsAvatar({ initials, seed }: { initials: string; seed: string }) {
   let hash = 0;
@@ -147,39 +84,12 @@ function InitialsAvatar({ initials, seed }: { initials: string; seed: string }) 
   );
 }
 
-function MetricCellButton({
-  display,
-  status,
-  discussedOn,
-  selected,
-  onClick,
-}: {
-  display: string;
-  status: PaceStatus;
-  discussedOn: string | null;
-  selected: boolean;
-  onClick: () => void;
-}) {
-  const chip = CHIP[status];
-  return (
-    <button type="button" onClick={onClick} className="group flex w-full flex-col items-center gap-0.5">
-      <span
-        className={`inline-flex w-full max-w-[6.5rem] items-center justify-center gap-0.5 rounded-lg border px-1.5 py-1 text-[11px] font-bold tabular-nums transition duration-150 ${chip.wrap} ${
-          selected
-            ? "ring-2 ring-[#a5b4fc] ring-offset-1"
-            : "group-hover:-translate-y-0.5 group-hover:shadow-[0_4px_10px_rgba(59,15,110,0.08)]"
-        }`}
-      >
-        <StatusGlyph kind={chip.icon} />
-        {display}
-      </span>
-      {discussedOn ? (
-        <span className="max-w-full truncate rounded-full bg-[#dbeafe] px-1 py-0.5 text-[8px] font-semibold leading-none text-[#1d4ed8]">
-          {discussedOn}
-        </span>
-      ) : null}
-    </button>
-  );
+function formatCell(cell: PaceCell) {
+  if (cell.metric === "retention") return `${Math.round(cell.actual)}%`;
+  if (cell.metric === "quality") {
+    return `${cell.actual.toFixed(1)} / ${cell.expected.toFixed(1)}`;
+  }
+  return `${Math.round(cell.actual)} / ${Math.round(cell.expected)}`;
 }
 
 function ActionPanel({
@@ -187,11 +97,13 @@ function ActionPanel({
   periodKey,
   onClose,
   onRefresh,
+  canCreateActions,
 }: {
   panel: MetricPanelModel;
   periodKey: string;
   onClose: () => void;
   onRefresh: () => void;
+  canCreateActions: boolean;
 }) {
   const [pending, startTransition] = useTransition();
   const [title, setTitle] = useState("");
@@ -306,7 +218,7 @@ function ActionPanel({
               type="checkbox"
               className="h-4 w-4 rounded border-[#cbd5e1] text-[#6b21c8] focus:ring-[#c4b5fd]"
               checked={Boolean(panel.discussedOn)}
-              disabled={pending}
+              disabled={pending || !canCreateActions}
               onChange={(e) =>
                 run(() =>
                   markAnalyticsMetricDiscussed({
@@ -340,7 +252,7 @@ function ActionPanel({
             className="space-y-2 border-t border-[#f3f0f8] pt-2.5"
             onSubmit={(e) => {
               e.preventDefault();
-              if (!title.trim()) return;
+              if (!canCreateActions || !title.trim()) return;
               const due = new Date();
               due.setDate(due.getDate() + 7);
               run(async () => {
@@ -355,19 +267,27 @@ function ActionPanel({
               });
             }}
           >
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="New action item…"
-              className="w-full rounded-lg border border-[#e2e8f0] bg-white px-3 py-2 text-[13px] outline-none transition focus:border-[#c4b5fd] focus:ring-2 focus:ring-[#ede9fe]"
-            />
-            <button
-              type="submit"
-              disabled={pending || !title.trim()}
-              className="w-full rounded-lg bg-[linear-gradient(135deg,#5a1da8_0%,#6b21c8_55%,#7c3aed_100%)] px-3 py-2 text-[12px] font-semibold text-white shadow-[0_6px_14px_rgba(107,33,200,0.22)] transition hover:brightness-105 disabled:opacity-50"
-            >
-              + Add Action Item
-            </button>
+            {canCreateActions ? (
+              <>
+                <input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="New action item…"
+                  className="w-full rounded-lg border border-[#e2e8f0] bg-white px-3 py-2 text-[13px] outline-none transition focus:border-[#c4b5fd] focus:ring-2 focus:ring-[#ede9fe]"
+                />
+                <button
+                  type="submit"
+                  disabled={pending || !title.trim()}
+                  className="w-full rounded-lg bg-[linear-gradient(135deg,#5a1da8_0%,#6b21c8_55%,#7c3aed_100%)] px-3 py-2 text-[12px] font-semibold text-white shadow-[0_6px_14px_rgba(107,33,200,0.22)] transition hover:brightness-105 disabled:opacity-50"
+                >
+                  + Add Action Item
+                </button>
+              </>
+            ) : (
+              <p className="m-0 text-[12px] leading-snug text-[#64748b]">
+                You can add action items for your own chapter.
+              </p>
+            )}
           </form>
           {error ? <p className="text-[12px] text-[#dc2626]">{error}</p> : null}
         </div>
@@ -386,7 +306,7 @@ function ActionPanel({
                   type="checkbox"
                   className="mt-0.5 h-4 w-4 rounded border-[#cbd5e1] text-[#6b21c8]"
                   checked={a.status === "COMPLETE"}
-                  disabled={pending}
+                  disabled={pending || !canCreateActions}
                   onChange={(e) =>
                     run(() =>
                       toggleAnalyticsMetricAction({
@@ -426,9 +346,9 @@ function ActionPanel({
                   <input
                     type="checkbox"
                     className="mt-0.5 h-4 w-4 rounded border-[#cbd5e1] text-[#6b21c8]"
-                    disabled={pending}
+                    disabled={pending || !canCreateActions}
                     onChange={(e) => {
-                      if (!e.target.checked) return;
+                      if (!canCreateActions || !e.target.checked) return;
                       const due = new Date();
                       due.setDate(due.getDate() + 7);
                       run(() =>
@@ -460,33 +380,6 @@ function ActionPanel({
   );
 }
 
-function LeaderboardLegend() {
-  return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-4 py-2 text-[11px] text-[#64748b]">
-      <span className="inline-flex items-center gap-1.5">
-        <span className="h-2 w-2 rounded-full bg-[#16a34a]" />
-        <span className="font-medium text-[#334155]">Above & Beyond</span>
-      </span>
-      <span className="inline-flex items-center gap-1.5">
-        <span className="h-2 w-2 rounded-full bg-[#4ade80]" />
-        <span className="font-medium text-[#334155]">On Track</span>
-      </span>
-      <span className="inline-flex items-center gap-1.5">
-        <span className="h-2 w-2 rounded-full bg-[#f97316]" />
-        <span className="font-medium text-[#334155]">Needs Attention</span>
-      </span>
-      <span className="inline-flex items-center gap-1.5">
-        <span className="h-2 w-2 rounded-full bg-[#ef4444]" />
-        <span className="font-medium text-[#334155]">At Risk</span>
-      </span>
-      <span className="inline-flex items-center gap-1.5">
-        <span className="h-0.5 w-3 rounded bg-[#3b82f6]" />
-        <span className="font-medium text-[#334155]">Discussed</span>
-      </span>
-    </div>
-  );
-}
-
 export function ChapterAnalyticsLeaderboard({
   model,
   focusChapterId,
@@ -503,90 +396,76 @@ export function ChapterAnalyticsLeaderboard({
   const panel = selectedKey ? model.panels[selectedKey] : null;
 
   return (
-    <div className="relative flex flex-col gap-3">
-      <header className="relative flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <Link
-              href={overviewHref}
-              className="rounded-full border border-[#e2e8f0] bg-white/90 px-2.5 py-0.5 text-[11px] font-semibold text-[#64748b] shadow-sm transition hover:border-[#c4b5fd] hover:text-[#6b21c8]"
-            >
-              Overview
-            </Link>
-            <span className="rounded-full bg-[#6b21c8] px-2.5 py-0.5 text-[11px] font-semibold text-white">
-              Leaderboard
-            </span>
+    <div className="relative flex flex-col gap-5">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex items-start gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#eef2ff] text-[#4f46e5]">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path
+                d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6l7-3z"
+                stroke="currentColor"
+                strokeWidth="1.8"
+              />
+            </svg>
+          </div>
+          <div>
             {isLeadership ? (
               <Link
-                href="/chapter/impact/goals"
-                className="rounded-full border border-[#e2e8f0] bg-white/90 px-2.5 py-0.5 text-[11px] font-semibold text-[#64748b] shadow-sm transition hover:border-[#c4b5fd] hover:text-[#6b21c8]"
+                href="/admin/chapters"
+                className="mb-1 inline-block text-[12.5px] font-semibold text-brand-700 no-underline hover:underline"
               >
-                Goals
+                ← Chapters
               </Link>
             ) : null}
-            <h1 className="text-[20px] font-bold tracking-tight text-[#1e1b4b] sm:text-[22px]">
-              Chapter Leaderboard
-            </h1>
+            <h1 className="text-[26px] font-bold tracking-tight text-[#111827]">Chapter Analytics</h1>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <Link
+                href={overviewHref}
+                className="rounded-full border border-[#e5e7eb] bg-white px-3 py-1 text-[12px] font-semibold text-[#4b5563] hover:border-[#c7d2fe] hover:text-[#4338ca]"
+              >
+                Overview
+              </Link>
+              <span className="rounded-full bg-[#4f46e5] px-3 py-1 text-[12px] font-semibold text-white">
+                Leaderboard
+              </span>
+            </div>
           </div>
-          <p className="mt-0.5 hidden text-[12px] text-[#7c3aed]/85 sm:block">
-            Ranked by pace vs month-adjusted expectations
-          </p>
         </div>
 
-        <div className="relative flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-lg border border-[#e2e8f0] bg-white px-2.5 py-1.5 text-[12px] font-semibold text-[#1e1b4b]">
-            <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden className="text-[#94a3b8]">
-              <rect x="1.5" y="2.2" width="11" height="10" rx="1.6" stroke="currentColor" strokeWidth="1.3" />
-              <path d="M1.5 5.2h11M4.2 1.3v2.2M9.8 1.3v2.2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-            </svg>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-xl border border-[#e5e7eb] bg-white px-3 py-2 text-[13px] font-semibold text-[#111827] shadow-sm">
             {model.asOfLabel}
           </span>
           <button
             type="button"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-[#e2e8f0] bg-white px-2.5 py-1.5 text-[11px] text-[#64748b] transition hover:text-[#6b21c8]"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-[#e5e7eb] bg-white px-3 py-2 text-[13px] font-semibold text-[#374151] shadow-sm hover:border-[#c7d2fe]"
             aria-label="Refresh"
             onClick={() => window.location.reload()}
           >
-            <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden>
-              <path
-                d="M2.2 7a4.8 4.8 0 0 1 8.5-3M11.8 7a4.8 4.8 0 0 1-8.5 3"
-                stroke="currentColor"
-                strokeWidth="1.4"
-                strokeLinecap="round"
-              />
-              <path d="M10.2 1.8v2.8H13M3.8 12.2V9.4H1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            {model.updatedLabel}
+            Refresh
           </button>
         </div>
       </header>
 
-      <div className="relative overflow-hidden rounded-[16px] border border-[#ebe6f4] bg-white shadow-[0_6px_24px_rgba(46,16,101,0.05)]">
-        <div className="w-full overflow-x-auto">
-          <table className="w-full table-fixed border-collapse text-left">
-            <colgroup>
-              <col className="w-[16%]" />
-              <col className="w-[8%]" />
-              <col className="w-[12.5%]" />
-              <col className="w-[12.5%]" />
-              <col className="w-[12.5%]" />
-              <col className="w-[12.5%]" />
-              <col className="w-[12.5%]" />
-              <col className="w-[13.5%]" />
-            </colgroup>
+      <div className="overflow-hidden rounded-[14px] border border-line-card bg-surface shadow-card">
+        <div className="flex items-baseline justify-between gap-4 px-5 py-3.5">
+          <h2 className="m-0 text-[15px] font-semibold tracking-tight text-ink">Leaderboard</h2>
+          <p className="m-0 text-[12px] text-ink-muted">Actual / goal · tap a number for actions</p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[44rem] border-collapse text-left">
             <thead>
-              <tr className="border-b border-[#f1ecf8] bg-[#fbfafe] text-[10px] uppercase tracking-[0.04em] text-[#94a3b8]">
-                <th className="px-3 py-2.5 font-semibold">Chapter</th>
-                <th className="px-1 py-2.5 text-center font-semibold">
-                  <span className="hidden xl:inline">Months Active</span>
-                  <span className="xl:hidden">Mo.</span>
+              <tr className="border-y border-line-card">
+                <th className="px-5 py-2 text-[12px] font-medium text-ink-muted">Chapter</th>
+                <th className="px-2 py-2 text-center text-[12px] font-medium text-ink-muted">
+                  Months
                 </th>
                 {LEADERBOARD_METRICS.map((m) => (
-                  <th key={m} className="px-1 py-2.5 text-center font-semibold">
-                    <div className="truncate text-[#64748b]">{METRIC_LABELS[m]}</div>
-                    <div className="mt-0.5 font-normal normal-case tracking-normal text-[#cbd5e1]">
-                      {goalLabel(m)}
-                    </div>
+                  <th
+                    key={m}
+                    className="px-2 py-2 text-center text-[12px] font-medium text-ink-muted"
+                  >
+                    {COLUMN_LABELS[m]}
                   </th>
                 ))}
               </tr>
@@ -597,33 +476,47 @@ export function ChapterAnalyticsLeaderboard({
                 return (
                   <tr
                     key={row.chapterId}
-                    className={`border-b border-[#f6f3fb] transition-colors ${
-                      focused ? "bg-[#faf7ff]" : "hover:bg-[#fbfafe]"
-                    }`}
+                    className={cn(
+                      "border-b border-line-card last:border-b-0",
+                      focused && "bg-surface-soft"
+                    )}
                   >
-                    <td className="px-3 py-2">
-                      <div className="flex min-w-0 items-center gap-2">
-                        <ShieldIcon />
-                        <span className="truncate text-[12.5px] font-semibold text-[#1e1b4b]">
-                          {row.chapterName}
-                        </span>
-                      </div>
+                    <td className="px-5 py-2.5 text-[13.5px] font-semibold text-ink">
+                      {row.chapterName}
                     </td>
-                    <td className="px-1 py-2 text-center text-[12px] font-medium tabular-nums text-[#64748b]">
+                    <td className="px-2 py-2.5 text-center text-[13px] tabular-nums text-ink-muted">
                       {row.monthsActive}
                     </td>
                     {LEADERBOARD_METRICS.map((metric) => {
                       const cell = row.cells[metric];
                       const key = analyticsPanelKey(row.chapterId, metric);
+                      const selected = selectedKey === key;
                       return (
-                        <td key={metric} className="px-1 py-1.5 align-middle">
-                          <MetricCellButton
-                            display={cell.display}
-                            status={cell.status}
-                            discussedOn={cell.discussedOn}
-                            selected={selectedKey === key}
-                            onClick={() => setSelectedKey((prev) => (prev === key ? null : key))}
-                          />
+                        <td
+                          key={metric}
+                          role="button"
+                          tabIndex={0}
+                          title={
+                            cell.discussedOn
+                              ? `Discussed ${cell.discussedOn}`
+                              : `Open actions for ${COLUMN_LABELS[metric]}`
+                          }
+                          onClick={() =>
+                            setSelectedKey((prev) => (prev === key ? null : key))
+                          }
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setSelectedKey((prev) => (prev === key ? null : key));
+                            }
+                          }}
+                          className={cn(
+                            "cursor-pointer px-2 py-2.5 text-center text-[13px] font-medium tabular-nums text-brand-800",
+                            "hover:bg-brand-50",
+                            selected && "bg-brand-50"
+                          )}
+                        >
+                          {formatCell(cell)}
                         </td>
                       );
                     })}
@@ -632,32 +525,28 @@ export function ChapterAnalyticsLeaderboard({
               })}
               {model.rows.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-[13px] text-[#94a3b8]">
+                  <td colSpan={8} className="px-5 py-8 text-center text-[13px] text-ink-muted">
                     No chapters to rank yet.
                   </td>
                 </tr>
               ) : null}
             </tbody>
           </table>
-          <div className="border-t border-[#f1ecf8] bg-[#fbfafe]/80">
-            <LeaderboardLegend />
-          </div>
         </div>
 
         {panel ? (
           <ActionPanel
             panel={panel}
             periodKey={model.asOfKey}
+            canCreateActions={Boolean(
+              isLeadership || (focusChapterId && panel.chapterId === focusChapterId)
+            )}
             onClose={() => setSelectedKey(null)}
             onRefresh={() => {
               window.location.reload();
             }}
           />
-        ) : (
-          <div className="border-t border-dashed border-[#ebe6f4] bg-[#fbfafe] px-4 py-3 text-center text-[12px] text-[#94a3b8]">
-            Click a metric cell to open action items below.
-          </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

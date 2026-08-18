@@ -31,6 +31,8 @@ import { isActionType } from "@/lib/people-strategy/action-types";
 import { loadRelatedEntitySummary } from "@/lib/people-strategy/connections";
 import { isMeetingCategory } from "@/lib/people-strategy/meeting-categories";
 import { prisma } from "@/lib/prisma";
+import { getChapterViewerContext } from "@/lib/chapters/access";
+import { listOperatingChaptersForFilters } from "@/lib/chapters/operating";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "New action · Work" };
@@ -64,12 +66,17 @@ export default async function NewActionInTrackerPage({
       ? loadRelatedEntitySummary(relatedTypeParam, relatedIdParam)
       : Promise.resolve(null);
 
-  const [users, departments, template, relatedSummary] =
+  const chapterCtx = await getChapterViewerContext();
+  const assignableChapterId =
+    !chapterCtx.isLeadership && chapterCtx.ledChapterId ? chapterCtx.ledChapterId : null;
+
+  const [users, departments, template, relatedSummary, operatingChapters] =
     await Promise.all([
-      listActionAssignableUsers(),
+      listActionAssignableUsers({ chapterId: assignableChapterId }),
       listActionDepartments(),
       templateId ? getActionTemplate(templateId) : Promise.resolve(null),
       relatedPromise,
+      listOperatingChaptersForFilters(),
     ]);
 
   const titleParam = ctx.title ? ctx.title.slice(0, 300) : "";
@@ -119,19 +126,23 @@ export default async function NewActionInTrackerPage({
       : null;
   const sourceHeader = sourceTypeParam ? ACTION_SOURCE_HEADER[sourceTypeParam] : null;
 
-  const suggestedOwnerId =
-    ctx.suggestedOwnerId && users.some((u) => u.id === ctx.suggestedOwnerId)
-      ? ctx.suggestedOwnerId
-      : null;
-
-  // Resolve the chapter scope carried from a chapter / meeting / person / partner
-  // surface so the form shows a chapter chip and the action is born chapter-scoped.
-  const chapter = ctx.chapterId
+  const scopedChapterId =
+    !chapterCtx.isLeadership && chapterCtx.ledChapterId
+      ? chapterCtx.ledChapterId
+      : ctx.chapterId;
+  const chapter = scopedChapterId
     ? await prisma.chapter.findUnique({
-        where: { id: ctx.chapterId },
+        where: { id: scopedChapterId },
         select: { id: true, name: true },
       })
     : null;
+
+  const suggestedOwnerId =
+    ctx.suggestedOwnerId && users.some((u) => u.id === ctx.suggestedOwnerId)
+      ? ctx.suggestedOwnerId
+      : !chapterCtx.isLeadership && users.some((u) => u.id === viewer.id)
+        ? viewer.id
+        : null;
 
   const prefillInitial: ActionItemFormInitial = {
     ...(titleParam ? { title: titleParam } : {}),
@@ -219,6 +230,12 @@ export default async function NewActionInTrackerPage({
           <ActionCreateForm
             users={users}
             departments={departments}
+            chapters={
+              assignableChapterId
+                ? operatingChapters.filter((chapter) => chapter.id === assignableChapterId)
+                : operatingChapters
+            }
+            lockChapter={Boolean(assignableChapterId)}
             currentUserId={viewer.id}
             redirectTo="/actions"
             cancelHref="/actions"

@@ -725,6 +725,7 @@ export default async function AdminInstructorApplicantsPage({
         actorId={sessionUser.id}
         showChapterFilter={hasNetworkScope}
         showKindFilter={isAdmin || isHiringChair}
+        canImportCsv={isAdmin || isHiringChair}
       />
     </ApplicationReviewShell>
   );

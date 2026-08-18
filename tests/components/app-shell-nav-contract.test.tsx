@@ -31,7 +31,7 @@ afterAll(() => {
 });
 
 describe("app shell nav contract", () => {
-  it("gives ADMIN the simple leadership nav (Home, Mentorship, Actions, Users, Applicants)", async () => {
+  it("gives ADMIN the simple leadership nav (Home, Actions, Applicants, Chapters, Mentorship, Users)", async () => {
     render(
       <Nav
         roles={["ADMIN"]}

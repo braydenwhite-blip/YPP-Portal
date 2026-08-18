@@ -2,12 +2,11 @@
 
 /**
  * Leadership / hiring sidebar — shipped default.
- * Home · Mentorship · Actions · Applicants (role-specific board)
- * Admins only: Applicants (`/admin/applicants`) + Users (`/admin/users`).
- * Chapters (`/admin/chapters`) for national chapter ops + goals.
+ * Home · Actions · Applicants · Chapters · Mentorship · Users (admins).
+ * Staff: Home · Mentorship · Actions · Applicants · Chapters.
  * Chapter Presidents get their own fixed set:
- * Dashboard · My Chapter · Partners · Classes · Analytics · Mentorship.
- * (Student invites / instructor applicants are reached from Dashboard + My Chapter.
+ * Dashboard · My Chapter · Classes · Analytics · Actions · Mentorship.
+ * (Partners, student invites, and instructor applicants are reached from Dashboard + My Chapter.
  * Hiring Chair keeps People/directory instead of Mentorship.)
  *
  * Set `LEADERSHIP_FULL_PORTAL_EXPLORER=true` locally to unlock the full
@@ -35,7 +34,7 @@ const ADMIN_USERS = "/admin/users";
 
 /** Core pins when the full leadership explorer is on (pre-simple-nav IA). */
 export const LEADERSHIP_FULL_CORE_NAV_MAP: Partial<Record<NavRole, string[]>> = {
-  ADMIN: ["/", "/mentorship", "/actions", ADMIN_APPLICANTS, ADMIN_USERS, "/admin/chapters"],
+  ADMIN: ["/", "/actions", ADMIN_APPLICANTS, "/admin/chapters", "/mentorship", ADMIN_USERS],
   STAFF: ["/", "/mentorship", "/actions", "/leadership-pathway", "/admin/chapters"],
   HIRING_CHAIR: ["/", NETWORK_APPLICANTS, "/people", "/actions", "/meetings"],
   CHAPTER_PRESIDENT: [
@@ -50,15 +49,15 @@ export const LEADERSHIP_FULL_CORE_NAV_MAP: Partial<Record<NavRole, string[]>> = 
 
 export function leadershipSimpleNavHrefs(primaryRole: NavRole): readonly string[] {
   if (primaryRole === "ADMIN") {
-    return ["/", "/mentorship", "/actions", ADMIN_APPLICANTS, ADMIN_USERS, "/admin/chapters"];
+    return ["/", "/actions", ADMIN_APPLICANTS, "/admin/chapters", "/mentorship", ADMIN_USERS];
   }
   if (primaryRole === "CHAPTER_PRESIDENT") {
     return [
       "/chapter",
       "/chapter/hub",
-      "/partners",
       "/chapter/instructors",
       "/chapter/impact",
+      "/actions",
       "/mentorship",
     ];
   }

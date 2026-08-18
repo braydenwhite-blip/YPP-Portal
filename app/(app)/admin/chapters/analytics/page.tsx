@@ -61,7 +61,7 @@ export default async function ChapterAnalyticsPage() {
         subtitle="Answer the growth questions instantly — applications, approvals, chapters per state, and fastest-growing regions."
         actions={
           <div className="flex gap-2">
-            <ButtonLink href="/admin/chapters" variant="secondary" size="sm">Chapter command</ButtonLink>
+            <ButtonLink href="/admin/chapters" variant="secondary" size="sm">Chapters</ButtonLink>
             <ButtonLink href="/admin/chapters/map" variant="secondary" size="sm">Map</ButtonLink>
           </div>
         }

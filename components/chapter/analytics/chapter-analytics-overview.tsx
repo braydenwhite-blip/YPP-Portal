@@ -6,7 +6,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Legend,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -15,7 +14,7 @@ import {
   YAxis,
 } from "recharts";
 
-import { ModalV2 } from "@/components/ui-v2";
+import { ModalV2, cn } from "@/components/ui-v2";
 import { setAnalyticsCategoryNote } from "@/lib/chapters/analytics-goals-actions";
 import type { ChapterOverviewModel, TrendPoint } from "@/lib/chapters/analytics-types";
 import type { AnalyticsRangeMonths } from "@/lib/chapters/analytics-types";
@@ -24,7 +23,6 @@ import {
   CATEGORY_LABELS,
   PACE_STATUS_LABELS,
   type AnalyticsCategoryKey,
-  type PaceStatus,
 } from "@/lib/chapters/analytics-pace";
 
 import { CATEGORY_ACCENT, PACE_COLORS, PaceLegend } from "./pace-styles";
@@ -33,112 +31,117 @@ function formatHeatValue(n: number): string {
   return Number.isInteger(n) ? String(n) : n.toFixed(1);
 }
 
-/** Soft heatmap tile — wash + pace bar, no bordered pill. */
-function HeatmapTile({
-  display,
-  actual,
-  expected,
-  status,
-  label,
-  onClick,
-}: {
-  display: string;
-  actual: number;
-  expected: number;
-  status: PaceStatus;
-  label: string;
-  onClick: () => void;
-}) {
-  const c = PACE_COLORS[status];
-  const isPercent = display.endsWith("%");
-  const ratio = expected > 0 ? Math.min(1, Math.max(0, actual / expected)) : actual > 0 ? 1 : 0;
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={`${label}: ${display} · ${PACE_STATUS_LABELS[status]}`}
-      aria-label={`${label}: ${display}, ${PACE_STATUS_LABELS[status]}`}
-      className={[
-        "group relative mx-auto flex w-full max-w-[5.75rem] flex-col items-stretch gap-1.5 rounded-lg px-2 py-2",
-        "transition duration-150",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1",
-        c.wash,
-        c.washHover,
-        c.ring,
-      ].join(" ")}
-    >
-      <div className="flex items-baseline justify-center gap-0.5 tabular-nums leading-none">
-        {isPercent ? (
-          <span className={`text-[13px] font-semibold tracking-tight ${c.text}`}>{display}</span>
-        ) : (
-          <>
-            <span className={`text-[13px] font-semibold tracking-tight ${c.text}`}>
-              {formatHeatValue(actual)}
-            </span>
-            <span className={`text-[11px] font-medium ${c.muted}`}>/{formatHeatValue(expected)}</span>
-          </>
-        )}
-      </div>
-      <div className="h-[3px] w-full overflow-hidden rounded-full bg-black/[0.06]">
-        <div
-          className={`h-full rounded-full transition-[width] duration-300 ${c.bar}`}
-          style={{ width: `${Math.round(ratio * 100)}%` }}
-        />
-      </div>
-    </button>
-  );
-}
-
 function Kpi({
   label,
   value,
-  accent,
+  tone,
 }: {
   label: string;
   value: string;
-  accent?: string;
+  tone?: "ink" | "muted" | "danger" | "good";
 }) {
+  const valueClass =
+    tone === "danger"
+      ? "text-blocked-700"
+      : tone === "good"
+        ? "text-complete-700"
+        : tone === "muted"
+          ? "text-ink-muted"
+          : "text-ink";
   return (
     <div className="min-w-0">
-      <div className="text-[11px] font-medium uppercase tracking-[0.04em] text-[#9aa2b1]">{label}</div>
-      <div className="mt-0.5 text-[18px] font-bold tabular-nums" style={{ color: accent ?? "#111827" }}>
-        {value}
-      </div>
+      <div className="text-[11px] font-medium text-ink-muted">{label}</div>
+      <div className={cn("mt-0.5 text-[18px] font-bold tabular-nums", valueClass)}>{value}</div>
+    </div>
+  );
+}
+
+function ChartKeys({ variant }: { variant: "line" | "bar" }) {
+  if (variant === "bar") {
+    return (
+      <span className="flex shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-1 text-[11px] text-ink-muted">
+        <span className="inline-flex items-center gap-1.5">
+          <span className="size-2.5 rounded-[2px] bg-[#6b21c8]" />
+          Retention
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="size-2.5 rounded-[2px] bg-[#ece8f2] ring-1 ring-[#d4cde0]" />
+          Goal
+        </span>
+      </span>
+    );
+  }
+  return (
+    <span className="flex shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-1 text-[11px] text-ink-muted">
+      <span className="inline-flex items-center gap-1.5">
+        <span className="relative inline-flex h-[2px] w-4 items-center bg-[#6b21c8]">
+          <span className="absolute left-1/2 top-1/2 size-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#6b21c8]" />
+        </span>
+        Have
+      </span>
+      <span className="inline-flex items-center gap-1.5">
+        <span className="w-4 border-t-[1.75px] border-dashed border-[#8a8299]" />
+        Goal
+      </span>
+    </span>
+  );
+}
+
+function ChartTooltip({
+  active,
+  payload,
+  label,
+  percent,
+}: {
+  active?: boolean;
+  payload?: Array<{ name?: string; value?: number; color?: string }>;
+  label?: string;
+  percent?: boolean;
+}) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-[10px] border border-line-card bg-surface px-2.5 py-2 text-[12px] shadow-card">
+      <div className="mb-1 font-semibold text-ink">{label}</div>
+      {payload.map((entry) => (
+        <div key={entry.name} className="flex items-center justify-between gap-4">
+          <span className="inline-flex items-center gap-1.5 text-ink-muted">
+            <span className="size-1.5 rounded-full" style={{ background: entry.color }} />
+            {entry.name}
+          </span>
+          <span className="font-semibold tabular-nums text-ink">
+            {percent ? `${Math.round(Number(entry.value ?? 0))}%` : entry.value}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }
 
 function DetailCard({
   title,
-  accent,
   children,
   kpis,
   onOpen,
+  keys,
 }: {
   title: string;
-  accent: string;
   children: React.ReactNode;
   kpis: React.ReactNode;
   onOpen: () => void;
+  keys: "line" | "bar";
 }) {
   return (
     <button
       type="button"
       onClick={onOpen}
-      className="group flex flex-col overflow-hidden rounded-2xl border border-[#e8e4f0] bg-white text-left shadow-[0_1px_2px_rgb(46_16_101/0.04)] transition hover:-translate-y-0.5 hover:border-[rgba(99,102,241,0.28)] hover:shadow-[0_10px_28px_rgba(59,15,110,0.1)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgba(99,102,241,0.45)]"
+      className="group flex flex-col overflow-hidden rounded-[14px] border border-line-card bg-surface text-left shadow-card transition hover:border-brand-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-400"
     >
-      <div className="flex items-center justify-between gap-2 border-b border-[#f0ecf6] px-4 py-3">
-        <div className="flex items-center gap-2">
-          <span className="h-2.5 w-2.5 rounded-full" style={{ background: accent }} />
-          <h3 className="text-[14px] font-bold text-[#111827]">{title}</h3>
-        </div>
-        <span className="text-[11px] font-semibold text-[#6366f1] opacity-0 transition group-hover:opacity-100">
-          View details
-        </span>
+      <div className="flex items-center justify-between gap-2 px-4 py-3">
+        <h3 className="m-0 text-[14px] font-semibold text-ink">{title}</h3>
+        <ChartKeys variant={keys} />
       </div>
-      <div className="pointer-events-none px-3 pt-3">{children}</div>
-      <div className="mt-auto grid grid-cols-2 gap-3 border-t border-[#f0ecf6] bg-[#fafafa] px-4 py-3 sm:grid-cols-4">
+      <div className="pointer-events-none px-3 pb-1">{children}</div>
+      <div className="mt-auto grid grid-cols-2 gap-3 border-t border-line-card px-4 py-3 sm:grid-cols-4">
         {kpis}
       </div>
     </button>
@@ -149,45 +152,48 @@ function categoryKpis(model: ChapterOverviewModel, category: AnalyticsCategoryKe
   switch (category) {
     case "students":
       return [
-        { label: "Actual", value: String(model.current.students), accent: CATEGORY_ACCENT.students },
-        { label: "Expectation", value: String(model.expected.students), accent: CATEGORY_ACCENT.students },
+        { label: "Have", value: String(model.current.students) },
+        { label: "Goal", value: String(model.expected.students), tone: "muted" as const },
         {
           label: "Gap",
           value: model.kpis.students.gap > 0 ? `+${model.kpis.students.gap}` : String(model.kpis.students.gap),
-          accent: model.kpis.students.gap < 0 ? "#dc2626" : "#111827",
+          tone: (model.kpis.students.gap < 0 ? "danger" : "good") as const,
         },
-        { label: "Student retention", value: `${model.kpis.students.retention}%` },
+        { label: "Retention", value: `${model.kpis.students.retention}%` },
       ];
     case "instructors":
       return [
-        { label: "Actual", value: String(model.current.instructors), accent: CATEGORY_ACCENT.instructors },
-        { label: "Expectation", value: String(model.expected.instructors), accent: CATEGORY_ACCENT.instructors },
+        { label: "Have", value: String(model.current.instructors) },
+        { label: "Goal", value: String(model.expected.instructors), tone: "muted" as const },
         {
-          label: "Utilization",
-          value: `${model.kpis.instructors.utilization}%`,
-          accent: CATEGORY_ACCENT.instructors,
+          label: "Gap",
+          value:
+            model.current.instructors - model.expected.instructors > 0
+              ? `+${model.current.instructors - model.expected.instructors}`
+              : String(model.current.instructors - model.expected.instructors),
+          tone: (model.current.instructors - model.expected.instructors < 0 ? "danger" : "good") as const,
         },
-        { label: "Unassigned trained", value: String(model.kpis.instructors.unassignedTrained) },
+        { label: "Utilization", value: `${model.kpis.instructors.utilization}%` },
       ];
     case "partners":
       return [
-        { label: "Actual", value: String(model.current.partners), accent: CATEGORY_ACCENT.partners },
-        { label: "Expectation", value: String(model.expected.partners), accent: CATEGORY_ACCENT.partners },
+        { label: "Have", value: String(model.current.partners) },
+        { label: "Goal", value: String(model.expected.partners), tone: "muted" as const },
         {
           label: "Gap",
           value: model.kpis.partners.gap > 0 ? `+${model.kpis.partners.gap}` : String(model.kpis.partners.gap),
+          tone: (model.kpis.partners.gap < 0 ? "danger" : "good") as const,
         },
         { label: "Pending meetings", value: String(model.kpis.partners.pendingMeetings) },
       ];
     case "quality":
       return [
         {
-          label: "Instructor review avg",
+          label: "Reviews",
           value:
             model.kpis.quality.instructorReviewAvg != null
               ? `${model.kpis.quality.instructorReviewAvg} / 5`
               : "—",
-          accent: CATEGORY_ACCENT.quality,
         },
         {
           label: "Parent feedback",
@@ -195,13 +201,16 @@ function categoryKpis(model: ChapterOverviewModel, category: AnalyticsCategoryKe
             model.kpis.quality.parentFeedbackAvg != null
               ? `${model.kpis.quality.parentFeedbackAvg} / 5`
               : "—",
-          accent: "#3b82f6",
         },
-        { label: "Retention", value: `${model.kpis.quality.retention}%`, accent: "#f59e0b" },
-        { label: "Follow-up flagged", value: String(model.kpis.quality.followUpFlagged) },
+        { label: "Retention", value: `${model.kpis.quality.retention}%` },
+        { label: "Follow-ups", value: String(model.kpis.quality.followUpFlagged) },
       ];
   }
 }
+
+const HAVE_STROKE = "#6b21c8";
+const GOAL_STROKE = "#8a8299";
+const GOAL_BAR = "#ece8f2";
 
 function CategoryTrendChart({
   category,
@@ -212,24 +221,23 @@ function CategoryTrendChart({
   points: TrendPoint[];
   height?: number;
 }) {
-  const accent = CATEGORY_ACCENT[category];
+  const tick = { fill: "#6b5f7a", fontSize: 11 };
   if (category === "quality") {
     return (
       <ResponsiveContainer width="100%" height={height}>
         <BarChart
-          data={points.slice(-6).map((p) => ({
+          data={points.map((p) => ({
             label: p.label,
-            retention: p.actual,
-            expected: p.expected,
+            have: p.actual,
+            goal: p.expected,
           }))}
         >
-          <CartesianGrid stroke="rgba(15,20,32,0.06)" vertical={false} />
-          <XAxis dataKey="label" tick={{ fill: "#9aa2b1", fontSize: 11 }} axisLine={false} tickLine={false} />
-          <YAxis tick={{ fill: "#9aa2b1", fontSize: 11 }} axisLine={false} tickLine={false} width={32} />
-          <Tooltip />
-          <Legend />
-          <Bar dataKey="retention" name="Retention (%)" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-          <Bar dataKey="expected" name="Expectation" fill="#86efac" radius={[4, 4, 0, 0]} />
+          <CartesianGrid stroke="rgba(26,5,51,0.06)" vertical={false} />
+          <XAxis dataKey="label" tick={tick} axisLine={false} tickLine={false} />
+          <YAxis tick={tick} axisLine={false} tickLine={false} width={28} domain={[0, 100]} />
+          <Tooltip content={(props) => <ChartTooltip {...props} percent />} />
+          <Bar dataKey="have" name="Retention" fill={HAVE_STROKE} radius={[4, 4, 0, 0]} />
+          <Bar dataKey="goal" name="Goal" fill={GOAL_BAR} radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     );
@@ -238,19 +246,25 @@ function CategoryTrendChart({
   return (
     <ResponsiveContainer width="100%" height={height}>
       <LineChart data={points}>
-        <CartesianGrid stroke="rgba(15,20,32,0.06)" vertical={false} />
-        <XAxis dataKey="label" tick={{ fill: "#9aa2b1", fontSize: 11 }} axisLine={false} tickLine={false} />
-        <YAxis tick={{ fill: "#9aa2b1", fontSize: 11 }} axisLine={false} tickLine={false} width={32} />
-        <Tooltip />
-        <Legend />
-        <Line type="monotone" dataKey="actual" name="Actual" stroke={accent} strokeWidth={2.5} dot={{ r: 3 }} />
+        <CartesianGrid stroke="rgba(26,5,51,0.06)" vertical={false} />
+        <XAxis dataKey="label" tick={tick} axisLine={false} tickLine={false} />
+        <YAxis tick={tick} axisLine={false} tickLine={false} width={28} />
+        <Tooltip content={(props) => <ChartTooltip {...props} />} />
+        <Line
+          type="monotone"
+          dataKey="actual"
+          name="Have"
+          stroke={HAVE_STROKE}
+          strokeWidth={2.25}
+          dot={{ r: 3, fill: HAVE_STROKE, strokeWidth: 0 }}
+        />
         <Line
           type="monotone"
           dataKey="expected"
-          name="Expectation"
-          stroke={accent}
-          strokeDasharray="5 5"
-          strokeWidth={2}
+          name="Goal"
+          stroke={GOAL_STROKE}
+          strokeDasharray="4 4"
+          strokeWidth={1.75}
           dot={false}
         />
       </LineChart>
@@ -368,7 +382,7 @@ function CategoryDetailModal({
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {kpis.map((k) => (
             <div key={k.label} className="rounded-xl border border-[#f0ecf6] bg-[#fafafa] px-3 py-2.5">
-              <Kpi label={k.label} value={k.value} accent={k.accent} />
+              <Kpi label={k.label} value={k.value} tone={k.tone} />
             </div>
           ))}
         </div>
@@ -389,6 +403,9 @@ function CategoryDetailModal({
       ) : null}
 
       <div className="rounded-xl border border-[#f0ecf6] bg-white p-2">
+        <div className="flex justify-end px-2 pt-2">
+          <ChartKeys variant={category === "quality" ? "bar" : "line"} />
+        </div>
         <CategoryTrendChart category={category} points={model.trends[category]} height={240} />
       </div>
 
@@ -452,14 +469,34 @@ function CategoryDetailModal({
 }
 
 function exportOverviewCsv(model: ChapterOverviewModel) {
+  const monthLabels = model.months.map((m) => m.label);
   const lines = [
-    ["Category", ...model.months.map((m) => m.label)].join(","),
-    ...ANALYTICS_CATEGORY_KEYS.map((cat) => {
-      const cells = model.months.map((m) => {
+    ["Chapter", model.chapterName].join(","),
+    ["Category", "Series", ...monthLabels].join(","),
+    ...ANALYTICS_CATEGORY_KEYS.flatMap((cat) => {
+      const isQuality = cat === "quality";
+      const have = model.months.map((m) => {
         const cell = model.heatmap.find((h) => h.category === cat && h.monthKey === m.key);
-        return cell ? `"${cell.display}"` : "";
+        if (!cell) return "";
+        return isQuality ? `${Math.round(cell.actual)}%` : String(cell.actual);
       });
-      return [CATEGORY_LABELS[cat], ...cells].join(",");
+      const goal = model.months.map((m) => {
+        const cell = model.heatmap.find((h) => h.category === cat && h.monthKey === m.key);
+        if (!cell) return "";
+        return isQuality ? `${Math.round(cell.expected)}%` : String(cell.expected);
+      });
+      const gap = model.months.map((m) => {
+        const cell = model.heatmap.find((h) => h.category === cat && h.monthKey === m.key);
+        if (!cell) return "";
+        const delta = Math.round(cell.actual - cell.expected);
+        return String(delta);
+      });
+      const label = CATEGORY_LABELS[cat];
+      return [
+        [label, isQuality ? "Retention" : "Have", ...have].join(","),
+        [label, "Goal", ...goal].join(","),
+        [label, "Gap", ...gap].join(","),
+      ];
     }),
   ];
   const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
@@ -537,6 +574,14 @@ export function ChapterAnalyticsOverview({
             </svg>
           </div>
           <div>
+            {includeChapterInQuery ? (
+              <Link
+                href="/admin/chapters"
+                className="mb-1 inline-block text-[12.5px] font-semibold text-brand-700 no-underline hover:underline"
+              >
+                ← Chapters
+              </Link>
+            ) : null}
             <h1 className="text-[26px] font-bold tracking-tight text-[#111827]">Chapter Analytics</h1>
             <div className="mt-2 flex flex-wrap gap-2">
               <Link
@@ -551,14 +596,6 @@ export function ChapterAnalyticsOverview({
               >
                 Leaderboard
               </Link>
-              {includeChapterInQuery ? (
-                <Link
-                  href="/chapter/impact/goals"
-                  className="rounded-full border border-[#e5e7eb] bg-white px-3 py-1 text-[12px] font-semibold text-[#4b5563] hover:border-[#c7d2fe] hover:text-[#4338ca]"
-                >
-                  Goals
-                </Link>
-              ) : null}
             </div>
           </div>
         </div>
@@ -620,18 +657,27 @@ export function ChapterAnalyticsOverview({
         </span>
       </div>
 
-      <section className="overflow-hidden rounded-2xl border border-[#e8e4f0] bg-white shadow-[0_1px_2px_rgb(46_16_101/0.04)]">
-        <div className="flex flex-col gap-3 border-b border-[#f0ecf6] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-[15px] font-bold text-[#111827]">Monthly Status by Category</h2>
+      <section className="overflow-hidden rounded-[14px] border border-line-card bg-surface shadow-card">
+        <div className="flex flex-col gap-2 px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="m-0 text-[15px] font-semibold tracking-tight text-ink">Pace</h2>
+            <p className="m-0 text-[12px] text-ink-muted">Have / goal for every chapter month</p>
+          </div>
           <PaceLegend compact />
         </div>
-        <div className="overflow-x-auto px-2 pb-2 pt-1 sm:px-3">
-          <table className="w-full min-w-[640px] border-separate border-spacing-y-1 text-left">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[36rem] border-collapse">
             <thead>
-              <tr className="text-[11px] uppercase tracking-[0.05em] text-[#9aa2b1]">
-                <th className="px-3 py-2.5 font-semibold">Category</th>
-                {model.months.map((m) => (
-                  <th key={m.key} className="px-1 py-2.5 text-center font-semibold sm:px-1.5">
+              <tr className="border-y border-line-card">
+                <th className="w-32 px-5 py-2 text-left text-[12px] font-medium text-ink-muted" />
+                {model.months.map((m, i) => (
+                  <th
+                    key={m.key}
+                    className={cn(
+                      "px-2 py-2 text-center text-[12px] font-medium",
+                      i === model.months.length - 1 ? "text-ink" : "text-ink-muted"
+                    )}
+                  >
                     {m.label}
                   </th>
                 ))}
@@ -639,34 +685,44 @@ export function ChapterAnalyticsOverview({
             </thead>
             <tbody>
               {ANALYTICS_CATEGORY_KEYS.map((cat) => (
-                <tr key={cat}>
-                  <td className="px-3 py-2">
-                    <button
-                      type="button"
-                      onClick={() => setOpenCategory(cat)}
-                      className="flex items-center gap-2 rounded-lg text-left transition hover:opacity-80"
-                    >
-                      <span
-                        className="flex h-6 w-6 items-center justify-center rounded-md text-[11px] font-bold text-white"
-                        style={{ background: CATEGORY_ACCENT[cat] }}
-                      >
-                        {cat === "students" ? "S" : cat === "instructors" ? "I" : cat === "partners" ? "P" : "Q"}
-                      </span>
-                      <span className="text-[13px] font-semibold text-[#111827]">{CATEGORY_LABELS[cat]}</span>
-                    </button>
-                  </td>
-                  {heatmapByCat[cat].map((cell) => (
-                    <td key={cell.monthKey} className="px-1 py-2 text-center sm:px-1.5">
-                      <HeatmapTile
-                        display={cell.display}
-                        actual={cell.actual}
-                        expected={cell.expected}
-                        status={cell.status}
-                        label={`${CATEGORY_LABELS[cat]} ${cell.label}`}
-                        onClick={() => setOpenCategory(cat)}
-                      />
-                    </td>
-                  ))}
+                <tr
+                  key={cat}
+                  tabIndex={0}
+                  aria-label={`Open ${CATEGORY_LABELS[cat]} details`}
+                  onClick={() => setOpenCategory(cat)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setOpenCategory(cat);
+                    }
+                  }}
+                  className="cursor-pointer border-b border-line-card last:border-b-0 hover:bg-surface-soft focus-visible:bg-surface-soft focus-visible:outline-none"
+                >
+                  <th
+                    scope="row"
+                    className="px-5 py-3 text-left text-[13.5px] font-semibold text-ink"
+                  >
+                    {CATEGORY_LABELS[cat]}
+                  </th>
+                  {heatmapByCat[cat].map((cell) => {
+                    const isPercent = cat === "quality";
+                    const colors = PACE_COLORS[cell.status];
+                    return (
+                      <td key={cell.monthKey} className="px-2 py-3 text-center">
+                        <span className="inline-flex flex-col items-center gap-1">
+                          <span className="tabular-nums leading-none">
+                            <span className="text-[14px] font-semibold text-ink">
+                              {isPercent ? `${Math.round(cell.actual)}%` : formatHeatValue(cell.actual)}
+                            </span>
+                            <span className="text-[12px] text-ink-muted">
+                              /{isPercent ? `${Math.round(cell.expected)}%` : formatHeatValue(cell.expected)}
+                            </span>
+                          </span>
+                          <span className={`h-1.5 w-1.5 rounded-full ${colors.dot}`} aria-label={PACE_STATUS_LABELS[cell.status]} />
+                        </span>
+                      </td>
+                    );
+                  })}
                 </tr>
               ))}
             </tbody>
@@ -681,34 +737,20 @@ export function ChapterAnalyticsOverview({
             <DetailCard
               key={cat}
               title={CATEGORY_LABELS[cat]}
-              accent={CATEGORY_ACCENT[cat]}
+              keys={cat === "quality" ? "bar" : "line"}
               onOpen={() => setOpenCategory(cat)}
               kpis={
                 <>
                   {kpis.map((k) => (
-                    <Kpi key={k.label} label={k.label} value={k.value} accent={k.accent} />
+                    <Kpi key={k.label} label={k.label} value={k.value} tone={k.tone} />
                   ))}
                 </>
               }
             >
-              {cat === "instructors" ? (
-                <div className="mb-2 px-1">
-                  <div className="mb-1 flex items-center justify-between text-[12px]">
-                    <span className="font-medium text-[#6b7280]">Instructor utilization</span>
-                    <span className="font-bold text-[#7c3aed]">{model.kpis.instructors.utilization}%</span>
-                  </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-[#ede9fe]">
-                    <div
-                      className="h-full rounded-full bg-[#7c3aed]"
-                      style={{ width: `${Math.min(100, model.kpis.instructors.utilization)}%` }}
-                    />
-                  </div>
-                </div>
-              ) : null}
               <CategoryTrendChart
                 category={cat}
                 points={model.trends[cat]}
-                height={cat === "instructors" ? 150 : 180}
+                height={180}
               />
             </DetailCard>
           );

@@ -7,6 +7,7 @@ import {
   filterArchivedItems,
   isArchivedAction,
   isPendingCompletionApproval,
+  pendingApprovalQueue,
   showOnActiveHub,
 } from "@/lib/people-strategy/action-approval";
 
@@ -68,5 +69,33 @@ describe("action hub visibility", () => {
     expect(
       canApproveActionCompletion({ id: "u1", roles: ["INSTRUCTOR"], primaryRole: "INSTRUCTOR" }),
     ).toBe(false);
+  });
+
+  it("builds a pending approval queue from submitted completions", () => {
+    expect(
+      pendingApprovalQueue([
+        item({
+          id: "a1",
+          title: "Call families",
+          status: "COMPLETE",
+          approvedAt: null,
+          completedAt: new Date("2026-08-01T12:00:00.000Z"),
+          lead: { name: "Alex Lead", email: "alex@ypp.org" },
+          department: { id: "d1", name: "Instruction", slug: "instruction" },
+          chapter: { id: "c1", name: "Scarsdale", lifecycleStatus: "ACTIVE" },
+        }),
+        item({ id: "a2", status: "IN_PROGRESS" }),
+        item({ id: "a3", status: "COMPLETE", approvedAt: new Date() }),
+      ]),
+    ).toEqual([
+      {
+        id: "a1",
+        title: "Call families",
+        leadName: "Alex Lead",
+        department: "Instruction",
+        chapter: "Scarsdale",
+        submittedAt: "2026-08-01T12:00:00.000Z",
+      },
+    ]);
   });
 });

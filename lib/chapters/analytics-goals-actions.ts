@@ -47,6 +47,7 @@ export type AnalyticsGoalActionResult = { ok: true } | { ok: false; error: strin
 function revalidateAll() {
   revalidatePath("/chapter/impact");
   revalidatePath("/chapter/impact/goals");
+  revalidatePath("/admin/chapters");
 }
 
 export async function setAnalyticsGoalDefault(input: unknown): Promise<AnalyticsGoalActionResult> {

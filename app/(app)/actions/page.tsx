@@ -13,24 +13,26 @@ import {
 import { isOfficerTierFromAuth } from "@/lib/public-gate";
 import {
   getMyActionItems,
+  getActionsForChapter,
   listActionChapters,
   listActionDepartments,
   listVisibleActionItems,
+  loadActionViewer,
 } from "@/lib/people-strategy/action-queries";
+import {
+  canCreateAction,
+  isChapterScopedActionOfficer,
+  isOfficerTier,
+} from "@/lib/people-strategy/action-permissions";
 import {
   applyActionFilters,
   hasActiveHubFilters,
   parseActionFilters,
   type ActionFilters,
 } from "@/lib/people-strategy/action-filters";
-import {
-  canCreateAction,
-  isOfficerTier,
-  type ActionViewer,
-} from "@/lib/people-strategy/action-permissions";
+import { filterActiveHubItems, pendingApprovalQueue } from "@/lib/people-strategy/action-approval";
 import { filterActionsByInitiative } from "@/lib/people-strategy/strategic-initiative-summary";
 import { getInitiativeDef } from "@/lib/people-strategy/strategic-initiatives";
-import { filterActiveHubItems } from "@/lib/people-strategy/action-approval";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Actions" };
@@ -44,9 +46,11 @@ function resolveHubTab(who: string): ActionsHubTab {
 }
 
 /** Hub ignores advanced filters that are not exposed in the UI. */
-function hubFilterLens(filters: ActionFilters): ActionFilters {
+function hubFilterLens(filters: ActionFilters, chapterScope: boolean): ActionFilters {
   return {
     ...filters,
+    department: chapterScope ? "ALL" : filters.department,
+    chapter: chapterScope ? "ALL" : filters.chapter,
     status: "ALL",
     priority: "ALL",
     actionType: "ALL",
@@ -67,12 +71,7 @@ export default async function ActionsPage({
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
-  const viewer: ActionViewer = {
-    id: session.user.id,
-    roles: session.user.roles,
-    primaryRole: session.user.primaryRole,
-    adminSubtypes: session.user.adminSubtypes,
-  };
+  const viewer = await loadActionViewer();
 
   const cookieStore = await cookies();
   const actionsOnlyPreviewCookie =
@@ -101,6 +100,7 @@ export default async function ActionsPage({
   const initiativeDef = initiativeParam ? getInitiativeDef(initiativeParam) : null;
 
   const officer = actionsOnlyPreview ? false : isOfficerTier(viewer);
+  const chapterScope = officer && isChapterScopedActionOfficer(viewer);
   const canCreate = actionsOnlyPreview ? false : canCreateAction(viewer);
   const who = actionsOnlyPreview ? "me" : officer && whoParam === "all" ? "all" : "me";
 
@@ -110,11 +110,15 @@ export default async function ActionsPage({
   let chapters: Awaited<ReturnType<typeof listActionChapters>> = [];
 
   try {
-    [      myItems, allItems, departments, chapters] = await Promise.all([
+    [myItems, allItems, departments, chapters] = await Promise.all([
       getMyActionItems(viewer.id, viewer),
-      officer ? listVisibleActionItems(viewer) : Promise.resolve([]),
-      actionsOnlyPreview ? Promise.resolve([]) : listActionDepartments(),
-      officer ? listActionChapters() : Promise.resolve([]),
+      officer
+        ? chapterScope && viewer.ledChapterId
+          ? getActionsForChapter(viewer.ledChapterId, viewer)
+          : listVisibleActionItems(viewer)
+        : Promise.resolve([]),
+      actionsOnlyPreview || chapterScope ? Promise.resolve([]) : listActionDepartments(),
+      officer && !chapterScope ? listActionChapters() : Promise.resolve([]),
     ]);
   } catch (error) {
     console.error("[actions] Failed to load action hub data:", error);
@@ -122,7 +126,7 @@ export default async function ActionsPage({
 
   const now = new Date();
   const filters = parseActionFilters(params);
-  const hubFilters = hubFilterLens(filters);
+  const hubFilters = hubFilterLens(filters, chapterScope);
   const filtersActive = hasActiveHubFilters(hubFilters);
 
   const createHref = initiativeDef
@@ -134,6 +138,7 @@ export default async function ActionsPage({
   if (initiativeDef) source = filterActionsByInitiative(source, initiativeDef.id);
   const filtered = applyActionFilters(source, hubFilters, now);
   const items = filterActiveHubItems(filtered);
+  const pendingApprovals = officer ? pendingApprovalQueue(allItems) : [];
 
   const activeTab = resolveHubTab(who);
 
@@ -151,7 +156,9 @@ export default async function ActionsPage({
         createHref={createHref}
         canCreate={canCreate}
         viewer={viewer}
+        pendingApprovals={pendingApprovals}
         actionsOnlyPreview={actionsOnlyPreview}
+        chapterScope={chapterScope}
       />
     </div>
   );

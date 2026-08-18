@@ -25,6 +25,7 @@ function userRow(overrides: Record<string, unknown> = {}) {
     ladder: null,
     canonicalTitle: null,
     adminSubtypes: [],
+    roles: [],
     ...overrides,
   };
 }
@@ -76,5 +77,18 @@ describe("assertActionLeadEligible — fail open even when enforced", () => {
       userRow({ internalLevel: 3, ladder: "INSTRUCTION", canonicalTitle: "Lead Instructor" })
     );
     await expect(assertActionLeadEligible("u3")).resolves.toBeUndefined();
+  });
+
+  it("allows a chapter president to lead even with a stale low persisted level", async () => {
+    mockFindUnique.mockResolvedValue(
+      userRow({
+        name: "Avery Lin",
+        primaryRole: "CHAPTER_PRESIDENT",
+        internalLevel: 1,
+        ladder: "INSTRUCTION",
+        roles: [{ role: "CHAPTER_PRESIDENT" }],
+      })
+    );
+    await expect(assertActionLeadEligible("cp1")).resolves.toBeUndefined();
   });
 });

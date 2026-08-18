@@ -16,6 +16,7 @@ import {
   getActionsForEntity,
   getActionsForMeeting,
   listActionAssignableUsers,
+  loadActionViewer,
   type ActionItemWithRelations,
 } from "@/lib/people-strategy/action-queries";
 import { ACTION_VISIBILITY_LABELS, isRelatedEntityType } from "@/lib/people-strategy/constants";
@@ -29,7 +30,6 @@ import {
   canAssignAction,
   canEditAction,
   canDeleteAction,
-  type ActionViewer,
 } from "@/lib/people-strategy/action-permissions";
 import { departmentHeaderColor } from "@/lib/people-strategy/actions-hub-grouping";
 import {
@@ -83,10 +83,16 @@ function uniquePeople(people: ReturnType<typeof personDTO>[]) {
 }
 
 function toActionShape(item: NonNullable<Awaited<ReturnType<typeof getActionItemById>>>) {
+  const peopleChapterIds = [
+    item.lead?.chapterId,
+    ...item.assignments.map((assignment) => assignment.user?.chapterId),
+  ].filter((id): id is string => Boolean(id));
   return {
     leadId: item.leadId,
     createdById: item.createdById,
     visibility: item.visibility,
+    chapterId: item.chapterId,
+    peopleChapterIds: [...new Set(peopleChapterIds)],
     assignments: item.assignments.map((assignment) => ({
       userId: assignment.user.id,
       role: assignment.role,
@@ -176,12 +182,7 @@ export default async function ActionDetailPage({ params }: PageProps) {
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
-  const viewer: ActionViewer = {
-    id: session.user.id,
-    roles: session.user.roles,
-    primaryRole: session.user.primaryRole,
-    adminSubtypes: session.user.adminSubtypes,
-  };
+  const viewer = await loadActionViewer();
 
   const item = await getActionItemById(id, viewer);
   if (!item) notFound();
@@ -192,7 +193,9 @@ export default async function ActionDetailPage({ params }: PageProps) {
   const canDelete = canDeleteAction(viewer, actionShape);
   const closeHref = "/actions";
 
-  const assignableUsers = canEdit || canAssign ? await listActionAssignableUsers() : [];
+  const assignableUsers = canEdit || canAssign
+    ? await listActionAssignableUsers({ chapterId: viewer.ledChapterId })
+    : [];
 
   const now = new Date();
   const detail = toDetailDTO(item);

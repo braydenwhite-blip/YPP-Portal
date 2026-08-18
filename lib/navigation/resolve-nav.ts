@@ -844,7 +844,7 @@ export function resolveNavModel(
     visible = visible.map(applyOfficerNavLayout);
   }
 
-  // Leadership / hiring roles: keep Home · People · Actions · Applicants in that order.
+  // Leadership / hiring roles: keep Home · Actions · Applicants · Chapters · Mentorship · Users.
   if (leadershipSimpleActive) {
     const order = leadershipSimpleNavHrefs(primaryRole);
     const orderIndex = new Map(order.map((href, index) => [href, index]));

@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { requirePageRoles } from "@/lib/page-guards";
 import { getChapterStudents } from "@/lib/chapter-actions";
+import { prisma } from "@/lib/prisma";
+import { getChapterViewerContext } from "@/lib/chapters/access";
+import { ChapterStudentCsvImport } from "@/components/chapters/chapter-student-csv-import";
 import { ChapterStudentsView, type ChapterStudentRow } from "./students-view";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +13,28 @@ const INACTIVE_DAYS = 14;
 export default async function ChapterStudentsPage() {
   await requirePageRoles(["CHAPTER_PRESIDENT", "ADMIN"]);
 
-  const raw = await getChapterStudents();
+  const [raw, ctx] = await Promise.all([getChapterStudents(), getChapterViewerContext()]);
+  const chapterId =
+    ctx.ledChapterId ??
+    (
+      await prisma.user.findUnique({
+        where: { id: ctx.user.id },
+        select: { chapterId: true },
+      })
+    )?.chapterId ??
+    null;
+
+  const classes = chapterId
+    ? await prisma.classOffering.findMany({
+        where: {
+          chapterId,
+          status: { in: ["DRAFT", "PUBLISHED", "IN_PROGRESS"] },
+        },
+        select: { id: true, title: true, semester: true },
+        orderBy: { startDate: "desc" },
+      })
+    : [];
+
   const now = Date.now();
 
   const students: ChapterStudentRow[] = raw.map((s) => {
@@ -18,16 +42,21 @@ export default async function ChapterStudentsPage() {
       0,
       Math.floor((now - new Date(s.updatedAt).getTime()) / 86_400_000),
     );
+    const courseRows = s.enrollments.map((e) => ({
+      title: e.course.title,
+      format: e.course.format,
+    }));
+    const classRows = s.classEnrollments.map((e) => ({
+      title: e.status === "WAITLISTED" ? `${e.offering.title} (waitlist)` : e.offering.title,
+      format: e.offering.deliveryMode,
+    }));
     return {
       id: s.id,
       name: s.name || s.email || "Unnamed student",
       email: s.email ?? "",
       grade: s.profile?.grade != null ? String(s.profile.grade) : null,
       school: s.profile?.school ?? null,
-      courses: s.enrollments.map((e) => ({
-        title: e.course.title,
-        format: e.course.format,
-      })),
+      courses: [...courseRows, ...classRows],
       mentorName: s.menteePairs[0]?.mentor.name ?? null,
       hasRecentFeedback: s.feedbackGiven.length > 0,
       daysInactive,
@@ -40,7 +69,10 @@ export default async function ChapterStudentsPage() {
 
   return (
     <main className="main-content">
-      <div className="page-header">
+      <div
+        className="page-header"
+        style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16 }}
+      >
         <div>
           <Link href="/chapter" className="back-link">
             ← Chapter Home
@@ -50,6 +82,7 @@ export default async function ChapterStudentsPage() {
             Track who is enrolled, who has a mentor, and who needs a nudge.
           </p>
         </div>
+        {chapterId ? <ChapterStudentCsvImport classes={classes} /> : null}
       </div>
 
       <div className="stats-grid">
@@ -77,7 +110,7 @@ export default async function ChapterStudentsPage() {
         <div className="card" style={{ textAlign: "center", padding: 32 }}>
           <h2 style={{ margin: "0 0 6px", fontSize: 18 }}>No students yet</h2>
           <p style={{ color: "var(--muted)", marginBottom: 16 }}>
-            Share an invite link so families can join, or review parent-led applications on Student Intake.
+            Import a CSV to add students to a class, share an invite link, or review parent-led applications on Student Intake.
           </p>
           <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
             <Link href="/chapter/invites" className="button" style={{ textDecoration: "none" }}>

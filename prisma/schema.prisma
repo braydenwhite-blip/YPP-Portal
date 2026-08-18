@@ -735,6 +735,8 @@ model Chapter {
   slug                 String? @unique
   city                 String?
   region               String?
+  state                String?
+  country              String?
   partnerSchool        String?
   programNotes         String?
   publicProfileEnabled Boolean @default(false)
@@ -761,7 +763,6 @@ model Chapter {
   lifecycleStatus        ChapterLifecycleStatus @default(ACTIVE)
   lifecycleNote          String?                @db.Text
   lifecycleUpdatedAt     DateTime?
-  state                  String?
   schoolType             ChapterSchoolType?
   facultyAdvisorName     String?
   facultyAdvisorEmail    String?

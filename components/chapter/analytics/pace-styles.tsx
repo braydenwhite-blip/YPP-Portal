@@ -22,52 +22,52 @@ export const PACE_COLORS: Record<
   }
 > = {
   above: {
-    wash: "bg-[#f3ecff]",
-    washHover: "hover:bg-[#ebe0ff]",
-    bar: "bg-brand-500",
+    wash: "bg-brand-50",
+    washHover: "hover:bg-brand-100",
+    bar: "bg-brand-600",
     text: "text-brand-900",
-    muted: "text-brand-700/55",
-    dot: "bg-brand-500",
-    bg: "bg-[#f3ecff]",
+    muted: "text-brand-700/60",
+    dot: "bg-brand-600",
+    bg: "bg-brand-50",
     border: "border-transparent",
-    soft: "bg-[#f8f4ff]",
+    soft: "bg-surface-soft",
     ring: "focus-visible:ring-brand-400/40",
   },
   on_track: {
-    wash: "bg-[#eef8f2]",
-    washHover: "hover:bg-[#e4f3ea]",
-    bar: "bg-[#2f9e63]",
-    text: "text-[#0f5132]",
-    muted: "text-[#0f5132]/50",
-    dot: "bg-[#2f9e63]",
-    bg: "bg-[#eef8f2]",
+    wash: "bg-complete-50",
+    washHover: "hover:bg-[#dcefe4]",
+    bar: "bg-complete-700",
+    text: "text-complete-700",
+    muted: "text-complete-700/55",
+    dot: "bg-complete-700",
+    bg: "bg-complete-50",
     border: "border-transparent",
-    soft: "bg-[#f5faf7]",
-    ring: "focus-visible:ring-[#2f9e63]/30",
+    soft: "bg-complete-50",
+    ring: "focus-visible:ring-complete-700/25",
   },
   needs_attention: {
-    wash: "bg-[#fff6eb]",
-    washHover: "hover:bg-[#ffefd9]",
-    bar: "bg-[#d97706]",
-    text: "text-[#9a3412]",
-    muted: "text-[#9a3412]/50",
-    dot: "bg-[#d97706]",
-    bg: "bg-[#fff6eb]",
+    wash: "bg-progress-50",
+    washHover: "hover:bg-[#f8e6c8]",
+    bar: "bg-progress-700",
+    text: "text-progress-700",
+    muted: "text-progress-700/55",
+    dot: "bg-progress-700",
+    bg: "bg-progress-50",
     border: "border-transparent",
-    soft: "bg-[#fffaf3]",
-    ring: "focus-visible:ring-[#d97706]/30",
+    soft: "bg-progress-50",
+    ring: "focus-visible:ring-progress-700/25",
   },
   at_risk: {
-    wash: "bg-[#fdf1f0]",
-    washHover: "hover:bg-[#fbe7e5]",
-    bar: "bg-[#dc5a4e]",
-    text: "text-[#9f2d23]",
-    muted: "text-[#9f2d23]/50",
-    dot: "bg-[#dc5a4e]",
-    bg: "bg-[#fdf1f0]",
+    wash: "bg-blocked-50",
+    washHover: "hover:bg-[#f6d9d5]",
+    bar: "bg-blocked-700",
+    text: "text-blocked-700",
+    muted: "text-blocked-700/55",
+    dot: "bg-blocked-700",
+    bg: "bg-blocked-50",
     border: "border-transparent",
-    soft: "bg-[#fdf7f6]",
-    ring: "focus-visible:ring-[#dc5a4e]/30",
+    soft: "bg-blocked-50",
+    ring: "focus-visible:ring-blocked-700/25",
   },
 };
 
@@ -86,12 +86,14 @@ export function PaceLegend({ compact = false }: { compact?: boolean }) {
   }));
 
   return (
-    <div className={`flex flex-wrap items-center gap-x-4 gap-y-1.5 ${compact ? "text-[11px]" : "text-[12px]"}`}>
+    <div
+      className={`flex flex-wrap items-center gap-x-3.5 gap-y-1.5 ${compact ? "text-[11.5px]" : "text-[12.5px]"}`}
+    >
       {items.map((item) => (
-        <span key={item.status} className="inline-flex items-center gap-1.5 text-[#5b6472]">
-          <span className={`h-2 w-2 rounded-sm ${PACE_COLORS[item.status].dot}`} />
-          <span className="font-medium text-[#374151]">{item.label}</span>
-          {!compact ? <span className="text-[#9aa2b1]">({item.hint})</span> : null}
+        <span key={item.status} className="inline-flex items-center gap-1.5 text-ink-muted">
+          <span className={`h-2 w-2 rounded-full ${PACE_COLORS[item.status].dot}`} />
+          <span className="font-medium text-ink">{item.label}</span>
+          {!compact ? <span className="text-ink-muted">({item.hint})</span> : null}
         </span>
       ))}
     </div>

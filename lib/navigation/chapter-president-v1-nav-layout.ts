@@ -4,9 +4,9 @@ import { isLeadershipFullPortalExplorerEnabled } from "@/lib/navigation/leadersh
 /**
  * Chapter President navigation.
  *
- * Shipped: Dashboard · My Chapter · Partners · Classes · Analytics · Mentorship.
- * Student invites / intake and the instructor application board are reached
- * from Dashboard + My Chapter (not extra sidebar pins).
+ * Shipped: Dashboard · My Chapter · Classes · Analytics · Actions · Mentorship.
+ * Partners, student invites / intake, and the instructor application board are
+ * reached from Dashboard + My Chapter (not extra sidebar pins).
  *
  * Full explorer (`LEADERSHIP_FULL_PORTAL_EXPLORER=true`): chapter ops + People ·
  * Programs · Actions sections for local testing.
@@ -16,10 +16,10 @@ import { isLeadershipFullPortalExplorerEnabled } from "@/lib/navigation/leadersh
 export const CHAPTER_PRESIDENT_SIMPLE_ALLOWED_HREFS: ReadonlySet<string> = new Set([
   "/chapter",
   "/chapter/hub",
-  "/partners",
   "/chapter/instructors",
   "/mentorship",
   "/chapter/impact",
+  "/actions",
 ]);
 
 /** Full CP sidebar used when the leadership explorer flag is on. */
@@ -82,9 +82,9 @@ export const CHAPTER_PRESIDENT_MINIMAL_GROUP_EMOJI: Partial<Record<NavGroup, str
 const SIDEBAR_BY_HREF: Record<string, { group: NavGroup; label: string; icon: string }> = {
   "/chapter": { group: "Start Here", label: "Dashboard", icon: "🏠" },
   "/chapter/hub": { group: "Start Here", label: "My Chapter", icon: "🗺" },
-  "/partners": { group: "Start Here", label: "Partners", icon: "🏫" },
   "/chapter/instructors": { group: "Start Here", label: "Classes", icon: "🎓" },
   "/chapter/impact": { group: "Start Here", label: "Analytics", icon: "📊" },
+  "/actions": { group: "Start Here", label: "Actions", icon: "✅" },
   "/mentorship": { group: "Start Here", label: "Mentorship", icon: "🤝" },
 };
 
@@ -92,9 +92,9 @@ const SIDEBAR_BY_HREF: Record<string, { group: NavGroup; label: string; icon: st
 export const CHAPTER_PRESIDENT_SIDEBAR_LINK_ORDER: string[] = [
   "/chapter",
   "/chapter/hub",
-  "/partners",
   "/chapter/instructors",
   "/chapter/impact",
+  "/actions",
   "/mentorship",
 ];
 

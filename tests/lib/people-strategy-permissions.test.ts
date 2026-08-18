@@ -41,6 +41,13 @@ const board: ActionViewer = {
   primaryRole: "ADMIN",
   adminSubtypes: ["SUPER_ADMIN"],
 };
+const chapterPresident: ActionViewer = {
+  id: "cp1",
+  roles: ["CHAPTER_PRESIDENT"],
+  primaryRole: "CHAPTER_PRESIDENT",
+  adminSubtypes: [],
+  ledChapterId: "chap-bronx",
+};
 
 // ALL_LEADERSHIP action where m1 is an INPUT assignee.
 const leadershipMine: ActionAccessShape = {
@@ -114,6 +121,50 @@ describe("canViewAction", () => {
   it("lets the Board (SUPER_ADMIN) view everything", () => {
     expect(canViewAction(board, leadershipNotMine)).toBe(true);
     expect(canViewAction(board, officersOnlyUnassigned)).toBe(true);
+  });
+
+  it("lets a chapter president see work they are assigned, including from staff", () => {
+    expect(
+      canViewAction(chapterPresident, {
+        leadId: "cp1",
+        visibility: "ALL_LEADERSHIP",
+        chapterId: "chap-other",
+        assignments: [{ userId: "cp1", role: "LEAD" }],
+      })
+    ).toBe(true);
+  });
+
+  it("lets a chapter president see their chapter's work, including instructor-owned", () => {
+    expect(
+      canViewAction(chapterPresident, {
+        leadId: "instr-1",
+        visibility: "ALL_LEADERSHIP",
+        chapterId: "chap-bronx",
+        peopleChapterIds: ["chap-bronx"],
+        assignments: [{ userId: "instr-1", role: "EXECUTING" }],
+      })
+    ).toBe(true);
+    expect(
+      canViewAction(chapterPresident, {
+        leadId: "instr-1",
+        visibility: "ALL_LEADERSHIP",
+        chapterId: null,
+        peopleChapterIds: ["chap-bronx"],
+        assignments: [{ userId: "instr-1", role: "LEAD" }],
+      })
+    ).toBe(true);
+  });
+
+  it("hides other chapters' unassigned work from a chapter president", () => {
+    expect(
+      canViewAction(chapterPresident, {
+        leadId: "someoneElse",
+        visibility: "ALL_LEADERSHIP",
+        chapterId: "chap-scarsdale",
+        peopleChapterIds: ["chap-scarsdale"],
+        assignments: [{ userId: "x", role: "EXECUTING" }],
+      })
+    ).toBe(false);
   });
 });
 

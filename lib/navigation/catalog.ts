@@ -1282,7 +1282,7 @@ export const NAV_CATALOG: NavLink[] = [
       roles: ["ADMIN", "STAFF"] as NavRole[],
       // Goals live under Chapter Command in the sidebar; keep this for deep links / search.
       coreEligible: false,
-      dashboardDescription: "Set network-wide and per-chapter targets for Chapter Analytics.",
+      dashboardDescription: "Set the monthly numbers every chapter is graded against.",
       dashboardPriority: 23,
       searchAliases: ["Analytics goals", "Chapter targets", "Goal exceptions", "Set goals"],
     },
@@ -1431,6 +1431,8 @@ export const NAV_CATALOG: NavLink[] = [
         "Analytics goals",
         "Chapter targets",
         "Goal exceptions",
+        "Leaderboard",
+        "Chapter leaderboard",
       ],
     },
     {

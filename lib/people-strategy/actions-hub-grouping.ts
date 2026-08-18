@@ -32,6 +32,40 @@ export function departmentHeaderColor(slug: string | null): string {
   return DEPT_HEADER_COLORS[slug] ?? "#6b21c8";
 }
 
+/** Group chapter-tagged actions under the chapter they belong to. */
+export function groupActionsByChapter(
+  items: ActionItemWithRelations[],
+  now: Date = new Date()
+): ActionDepartmentGroup[] {
+  const buckets = new Map<string, ActionDepartmentGroup>();
+
+  for (const item of items) {
+    if (item.status === "DROPPED") continue;
+    const chapter = item.chapter;
+    if (!chapter?.id) continue;
+    let group = buckets.get(chapter.id);
+    if (!group) {
+      group = {
+        id: chapter.id,
+        name: chapter.name,
+        slug: "chapters",
+        items: [],
+        overdueCount: 0,
+      };
+      buckets.set(chapter.id, group);
+    }
+    group.items.push(item);
+    if (isActionOverdue(item, now)) group.overdueCount += 1;
+  }
+
+  return Array.from(buckets.values())
+    .map((group) => ({
+      ...group,
+      items: sortByDeadline(group.items),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
 /** Group open actions by department for the Actions Hub list. */
 export function groupActionsByDepartment(
   items: ActionItemWithRelations[],

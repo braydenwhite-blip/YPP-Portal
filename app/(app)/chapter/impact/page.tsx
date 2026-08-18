@@ -52,11 +52,13 @@ export default async function ChapterImpactPage({
 
   const chapterId = ctx.isLeadership && sp.chapter ? sp.chapter : ctx.ledChapterId;
 
-  if (!chapterId && ctx.isLeadership) {
+  // Network leaderboard is a hub of its own — leadership can open it without
+  // picking a chapter first. Overview still needs a chapter.
+  if (!chapterId && ctx.isLeadership && view !== "leaderboard") {
     redirect("/admin/chapters");
   }
 
-  if (!chapterId) {
+  if (!chapterId && !ctx.isLeadership) {
     return (
       <div className="mx-auto w-full max-w-3xl px-6 py-10">
         <PageHeaderV2
@@ -79,7 +81,9 @@ export default async function ChapterImpactPage({
     );
   }
 
-  await requireChapterManager(chapterId);
+  if (chapterId) {
+    await requireChapterManager(chapterId);
+  }
 
   const leaderboardHref = buildImpactHref({
     view: "leaderboard",
@@ -87,26 +91,41 @@ export default async function ChapterImpactPage({
     range,
     includeChapter: ctx.isLeadership,
   });
-  const overviewHref = buildImpactHref({
-    chapterId,
-    range,
-    includeChapter: ctx.isLeadership,
-  });
+  const overviewHref = chapterId
+    ? buildImpactHref({
+        chapterId,
+        range,
+        includeChapter: ctx.isLeadership,
+      })
+    : "/admin/chapters";
 
   if (view === "leaderboard") {
-    const model = await loadChapterAnalyticsLeaderboard({ focusChapterId: chapterId });
+    const model = await loadChapterAnalyticsLeaderboard({
+      focusChapterId: chapterId ?? null,
+    });
     const leaderboardClient = JSON.parse(JSON.stringify(model)) as typeof model;
+    const overviewFromBoard = chapterId
+      ? overviewHref
+      : model.rows[0]
+        ? buildImpactHref({
+            chapterId: model.rows[0].chapterId,
+            range,
+            includeChapter: ctx.isLeadership,
+          })
+        : "/admin/chapters";
     return (
-      <div className="mx-auto w-full max-w-none px-3 py-4 sm:px-4 lg:px-5">
+      <div className="mx-auto w-full max-w-[1200px] px-4 py-6 sm:px-6">
         <ChapterAnalyticsLeaderboard
           model={leaderboardClient}
           focusChapterId={chapterId}
-          overviewHref={overviewHref}
+          overviewHref={overviewFromBoard}
           isLeadership={ctx.isLeadership}
         />
       </div>
     );
   }
+
+  if (!chapterId) redirect(ctx.isLeadership ? "/admin/chapters" : "/chapter");
 
   const overview = await loadChapterAnalyticsOverview(chapterId, { rangeMonths: range });
   if (!overview) redirect(ctx.isLeadership ? "/admin/chapters" : "/chapter");

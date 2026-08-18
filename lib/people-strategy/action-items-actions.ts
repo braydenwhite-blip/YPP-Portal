@@ -6,6 +6,8 @@ import type { ActionAssignmentRole, ActionCommentType, Prisma } from "@prisma/cl
 
 import { prisma } from "@/lib/prisma";
 import { requireLeadership, requireSessionUser } from "@/lib/authorization";
+import { hasAnyRole } from "@/lib/authorization-roles";
+import { getChapterViewerContext, isChapterLeadership } from "@/lib/chapters/access";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
 import { syncActionSearchDocument } from "@/lib/help-agent/search-indexing";
 import { parseDateInput, startOfDay } from "@/lib/leadership-action-center/dates";
@@ -43,8 +45,10 @@ import {
   canEditAction,
   canFlagAction,
   canViewAction,
+  isChapterScopedActionOfficer,
   isOfficerTier,
   type ActionAccessShape,
+  type ActionViewer,
 } from "./action-permissions";
 import { assertActionLeadEligible } from "@/lib/org/action-lead-guard";
 import { notifyActionCommentMentions, notifyNewActionAssignments } from "./action-emails";
@@ -96,10 +100,25 @@ const ACTION_ACCESS_SELECT = {
   createdById: true,
   visibility: true,
   flaggedAt: true,
-  assignments: { select: { userId: true, role: true } },
+  chapterId: true,
+  lead: { select: { chapterId: true } },
+  assignments: {
+    select: {
+      userId: true,
+      role: true,
+      user: { select: { chapterId: true } },
+    },
+  },
 } satisfies Prisma.ActionItemSelect;
 
 type LoadedAccess = ActionAccessShape & { id: string; flaggedAt: Date | null };
+
+async function requireActionViewer(): Promise<ActionViewer> {
+  const user = await requireSessionUser();
+  if (!isChapterScopedActionOfficer(user)) return user;
+  const ctx = await getChapterViewerContext();
+  return { ...user, ledChapterId: ctx.ledChapterId };
+}
 
 /** Load the access projection for an action, throwing not-found when missing. */
 async function loadAccess(id: string): Promise<LoadedAccess> {
@@ -108,12 +127,18 @@ async function loadAccess(id: string): Promise<LoadedAccess> {
     select: ACTION_ACCESS_SELECT,
   });
   if (!item) throw new Error("Action item not found");
+  const peopleChapterIds = [
+    item.lead?.chapterId,
+    ...item.assignments.map((a) => a.user?.chapterId),
+  ].filter((id): id is string => Boolean(id));
   return {
     id: item.id,
     leadId: item.leadId,
     createdById: item.createdById,
     visibility: item.visibility,
     flaggedAt: item.flaggedAt,
+    chapterId: item.chapterId,
+    peopleChapterIds: [...new Set(peopleChapterIds)],
     assignments: item.assignments.map((a) => ({ userId: a.userId, role: a.role })),
   };
 }
@@ -414,10 +439,27 @@ export type CreateActionItemInput = z.input<typeof CreateActionItemSchema>;
 
 export async function createActionItem(input: CreateActionItemInput) {
   ensureEnabled();
-  const session = await requireSessionUser();
+  const session = await requireActionViewer();
   if (!canCreateAction(session)) throw new Error("Unauthorized");
 
   const data = CreateActionItemSchema.parse(input);
+
+  let chapterId = data.chapterId ?? null;
+  const isChapterPresident = hasAnyRole(
+    session.roles,
+    ["CHAPTER_PRESIDENT"],
+    session.primaryRole
+  );
+  if (!isChapterLeadership(session) && isChapterPresident) {
+    const ctx = await getChapterViewerContext();
+    if (!ctx.ledChapterId) {
+      throw new Error("You need a chapter assigned before you can create actions.");
+    }
+    if (chapterId && chapterId !== ctx.ledChapterId) {
+      throw new Error("You can only create actions for your own chapter.");
+    }
+    chapterId = ctx.ledChapterId;
+  }
 
   const deadlineStart = parseDateInput(data.deadlineStart);
   if (!deadlineStart) throw new Error("A valid deadline start date is required");
@@ -437,7 +479,7 @@ export async function createActionItem(input: CreateActionItemInput) {
     await assertDepartmentExists(departmentId);
   }
   const primaryDepartmentId = primaryActionDepartmentId(departmentIds);
-  if (data.chapterId) await assertChapterExists(data.chapterId);
+  if (chapterId) await assertChapterExists(chapterId);
   await assertUsersExist([
     data.leadId,
     ...executingUserIds,
@@ -499,7 +541,7 @@ export async function createActionItem(input: CreateActionItemInput) {
         goalCategory: data.goalCategory,
         actionType,
         departmentId: primaryDepartmentId,
-        chapterId: data.chapterId,
+        chapterId,
         leadId: data.leadId,
         createdById: session.id,
         status: data.status as never,
@@ -650,7 +692,7 @@ export type UpdateActionItemInput = z.input<typeof UpdateActionItemSchema>;
 
 export async function updateActionItem(input: UpdateActionItemInput) {
   ensureEnabled();
-  const session = await requireSessionUser();
+  const session = await requireActionViewer();
   const data = UpdateActionItemSchema.parse(input);
 
   const access = await loadAccess(data.id);
@@ -889,7 +931,7 @@ export async function updateActionStatus(
   status: (typeof ACTION_STATUS_VALUES)[number]
 ) {
   ensureEnabled();
-  const session = await requireSessionUser();
+  const session = await requireActionViewer();
   const data = UpdateStatusSchema.parse({ id, status });
 
   const access = await loadAccess(data.id);
@@ -973,7 +1015,7 @@ export async function captureActionCompletion(input: {
   nextFollowUpAt?: string;
 }) {
   ensureEnabled();
-  const session = await requireSessionUser();
+  const session = await requireActionViewer();
   const data = CaptureCompletionSchema.parse(input);
 
   const access = await loadAccess(data.id);
@@ -1030,7 +1072,7 @@ const ApproveCompletionSchema = z.object({
 /** Officer-tier sign-off after someone submits a completion for approval. */
 export async function approveActionCompletion(id: string) {
   ensureEnabled();
-  const session = await requireSessionUser();
+  const session = await requireActionViewer();
   if (!isOfficerTier(session)) throw new Error("Unauthorized");
 
   const data = ApproveCompletionSchema.parse({ id });
@@ -1064,6 +1106,106 @@ export async function approveActionCompletion(id: string) {
   revalidateAll();
 }
 
+const ReviewCompletionsSchema = z.object({
+  ids: z.array(NonEmptyString).min(1).max(50),
+  decision: z.enum(["approve", "reject"]),
+});
+
+export type ReviewCompletionsResult = {
+  processed: number;
+  skipped: number;
+  errors: string[];
+};
+
+/** Officer-tier bulk sign-off: approve or send back submitted completions. */
+export async function reviewActionCompletions(
+  input: unknown
+): Promise<ReviewCompletionsResult> {
+  ensureEnabled();
+  const session = await requireActionViewer();
+  if (!isOfficerTier(session)) throw new Error("Unauthorized");
+
+  const data = ReviewCompletionsSchema.parse(input);
+  const now = new Date();
+  let processed = 0;
+  let skipped = 0;
+  const errors: string[] = [];
+  const touched: string[] = [];
+
+  for (const id of data.ids) {
+    try {
+      const access = await loadAccess(id);
+      if (!canViewAction(session, access)) {
+        skipped++;
+        errors.push("You cannot review one of the selected actions.");
+        continue;
+      }
+      const existing = await prisma.actionItem.findUnique({
+        where: { id },
+        select: { id: true, title: true, status: true, approvedAt: true },
+      });
+      if (!existing) {
+        skipped++;
+        errors.push("An action is no longer available.");
+        continue;
+      }
+      if (existing.status !== "COMPLETE") {
+        skipped++;
+        errors.push(`“${existing.title}” is not waiting for approval.`);
+        continue;
+      }
+
+      if (data.decision === "approve") {
+        if (existing.approvedAt) {
+          skipped++;
+          continue;
+        }
+        await prisma.$transaction(async (tx) => {
+          await tx.actionItem.update({
+            where: { id },
+            data: { approvedAt: now, approvedById: session.id },
+          });
+          await postSystemComment(tx, id, session.id, "Completion approved by officer");
+        });
+      } else {
+        if (existing.approvedAt) {
+          skipped++;
+          errors.push(`“${existing.title}” is already approved.`);
+          continue;
+        }
+        await prisma.$transaction(async (tx) => {
+          await tx.actionItem.update({
+            where: { id },
+            data: {
+              status: "IN_PROGRESS",
+              completedAt: null,
+              approvedAt: null,
+              approvedById: null,
+            },
+          });
+          await postSystemComment(
+            tx,
+            id,
+            session.id,
+            "Completion sent back — not approved"
+          );
+        });
+      }
+      touched.push(id);
+      processed++;
+    } catch (error) {
+      skipped++;
+      errors.push(error instanceof Error ? error.message : "Could not update an action.");
+    }
+  }
+
+  for (const id of touched) {
+    await syncActionSearchDocument(id);
+  }
+  if (touched.length > 0) revalidateAll();
+  return { processed, skipped, errors: errors.slice(0, 12) };
+}
+
 const CaptureBlockerSchema = z.object({
   id: NonEmptyString,
   blockedReason: z.string().trim().min(1, "Name the blocker").max(10_000),
@@ -1080,7 +1222,7 @@ export async function captureActionBlocker(input: {
   nextFollowUpAt?: string;
 }) {
   ensureEnabled();
-  const session = await requireSessionUser();
+  const session = await requireActionViewer();
   const data = CaptureBlockerSchema.parse(input);
 
   const access = await loadAccess(data.id);
@@ -1129,7 +1271,7 @@ const DeleteActionItemSchema = z.object({
 /** Remove an action from the open tracker (marks it DROPPED, keeps history). */
 export async function deleteActionItem(id: string) {
   ensureEnabled();
-  const session = await requireSessionUser();
+  const session = await requireActionViewer();
   const data = DeleteActionItemSchema.parse({ id });
 
   const access = await loadAccess(data.id);
@@ -1160,7 +1302,7 @@ const DeleteActionItemsSchema = z.object({
 /** Remove multiple actions from the open tracker (marks each DROPPED). */
 export async function deleteActionItems(ids: string[]) {
   ensureEnabled();
-  const session = await requireSessionUser();
+  const session = await requireActionViewer();
   const uniqueIds = Array.from(new Set(ids.map((id) => id.trim()).filter(Boolean)));
   const data = DeleteActionItemsSchema.parse({ ids: uniqueIds });
 
@@ -1203,7 +1345,7 @@ export async function addActionAssignment(
   role: ActionAssignmentRole
 ) {
   ensureEnabled();
-  const session = await requireSessionUser();
+  const session = await requireActionViewer();
   const data = AssignmentSchema.parse({ actionId, userId, role });
   if (!canAssignAction(session)) throw new Error("Unauthorized");
   if (data.role === "INPUT") {
@@ -1288,7 +1430,7 @@ export async function removeActionAssignment(
   role: ActionAssignmentRole
 ) {
   ensureEnabled();
-  const session = await requireSessionUser();
+  const session = await requireActionViewer();
   const data = AssignmentSchema.parse({ actionId, userId, role });
   if (!canAssignAction(session)) throw new Error("Unauthorized");
 
@@ -1356,7 +1498,7 @@ export async function addActionComment(
   type?: ActionCommentType
 ) {
   ensureEnabled();
-  const session = await requireSessionUser();
+  const session = await requireActionViewer();
   const mentionedUserIds = await resolveActionMentionUserIds(body);
   const resolvedType: ActionCommentType =
     type ?? (mentionedUserIds.length > 0 ? "INPUT_REQUESTED" : "NOTE");
@@ -1402,7 +1544,7 @@ const FileLinkSchema = z.object({
 
 export async function addActionFileLink(actionId: string, label: string, url: string) {
   ensureEnabled();
-  const session = await requireSessionUser();
+  const session = await requireActionViewer();
   const data = FileLinkSchema.parse({ actionId, label, url });
 
   const access = await loadAccess(data.actionId);
@@ -1433,7 +1575,7 @@ export async function addActionFileLink(actionId: string, label: string, url: st
 
 export async function flagActionToLeadership(actionId: string) {
   ensureEnabled();
-  const session = await requireSessionUser();
+  const session = await requireActionViewer();
   if (!actionId) throw new Error("actionId required");
 
   const access = await loadAccess(actionId);

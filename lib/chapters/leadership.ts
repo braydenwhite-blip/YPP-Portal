@@ -36,6 +36,9 @@ export type ChapterCommandCard = {
   president: { id: string; name: string } | null;
   health: ReturnType<typeof healthFromSignals>;
   memberCount: number;
+  /** Open Action Tracker items scoped to this chapter (lead required). */
+  openActions: number;
+  overdueActions: number;
   nextStep: string;
   blocker: string | null;
   lastActivityAt: Date;
@@ -294,6 +297,8 @@ async function enrichAllChapters(now: Date): Promise<ChapterCommandCard[]> {
       president: c.president,
       health,
       memberCount: raw.memberCount,
+      openActions: raw.openActions,
+      overdueActions: raw.overdueActions,
       nextStep,
       blocker,
       lastActivityAt,

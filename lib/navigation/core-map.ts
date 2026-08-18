@@ -41,7 +41,7 @@ export const CORE_NAV_MAP: Record<NavRole, string[]> = {
     "/instructor/workspace",
     "/instructor/class-settings",
   ],
-  ADMIN: ["/", "/mentorship", "/actions", "/admin/applicants", "/admin/users", "/admin/chapters"],
+  ADMIN: ["/", "/actions", "/admin/applicants", "/admin/chapters", "/mentorship", "/admin/users"],
   HIRING_CHAIR: ["/", "/people", "/actions", "/admin/instructor-applicants"],
   PARENT: ["/", "/parent", "/parent/resources", "/calendar", "/parent/connect", "/goals"],
   CHAPTER_PRESIDENT: [

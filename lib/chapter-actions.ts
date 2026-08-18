@@ -338,6 +338,12 @@ export async function getChapterStudents() {
           },
         },
       },
+      classEnrollments: {
+        where: { status: { in: ["ENROLLED", "WAITLISTED"] } },
+        include: {
+          offering: { select: { title: true, deliveryMode: true, status: true } },
+        },
+      },
       menteePairs: {
         include: {
           mentor: { select: { id: true, name: true } },

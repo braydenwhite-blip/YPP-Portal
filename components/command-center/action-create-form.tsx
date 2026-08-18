@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 
 import type { ActionItemFormInitial } from "@/components/people-strategy/action-item-form";
 import { Button, ButtonLink, cn } from "@/components/ui-v2";
-import { FeedbackBanner } from "@/components/people-strategy/motion";
+import { MotionArea, FeedbackBanner } from "@/components/people-strategy/motion";
 import {
   ActionUserPicker,
   type ActionUserOption,
@@ -132,21 +132,25 @@ function FormSection({
 export function ActionCreateForm({
   users,
   departments,
+  chapters = [],
   currentUserId,
   redirectTo = "/actions",
   cancelHref,
   initiativeLink,
   initial,
+  lockChapter = false,
   templateChangeHref,
 }: {
   users: ActionUserOption[];
   departments: ActionDepartmentOption[];
+  chapters?: Array<{ id: string; name: string }>;
   currentUserId: string;
   redirectTo?: string;
   cancelHref?: string;
   initiativeLink?: { id: string; goalCategory?: string };
   /** Prefill from templates, linked applicants, meetings, etc. */
   initial?: ActionItemFormInitial;
+  lockChapter?: boolean;
   templateChangeHref?: string;
 }) {
   const router = useRouter();
@@ -166,6 +170,7 @@ export function ActionCreateForm({
         ? [initial.departmentId]
         : []
   );
+  const [chapterId, setChapterId] = useState(initial?.chapterId ?? "");
   const [visibility, setVisibility] = useState<ActionItemVisibility>(
     (initial?.visibility as ActionItemVisibility) ?? "ALL_LEADERSHIP"
   );
@@ -192,8 +197,11 @@ export function ActionCreateForm({
       return;
     }
 
-    const leadId = assignedUserIds[0];
-    const executingUserIds = assignedUserIds.slice(1);
+    // The creator is the accountable Lead. Everyone picked is "on this" as
+    // an executor — the first name in the picker is often a chapter instructor,
+    // who must not 500 the save on lead-eligibility.
+    const leadId = currentUserId || assignedUserIds[0];
+    const executingUserIds = assignedUserIds.filter((id) => id !== leadId);
 
     startTransition(async () => {
       try {
@@ -206,7 +214,7 @@ export function ActionCreateForm({
           goalCategory: initial?.goalCategory?.trim() || undefined,
           actionType: initial?.actionType || undefined,
           departmentIds: departmentIds.length > 0 ? departmentIds : undefined,
-          chapterId: initial?.chapterId || undefined,
+          chapterId: chapterId || undefined,
           visibility,
           status,
           priority: initial?.priority,
@@ -229,7 +237,12 @@ export function ActionCreateForm({
         router.push(redirectTo);
         router.refresh();
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Could not save that action.");
+        const message = err instanceof Error ? err.message : "";
+        const visible =
+          message && !/digest|Server Action|Server Components/i.test(message)
+            ? message.replace(/^Unauthorized:\s*/i, "")
+            : "Could not save that action. Check the fields and try again.";
+        setError(visible);
       }
     });
   }
@@ -237,6 +250,7 @@ export function ActionCreateForm({
   if (users.length === 0) return null;
 
   return (
+    <MotionArea>
     <div
       id="create-action"
       className="overflow-hidden rounded-[20px] border border-line-soft bg-gradient-to-br from-brand-50/40 via-surface to-surface shadow-card"
@@ -335,13 +349,17 @@ export function ActionCreateForm({
           <FormSection
             step={4}
             title="Which team?"
-            hint="Optional — pick from the list."
+            hint="Optional — a function team, a chapter, or both."
           >
             <ActionDepartmentPicker
               id="action-create-department"
               label="Team"
               hint={undefined}
               departments={departments}
+              chapters={chapters}
+              chapterId={chapterId}
+              onChapterChange={setChapterId}
+              lockChapter={lockChapter}
               multiple
               value={departmentIds}
               onChange={setDepartmentIds}
@@ -400,12 +418,13 @@ export function ActionCreateForm({
             <ButtonLink href={backHref} variant="ghost" size="md">
               Cancel
             </ButtonLink>
-            <Button type="submit" variant="primary" size="md" disabled={pending}>
+            <Button type="submit" variant="primary" size="md" loading={pending}>
               {pending ? "Saving…" : "Add action →"}
             </Button>
           </div>
         </footer>
       </form>
     </div>
+    </MotionArea>
   );
 }

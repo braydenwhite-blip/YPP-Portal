@@ -8,6 +8,7 @@ import ApplicantPipelineCard, {
 } from "./ApplicantPipelineCard";
 import ApplicantCommandFilters from "./ApplicantCommandFilters";
 import ArchiveTable from "./ArchiveTable";
+import { ApplicantCsvImport } from "./applicant-csv-import";
 import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
 import { applicantDetailHref } from "@/lib/applicant-board-kind";
 import { cn } from "@/components/ui-v2";
@@ -45,6 +46,8 @@ interface InstructorApplicantsCommandCenterProps {
   showChapterFilter?: boolean;
   /** Show Instructor / CP / All roles filter (admin unified board). */
   showKindFilter?: boolean;
+  /** CSV import for admins and hiring chairs. */
+  canImportCsv?: boolean;
 }
 
 const BOARD_COLUMNS: KanbanColumnDef[] = [
@@ -99,6 +102,7 @@ export default function InstructorApplicantsCommandCenter({
   actorId,
   showChapterFilter = false,
   showKindFilter = false,
+  canImportCsv = false,
 }: InstructorApplicantsCommandCenterProps) {
   const searchParams = useSearchParams();
   const pathname = usePathname();
@@ -155,7 +159,11 @@ export default function InstructorApplicantsCommandCenter({
         if (!app?.id || !app.status) return false;
         if (kindFilter === "cp" && app.kind !== "cp") return false;
         if (kindFilter === "staff" && app.kind !== "staff") return false;
-        if (kindFilter === "instructor" && app.kind !== "instructor" && app.kind != null) {
+        if (
+          (kindFilter === "instructor" || kindFilter === "instructors") &&
+          app.kind !== "instructor" &&
+          app.kind != null
+        ) {
           return false;
         }
         return matchesPipelineStatusFilter(app, statusFilter);
@@ -210,6 +218,7 @@ export default function InstructorApplicantsCommandCenter({
             Archive
           </button>
         </nav>
+        <ApplicantCsvImport enabled={canImportCsv} />
       </div>
 
       {activeTab === "pipeline" ? (
