@@ -31,7 +31,7 @@ afterAll(() => {
 });
 
 describe("app shell nav contract", () => {
-  it("gives ADMIN the simple leadership nav (Home, Actions, Applicants, Chapters, Mentorship, Users)", async () => {
+  it("gives ADMIN the simple leadership nav (Home, Actions, Applicants, Chapters, Metrics, Mentorship, Users)", async () => {
     render(
       <Nav
         roles={["ADMIN"]}
@@ -60,6 +60,10 @@ describe("app shell nav contract", () => {
     expect(screen.getByRole("link", { name: /^Applicants$/i })).toHaveAttribute(
       "href",
       "/admin/applicants",
+    );
+    expect(screen.getByRole("link", { name: /^Metrics$/i })).toHaveAttribute(
+      "href",
+      "/admin/metrics",
     );
     expect(screen.getByRole("link", { name: /^Users$/i })).toHaveAttribute(
       "href",

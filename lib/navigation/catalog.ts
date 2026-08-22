@@ -1259,7 +1259,7 @@ export const NAV_CATALOG: NavLink[] = [
       href: "/chapter/impact",
       label: "Analytics",
       icon: "📊",
-      roles: CHAPTER_PRESIDENT_ONLY,
+      roles: ["CHAPTER_PRESIDENT", "ADMIN", "STAFF"] as NavRole[],
       coreEligible: true,
       dashboardDescription:
         "Your generated weekly brief — what changed, current numbers, wins, risks, decisions, and next-week commitments — ready to present.",
@@ -1285,6 +1285,23 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardDescription: "Set the monthly numbers every chapter is graded against.",
       dashboardPriority: 23,
       searchAliases: ["Analytics goals", "Chapter targets", "Goal exceptions", "Set goals"],
+    },
+    {
+      href: "/admin/metrics",
+      label: "Metrics",
+      icon: "📊",
+      roles: ["ADMIN"] as NavRole[],
+      coreEligible: true,
+      dashboardDescription:
+        "Organization, chapter president, and instructor metric trackers — admins can add and edit metrics.",
+      dashboardPriority: 4,
+      searchAliases: [
+        "Metrics tracker",
+        "KPIs",
+        "Org metrics",
+        "Chapter president metrics",
+        "Instructor metrics",
+      ],
     },
     {
       href: "/chapter/calendar",

@@ -339,7 +339,7 @@ describe("resolveNavModel", () => {
     expect(hrefs(model)).not.toContain("/interviews");
   });
 
-  it("keeps admin users on Home, Actions, Applicants, Chapters, Mentorship, and Users", () => {
+  it("keeps admin users on Home, Actions, Applicants, Chapters, Metrics, Mentorship, and Users", () => {
     const model = resolveNavModel({
       roles: ["ADMIN"],
       primaryRole: "ADMIN",
@@ -355,6 +355,7 @@ describe("resolveNavModel", () => {
       "/actions",
       "/admin/applicants",
       "/admin/chapters",
+      "/admin/metrics",
       "/mentorship",
       "/admin/users",
     ]);
@@ -363,6 +364,7 @@ describe("resolveNavModel", () => {
       "/actions",
       "/admin/applicants",
       "/admin/chapters",
+      "/admin/metrics",
       "/mentorship",
       "/admin/users",
     ]);
@@ -478,7 +480,7 @@ describe("resolveNavModel", () => {
       process.env.PORTAL_SLIM_NAV = "false";
     });
 
-    it("shows Home, Actions, Applicants, Chapters, Mentorship, and Users for admins", () => {
+    it("shows Home, Actions, Applicants, Chapters, Metrics, Mentorship, and Users for admins", () => {
       const model = resolveNavModel({
         roles: ["ADMIN"],
         adminSubtypes: ["SUPER_ADMIN"],
@@ -497,6 +499,7 @@ describe("resolveNavModel", () => {
         "/actions",
         "/admin/applicants",
         "/admin/chapters",
+        "/admin/metrics",
         "/mentorship",
         "/admin/users",
       ]);
@@ -590,6 +593,7 @@ describe("resolveNavModel", () => {
       "/actions",
       "/admin/applicants",
       "/admin/chapters",
+      "/admin/metrics",
       "/mentorship",
       "/admin/users",
     ]);
@@ -612,6 +616,7 @@ describe("resolveNavModel", () => {
       "/actions",
       "/admin/applicants",
       "/admin/chapters",
+      "/admin/metrics",
       "/mentorship",
       "/admin/users",
     ]);
@@ -632,13 +637,14 @@ describe("officer section navigation (simple leadership IA)", () => {
     });
   }
 
-  it("shows only Home, Actions, Applicants, Chapters, Mentorship, and Users", () => {
+  it("shows only Home, Actions, Applicants, Chapters, Metrics, Mentorship, and Users", () => {
     const model = officerModel();
     expect(hrefs(model)).toEqual([
       "/",
       "/actions",
       "/admin/applicants",
       "/admin/chapters",
+      "/admin/metrics",
       "/mentorship",
       "/admin/users",
     ]);
@@ -648,6 +654,7 @@ describe("officer section navigation (simple leadership IA)", () => {
       "Actions",
       "Applicants",
       "Chapters",
+      "Metrics",
       "Mentorship",
       "Users",
     ]);

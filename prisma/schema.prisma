@@ -1468,6 +1468,7 @@ model User {
   chapterAnalyticsGoalsUpdated          ChapterAnalyticsGoal[]          @relation("ChapterAnalyticsGoalUpdater")
   chapterAnalyticsGoalExceptionsUpdated ChapterAnalyticsGoalException[] @relation("ChapterAnalyticsGoalExceptionUpdater")
   chapterAnalyticsNotesUpdated          ChapterAnalyticsNote[]          @relation("ChapterAnalyticsNoteUpdater")
+  metricsTrackerMetricsUpdated          MetricsTrackerMetric[]          @relation("MetricsTrackerMetricUpdater")
   chapterChannelMessages                ChapterChannelMessage[]         @relation("ChapterChannelMessages")
   memberOnboardingProgress              MemberOnboardingProgress[]      @relation("MemberOnboardingProgress")
   chapterInvitesCreated                 ChapterInvite[]                 @relation("ChapterInviteCreator")
@@ -12101,6 +12102,39 @@ model ChapterAnalyticsNote {
 
   @@unique([chapterId, category, monthKey])
   @@index([chapterId, monthKey])
+}
+
+/// Editable Metrics tab rows (Organization / Chapter President / Instructor).
+/// Seeded from the static catalog on first load; admins can add, edit, archive.
+model MetricsTrackerMetric {
+  id             String    @id @default(cuid())
+  /// Stable key within scope+category (catalog id or cuid for custom rows).
+  key            String
+  scope          String // org | chapter_president | instructor
+  categoryId     String
+  label          String
+  owner          String    @default("")
+  targetLabel    String    @default("")
+  /// JSON number|null[6] for M1–M6 numeric targets.
+  monthlyTargets Json
+  /// Optional JSON string|null[6] display labels (e.g. "80%+").
+  targetDisplay  Json?
+  reset          String    @default("monthly") // monthly | cumulative
+  unit           String    @default("count") // count | percent | currency | hours | text
+  chart          String    @default("line") // line | bar | area | scatter
+  tracks         String?   @db.Text
+  why            String?   @db.Text
+  noTarget       Boolean   @default(false)
+  sortOrder      Int       @default(0)
+  archivedAt     DateTime?
+  updatedById    String?
+  updatedBy      User?     @relation("MetricsTrackerMetricUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([scope, categoryId, key])
+  @@index([scope, categoryId, sortOrder])
+  @@index([archivedAt])
 }
 
 // ============================================
