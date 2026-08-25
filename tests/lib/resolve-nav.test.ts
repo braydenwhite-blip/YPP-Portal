@@ -81,6 +81,26 @@ describe("resolveNavActiveHref", () => {
     ];
     expect(resolveNavActiveHref("/profile", candidates)).toBe("/profile");
   });
+
+  it("maps chapter members/settings to My Chapter, not Dashboard", () => {
+    const candidates = [
+      "/chapter",
+      "/chapter/hub",
+      "/chapter/instructors",
+      "/chapter/impact",
+      "/mentorship",
+    ];
+    expect(resolveNavActiveHref("/chapter", candidates)).toBe("/chapter");
+    expect(resolveNavActiveHref("/chapter/hub", candidates)).toBe("/chapter/hub");
+    expect(resolveNavActiveHref("/chapter/members", candidates)).toBe("/chapter/hub");
+    expect(resolveNavActiveHref("/chapter/invites", candidates)).toBe("/chapter/hub");
+    expect(resolveNavActiveHref("/chapter/settings", candidates)).toBe("/chapter/hub");
+    expect(resolveNavActiveHref("/chapter/recruiting", candidates)).toBe("/chapter/hub");
+    expect(resolveNavActiveHref("/chapter/instructors", candidates)).toBe(
+      "/chapter/instructors",
+    );
+    expect(resolveNavActiveHref("/chapter/impact", candidates)).toBe("/chapter/impact");
+  });
 });
 
 describe("resolveNavModel", () => {
@@ -319,7 +339,7 @@ describe("resolveNavModel", () => {
     expect(hrefs(model)).not.toContain("/interviews");
   });
 
-  it("keeps admin users on Home, Mentorship, Actions, Users, and Applicants", () => {
+  it("keeps admin users on Home, Actions, Applicants, Chapters, Metrics, Mentorship, and Users", () => {
     const model = resolveNavModel({
       roles: ["ADMIN"],
       primaryRole: "ADMIN",
@@ -332,16 +352,20 @@ describe("resolveNavModel", () => {
     const visibleHrefs = hrefs(model);
     expect(visibleHrefs).toEqual([
       "/",
-      "/mentorship",
       "/actions",
       "/admin/applicants",
+      "/admin/chapters",
+      "/admin/metrics",
+      "/mentorship",
       "/admin/users",
     ]);
     expect(model.core.map((item) => item.href)).toEqual([
       "/",
-      "/mentorship",
       "/actions",
       "/admin/applicants",
+      "/admin/chapters",
+      "/admin/metrics",
+      "/mentorship",
       "/admin/users",
     ]);
     expect(model.more).toHaveLength(0);
@@ -456,7 +480,7 @@ describe("resolveNavModel", () => {
       process.env.PORTAL_SLIM_NAV = "false";
     });
 
-    it("shows Home, Mentorship, Actions, Users, and Applicants for admins", () => {
+    it("shows Home, Actions, Applicants, Chapters, Metrics, Mentorship, and Users for admins", () => {
       const model = resolveNavModel({
         roles: ["ADMIN"],
         adminSubtypes: ["SUPER_ADMIN"],
@@ -472,9 +496,11 @@ describe("resolveNavModel", () => {
       const visibleHrefs = hrefs(model);
       expect(visibleHrefs).toEqual([
         "/",
-        "/mentorship",
         "/actions",
         "/admin/applicants",
+        "/admin/chapters",
+        "/admin/metrics",
+        "/mentorship",
         "/admin/users",
       ]);
       expect(model.leadershipSimpleNav).toBe(true);
@@ -564,9 +590,11 @@ describe("resolveNavModel", () => {
 
     expect(hrefs(model)).toEqual([
       "/",
-      "/mentorship",
       "/actions",
       "/admin/applicants",
+      "/admin/chapters",
+      "/admin/metrics",
+      "/mentorship",
       "/admin/users",
     ]);
     expect(hrefs(model)).not.toContain("/admin/curricula");
@@ -585,9 +613,11 @@ describe("resolveNavModel", () => {
 
     expect(hrefs(model)).toEqual([
       "/",
-      "/mentorship",
       "/actions",
       "/admin/applicants",
+      "/admin/chapters",
+      "/admin/metrics",
+      "/mentorship",
       "/admin/users",
     ]);
     expect(hrefs(model)).not.toContain("/admin/mentorship");
@@ -607,21 +637,25 @@ describe("officer section navigation (simple leadership IA)", () => {
     });
   }
 
-  it("shows only Home, Mentorship, Actions, Users, and Applicants", () => {
+  it("shows only Home, Actions, Applicants, Chapters, Metrics, Mentorship, and Users", () => {
     const model = officerModel();
     expect(hrefs(model)).toEqual([
       "/",
-      "/mentorship",
       "/actions",
       "/admin/applicants",
+      "/admin/chapters",
+      "/admin/metrics",
+      "/mentorship",
       "/admin/users",
     ]);
     expect(model.more).toHaveLength(0);
     expect(model.core.map((item) => item.label)).toEqual([
       "Home",
-      "Mentorship",
       "Actions",
       "Applicants",
+      "Chapters",
+      "Metrics",
+      "Mentorship",
       "Users",
     ]);
   });
@@ -662,31 +696,44 @@ describe("chapter-president section navigation", () => {
     });
   }
 
-  it("pins the chapter president 4-page set without Meetings", () => {
+  it("pins the chapter president sidebar for chapter ops", () => {
     const model = cpModel();
     const coreHrefs = model.core.map((item) => item.href);
     expect(coreHrefs).toEqual([
       "/chapter",
-      "/chapter/onboarding",
-      "/chapter/resources",
-      "/chapter/recruiting",
+      "/chapter/hub",
+      "/chapter/instructors",
+      "/chapter/impact",
+      "/actions",
+      "/mentorship",
     ]);
     expect(coreHrefs).not.toContain("/meetings");
+    expect(coreHrefs).not.toContain("/chapter/recruiting");
   });
 
-  it("gives chapter presidents Chapter, Onboarding, Resources, and Recruiting", () => {
+  it("gives chapter presidents Dashboard, My Chapter, Classes, Analytics, Actions, Mentorship", () => {
     const model = cpModel();
     const visibleHrefs = model.visible.map((item) => item.href);
     expect(visibleHrefs).toEqual([
       "/chapter",
-      "/chapter/onboarding",
-      "/chapter/resources",
-      "/chapter/recruiting",
+      "/chapter/hub",
+      "/chapter/instructors",
+      "/chapter/impact",
+      "/actions",
+      "/mentorship",
     ]);
+    expect(model.visible.map((item) => item.label)).toEqual([
+      "Dashboard",
+      "My Chapter",
+      "Classes",
+      "Analytics",
+      "Actions",
+      "Mentorship",
+    ]);
+    expect(visibleHrefs).not.toContain("/partners");
     expect(visibleHrefs).not.toContain("/meetings");
     expect(visibleHrefs).not.toContain("/");
-    expect(visibleHrefs).not.toContain("/work");
-    expect(visibleHrefs).not.toContain("/command-center");
+    expect(visibleHrefs).not.toContain("/chapter/recruiting");
     expect(model.more).toHaveLength(0);
   });
 });

@@ -1,10 +1,11 @@
 import "dotenv/config";
 import { PrismaClient, Prisma } from "@prisma/client";
+import { OPERATING_CHAPTER_NAMES } from "../lib/chapters/operating-chapters";
 
 const prisma = new PrismaClient();
 
 /** Keep the current operating chapters; remove everything else. */
-const KEEP_CHAPTER_NAMES = ["Scarsdale", "The Bronx"] as const;
+const KEEP_CHAPTER_NAMES = [...OPERATING_CHAPTER_NAMES];
 
 interface ColumnRef {
   table_schema: string;

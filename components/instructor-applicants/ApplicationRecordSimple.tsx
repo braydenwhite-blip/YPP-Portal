@@ -144,7 +144,7 @@ export function ApplicationRecordSimple({
     meetingUrl: string | null;
     confirmedAt: string | null;
   }>;
-  /** Operating chapters for the chapter editor (Bronx / Scarsdale). */
+  /** Operating chapters for the chapter editor (all four current chapters). */
   chapterOptions?: Array<{ id: string; name: string }>;
   canEditChapter?: boolean;
 }) {

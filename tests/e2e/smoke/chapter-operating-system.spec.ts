@@ -2,14 +2,13 @@ import { expect, test } from "@playwright/test";
 
 import { loginAs } from "../helpers/auth";
 
-test("@smoke admin can open the Chapter Command center", async ({ page }) => {
+test("@smoke admin can open Chapters", async ({ page }) => {
   await loginAs(page, "admin");
   await page.goto("/admin/chapters");
 
-  await expect(page.getByRole("heading", { name: "Chapter Command" })).toBeVisible();
-  // Lifecycle/signal views and summary tiles render.
-  await expect(page.getByText("Launching", { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Chapters" })).toBeVisible();
   await expect(page.getByText("At risk", { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Chapters", level: 2 })).toBeVisible();
 });
 
 test("@smoke admin can open the national chapter map", async ({ page }) => {

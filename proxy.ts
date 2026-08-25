@@ -10,6 +10,7 @@ import {
   isActionsOnlyPreviewAllowedPath,
   isLeadershipPreviewAccessFromAuth,
   isLeadershipPreviewPath,
+  shouldLockLeadershipPreviewPath,
 } from "@/lib/leadership-preview-access";
 import {
   LOCKED_PATH,
@@ -369,19 +370,21 @@ export async function proxy(request: NextRequest) {
           }
           return NextResponse.redirect(dest);
         }
-        if (isLeadershipPreviewPath(pathname) && !leadershipAccess) {
-          const actionsPathAllowed =
-            actionsOnlyUiActive &&
-            (pathname === "/actions" || pathname.startsWith("/actions/"));
-          if (!actionsPathAllowed) {
-            const dest = request.nextUrl.clone();
-            dest.pathname = LOCKED_PATH;
-            dest.search = "";
-            if (pathname && pathname !== "/") {
-              dest.searchParams.set("from", pathname);
-            }
-            return NextResponse.redirect(dest);
+        if (
+          shouldLockLeadershipPreviewPath({
+            pathname,
+            leadershipAccess,
+            officerBypass,
+            actionsOnlyUiActive,
+          })
+        ) {
+          const dest = request.nextUrl.clone();
+          dest.pathname = LOCKED_PATH;
+          dest.search = "";
+          if (pathname && pathname !== "/") {
+            dest.searchParams.set("from", pathname);
           }
+          return NextResponse.redirect(dest);
         }
         if (!isLeadershipPreviewPath(pathname) && !officerBypass && !actionsOnlyUiActive) {
           const dest = request.nextUrl.clone();

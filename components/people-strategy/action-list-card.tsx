@@ -122,6 +122,9 @@ export function ActionListCard({
         <StatusBadge tone={STATUS_TONE[item.status] ?? "neutral"}>
           {ACTION_STATUS_LABELS[item.status]}
         </StatusBadge>
+        {item.chapter ? (
+          <StatusBadge tone="info">{item.chapter.name}</StatusBadge>
+        ) : null}
         {gap ? <StatusBadge tone={GAP_TONE[gap.tone]}>{gap.text}</StatusBadge> : null}
         {item.relatedEntityType ? (
           <RelatedEntityBadge type={item.relatedEntityType} id={item.relatedEntityId} />

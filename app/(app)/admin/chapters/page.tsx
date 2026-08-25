@@ -6,269 +6,293 @@ import { createChapter } from "@/lib/chapter-actions";
 import { loadLeadershipChapters } from "@/lib/chapters/leadership";
 import { loadChapterIntegrityIssues } from "@/lib/chapters/integrity";
 import { ChapterIntegrityPanel } from "@/components/chapters/chapter-integrity-panel";
-import {
-  chapterLifecycleLabel,
-  chapterLifecycleTone,
-} from "@/lib/chapters/lifecycle";
 import { CHAPTER_HEALTH_LABELS } from "@/lib/chapters/health";
-import {
-  PageHeaderV2,
-  CardV2,
-  StatusBadge,
-  StatCardV2,
-  ViewSwitcher,
-  EmptyStateV2,
-  ButtonLink,
-} from "@/components/ui-v2";
+import { loadChapterAnalyticsLeaderboard } from "@/lib/chapters/analytics-loader";
+import type { AnalyticsMetricKey } from "@/lib/chapters/analytics-pace";
+import type { LeaderboardRow, PaceCell } from "@/lib/chapters/analytics-types";
+import { Button, ButtonLink, StatusBadge, cn } from "@/components/ui-v2";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Chapter Command — Pathways Portal" };
+export const metadata = { title: "Chapters — Pathways Portal" };
 
-function fmtDate(d: Date | null): string {
-  if (!d) return "—";
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+const PULSE_METRICS: Array<{ key: AnalyticsMetricKey; label: string }> = [
+  { key: "partners", label: "Partners" },
+  { key: "instructors", label: "Instructors" },
+  { key: "students", label: "Students" },
+  { key: "classes", label: "Classes" },
+];
+
+const PACE_TEXT: Record<PaceCell["status"], string> = {
+  above: "text-complete-700",
+  on_track: "text-complete-700",
+  needs_attention: "text-progress-700",
+  at_risk: "text-blocked-700",
+};
+
+const HEALTH_RAIL: Record<string, string> = {
+  success: "bg-complete-700",
+  warning: "bg-progress-700",
+  danger: "bg-blocked-700",
+  info: "bg-info-700",
+  neutral: "bg-idle-700",
+  brand: "bg-brand-600",
+};
+
+function leaderboardHref(chapterId?: string) {
+  const params = new URLSearchParams({ view: "leaderboard" });
+  if (chapterId) params.set("chapter", chapterId);
+  return `/chapter/impact?${params.toString()}`;
 }
 
-function relDays(d: Date, now: Date): string {
-  const days = Math.floor((now.getTime() - d.getTime()) / (24 * 60 * 60 * 1000));
-  if (days <= 0) return "today";
-  if (days === 1) return "1 day ago";
-  if (days < 30) return `${days} days ago`;
-  return fmtDate(d);
+function barClass(pct: number): string {
+  if (pct >= 100) return "bg-complete-700";
+  if (pct >= 70) return "bg-brand-600";
+  if (pct >= 40) return "bg-progress-700";
+  return "bg-blocked-700";
 }
 
-export default async function AdminChaptersPage({
-  searchParams,
-}: {
-  searchParams?: Promise<{ view?: string; state?: string }>;
-}) {
+export default async function AdminChaptersPage() {
   const session = await getSession();
   const roles = session?.user?.roles ?? [];
   if (!roles.includes("ADMIN") && !roles.includes("STAFF")) {
     redirect("/");
   }
 
-  const sp = (await searchParams) ?? {};
-  const [{ cards, viewCounts, requestedView, states, summary }, integrityIssues] =
-    await Promise.all([
-      loadLeadershipChapters({ view: sp.view, state: sp.state }),
-      loadChapterIntegrityIssues(),
-    ]);
-  const now = new Date();
+  const [{ cards }, integrityIssues, leaderboard] = await Promise.all([
+    loadLeadershipChapters({ view: "all" }),
+    loadChapterIntegrityIssues(),
+    loadChapterAnalyticsLeaderboard(),
+  ]);
 
-  const stateQuery = sp.state ? `&state=${encodeURIComponent(sp.state)}` : "";
+  const paceByChapter = new Map<string, LeaderboardRow>(
+    leaderboard.rows.map((r) => [r.chapterId, r])
+  );
 
-  const tiles = [
-    { label: "All chapters", value: summary.total, href: "/admin/chapters", accent: "neutral" as const },
-    { label: "Launching", value: summary.launching, href: "/admin/chapters?view=launching", accent: "brand" as const },
-    { label: "Active", value: summary.active, href: "/admin/chapters?view=active", accent: "success" as const },
-    { label: "Needs support", value: summary.needsSupport, href: "/admin/chapters?view=needs_support", accent: "warning" as const },
-    { label: "At risk", value: summary.atRisk, href: "/admin/chapters?view=at_risk", accent: "danger" as const },
-    { label: "Missing weekly update", value: summary.missingWeeklyUpdate, href: "/admin/chapters?view=missing_weekly_update", accent: "warning" as const },
-    { label: "Decisions needed", value: summary.decisionsNeeded, href: "/admin/chapters?view=decisions_needed", accent: "danger" as const },
-    { label: "Bottlenecks", value: summary.bottlenecks, href: "/admin/chapters?view=bottlenecks", accent: "warning" as const },
-    { label: "No upcoming meeting", value: summary.noUpcomingMeeting, href: "/admin/chapters?view=no_upcoming_meeting", accent: "warning" as const },
-    { label: "Ready to scale", value: summary.readyToScale, href: "/admin/chapters?view=ready_to_scale", accent: "success" as const },
-  ];
+  const sorted = [...cards].sort((a, b) => {
+    const aPace = paceByChapter.get(a.id)?.paceScore ?? -1;
+    const bPace = paceByChapter.get(b.id)?.paceScore ?? -1;
+    if (aPace !== bPace) return bPace - aPace;
+    return a.name.localeCompare(b.name);
+  });
+
+  const needingCp = cards.filter((c) => !c.president).length;
+  const atRisk = cards.filter((c) => c.health.label === "AT_RISK").length;
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-8">
-      <PageHeaderV2
-        eyebrow="Leadership"
-        title="Chapter Command"
-        subtitle="Launch, support, track, and manage every chapter nationally — one operating system, no spreadsheets."
-        actions={
+    <div className="relative min-h-full">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-[280px] bg-[radial-gradient(ellipse_at_top,_rgba(107,33,200,0.08),_transparent_58%)]"
+      />
+
+      <div className="relative mx-auto flex w-full max-w-[1040px] flex-col gap-7 px-6 py-9">
+        <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="max-w-xl">
+            <p className="m-0 text-[11.5px] font-bold uppercase tracking-[0.1em] text-brand-700">
+              Leadership
+            </p>
+            <h1 className="mt-1.5 font-sans text-[32px] font-bold leading-[1.1] tracking-[-0.02em] text-ink">
+              Chapters
+            </h1>
+            <p className="mt-2 text-[15px] leading-snug text-ink-muted">
+              Check pace and set goals.
+            </p>
+          </div>
           <div className="flex flex-wrap gap-2">
-            <ButtonLink href="/admin/chapters/map" variant="secondary" size="sm">
-              Chapter map
+            <ButtonLink href="/chapter/impact/goals" variant="primary" size="md">
+              Set goals
             </ButtonLink>
-            <ButtonLink href="/admin/chapters/analytics" variant="secondary" size="sm">
-              Analytics
+            <ButtonLink href={leaderboardHref()} variant="secondary" size="md">
+              Leaderboard
             </ButtonLink>
           </div>
-        }
-      />
+        </header>
 
-      <ChapterIntegrityPanel issues={integrityIssues} />
-
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
-        {tiles.map((t) => (
-          <StatCardV2
-            key={t.label}
-            label={t.label}
-            value={t.value}
-            href={t.href}
-            accent={t.accent}
-            selected={
-              (t.href === "/admin/chapters" && requestedView === "all") ||
-              t.href.includes(`view=${requestedView}`)
-            }
-          />
-        ))}
-      </div>
-
-      <ViewSwitcher
-        aria-label="Chapter views"
-        views={viewCounts.map((v) => ({
-          key: v.key,
-          label: v.label,
-          href: `/admin/chapters?view=${v.key}${stateQuery}`,
-          active: v.key === requestedView,
-          count: v.count,
-        }))}
-      />
-
-      {states.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 text-[12.5px]">
-          <span className="font-semibold text-ink-muted">State:</span>
-          <Link
-            href={`/admin/chapters?view=${requestedView}`}
-            className={`rounded-full border px-2.5 py-1 ${!sp.state ? "border-brand-300 bg-brand-50 text-brand-800" : "border-line text-ink-muted hover:bg-surface-soft"}`}
-          >
-            All
-          </Link>
-          {states.map((s) => (
-            <Link
-              key={s}
-              href={`/admin/chapters?view=${requestedView}&state=${encodeURIComponent(s)}`}
-              className={`rounded-full border px-2.5 py-1 ${sp.state === s ? "border-brand-300 bg-brand-50 text-brand-800" : "border-line text-ink-muted hover:bg-surface-soft"}`}
+        <div className="grid grid-cols-3 overflow-hidden rounded-[14px] border border-line-card bg-surface shadow-card">
+          {[
+            { label: "Chapters", value: cards.length, hint: leaderboard.asOfLabel },
+            {
+              label: "Need a CP",
+              value: needingCp,
+              hint: needingCp ? "Unstaffed" : "All staffed",
+              attention: needingCp > 0,
+            },
+            {
+              label: "At risk",
+              value: atRisk,
+              hint: atRisk ? "Health signal" : "None flagged",
+              attention: atRisk > 0,
+            },
+          ].map((s, i) => (
+            <div
+              key={s.label}
+              className={cn("px-5 py-4", i > 0 && "border-l border-line-card")}
             >
-              {s}
-            </Link>
-          ))}
-        </div>
-      )}
-
-      {cards.length === 0 ? (
-        <EmptyStateV2
-          title="No chapters in this view"
-          body="Try another view, or create a chapter below. Approved Chapter President applications also create chapters automatically."
-        />
-      ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {cards.map((c) => (
-            <CardV2 key={c.id} as="article" padding="md" className="flex flex-col gap-2">
-              <div className="flex items-start justify-between gap-2">
-                <Link
-                  href={`/admin/chapters/${c.id}`}
-                  className="text-[15px] font-bold text-brand-800 hover:underline"
-                >
-                  {c.name}
-                </Link>
-                <StatusBadge tone={chapterLifecycleTone(c.lifecycleStatus)}>
-                  {chapterLifecycleLabel(c.lifecycleStatus)}
-                </StatusBadge>
-              </div>
-              <p className="text-[12.5px] text-ink-muted">
-                {[c.city, c.state].filter(Boolean).join(", ") || "Location not set"}
-                {c.partnerSchool ? ` · ${c.partnerSchool}` : ""}
+              <p
+                className={cn(
+                  "m-0 text-[26px] font-bold tabular-nums leading-none tracking-tight",
+                  s.attention ? "text-blocked-700" : "text-ink"
+                )}
+              >
+                {s.value}
               </p>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px] text-ink">
-                <span>
-                  <span className="text-ink-muted">CP:</span> {c.president?.name ?? "Unassigned"}
-                </span>
-                <span>
-                  <span className="text-ink-muted">Members:</span> {c.memberCount}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <StatusBadge tone={c.health.tone} withDot title={c.health.reasons.join("; ")}>
-                  {CHAPTER_HEALTH_LABELS[c.health.label]}
-                </StatusBadge>
-                <span className="text-[12.5px] text-ink">{c.nextStep}</span>
-              </div>
-              {c.blocker && (
-                <p className="text-[12.5px] font-medium text-blocked-700">⚠ {c.blocker}</p>
-              )}
-              {(c.flags.missingWeeklyUpdate ||
-                c.radar.decisionsNeeded > 0 ||
-                c.radar.bottlenecks.length > 0 ||
-                c.radar.readyToScale) && (
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {c.flags.missingWeeklyUpdate && (
-                    <StatusBadge tone="warning">
-                      {c.radar.weeklyUpdate === "DRAFT" ? "Weekly update not submitted" : "Missing weekly update"}
-                    </StatusBadge>
-                  )}
-                  {c.radar.decisionsNeeded > 0 && (
-                    <StatusBadge tone="danger">
-                      {c.radar.decisionsNeeded === 1
-                        ? "1 decision needed"
-                        : `${c.radar.decisionsNeeded} decisions needed`}
-                    </StatusBadge>
-                  )}
-                  {c.radar.bottlenecks.slice(0, 2).map((b) => (
-                    <StatusBadge key={b.key} tone="warning" title={b.detail}>
-                      {b.label}
-                    </StatusBadge>
-                  ))}
-                  {c.radar.readyToScale && (
-                    <StatusBadge tone="success" withDot>
-                      Ready to scale
-                    </StatusBadge>
-                  )}
-                </div>
-              )}
-              <div className="mt-1 flex items-center justify-between border-t border-line-soft pt-2 text-[11.5px] text-ink-muted">
-                <span>Next meeting: {fmtDate(c.upcomingMeetingAt)}</span>
-                <span title={`${c.radar.expectations.headline}`}>
-                  {c.radar.expectations.metCount}/{c.radar.expectations.total} expectations
-                </span>
-                <span>Active {relDays(c.lastActivityAt, now)}</span>
-              </div>
-              <div className="flex items-center gap-3 text-[11.5px]">
-                <Link href={`/chapter/impact?chapter=${c.id}`} className="font-semibold text-brand-800 hover:underline">
-                  Impact brief
-                </Link>
-                <Link href={`/admin/chapters/${c.id}`} className="font-semibold text-brand-800 hover:underline">
-                  Chapter 360
-                </Link>
-              </div>
-            </CardV2>
+              <p className="m-0 mt-1.5 text-[12px] font-semibold text-ink">{s.label}</p>
+              <p className="m-0 mt-0.5 text-[11.5px] text-ink-muted">{s.hint}</p>
+            </div>
           ))}
         </div>
-      )}
 
-      <details className="mt-2 rounded-[14px] border border-line-card bg-surface p-5 shadow-card">
-        <summary className="cursor-pointer text-[14px] font-semibold text-ink">
-          + Create a new chapter
-        </summary>
-        <form action={createChapter} className="mt-4 flex flex-col gap-3">
-          <label className="flex flex-col gap-1 text-[13px] font-medium text-ink">
-            Chapter name
-            <input
-              name="name"
-              required
-              maxLength={80}
-              className="rounded-lg border border-line px-3 py-2 text-[14px] font-normal"
-            />
-          </label>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <label className="flex flex-col gap-1 text-[13px] font-medium text-ink">
-              City
-              <input name="city" maxLength={120} className="rounded-lg border border-line px-3 py-2 text-[14px] font-normal" />
-            </label>
-            <label className="flex flex-col gap-1 text-[13px] font-medium text-ink">
-              Region / State
-              <input name="region" maxLength={120} className="rounded-lg border border-line px-3 py-2 text-[14px] font-normal" />
-            </label>
-          </div>
-          <label className="flex flex-col gap-1 text-[13px] font-medium text-ink">
-            Partner school (optional)
-            <input name="partnerSchool" maxLength={120} className="rounded-lg border border-line px-3 py-2 text-[14px] font-normal" />
-          </label>
-          <label className="flex flex-col gap-1 text-[13px] font-medium text-ink">
-            Internal notes (admin-only)
-            <textarea name="programNotes" rows={3} maxLength={2000} className="rounded-lg border border-line px-3 py-2 text-[14px] font-normal" />
-          </label>
-          <button
-            type="submit"
-            className="self-start rounded-lg bg-brand-600 px-4 py-2 text-[14px] font-semibold text-white hover:bg-brand-700"
+        <ChapterIntegrityPanel issues={integrityIssues} />
+
+        {sorted.length === 0 ? (
+          <p className="m-0 rounded-[14px] border border-dashed border-line-card bg-surface px-4 py-12 text-center text-[14px] text-ink-muted">
+            No chapters yet. Create one below.
+          </p>
+        ) : (
+          <ul className="m-0 grid list-none grid-cols-1 gap-4 p-0 lg:grid-cols-2">
+            {sorted.map((c) => {
+              const pace = paceByChapter.get(c.id);
+              const rail = HEALTH_RAIL[c.health.tone] ?? HEALTH_RAIL.neutral;
+              const pacePct = pace
+                ? Math.round(Math.min(140, Math.max(0, pace.paceScore)))
+                : null;
+
+              return (
+                <li
+                  key={c.id}
+                  className="group relative overflow-hidden rounded-[14px] border border-line-card bg-surface shadow-card transition hover:border-brand-200"
+                >
+                  <div aria-hidden className={cn("absolute inset-y-0 left-0 w-[3px]", rail)} />
+                  <Link
+                    href={`/admin/chapters/${c.id}`}
+                    aria-label={`Open ${c.name}`}
+                    className="flex flex-col gap-4 p-5 pl-[22px] text-ink no-underline"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="m-0 text-[17px] font-bold tracking-tight text-ink group-hover:text-brand-700">
+                          {c.name}
+                        </p>
+                        <p className="m-0 mt-1 truncate text-[13px] leading-snug text-ink-muted">
+                          {c.president ? (
+                            <>President {c.president.name}</>
+                          ) : (
+                            <span className="font-medium text-progress-700">No president yet</span>
+                          )}
+                        </p>
+                      </div>
+                      <StatusBadge
+                        tone={c.health.tone}
+                        title={c.health.reasons.join(" · ") || undefined}
+                      >
+                        {CHAPTER_HEALTH_LABELS[c.health.label]}
+                      </StatusBadge>
+                    </div>
+
+                    {pace ? (
+                      <div className="rounded-[12px] bg-surface-soft px-4 py-3.5 transition group-hover:bg-brand-50">
+                        <div className="mb-2 flex items-baseline justify-between gap-3">
+                          <span className="text-[22px] font-bold tabular-nums leading-none tracking-tight text-ink">
+                            {pacePct}%
+                          </span>
+                          <span className="text-[12.5px] font-semibold text-brand-700">
+                            Open →
+                          </span>
+                        </div>
+                        <p className="m-0 mb-3 text-[12px] font-medium text-ink-muted">
+                          of goal this month
+                        </p>
+                        <div className="mb-3.5 h-1.5 overflow-hidden rounded-full bg-idle-50">
+                          <div
+                            className={cn("h-full rounded-full", barClass(pacePct ?? 0))}
+                            style={{ width: `${Math.min(100, pacePct ?? 0)}%` }}
+                          />
+                        </div>
+                        <div className="grid grid-cols-4 gap-3">
+                          {PULSE_METRICS.map(({ key, label }) => {
+                            const cell = pace.cells[key];
+                            return (
+                              <div key={key} className="min-w-0">
+                                <p
+                                  className={cn(
+                                    "m-0 text-[14px] font-bold tabular-nums leading-none",
+                                    PACE_TEXT[cell.status]
+                                  )}
+                                >
+                                  {cell.display}
+                                </p>
+                                <p className="m-0 mt-1 truncate text-[11px] text-ink-muted">
+                                  {label}
+                                </p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="m-0 text-[12.5px] font-semibold text-brand-700">
+                        Open →
+                      </p>
+                    )}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        <footer className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-line-card pt-5">
+          <details className="min-w-0 flex-1">
+            <summary className="cursor-pointer text-[13px] font-semibold text-ink-muted hover:text-ink">
+              Create a chapter
+            </summary>
+            <form action={createChapter} className="mt-3 flex max-w-md flex-col gap-3">
+              <label className="flex flex-col gap-1 text-[13px] font-medium text-ink">
+                Name
+                <input
+                  name="name"
+                  required
+                  maxLength={80}
+                  className="rounded-[10px] border border-line-card px-3 py-2 text-[14px] font-normal outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+                />
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="flex flex-col gap-1 text-[13px] font-medium text-ink">
+                  City
+                  <input
+                    name="city"
+                    maxLength={120}
+                    className="rounded-[10px] border border-line-card px-3 py-2 text-[14px] font-normal outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-[13px] font-medium text-ink">
+                  Region
+                  <input
+                    name="region"
+                    maxLength={120}
+                    className="rounded-[10px] border border-line-card px-3 py-2 text-[14px] font-normal outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+                  />
+                </label>
+              </div>
+              <Button type="submit" variant="primary" size="sm" className="self-start">
+                Create
+              </Button>
+            </form>
+          </details>
+          <Link
+            href="/admin/chapters/map"
+            className="text-[13px] font-semibold text-ink-muted no-underline hover:text-brand-700 hover:underline"
           >
-            Create chapter
-          </button>
-        </form>
-      </details>
+            Map
+          </Link>
+          <Link
+            href="/admin/chapters/analytics"
+            className="text-[13px] font-semibold text-ink-muted no-underline hover:text-brand-700 hover:underline"
+          >
+            Growth
+          </Link>
+        </footer>
+      </div>
     </div>
   );
 }

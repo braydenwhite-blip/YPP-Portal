@@ -17,8 +17,10 @@ export {
 } from "./action-departments";
 import { hydrateActionItemDepartmentLinks } from "./action-item-departments";
 
+import { getChapterViewerContext } from "@/lib/chapters/access";
 import {
   canViewAction,
+  isChapterScopedActionOfficer,
   isUserInvolvedInAction,
   type ActionAccessShape,
   type ActionViewer,
@@ -52,6 +54,7 @@ const ACTION_ITEM_INCLUDE = {
       canonicalTitle: true,
       adminSubtypes: { select: { subtype: true } },
       profile: { select: { avatarUrl: true } },
+      chapterId: true,
     },
   },
   createdBy: {
@@ -103,6 +106,7 @@ const ACTION_ITEM_INCLUDE = {
           title: true,
           adminSubtypes: { select: { subtype: true } },
           profile: { select: { avatarUrl: true } },
+          chapterId: true,
         },
       },
     },
@@ -168,20 +172,63 @@ function toAccessShape(item: {
   leadId: string | null;
   createdById: string | null;
   visibility: ActionAccessShape["visibility"];
+  chapterId?: string | null;
+  lead?: { chapterId?: string | null } | null;
   assignments: Array<{
     role: ActionAccessShape["assignments"][number]["role"];
-    user?: { id: string } | null;
+    user?: { id: string; chapterId?: string | null } | null;
     userId?: string;
   }>;
 }): ActionAccessShape {
+  const peopleChapterIds = [
+    item.lead?.chapterId,
+    ...item.assignments.map((a) => a.user?.chapterId),
+  ].filter((id): id is string => Boolean(id));
+
   return {
     leadId: item.leadId,
     createdById: item.createdById,
     visibility: item.visibility,
+    chapterId: item.chapterId ?? null,
+    peopleChapterIds: [...new Set(peopleChapterIds)],
     assignments: item.assignments.map((a) => ({
       userId: a.userId ?? a.user?.id ?? "",
       role: a.role,
     })),
+  };
+}
+
+/** Trusted ActionViewer from the current session, including the chapter a CP leads. */
+export async function loadActionViewer(): Promise<ActionViewer> {
+  const ctx = await getChapterViewerContext();
+  return {
+    id: ctx.user.id,
+    roles: ctx.user.roles,
+    primaryRole: ctx.user.primaryRole,
+    adminSubtypes: ctx.user.adminSubtypes,
+    ledChapterId: ctx.ledChapterId,
+  };
+}
+
+function chapterPresidentListWhere(viewer: ActionViewer): Prisma.ActionItemWhereInput | undefined {
+  if (!isChapterScopedActionOfficer(viewer)) return undefined;
+  if (!viewer.ledChapterId) {
+    return {
+      OR: [
+        { leadId: viewer.id },
+        { assignments: { some: { userId: viewer.id } } },
+      ],
+    };
+  }
+  const chapterId = viewer.ledChapterId;
+  return {
+    OR: [
+      { leadId: viewer.id },
+      { assignments: { some: { userId: viewer.id } } },
+      { chapterId },
+      { lead: { chapterId } },
+      { assignments: { some: { user: { chapterId } } } },
+    ],
   };
 }
 
@@ -229,10 +276,12 @@ export async function listVisibleActionItems(
 ): Promise<ActionItemWithRelations[]> {
   if (!isActionTrackerEnabled()) return [];
 
+  const chapterWhere = chapterPresidentListWhere(viewer);
   const items = await prisma.actionItem.findMany({
+    ...(chapterWhere ? { where: chapterWhere } : {}),
     include: ACTION_ITEM_INCLUDE,
     orderBy: [{ createdAt: "desc" }],
-    take: 200,
+    take: chapterWhere ? 500 : 200,
   });
 
   const hydrated = await withDepartmentLinks(items);
@@ -254,8 +303,9 @@ export async function listVisibleArchivedActionItems(
 ): Promise<ActionItemWithRelations[]> {
   if (!isActionTrackerEnabled()) return [];
 
+  const chapterWhere = chapterPresidentListWhere(viewer);
   const items = await prisma.actionItem.findMany({
-    where: ARCHIVED_WHERE,
+    where: chapterWhere ? { AND: [ARCHIVED_WHERE, chapterWhere] } : ARCHIVED_WHERE,
     include: ACTION_ITEM_INCLUDE,
     orderBy: [{ updatedAt: "desc" }],
     take: 500,
@@ -537,12 +587,20 @@ export type ActionPickerUser = {
  * filtered out explicitly (`whereActiveMember`) — otherwise pending applicants
  * leak into the assignee pickers.
  */
-export async function listActionAssignableUsers(): Promise<ActionPickerUser[]> {
+export async function listActionAssignableUsers(opts?: {
+  chapterId?: string | null;
+}): Promise<ActionPickerUser[]> {
   if (!isActionTrackerEnabled()) return [];
+
+  const chapterId = opts?.chapterId?.trim() || null;
 
   return prisma.user
     .findMany({
-      where: { archivedAt: null, ...whereActiveMember() },
+      where: {
+        archivedAt: null,
+        ...whereActiveMember(),
+        ...(chapterId ? { chapterId } : {}),
+      },
       select: {
         id: true,
         name: true,
@@ -691,6 +749,32 @@ export async function getActionsForChapter(
     where: { chapterId: id },
     include: ACTION_ITEM_INCLUDE,
     orderBy: [{ createdAt: "desc" }],
+  });
+
+  const hydrated = await withDepartmentLinks(items);
+  return hydrated.filter((item) => canViewAction(viewer, toAccessShape(item)));
+}
+
+/**
+ * Open Action Tracker items that belong to any chapter (chapterId set).
+ * Used by national Chapter Command so leadership sees the same owned work
+ * that lives on each chapter's Actions lane / `/actions`.
+ */
+export async function getOpenChapterActions(
+  viewer: ActionViewer,
+  opts?: { limit?: number }
+): Promise<ActionItemWithRelations[]> {
+  if (!isActionTrackerEnabled()) return [];
+  const limit = Math.min(Math.max(opts?.limit ?? 40, 1), 100);
+
+  const items = await prisma.actionItem.findMany({
+    where: {
+      chapterId: { not: null },
+      status: { notIn: ["COMPLETE", "DROPPED"] },
+    },
+    include: ACTION_ITEM_INCLUDE,
+    orderBy: [{ deadlineStart: "asc" }, { createdAt: "desc" }],
+    take: limit,
   });
 
   const hydrated = await withDepartmentLinks(items);

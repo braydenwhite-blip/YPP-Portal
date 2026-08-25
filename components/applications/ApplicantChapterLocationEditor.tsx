@@ -7,6 +7,7 @@ import {
   updateChapterPresidentApplicantChapter,
   updateInstructorApplicantChapter,
 } from "@/lib/applicant-chapter-location-actions";
+import { OPERATING_CHAPTER_NAMES } from "@/lib/chapters/operating-chapters";
 
 type Mode = "instructor" | "cp" | "staff";
 
@@ -23,13 +24,15 @@ const CHAPTER_LABELS = {
   },
 } as const;
 
+const DEFAULT_LOCATION_SUGGESTIONS = [...OPERATING_CHAPTER_NAMES];
+
 export function ApplicantChapterLocationEditor({
   mode,
   applicationId,
   currentChapterId,
   currentLocation,
   options = [],
-  locationSuggestions = ["The Bronx", "Scarsdale"],
+  locationSuggestions = DEFAULT_LOCATION_SUGGESTIONS,
 }: {
   mode: Mode;
   applicationId: string;
@@ -143,7 +146,7 @@ export function StaffLocationEditor(props: {
         null
       }
       locationSuggestions={
-        props.locations?.map((l) => l.name) ?? ["The Bronx", "Scarsdale"]
+        props.locations?.map((l) => l.name) ?? DEFAULT_LOCATION_SUGGESTIONS
       }
     />
   );

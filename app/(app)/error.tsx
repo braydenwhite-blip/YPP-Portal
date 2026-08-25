@@ -1,14 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { reportClientError } from "@/lib/client-error-report";
 
-/**
- * App Error Boundary
- *
- * Catches and handles errors within the authenticated application pages.
- * Logs errors to structured logging for monitoring.
- */
+function reloadKey() {
+  if (typeof window === "undefined") return "";
+  return `ypp-error-reload:${window.location.pathname}`;
+}
+
 export default function AppError({
   error,
   reset,
@@ -16,52 +15,61 @@ export default function AppError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const [stuck, setStuck] = useState(false);
+
   useEffect(() => {
+    const key = reloadKey();
+    try {
+      if (key && !sessionStorage.getItem(key)) {
+        sessionStorage.setItem(key, "1");
+        window.location.reload();
+        return;
+      }
+    } catch {
+      reset();
+      return;
+    }
+    setStuck(true);
     reportClientError("app-error-boundary", error);
-  }, [error]);
+  }, [error, reset]);
+
+  function retry() {
+    try {
+      sessionStorage.removeItem(reloadKey());
+    } catch {
+      /* ignore */
+    }
+    window.location.reload();
+  }
+
+  if (!stuck) {
+    return (
+      <div className="flex min-h-[70vh] items-center justify-center p-5">
+        <p className="m-0 text-[14px] text-ink-muted">Loading…</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex items-center justify-center min-h-[70vh] p-5">
-      <div className="max-w-2xl w-full text-center">
-        <div className="text-6xl mb-4">⚠️</div>
-        <h2 className="text-2xl font-semibold text-gray-900 mb-2">
-          Something went wrong
-        </h2>
-        <p className="text-gray-600 mb-6">
-          We've been notified and are looking into it. Please try again or
-          return to the dashboard.
+    <div className="flex min-h-[70vh] items-center justify-center p-5">
+      <div className="w-full max-w-md text-center">
+        <h2 className="m-0 font-sans text-[22px] font-semibold text-ink">Couldn’t load this page</h2>
+        <p className="mt-2 text-[14px] text-ink-muted">
+          Refresh and it should come back. If it doesn’t, return to the dashboard.
         </p>
-
-        {error.message ? (
-          <pre className="mt-4 max-h-48 overflow-auto rounded-lg border border-red-200 bg-red-50 p-4 text-left text-xs text-red-900 whitespace-pre-wrap">
-            {error.message}
-            {error.digest ? `\n\ndigest: ${error.digest}` : ""}
-          </pre>
-        ) : null}
-
-        {process.env.NODE_ENV === "development" && error.stack ? (
-          <details className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg text-left">
-            <summary className="cursor-pointer font-semibold mb-2">
-              Stack (Development Only)
-            </summary>
-            <pre className="text-xs overflow-auto text-red-900 whitespace-pre-wrap">
-              {error.stack}
-            </pre>
-          </details>
-        ) : null}
-
-        <div className="flex gap-3 justify-center mt-6">
+        <div className="mt-6 flex justify-center gap-3">
           <button
-            onClick={reset}
-            className="px-6 py-3 bg-purple-600 text-white rounded-full font-semibold hover:bg-purple-700 transition-colors"
+            type="button"
+            onClick={retry}
+            className="rounded-full bg-brand-600 px-6 py-3 text-[14px] font-semibold text-white hover:bg-brand-700"
           >
-            Try Again
+            Refresh
           </button>
           <a
-            href="/"
-            className="px-6 py-3 bg-gray-200 text-gray-900 rounded-full font-semibold hover:bg-gray-300 transition-colors"
+            href="/admin/chapters"
+            className="rounded-full bg-surface-soft px-6 py-3 text-[14px] font-semibold text-ink no-underline hover:bg-brand-50"
           >
-            Go to Dashboard
+            Back to chapters
           </a>
         </div>
       </div>

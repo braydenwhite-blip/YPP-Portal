@@ -15,6 +15,7 @@
  */
 
 import { prisma } from "@/lib/prisma";
+import { OFFICER_TIER_ROLES, hasAnyRole } from "@/lib/authorization-roles";
 import {
   canLeadAction,
   resolvePersonAuthority,
@@ -79,9 +80,23 @@ export async function assertActionLeadEligible(
       ladder: true,
       canonicalTitle: true,
       adminSubtypes: { select: { subtype: true } },
+      roles: { select: { role: true } },
     },
   });
   if (!user) return; // fail open
+
+  // Officer-tier people can always be the accountable Lead. A stale persisted
+  // internalLevel (e.g. a Chapter President still stored as level 1 from an
+  // instructor backfill) must not block them from creating / owning work.
+  if (
+    hasAnyRole(
+      (user.roles ?? []).map((row) => row.role),
+      [...OFFICER_TIER_ROLES],
+      user.primaryRole,
+    )
+  ) {
+    return;
+  }
 
   const authority = resolvePersonAuthority({
     title: user.title,

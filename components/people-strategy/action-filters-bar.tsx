@@ -91,6 +91,7 @@ export function ActionFiltersBar({
 
   return (
     <div className={hub ? "flex flex-wrap items-center justify-end gap-2" : "ps-filter-bar"}>
+      {departments.length > 0 ? (
       <select
         className={hub ? "h-9 rounded-[9px] border border-line-soft bg-surface px-3 text-[13px] font-semibold text-ink" : "ps-filter"}
         aria-label="Filter by department"
@@ -104,6 +105,7 @@ export function ActionFiltersBar({
           </option>
         ))}
       </select>
+      ) : null}
 
       {chapters.length > 0 ? (
         <select

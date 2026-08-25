@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import { isRecoverablePrismaError, withPrismaFallback } from "@/lib/prisma-guard";
+import { ensureOperatingChapters } from "@/lib/chapters/operating";
 
 type RoleRecord = { role: string };
 type JoinRequestListItem = {
@@ -32,6 +33,7 @@ type JoinRequestListItem = {
  * Get all public chapters for the directory / discovery page.
  */
 export async function getPublicChapters() {
+  await ensureOperatingChapters();
   try {
     return await prisma.chapter.findMany({
       where: { isPublic: true },

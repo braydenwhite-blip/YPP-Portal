@@ -55,19 +55,23 @@ export default async function PartnersPage() {
   const data = await loadPartnerWorkspace(scope);
 
   return (
-    <div className="mx-auto w-full max-w-[1280px] px-1 pb-14 pt-2">
+    <div className="mx-auto w-full max-w-4xl px-6 py-8">
       <PageHeaderV2
         eyebrow={data.scopeLabel}
         title="Partners"
-        subtitle="Build strong partnerships. Launch more classes. Change more lives."
+        subtitle="Add partners, follow up, and confirm them for your chapter."
         actions={
           <div className="flex flex-wrap gap-2">
-            <ButtonLink href="/partners/import" variant="secondary" size="md">Import partners</ButtonLink>
-            <ButtonLink href="/partners/new" variant="primary" size="md">+ Add partner</ButtonLink>
+            <ButtonLink href="/partners/import" variant="secondary" size="md">
+              Import
+            </ButtonLink>
+            <ButtonLink href="/partners/new" variant="primary" size="md">
+              + Add partner
+            </ButtonLink>
           </div>
         }
       />
-      <div className="mt-5">
+      <div className="mt-6">
         <PartnerWorkspace data={data} />
       </div>
     </div>

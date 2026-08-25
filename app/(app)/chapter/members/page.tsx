@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requirePageRoles } from "@/lib/page-guards";
 import { getChapterMembers } from "@/lib/chapter-member-actions";
 import { PersonLink } from "@/components/people-strategy/person-link";
+import { InviteMemberButton } from "@/components/chapter/invite-member-modal";
 import { MemberSearch } from "./member-search";
 
 export const dynamic = "force-dynamic";
@@ -38,19 +39,17 @@ export default async function ChapterMembersPage(
 
   return (
     <main className="main-content">
-      <div className="page-header">
-        <div>
-          <Link href="/chapter" className="back-link">
-            ← Chapter Home
+      <div className="page-header mb-7 flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <Link href="/chapter/hub" className="back-link">
+            ← My Chapter
           </Link>
           <h1>Chapter Members</h1>
           <p className="page-subtitle">
             {members.length} {members.length === 1 ? "member" : "members"} across your chapter
           </p>
         </div>
-        <Link href="/chapter/invites" className="button" style={{ textDecoration: "none" }}>
-          Invite Members
-        </Link>
+        <InviteMemberButton />
       </div>
 
       <MemberSearch defaultValue={searchParams.q} />
@@ -140,7 +139,11 @@ export default async function ChapterMembersPage(
                             {member.email}
                           </a>
                           <p style={{ margin: 0, fontSize: 11, color: "var(--muted)" }}>
-                            Joined {new Date(member.createdAt).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+                            Joined{" "}
+                            {new Date(member.createdAt).toLocaleDateString("en-US", {
+                              month: "short",
+                              year: "numeric",
+                            })}
                           </p>
                         </div>
                       </div>

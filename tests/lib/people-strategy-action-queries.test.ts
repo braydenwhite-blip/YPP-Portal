@@ -12,6 +12,7 @@ import {
   getActionsForEntity,
   getActionsForEntities,
   getMyActionItems,
+  listVisibleActionItems,
   relatedEntityRefKey,
 } from "@/lib/people-strategy/action-queries";
 
@@ -204,5 +205,36 @@ describe("getMyActionItems", () => {
     findMany.mockResolvedValue([creatorOnly, mine]);
     const result = await getMyActionItems("m1", member);
     expect(result.map((a) => a.id)).toEqual(["mine"]);
+  });
+});
+
+describe("listVisibleActionItems", () => {
+  const chapterPresident: ActionViewer = {
+    id: "cp1",
+    roles: ["CHAPTER_PRESIDENT"],
+    primaryRole: "CHAPTER_PRESIDENT",
+    adminSubtypes: [],
+    ledChapterId: "chap-bronx",
+  };
+
+  it("scopes chapter president queries to their chapter and their own assignments", async () => {
+    findMany.mockResolvedValue([]);
+    await listVisibleActionItems(chapterPresident);
+    expect(findMany).toHaveBeenCalledTimes(1);
+    expect(findMany.mock.calls[0][0].where).toEqual({
+      OR: [
+        { leadId: "cp1" },
+        { assignments: { some: { userId: "cp1" } } },
+        { chapterId: "chap-bronx" },
+        { lead: { chapterId: "chap-bronx" } },
+        { assignments: { some: { user: { chapterId: "chap-bronx" } } } },
+      ],
+    });
+  });
+
+  it("does not pre-filter national officers in SQL", async () => {
+    findMany.mockResolvedValue([]);
+    await listVisibleActionItems(officer);
+    expect(findMany.mock.calls[0][0].where).toBeUndefined();
   });
 });

@@ -194,6 +194,16 @@ async function main() {
     city: "Bronx",
     region: "Northeast",
   });
+  await findOrCreateChapter({
+    name: "Lower Manhattan",
+    city: "New York",
+    region: "Northeast",
+  });
+  await findOrCreateChapter({
+    name: "Brooklyn Bay Ridge",
+    city: "Brooklyn",
+    region: "Northeast",
+  });
 
   await prisma.user.upsert({
     where: { email: "milo.wald@youthpassionproject.org" },
@@ -1790,12 +1800,14 @@ async function seedRegularInstructorAssignments(args: {
       classDurationMin: 60,
       durationWeeks: 6,
       sessionsPerWeek: 1,
-      deliveryModes: ["VIRTUAL"],
+      deliveryModes: ["IN_PERSON", "VIRTUAL"],
       isPublished: true,
       createdById: creatorId,
       chapterId,
     },
-    update: {},
+    update: {
+      deliveryModes: ["IN_PERSON", "VIRTUAL"],
+    },
   });
 
   const offerings: { id: string; title: string }[] = [];

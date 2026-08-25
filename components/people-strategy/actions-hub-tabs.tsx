@@ -8,40 +8,47 @@ import { buildActionsHubTabHref } from "@/lib/people-strategy/action-filters";
 
 export type ActionsHubTab = "all" | "mine" | "archived";
 
-const TABS: Array<{
-  key: ActionsHubTab;
-  label: string;
-  tabParams: Record<string, string>;
-  officerOnly?: boolean;
-  basePath?: string;
-}> = [
-  { key: "mine", label: "My Actions", tabParams: { who: "me" } },
-  { key: "all", label: "All Actions", tabParams: { who: "all" }, officerOnly: true },
-  {
-    key: "archived",
-    label: "Archived",
-    tabParams: { who: "me" },
-    basePath: "/actions/archived",
-  },
-];
-
 export function ActionsHubTabs({
   active,
   officer,
   archivedScope = "me",
+  chapterScope = false,
 }: {
   active: ActionsHubTab;
   officer: boolean;
   /** When the archived tab is active, whether the officer is viewing all archived work. */
   archivedScope?: "me" | "all";
+  /** Chapter presidents see chapter-scoped work instead of the national list. */
+  chapterScope?: boolean;
 }) {
   const searchParams = useSearchParams();
   const currentParams = Object.fromEntries(searchParams.entries());
-  const tabs = TABS.filter((tab) => !tab.officerOnly || officer);
+  const tabs: Array<{
+    key: ActionsHubTab;
+    label: string;
+    tabParams: Record<string, string>;
+    officerOnly?: boolean;
+    basePath?: string;
+  }> = [
+    { key: "mine", label: "My Actions", tabParams: { who: "me" } },
+    {
+      key: "all",
+      label: chapterScope ? "Chapter" : "All Actions",
+      tabParams: { who: "all" },
+      officerOnly: true,
+    },
+    {
+      key: "archived",
+      label: "Archived",
+      tabParams: { who: "me" },
+      basePath: "/actions/archived",
+    },
+  ];
+  const visible = tabs.filter((tab) => !tab.officerOnly || officer);
 
   return (
     <nav aria-label="Actions hub views" className="flex shrink-0 flex-nowrap items-center gap-2">
-      {tabs.map((tab) => {
+      {visible.map((tab) => {
         const isActive = tab.key === active;
         const tabParams =
           tab.key === "archived"

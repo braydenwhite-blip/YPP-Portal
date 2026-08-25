@@ -32,7 +32,7 @@ export default async function ChapterMapPage() {
         eyebrow="Leadership"
         title="National Chapter Map"
         subtitle="Where chapters exist, where they're launching, where applicants are concentrated, and where the gaps are."
-        actions={<ButtonLink href="/admin/chapters" variant="secondary" size="sm">Chapter command</ButtonLink>}
+        actions={<ButtonLink href="/admin/chapters" variant="secondary" size="sm">Chapters</ButtonLink>}
       />
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">

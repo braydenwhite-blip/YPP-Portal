@@ -7,6 +7,7 @@ import { ActionsHubAllView } from "@/components/people-strategy/actions-hub-all-
 import { ActionsHubAnalytics } from "@/components/people-strategy/actions-hub-analytics";
 import { ActionFiltersBar } from "@/components/people-strategy/action-filters-bar";
 import { ActionsHubTabs, type ActionsHubTab } from "@/components/people-strategy/actions-hub-tabs";
+import { ActionApprovalQueue } from "@/components/people-strategy/action-approval-queue";
 import {
   summarizeDepartments,
   summarizeStatuses,
@@ -14,8 +15,10 @@ import {
 import type { ActionChapterOption, ActionDepartmentOption, ActionItemWithRelations } from "@/lib/people-strategy/action-queries";
 import type { ActionViewer } from "@/lib/people-strategy/action-permissions";
 import type { ActionFilters } from "@/lib/people-strategy/action-filters";
+import type { PendingApprovalQueueItem } from "@/lib/people-strategy/action-approval";
 import {
   departmentHeaderColor,
+  groupActionsByChapter,
   groupActionsByDepartment,
 } from "@/lib/people-strategy/actions-hub-grouping";
 
@@ -31,9 +34,11 @@ export function ActionsHub({
   createHref,
   canCreate,
   viewer,
+  pendingApprovals = [],
   actionsOnlyPreview = false,
   hubBasePath = "/actions",
   activeTabArchivedScope = "me",
+  chapterScope = false,
 }: {
   items: ActionItemWithRelations[];
   now: Date;
@@ -46,11 +51,16 @@ export function ActionsHub({
   createHref: string;
   canCreate: boolean;
   viewer: ActionViewer;
+  pendingApprovals?: PendingApprovalQueueItem[];
   actionsOnlyPreview?: boolean;
   hubBasePath?: string;
   activeTabArchivedScope?: "me" | "all";
+  chapterScope?: boolean;
 }) {
-  const groups = groupActionsByDepartment(items, now);
+  const groups =
+    chapterScope && (activeTab === "all" || activeTabArchivedScope === "all")
+      ? groupActionsByChapter(items, now)
+      : groupActionsByDepartment(items, now);
 
   return (
     <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-6 pb-12 pt-4">
@@ -72,6 +82,7 @@ export function ActionsHub({
             active={activeTab}
             officer={officer}
             archivedScope={activeTabArchivedScope}
+            chapterScope={chapterScope}
           />
         </Suspense>
         ) : (
@@ -86,7 +97,7 @@ export function ActionsHub({
               {(
                 [
                   { key: "me", label: "My archived" },
-                  { key: "all", label: "All archived" },
+                  { key: "all", label: chapterScope ? "Chapter archived" : "All archived" },
                 ] as const
               ).map((scope) => {
                 const active = activeTabArchivedScope === scope.key;
@@ -125,6 +136,9 @@ export function ActionsHub({
             variant="hub"
           />
           ) : null}
+          {officer && !actionsOnlyPreview && activeTab !== "archived" ? (
+            <ActionApprovalQueue items={pendingApprovals} />
+          ) : null}
           {canCreate ? (
             <Link
               href={createHref}
@@ -145,15 +159,19 @@ export function ActionsHub({
               ? "Try clearing a filter or searching with different words."
               : activeTab === "archived"
                 ? "Approved and dropped actions will show up here."
-                : "Nothing is open in this view right now."
+                : activeTab === "all" && chapterScope
+                  ? "Nothing open for your chapter right now."
+                  : "Nothing is open in this view right now."
           }
         />
       ) : activeTab === "all" ? (
         <>
-          <ActionsHubAnalytics
-            breakdown={summarizeStatuses(items, now)}
-            bars={summarizeDepartments(items, now)}
-          />
+          {chapterScope ? null : (
+            <ActionsHubAnalytics
+              breakdown={summarizeStatuses(items, now)}
+              bars={summarizeDepartments(items, now)}
+            />
+          )}
           <ActionsHubAllView
             groups={groups}
             now={now}

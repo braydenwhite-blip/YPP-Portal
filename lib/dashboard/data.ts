@@ -371,7 +371,7 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
     const hasChapterLeadAccess = roleTypes.includes("CHAPTER_PRESIDENT") || roleTypes.includes("ADMIN");
 
     if (!hasChapterLeadAccess || !user.chapterId) {
-      heroTitle = "Chapter Command Center";
+      heroTitle = "Your chapter";
       heroSubtitle = "Chapter assignment is required before chapter operations can load.";
 
       kpis = [
@@ -791,7 +791,7 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
 
     const studentFullExplorer = isStudentFullPortalExplorerEnabled();
 
-    heroTitle = "Student Chapter Command Center";
+    heroTitle = "Your chapter";
     heroSubtitle = studentFullExplorer
       ? chapterJourney.chapterName
         ? `Track your ${chapterJourney.chapterName} pathway journey, local classes, and fallback options in one place.`

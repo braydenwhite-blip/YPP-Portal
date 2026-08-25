@@ -4,6 +4,11 @@
  * and other structured payloads keep working.
  */
 
+import {
+  inferOperatingChapterName,
+  type OperatingChapterName,
+} from "@/lib/chapters/operating-chapters";
+
 export function extractStaffLocation(raw: string | null | undefined): string | null {
   if (!raw?.trim()) return null;
   try {
@@ -60,16 +65,6 @@ export function mergeStaffLocationIntoMaterials(
 /** Normalize typed location against known chapter names for optional FK sync. */
 export function matchOperatingChapterName(
   location: string | null | undefined
-): "The Bronx" | "Scarsdale" | null {
-  const normalized = (location ?? "").trim().toLowerCase();
-  if (!normalized) return null;
-  if (
-    normalized === "the bronx" ||
-    normalized === "bronx" ||
-    normalized === "bx"
-  ) {
-    return "The Bronx";
-  }
-  if (normalized === "scarsdale") return "Scarsdale";
-  return null;
+): OperatingChapterName | null {
+  return inferOperatingChapterName(location);
 }

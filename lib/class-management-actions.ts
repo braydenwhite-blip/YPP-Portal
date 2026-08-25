@@ -917,6 +917,8 @@ export async function createClassOffering(formData: FormData) {
   const chapterId = getString(formData, "chapterId", false) || null;
   const pathwayId = getString(formData, "pathwayId", false) || null;
   const pathwayStepId = getString(formData, "pathwayStepId", false) || null;
+  const requestedInstructorId = getString(formData, "instructorId", false) || null;
+  const partnerId = getString(formData, "partnerId", false) || null;
   const introVideo = normalizeIntroVideoFields(formData);
 
   const send24Hr = formData.get("send24HrReminder") !== "false";
@@ -928,16 +930,25 @@ export async function createClassOffering(formData: FormData) {
     throw new Error("Invalid date format");
   }
 
-  await assertChapterAssignmentAllowed(session.user.id, roles, chapterId);
-  validateDeliveryRequirements({
-    deliveryMode,
-    chapterId,
-    locationName,
-    locationAddress,
-    zoomLink,
-  });
+  const canAssignOther =
+    roles.includes("ADMIN") || roles.includes("CHAPTER_PRESIDENT");
+  let instructorId = session.user.id;
+  if (requestedInstructorId) {
+    if (!canAssignOther && requestedInstructorId !== session.user.id) {
+      throw new Error("Not authorized to assign another instructor");
+    }
+    instructorId = requestedInstructorId;
+  } else if (
+    roles.includes("CHAPTER_PRESIDENT") &&
+    !roles.includes("INSTRUCTOR") &&
+    !roles.includes("ADMIN")
+  ) {
+    throw new Error("Choose an instructor for this class");
+  }
 
-  const [pathwayStep, template] = await Promise.all([
+  await assertChapterAssignmentAllowed(session.user.id, roles, chapterId);
+
+  const [pathwayStep, template, assignee, partner] = await Promise.all([
     validatePathwayLink({
       templateId,
       chapterId,
@@ -950,29 +961,81 @@ export async function createClassOffering(formData: FormData) {
         deliveryModes: true,
       },
     }),
+    prisma.user.findUnique({
+      where: { id: instructorId },
+      select: {
+        id: true,
+        chapterId: true,
+        roles: { select: { role: true } },
+      },
+    }),
+    partnerId
+      ? prisma.partner.findFirst({
+          where: {
+            id: partnerId,
+            archivedAt: null,
+            ...(chapterId ? { chapterId } : {}),
+          },
+          select: { id: true, name: true, location: true, chapterId: true },
+        })
+      : Promise.resolve(null),
   ]);
 
   if (!template) {
     throw new Error("Class template not found.");
   }
 
-  if (!template.deliveryModes.includes(deliveryMode)) {
+  // Chapter presidents run in-person classes at partner sites; allow IN_PERSON
+  // even when a catalog template was originally marked virtual-only.
+  const chapterInPersonOk =
+    deliveryMode === "IN_PERSON" &&
+    canAssignOther &&
+    Boolean(chapterId);
+  if (!template.deliveryModes.includes(deliveryMode) && !chapterInPersonOk) {
     throw new Error("This class template does not support the selected delivery mode.");
   }
+
+  if (!assignee?.roles.some((r) => r.role === "INSTRUCTOR")) {
+    throw new Error("Selected person is not an instructor.");
+  }
+  if (
+    chapterId &&
+    assignee.chapterId &&
+    assignee.chapterId !== chapterId &&
+    !roles.includes("ADMIN")
+  ) {
+    throw new Error("Instructor must belong to this chapter.");
+  }
+
+  if (partnerId && !partner) {
+    throw new Error("Choose a location that belongs to this chapter.");
+  }
+
+  const resolvedLocationName = locationName || partner?.name || "";
+  const resolvedLocationAddress =
+    locationAddress || partner?.location || partner?.name || "";
+
+  validateDeliveryRequirements({
+    deliveryMode,
+    chapterId,
+    locationName: resolvedLocationName,
+    locationAddress: resolvedLocationAddress,
+    zoomLink,
+  });
 
   // Create the offering
   const offering = await prisma.classOffering.create({
     data: {
       templateId,
-      instructorId: session.user.id,
+      instructorId,
       title,
       startDate,
       endDate,
       meetingDays,
       meetingTime,
       deliveryMode,
-      locationName: locationName || null,
-      locationAddress: locationAddress || null,
+      locationName: resolvedLocationName || null,
+      locationAddress: resolvedLocationAddress || null,
       zoomLink: zoomLink || null,
       capacity,
       send24HrReminder: send24Hr,
@@ -980,6 +1043,7 @@ export async function createClassOffering(formData: FormData) {
       status: "DRAFT",
       chapterId,
       pathwayStepId,
+      partnerId: partner?.id ?? null,
       semester: semester || null,
       ...introVideo,
     },
@@ -1017,17 +1081,19 @@ export async function createClassOffering(formData: FormData) {
     });
   }
 
-  await syncInstructorGrowthSafe(session.user.id);
+  await syncInstructorGrowthSafe(instructorId);
   revalidatePath("/curriculum");
   revalidatePath("/instructor/curriculum-builder");
   revalidatePath("/my-chapter");
+  revalidatePath("/chapter/instructors");
+  revalidatePath(`/instructor/classes/${offering.id}`);
 
   await fireEntityStatusChanged({
     subjectType: "CLASS_OFFERING",
     subjectId: offering.id,
     newStatus: "DRAFT",
     chapterId: offering.chapterId,
-    ownerId: session.user.id,
+    ownerId: instructorId,
     startedById: session.user.id,
   });
 

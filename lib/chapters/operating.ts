@@ -1,17 +1,19 @@
 import { prisma } from "@/lib/prisma";
+import {
+  OPERATING_CHAPTERS,
+  OPERATING_CHAPTER_NAMES,
+  inferOperatingChapterName,
+  operatingChapterNameAliases,
+  type OperatingChapterName,
+} from "@/lib/chapters/operating-chapters";
 
-/**
- * Chapters currently open for hiring / applicant signup.
- * Keep this list in sync with real operating chapters (not historical rows).
- */
-export const OPERATING_CHAPTERS = [
-  { name: "The Bronx", city: "Bronx", region: "Northeast" },
-  { name: "Scarsdale", city: "Scarsdale", region: "Northeast" },
-] as const;
-
-export const OPERATING_CHAPTER_NAMES = OPERATING_CHAPTERS.map((c) => c.name);
-
-export type OperatingChapterName = (typeof OPERATING_CHAPTERS)[number]["name"];
+export {
+  OPERATING_CHAPTERS,
+  OPERATING_CHAPTER_NAMES,
+  inferOperatingChapterName,
+  operatingChapterNamesList,
+  type OperatingChapterName,
+} from "@/lib/chapters/operating-chapters";
 
 /** Roles that should always sit on an operating chapter (null is wrong). */
 export const CHAPTER_REQUIRED_ROLES = [
@@ -32,15 +34,12 @@ export async function ensureOperatingChapters(): Promise<
   const results: Array<{ id: string; name: string; isPublic: boolean }> = [];
 
   for (const chapter of OPERATING_CHAPTERS) {
+    const aliases = operatingChapterNameAliases(chapter.name);
     const existing = await prisma.chapter.findFirst({
       where: {
-        OR: [
-          { name: chapter.name },
-          // Accept a short name variant so we don't create a duplicate.
-          ...(chapter.name === "The Bronx" ? [{ name: "Bronx" }] : []),
-        ],
+        OR: aliases.map((name) => ({ name })),
       },
-      select: { id: true, name: true, isPublic: true, archivedAt: true },
+      select: { id: true, name: true, isPublic: true, archivedAt: true, lifecycleStatus: true },
     });
 
     if (!existing) {
@@ -61,7 +60,8 @@ export async function ensureOperatingChapters(): Promise<
     const needsRepair =
       !existing.isPublic ||
       existing.archivedAt != null ||
-      existing.name !== chapter.name;
+      existing.name !== chapter.name ||
+      existing.lifecycleStatus === "PROSPECT";
 
     if (needsRepair) {
       const updated = await prisma.chapter.update({
@@ -73,6 +73,7 @@ export async function ensureOperatingChapters(): Promise<
           isPublic: true,
           archivedAt: null,
           archivedById: null,
+          lifecycleStatus: "ACTIVE",
         },
         select: { id: true, name: true, isPublic: true },
       });
@@ -104,26 +105,6 @@ export async function listOperatingChaptersForFilters(): Promise<
   });
 }
 
-/** Infer Bronx vs Scarsdale from free text / legacy chapter names. */
-export function inferOperatingChapterName(
-  hint: string | null | undefined
-): OperatingChapterName | null {
-  const normalized = (hint ?? "").trim().toLowerCase();
-  if (!normalized) return null;
-  if (
-    normalized === "the bronx" ||
-    normalized === "bronx" ||
-    normalized === "bx" ||
-    normalized.includes("bronx")
-  ) {
-    return "The Bronx";
-  }
-  if (normalized === "scarsdale" || normalized.includes("scarsdale")) {
-    return "Scarsdale";
-  }
-  return null;
-}
-
 /**
  * Throws unless `chapterId` is one of the current operating chapters.
  * Pass `allowNull` when network-wide accounts may clear chapter.
@@ -136,15 +117,17 @@ export async function requireOperatingChapterId(
     if (opts?.allowNull) return null;
     throw new Error(
       opts?.label
-        ? `${opts.label} requires The Bronx or Scarsdale.`
-        : "Chapter must be The Bronx or Scarsdale."
+        ? `${opts.label} requires an operating chapter.`
+        : "Chapter must be an operating chapter."
     );
   }
 
   const operating = await ensureOperatingChapters();
   const match = operating.find((c) => c.id === chapterId);
   if (!match) {
-    throw new Error("Only The Bronx and Scarsdale are valid chapters.");
+    throw new Error(
+      `Only ${OPERATING_CHAPTER_NAMES.join(", ")} are valid chapters.`
+    );
   }
   return match.id;
 }
@@ -160,7 +143,7 @@ export type UserChapterRepairRow = {
 };
 
 /**
- * Remap users off archived / non-operating chapters onto Bronx or Scarsdale.
+ * Remap users off archived / non-operating chapters onto an operating chapter.
  * Also assigns a default operating chapter when a chapter-required role has null.
  * Leaves ADMIN / STAFF / HIRING_CHAIR / APPLICANT null alone (network-wide OK).
  */

@@ -9,7 +9,7 @@ import {
   isAdmin,
   isHiringChair,
 } from "@/lib/chapter-hiring-permissions";
-import { OPERATING_CHAPTER_NAMES } from "@/lib/chapters/operating";
+import { OPERATING_CHAPTER_NAMES, operatingChapterNamesList } from "@/lib/chapters/operating-chapters";
 
 function getString(formData: FormData, key: string): string {
   const value = String(formData.get(key) ?? "").trim();
@@ -37,7 +37,9 @@ async function assertAllowedChapterChoice(
     select: { id: true },
   });
   if (!chapter) {
-    throw new Error("Choose a valid chapter/location (The Bronx or Scarsdale).");
+    throw new Error(
+      `Choose a valid chapter/location (${operatingChapterNamesList()}).`
+    );
   }
 
   const networkScope = isAdmin(actor) || isHiringChair(actor);

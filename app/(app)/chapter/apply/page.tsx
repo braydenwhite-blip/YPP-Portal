@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
+import { ensureOperatingChapters } from "@/lib/chapters/operating";
 import ChapterPresidentApplicationForm from "@/components/chapter-president-application-form";
 import { ChapterOpportunity } from "@/components/chapters/chapter-opportunity";
 import Link from "next/link";
@@ -40,6 +41,7 @@ export default async function ApplyChapterPresidentPage() {
   }
 
   // Fetch chapters for the dropdown
+  await ensureOperatingChapters();
   const chapters = await prisma.chapter.findMany({
     where: { archivedAt: null },
     select: { id: true, name: true },

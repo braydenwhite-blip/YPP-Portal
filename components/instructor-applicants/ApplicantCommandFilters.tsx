@@ -87,7 +87,7 @@ export default function ApplicantCommandFilters({
   const kind = getParam("kind").toLowerCase();
   const track = getParam("track").toLowerCase();
   const status = getParam("status");
-  const showTrack = kind !== "cp" && kind !== "staff";
+  const showTrack = kind === "instructor";
 
   const activeFilters = useMemo(() => {
     const entries: Array<{ key: string; value: string }> = [];
@@ -111,20 +111,25 @@ export default function ApplicantCommandFilters({
   return (
     <div className="mb-3 flex flex-wrap items-center gap-2">
       {showKindFilter ? (
-        <select
-          className={cn(selectClass, "sm:min-w-[9rem]")}
-          aria-label="Applicant role"
-          value={
-            kind === "instructor" || kind === "cp" || kind === "staff" ? kind : ""
-          }
-          onChange={(e) => setParam("kind", e.target.value)}
-        >
-          {KIND_OPTIONS.map((opt) => (
-            <option key={opt.value || "all-roles"} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
+        <nav aria-label="Applicant role" className="seg-tabs w-fit max-w-full">
+          {KIND_OPTIONS.map((opt) => {
+            const selected =
+              kind === "instructor" || kind === "cp" || kind === "staff"
+                ? kind === opt.value
+                : opt.value === "";
+            return (
+              <button
+                key={opt.value || "all-roles"}
+                type="button"
+                className={cn("seg-tab", selected && "active")}
+                aria-current={selected ? "page" : undefined}
+                onClick={() => setParam("kind", opt.value)}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </nav>
       ) : null}
 
       <select

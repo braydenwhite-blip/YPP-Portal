@@ -59,6 +59,8 @@ export type ChapterCalendarEntry = {
   location: string | null;
   meetingUrl: string | null;
   visibility: "INTERNAL" | "PUBLIC";
+  /** CHAPTER = this chapter’s calendar; GLOBAL = YPP-wide network event. */
+  scope: "CHAPTER" | "GLOBAL";
   chapterName: string;
   chapterSlug: string;
   eventTypeLabel: string;
@@ -677,6 +679,7 @@ export async function getChapterCalendarEntries(params: {
       location: event.location,
       meetingUrl: event.meetingUrl,
       visibility: event.visibility,
+      scope: "CHAPTER",
       chapterName: event.chapter.name,
       chapterSlug: chapterSlugValue(event.chapter),
       eventTypeLabel: eventLabelForSource("EVENT", event.eventType),
@@ -703,6 +706,7 @@ export async function getChapterCalendarEntries(params: {
       location: null,
       meetingUrl: null,
       visibility: milestone.visibility,
+      scope: "CHAPTER",
       chapterName: milestone.chapter.name,
       chapterSlug: chapterSlugValue(milestone.chapter),
       eventTypeLabel: eventLabelForSource("MILESTONE"),
@@ -738,6 +742,7 @@ export async function getChapterCalendarEntries(params: {
       location: session.offering.locationName,
       meetingUrl: session.offering.zoomLink,
       visibility: "INTERNAL",
+      scope: "CHAPTER",
       chapterName: chapter.name,
       chapterSlug: chapterSlugValue(chapter),
       eventTypeLabel: eventLabelForSource("CLASS_SESSION"),
@@ -765,6 +770,7 @@ export async function getChapterCalendarEntries(params: {
       location: null,
       meetingUrl: null,
       visibility: "INTERNAL",
+      scope: "CHAPTER",
       chapterName: task.chapter.name,
       chapterSlug: chapterSlugValue(task.chapter),
       eventTypeLabel: eventLabelForSource("LAUNCH_TASK"),
@@ -782,6 +788,62 @@ export async function getChapterCalendarEntries(params: {
   return entries.sort(
     (left, right) => new Date(left.startDate).getTime() - new Date(right.startDate).getTime()
   );
+}
+
+/** Network-wide (YPP) events for the chapter calendar filter. */
+export async function getGlobalCalendarEntries(params: {
+  start: Date;
+  end: Date;
+  includeInternal: boolean;
+  userId?: string | null;
+}) {
+  const { start, end, includeInternal, userId } = params;
+
+  const events = await prisma.event.findMany({
+    where: {
+      scope: "GLOBAL",
+      startDate: { lte: end },
+      endDate: { gte: start },
+      ...(includeInternal ? {} : { visibility: "PUBLIC" }),
+    },
+    include: {
+      chapter: { select: { id: true, name: true, slug: true } },
+      rsvps: userId
+        ? {
+            where: { userId },
+            select: { status: true },
+          }
+        : false,
+    },
+    orderBy: { startDate: "asc" },
+  });
+
+  const entries: ChapterCalendarEntry[] = events.map((event) => ({
+    id: `global-event-${event.id}`,
+    source: "EVENT" as const,
+    title: event.title,
+    description: event.description,
+    startDate: event.startDate.toISOString(),
+    endDate: event.endDate.toISOString(),
+    allDay: false,
+    location: event.location,
+    meetingUrl: event.meetingUrl,
+    visibility: event.visibility,
+    scope: "GLOBAL" as const,
+    chapterName: event.chapter?.name ?? "YPP-wide",
+    chapterSlug: event.chapter ? chapterSlugValue(event.chapter) : "ypp",
+    eventTypeLabel: eventLabelForSource("EVENT", event.eventType),
+    eventTypeColor: eventColorForType(event.eventType),
+    isCancelled: event.isCancelled,
+    link: event.chapterId ? `/my-chapter/calendar?eventId=${event.id}` : `/calendar?eventId=${event.id}`,
+    eventId: event.id,
+    milestoneId: null,
+    seriesId: event.seriesId,
+    userRsvpStatus: Array.isArray(event.rsvps) && event.rsvps[0] ? event.rsvps[0].status : null,
+    isSubscribed: false,
+  }));
+
+  return entries;
 }
 
 function formatIcsDate(date: Date) {

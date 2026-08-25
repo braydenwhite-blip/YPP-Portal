@@ -7,6 +7,7 @@ import {
   isLeadershipPreviewPath,
   isActionsOnlyPreviewAllowedPath,
   resetLeadershipPilotEmailCache,
+  shouldLockLeadershipPreviewPath,
 } from "@/lib/leadership-preview-access";
 
 describe("leadership-preview-access", () => {
@@ -176,5 +177,36 @@ describe("leadership-preview-access", () => {
         "anthea.zamir@youthpassionproject.org",
       ),
     ).toBe(true);
+  });
+
+  it("lets chapter presidents reach the action tracker without leadership preview", () => {
+    const cp = {
+      leadershipAccess: false,
+      officerBypass: true,
+      actionsOnlyUiActive: false,
+    };
+    expect(shouldLockLeadershipPreviewPath({ pathname: "/actions", ...cp })).toBe(false);
+    expect(shouldLockLeadershipPreviewPath({ pathname: "/actions/new", ...cp })).toBe(false);
+    expect(shouldLockLeadershipPreviewPath({ pathname: "/people", ...cp })).toBe(true);
+    expect(shouldLockLeadershipPreviewPath({ pathname: "/meetings", ...cp })).toBe(true);
+  });
+
+  it("still locks /actions for non-officers without the actions-only pilot", () => {
+    expect(
+      shouldLockLeadershipPreviewPath({
+        pathname: "/actions",
+        leadershipAccess: false,
+        officerBypass: false,
+        actionsOnlyUiActive: false,
+      }),
+    ).toBe(true);
+    expect(
+      shouldLockLeadershipPreviewPath({
+        pathname: "/actions",
+        leadershipAccess: false,
+        officerBypass: false,
+        actionsOnlyUiActive: true,
+      }),
+    ).toBe(false);
   });
 });

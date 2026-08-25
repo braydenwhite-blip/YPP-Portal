@@ -126,6 +126,30 @@ export function isActionsOnlyPreviewAllowedPath(pathname: string): boolean {
   );
 }
 
+/** The Action Tracker hub and its nested pages (`/actions`, `/actions/new`, …). */
+export function isActionTrackerPath(pathname: string): boolean {
+  return pathname === "/actions" || pathname.startsWith("/actions/");
+}
+
+/**
+ * Leadership-preview paths stay locked unless the viewer has the leadership
+ * stack, an officer-tier role (Chapter Presidents need `/actions`), or the
+ * actions-only pilot chrome on an actions URL.
+ */
+export function shouldLockLeadershipPreviewPath(opts: {
+  pathname: string;
+  leadershipAccess: boolean;
+  officerBypass: boolean;
+  actionsOnlyUiActive: boolean;
+}): boolean {
+  if (!isLeadershipPreviewPath(opts.pathname)) return false;
+  if (opts.leadershipAccess) return false;
+  if (isActionTrackerPath(opts.pathname) && (opts.officerBypass || opts.actionsOnlyUiActive)) {
+    return false;
+  }
+  return true;
+}
+
 export function isActionsOnlyPreviewAccessFromAuth(
   metadata: unknown,
   email?: string | null,

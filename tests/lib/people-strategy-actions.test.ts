@@ -23,6 +23,9 @@ vi.mock("@/lib/prisma", () => ({
     department: {
       findUnique: vi.fn(),
     },
+    chapter: {
+      findUnique: vi.fn(),
+    },
     user: {
       count: vi.fn(),
       findUnique: vi.fn(),
@@ -40,8 +43,17 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
+vi.mock("@/lib/chapters/access", () => ({
+  getChapterViewerContext: vi.fn(),
+  isChapterLeadership: (user: { roles?: string[] }) => {
+    const roles = user.roles ?? [];
+    return roles.includes("ADMIN") || roles.includes("STAFF");
+  },
+}));
+
 import { getSessionUser } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
+import { getChapterViewerContext } from "@/lib/chapters/access";
 import {
   createActionItem,
   flagActionToLeadership,
@@ -78,6 +90,7 @@ beforeEach(() => {
           update: txActionItemUpdate,
           updateMany: txActionItemUpdateMany,
           findUnique: txActionItemFindUnique,
+          create: prisma.actionItem.create,
         },
         actionComment: { create: txCommentCreate },
       })
@@ -327,5 +340,35 @@ describe("createActionItem", () => {
       })
     ).rejects.toThrow("Linked entity not found");
     expect(prisma.actionItem.create).not.toHaveBeenCalled();
+  });
+
+  it("scopes chapter-president creates to the chapter they lead", async () => {
+    sessionAs({ id: "cp1", roles: ["CHAPTER_PRESIDENT"] });
+    vi.mocked(getChapterViewerContext).mockResolvedValue({
+      user: { id: "cp1", roles: ["CHAPTER_PRESIDENT"], primaryRole: "CHAPTER_PRESIDENT", adminSubtypes: [] },
+      isLeadership: false,
+      ledChapterId: "ch-scarsdale",
+    } as never);
+    (prisma.department.findUnique as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: "d1",
+    });
+    (prisma.user.count as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(1);
+    (prisma.chapter.findUnique as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: "ch-scarsdale",
+    });
+    (prisma.actionItem.create as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: "cp-action",
+    });
+
+    await expect(
+      createActionItem({
+        ...baseInput,
+        executingUserIds: [],
+      })
+    ).resolves.toEqual({ id: "cp-action" });
+
+    const createArg = (prisma.actionItem.create as unknown as ReturnType<typeof vi.fn>)
+      .mock.calls[0][0];
+    expect(createArg.data.chapterId).toBe("ch-scarsdale");
   });
 });

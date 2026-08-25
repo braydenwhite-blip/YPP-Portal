@@ -20,8 +20,8 @@ export default async function ChapterInvitesPage() {
           <h1>Invite Links</h1>
           <p className="subtitle">Create shareable links to grow your chapter</p>
         </div>
-        <Link href="/chapter/settings" style={{ fontSize: 13, color: "var(--ypp-purple)" }}>
-          ← Back to Settings
+        <Link href="/chapter/hub" style={{ fontSize: 13, color: "var(--ypp-purple)" }}>
+          ← Back to My Chapter
         </Link>
       </div>
 

@@ -1688,8 +1688,9 @@ export async function updateApplicationStatus(formData: FormData) {
 
 /**
  * Set / clear a staff applicant's free-text location.
- * When the text matches The Bronx or Scarsdale, also syncs user.chapterId
- * so board filters still work for those two.
+ * When the text matches an operating chapter (The Bronx, Scarsdale,
+ * Lower Manhattan, Brooklyn Bay Ridge), also syncs user.chapterId so
+ * board filters still work.
  */
 export async function updateStaffApplicantLocation(formData: FormData) {
   const { actor } = await requireAdminOrChapterLead();

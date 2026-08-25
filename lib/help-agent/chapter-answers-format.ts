@@ -70,7 +70,7 @@ export function buildNetworkBlocks(cards: ChapterCommandCard[]): CoSAnswerBlock[
       ),
       emptyState: "No chapters are flagged for help right now.",
       moreHref: "/admin/chapters?view=needs_support",
-      moreLabel: "Chapter command",
+      moreLabel: "Chapters",
     },
     {
       kind: "meetings_need_followthrough",
