@@ -129,7 +129,7 @@ export function ClassClassroomHome({
   tab = "home",
 }: {
   c: StreamClass;
-  tab?: "home" | "people" | "classwork" | "settings";
+  tab?: "home" | "people" | "classwork" | "settings" | "attendance";
 }) {
   const id = c.id;
   const theme =
@@ -177,6 +177,11 @@ export function ClassClassroomHome({
       id: "settings" as const,
       label: "Settings",
       href: `/instructor/classes/${id}?tab=settings`,
+    },
+    {
+      id: "attendance" as const,
+      label: "Attendance",
+      href: `/instructor/classes/${id}/attendance`,
     },
   ];
 

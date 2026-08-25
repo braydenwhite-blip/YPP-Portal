@@ -13,6 +13,7 @@ import {
   saveCPScoresAndNotes,
   assignCPReviewer,
   assignCPApplicationChapter,
+  updateCPApplicantPhone,
 } from "@/lib/cp-application-kanban-actions";
 import {
   reviewCPApplicationAction,
@@ -98,6 +99,10 @@ export default function CPDetailPanel({
   const [assigningChapter, setAssigningChapter] = useState(false);
   const [chapterError, setChapterError] = useState<string | null>(null);
 
+  const [phone, setPhone] = useState(app.phoneNumber || "");
+  const [savingPhone, setSavingPhone] = useState(false);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+
   const [scores, setScores] = useState({
     scoreLeadership: app.scoreLeadership,
     scoreVision: app.scoreVision,
@@ -134,9 +139,11 @@ export default function CPDetailPanel({
     setMeetingUrl(app.interviewMeetingUrl || "");
     setRecommendation(app.decisionRecommendation || "");
     setRecRationale(app.recommendationRationale || "");
-    setAssignedChapterId(app.chapter?.id || app.chapterId || "");
+        setAssignedChapterId(app.chapter?.id || app.chapterId || "");
     setChapterError(null);
-  }, [app.id, app.scoreLeadership, app.scoreVision, app.scoreOrganization, app.scoreCommunication, app.scoreFit, app.interviewSummary, app.reviewerNotes, app.reviewerId, app.interviewScheduledAt, app.interviewMeetingUrl, app.decisionRecommendation, app.recommendationRationale, app.chapter?.id, app.chapterId]);
+    setPhone(app.phoneNumber || "");
+    setPhoneError(null);
+  }, [app.id, app.scoreLeadership, app.scoreVision, app.scoreOrganization, app.scoreCommunication, app.scoreFit, app.interviewSummary, app.reviewerNotes, app.reviewerId, app.interviewScheduledAt, app.interviewMeetingUrl, app.decisionRecommendation, app.recommendationRationale, app.chapter?.id, app.chapterId, app.phoneNumber]);
 
   // Save scores & notes
   async function handleSaveScores() {
@@ -196,6 +203,20 @@ export default function CPDetailPanel({
       setChapterError(result.error || "Failed to assign chapter");
     }
     setAssigningChapter(false);
+  }
+  
+  // Add or correct the applicant's phone number after intake.
+  async function handleSavePhone() {
+    setPhoneError(null);
+    setSavingPhone(true);
+    const result = await updateCPApplicantPhone(app.id, phone);
+    if (result.success) {
+      onUpdate({ id: app.id, phoneNumber: phone.trim() || null });
+      toast.show(phone.trim() ? "Phone number saved" : "Phone number cleared");
+    } else {
+      setPhoneError(result.error || "Failed to save phone number");
+    }
+    setSavingPhone(false);
   }
 
   // Quick actions (status changes via form)
@@ -335,12 +356,38 @@ export default function CPDetailPanel({
             <div className="slideout-field-label">Email</div>
             <div className="slideout-field-value">{app.applicant.email}</div>
           </div>
-          {app.phoneNumber && (
-            <div className="slideout-field">
-              <div className="slideout-field-label">Phone</div>
-              <div className="slideout-field-value">{app.phoneNumber}</div>
+                    <div className="slideout-field">
+            <div className="slideout-field-label">
+              Phone
+              {!app.phoneNumber && (
+                <span style={{ marginLeft: 8, color: "#d97706", fontWeight: 500 }}>
+                  · Missing
+                </span>
+              )}
             </div>
-          )}
+            <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
+              <input
+                className="input"
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="Add a phone number"
+                disabled={savingPhone}
+                style={{ maxWidth: 200 }}
+              />
+              <button
+                type="button"
+                className="button secondary"
+                onClick={handleSavePhone}
+                disabled={savingPhone || phone.trim() === (app.phoneNumber || "")}
+              >
+                {savingPhone ? "Saving…" : "Save"}
+              </button>
+            </div>
+            {phoneError && (
+              <div style={{ color: "#dc2626", fontSize: 12, marginTop: 4 }}>{phoneError}</div>
+            )}
+          </div>
           <div className="slideout-field" style={{ gridColumn: "1 / -1" }}>
             <div className="slideout-field-label">
               Chapter Assignment

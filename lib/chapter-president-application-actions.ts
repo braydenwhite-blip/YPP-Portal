@@ -103,6 +103,9 @@ export async function submitChapterPresidentApplication(
       return { status: "error", message: "Last name should be under 100 characters." };
     }
     const phoneNumber = getString(formData, "phoneNumber", false);
+    if (!phoneNumber) {
+  return { status: "error", message: "Please enter a phone number so we can reach you." };
+}
     const dateOfBirth = getString(formData, "dateOfBirth", false);
     const hearAboutYPPRaw = getString(formData, "hearAboutYPP", false);
     // hearAboutYPP already has the detail concatenated by the form (e.g. "A YPP staff member: Jane Doe")

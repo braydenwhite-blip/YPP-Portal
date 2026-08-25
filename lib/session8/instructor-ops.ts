@@ -175,6 +175,65 @@ export async function getInstructorClass(id:string){
   return { ...c, roster, classParents, sessionAttendanceState, offeringEnded, alreadyCompleted, instructorFeedback, openReviewRequests: reviewRequestsPresentation };
 }
 
+export async function getClassAttendanceRoster(id: string) {
+  const user = await requireSessionUser();
+  const c: any = await prisma.classOffering.findFirst({
+    where: { id, ...assignedOfferingWhere(user.id) } as any,
+    select: {
+      id: true,
+      title: true,
+      sessions: {
+        where: { isCancelled: false },
+        orderBy: [{ date: "asc" }, { startTime: "asc" }],
+        select: { id: true, sessionNumber: true, date: true, topic: true },
+      },
+      enrollments: {
+        where: { status: { in: ["ENROLLED", "COMPLETED"] } },
+        select: { studentId: true, student: { select: { id: true, name: true, email: true } } },
+      },
+    },
+  });
+  if (!c) return null;
+
+  const sessionIds = c.sessions.map((s: any) => s.id);
+  const records = sessionIds.length
+    ? await (prisma as any).classAttendanceRecord.findMany({
+        where: { sessionId: { in: sessionIds }, finalizedAt: { not: null } },
+        select: { sessionId: true, studentId: true, status: true },
+      })
+    : [];
+
+  const students = c.enrollments.map((e: any) => ({ id: e.studentId, name: e.student.name, email: e.student.email }));
+
+  const recordByKey = new Map<string, string>();
+  for (const r of records) recordByKey.set(`${r.sessionId}:${r.studentId}`, r.status);
+
+  const stats = new Map<string, { present: number; absent: number; late: number; excused: number }>();
+  for (const s of students) stats.set(s.id, { present: 0, absent: 0, late: 0, excused: 0 });
+  for (const r of records) {
+    const entry = stats.get(r.studentId);
+    if (!entry) continue;
+    if (r.status === "PRESENT") entry.present += 1;
+    else if (r.status === "ABSENT") entry.absent += 1;
+    else if (r.status === "LATE") entry.late += 1;
+    else if (r.status === "EXCUSED") entry.excused += 1;
+  }
+
+  return {
+    id: c.id,
+    title: c.title,
+    sessions: c.sessions.map((s: any) => ({ id: s.id, sessionNumber: s.sessionNumber, date: s.date, topic: s.topic })),
+    students,
+    statusByStudentAndSession: Object.fromEntries(
+      students.map((s: any) => [
+        s.id,
+        Object.fromEntries(c.sessions.map((sess: any) => [sess.id, recordByKey.get(`${sess.id}:${s.id}`) ?? null])),
+      ]),
+    ) as Record<string, Record<string, string | null>>,
+    stats: Object.fromEntries(stats) as Record<string, { present: number; absent: number; late: number; excused: number }>,
+  };
+}
+
 export async function getInstructorSession(id:string, sessionId:string){
   const user=await requireSessionUser();
   const s: any = await prisma.classSession.findFirst({where:{id:sessionId, offering:{id, ...assignedOfferingWhere(user.id)}} as any, include:{offering:{include:includeOffering}, attendance:{include:{student:{select:{id:true,name:true,profile:true}}}}, preparations:{where:{instructorId:user.id}}, reflection:true}});

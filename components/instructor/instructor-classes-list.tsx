@@ -95,18 +95,34 @@ export function InstructorClassesList({ workspace }: { workspace: InstructorTeac
               Open a class to teach, post work, or see your students.
             </p>
           </div>
-          <Link
-            href="/"
-            className="shrink-0 text-[13.5px] font-medium text-brand-700 no-underline hover:underline"
-          >
-            Home
-          </Link>
+          <div className="flex shrink-0 items-center gap-4">
+            <Link
+              href="/instructor/curriculum-builder"
+              className="shrink-0 rounded-lg border border-[#dadce0] bg-white px-3.5 py-2 text-[13.5px] font-medium text-[#202124] no-underline hover:bg-[#f8f9fa]"
+            >
+              Create a class
+            </Link>
+            <Link
+              href="/"
+              className="shrink-0 text-[13.5px] font-medium text-brand-700 no-underline hover:underline"
+            >
+              Home
+            </Link>
+          </div>
         </header>
 
         {workspace.activeClasses.length === 0 ? (
           <EmptyStateV2
             title="No classes yet"
-            body="You’ll see a class here once you’re assigned to teach it."
+            body="You’ll see a class here once you’re assigned to teach it, or you can create one yourself."
+            action={
+              <Link
+                href="/instructor/curriculum-builder"
+                className="inline-flex shrink-0 rounded-lg border border-[#dadce0] bg-white px-3.5 py-2 text-[13.5px] font-medium text-[#202124] no-underline hover:bg-[#f8f9fa]"
+              >
+                Create a class
+              </Link>
+            }
           />
         ) : (
           <section

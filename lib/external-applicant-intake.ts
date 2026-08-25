@@ -541,7 +541,10 @@ export async function createExternalChapterPresidentApplicant(
   if (!name) throw new Error("Applicant name is required.");
   if (!lastName) throw new Error("Applicant last name is required.");
   if (lastName.length > 100) throw new Error("Applicant last name should be under 100 characters.");
-  if (!email || !email.includes("@")) throw new Error("A valid applicant email is required.");
+    if (!email || !email.includes("@")) throw new Error("A valid applicant email is required.");
+const phone = (input.phone ?? "").trim();
+if (!phone) throw new Error("Please enter a phone number so we can reach the applicant.");
+  if (!phone) throw new Error("Please enter a phone number so we can reach the applicant.");
   if (input.source !== "GOOGLE_FORMS" && input.source !== "MANUAL_ADMIN_ENTRY") {
     throw new Error("Source must be GOOGLE_FORMS or MANUAL_ADMIN_ENTRY.");
   }
@@ -562,7 +565,7 @@ export async function createExternalChapterPresidentApplicant(
       data: {
         name,
         email,
-        phone: input.phone?.trim() || null,
+        phone,
         passwordHash: "IMPORTED",
         primaryRole: RoleType.APPLICANT,
         chapterId,
@@ -602,7 +605,7 @@ export async function createExternalChapterPresidentApplicant(
       chapterVision: input.chapterVision?.trim() || "",
       availability: input.availability?.trim() || "",
       lastName,
-      phoneNumber: input.phone?.trim() || null,
+      phoneNumber: phone,
       source: input.source,
       importedById,
       externalImportedAt,

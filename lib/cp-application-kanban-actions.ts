@@ -174,4 +174,39 @@ export async function assignCPApplicationChapter(
       error: error instanceof Error ? error.message : "Something went wrong.",
     };
   }
+}/**
+ * Staff-side fix for phone number on a chapter president application.
+ * Phone is required at intake (portal-native and external), but this gives
+ * staff a way to add or correct it afterward — e.g. an applicant's number
+ * changed, or an external/imported record came in without one.
+ */
+export async function updateCPApplicantPhone(
+  applicationId: string,
+  phone: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await requireAdmin();
+
+    const trimmed = phone.trim();
+
+    const application = await prisma.chapterPresidentApplication.findUnique({
+      where: { id: applicationId },
+      select: { id: true },
+    });
+    if (!application) return { success: false, error: "Application not found." };
+
+    await prisma.chapterPresidentApplication.update({
+      where: { id: applicationId },
+      data: { phoneNumber: trimmed || null },
+    });
+
+    revalidatePath("/admin/chapter-president-applicants");
+    return { success: true };
+  } catch (error) {
+    console.error("[updateCPApplicantPhone]", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Something went wrong.",
+    };
+  }
 }

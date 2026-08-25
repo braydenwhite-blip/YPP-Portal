@@ -30,7 +30,7 @@ import {
   scheduleCPInterviewAction,
   archiveCPApplicationAction,
 } from "@/lib/chapter-president-application-actions";
-import { updateChapterPresidentApplicantChapter } from "@/lib/applicant-chapter-location-actions";
+import { updateChapterPresidentApplicantChapter, updateChapterPresidentApplicantPhone } from "@/lib/applicant-chapter-location-actions";
 import { listOperatingChaptersForFilters } from "@/lib/chapters/operating";
 import { CreateChapterFromApplicationButton } from "@/components/chapters/create-chapter-from-application-button";
 
@@ -224,6 +224,7 @@ export default async function CPApplicantWorkspacePage({ params }: PageProps) {
           <Section title="Applicant snapshot">
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14 }}>
               <Field label="Email" value={app.applicant.email} />
+              <Field label="Phone" value={app.phoneNumber} />
               <Field label="School" value={app.schoolName} />
               <Field label="Grade" value={app.grade ?? (app.graduationYear ? `Class of ${app.graduationYear}` : null)} />
               <Field label="Location" value={location} />
@@ -234,6 +235,21 @@ export default async function CPApplicantWorkspacePage({ params }: PageProps) {
             </div>
 
             <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+                            <form action={updateChapterPresidentApplicantPhone} style={{ display: "flex", gap: 8, alignItems: "end" }}>
+                <HiddenId id={app.id} />
+                <label style={{ flex: 1, fontSize: 12, color: "var(--muted)" }}>
+                  Phone
+                  <input
+                    className="input"
+                    type="tel"
+                    name="phone"
+                    defaultValue={app.phoneNumber ?? ""}
+                    placeholder="Add a phone number"
+                    style={{ marginTop: 4 }}
+                  />
+                </label>
+                <button className="button secondary small" type="submit">Save phone</button>
+              </form>
               <form action={assignCPReviewerAction} style={{ display: "flex", gap: 8, alignItems: "end" }}>
                 <HiddenId id={app.id} />
                 <label style={{ flex: 1, fontSize: 12, color: "var(--muted)" }}>

@@ -127,3 +127,25 @@ export async function updateChapterPresidentApplicantChapter(formData: FormData)
   revalidatePath("/admin/chapter-president-applicants");
   revalidatePath("/admin/instructor-applicants");
 }
+/**
+ * Staff-side fix for phone number on a chapter president application.
+ */
+export async function updateChapterPresidentApplicantPhone(formData: FormData) {
+  await requireApplicationReviewerPage();
+  const applicationId = getString(formData, "applicationId");
+  const phone = String(formData.get("phone") ?? "").trim();
+
+  const application = await prisma.chapterPresidentApplication.findUnique({
+    where: { id: applicationId },
+    select: { id: true },
+  });
+  if (!application) throw new Error("Application not found.");
+
+  await prisma.chapterPresidentApplication.update({
+    where: { id: applicationId },
+    data: { phoneNumber: phone || null },
+  });
+
+  revalidatePath(`/admin/chapter-president-applicants/${applicationId}`);
+  revalidatePath("/admin/chapter-president-applicants");
+}

@@ -16489,3 +16489,17 @@ model ConsentRecord {
   @@index([studentUserId, status, revokedAt])
   @@index([guardianUserId])
 }
+model StudentLeadSubmission {
+  id             String   @id @default(cuid())
+  studentName    String
+  age            Int
+  grade          String
+  school         String
+  studentEmail   String
+  parentName     String
+  parentEmail    String
+  allergiesNotes String?  @db.Text
+  createdAt      DateTime @default(now())
+
+  @@index([createdAt])
+}

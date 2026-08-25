@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button, ButtonLink, cn } from "@/components/ui-v2";
-import { FeedbackBanner } from "@/components/people-strategy/motion";
+import { MotionArea, FeedbackBanner } from "@/components/people-strategy/motion";
 import {
   createExternalChapterPresidentApplicantFromForm,
   createExternalInstructorApplicantFromForm,
@@ -145,6 +145,7 @@ export default function ExternalApplicantIntakeForm({
   }
 
   return (
+    <MotionArea>
     <div
       id="add-applicant"
       className="overflow-hidden rounded-[20px] border border-line-soft bg-gradient-to-br from-brand-50/40 via-surface to-surface shadow-card"
@@ -368,7 +369,8 @@ export default function ExternalApplicantIntakeForm({
             </Button>
           </div>
         </footer>
-      </form>
+            </form>
     </div>
+    </MotionArea>
   );
 }
