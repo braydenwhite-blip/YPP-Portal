@@ -37,7 +37,7 @@ import {
 
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
-import { SOCIAL_MEDIA_MANAGER_POSITION_TITLE } from "@/lib/social-media-manager-application";
+import { TECHNOLOGY_MANAGER_POSITION_TITLE } from "@/lib/technology-manager-application";
 import {
   DEFAULT_EXTERNAL_INTAKE_EMAIL_KINDS,
   buildManualEmailTemplate,
@@ -655,7 +655,7 @@ export interface CreateExternalStaffApplicantInput {
   location?: string | null;
   /** Existing staff opening. When omitted, `positionTitle` is used to find or create one. */
   positionId?: string | null;
-  /** Used when no `positionId` — defaults to "Social Media Manager". */
+  /** Used when no `positionId` — defaults to Technology Manager. */
   positionTitle?: string | null;
   externalResponseUrl?: string | null;
   externalAnswersCopy?: string | null;
@@ -694,7 +694,7 @@ async function resolveStaffPosition(opts: {
     return position;
   }
 
-  const title = (opts.positionTitle ?? "").trim() || SOCIAL_MEDIA_MANAGER_POSITION_TITLE;
+  const title = (opts.positionTitle ?? "").trim() || TECHNOLOGY_MANAGER_POSITION_TITLE;
   // Prefer the network-wide opening. Staff "location" lives on the applicant,
   // not on a chapter-scoped Position row.
   const existing = await prisma.position.findFirst({

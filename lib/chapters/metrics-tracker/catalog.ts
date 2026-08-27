@@ -56,6 +56,7 @@ export const ORG_METRICS: MetricDef[] = [
     owner: "Sanvi Mehta",
     targetLabel: "$5,000/month",
     monthlyTargets: M6([5000, 5000, 5000, 5000, 5000, 5000]),
+    targetDisplay: ["$5,000", "$5,000", "$5,000", "$5,000", "$5,000", "$5,000"],
     reset: "monthly",
     unit: "currency",
     chart: "bar",
@@ -66,6 +67,7 @@ export const ORG_METRICS: MetricDef[] = [
     owner: "Brayden White",
     targetLabel: "15 students",
     monthlyTargets: M6([15, 15, 15, 15, 15, 15]),
+    targetDisplay: ["15", "15", "15", "15", "15", "15"],
     reset: "monthly",
     unit: "count",
     chart: "line",
@@ -76,6 +78,7 @@ export const ORG_METRICS: MetricDef[] = [
     owner: "Brayden White",
     targetLabel: "10 classes",
     monthlyTargets: M6([10, 10, 10, 10, 10, 10]),
+    targetDisplay: ["10", "10", "10", "10", "10", "10"],
     reset: "monthly",
     unit: "count",
     chart: "bar",
@@ -86,6 +89,7 @@ export const ORG_METRICS: MetricDef[] = [
     owner: "Sanvi Mehta",
     targetLabel: "",
     monthlyTargets: M6([null, null, null, null, null, null]),
+    targetDisplay: ["—", "—", "—", "—", "—", "—"],
     reset: "monthly",
     unit: "text",
     chart: "line",
@@ -97,6 +101,7 @@ export const ORG_METRICS: MetricDef[] = [
     owner: "Sanvi Mehta",
     targetLabel: "10 members",
     monthlyTargets: M6([10, 10, 10, 10, 10, 10]),
+    targetDisplay: ["10", "10", "10", "10", "10", "10"],
     reset: "monthly",
     unit: "count",
     chart: "bar",
@@ -107,6 +112,7 @@ export const ORG_METRICS: MetricDef[] = [
     owner: "Sanvi Mehta",
     targetLabel: "Have 25 people apply every month",
     monthlyTargets: M6([25, 25, 25, 25, 25, 25]),
+    targetDisplay: ["25", "25", "25", "25", "25", "25"],
     reset: "monthly",
     unit: "count",
     chart: "line",
@@ -117,6 +123,7 @@ export const ORG_METRICS: MetricDef[] = [
     owner: "Sanvi Mehta",
     targetLabel: "5000 new followers every month",
     monthlyTargets: M6([5000, 5000, 5000, 5000, 5000, 5000]),
+    targetDisplay: ["5,000", "5,000", "5,000", "5,000", "5,000", "5,000"],
     reset: "monthly",
     unit: "count",
     chart: "area",
@@ -127,6 +134,7 @@ export const ORG_METRICS: MetricDef[] = [
     owner: "Sanvi Mehta",
     targetLabel: "5000 new followers every month",
     monthlyTargets: M6([5000, 5000, 5000, 5000, 5000, 5000]),
+    targetDisplay: ["5,000", "5,000", "5,000", "5,000", "5,000", "5,000"],
     reset: "monthly",
     unit: "count",
     chart: "area",
@@ -137,6 +145,7 @@ export const ORG_METRICS: MetricDef[] = [
     owner: "Sanvi Mehta",
     targetLabel: "Need to have successfully recruited 30 people per month",
     monthlyTargets: M6([30, 30, 30, 30, 30, 30]),
+    targetDisplay: ["30", "30", "30", "30", "30", "30"],
     reset: "monthly",
     unit: "count",
     chart: "bar",
@@ -147,6 +156,7 @@ export const ORG_METRICS: MetricDef[] = [
     owner: "Sanvi Mehta",
     targetLabel: "Get 30 people a month to apply to join YPP through Facebook",
     monthlyTargets: M6([30, 30, 30, 30, 30, 30]),
+    targetDisplay: ["30", "30", "30", "30", "30", "30"],
     reset: "monthly",
     unit: "count",
     chart: "bar",
@@ -157,6 +167,7 @@ export const ORG_METRICS: MetricDef[] = [
     owner: "Brayden White",
     targetLabel: "2 new chapters up and running/month",
     monthlyTargets: M6([2, 2, 2, 2, 2, 2]),
+    targetDisplay: ["2", "2", "2", "2", "2", "2"],
     reset: "monthly",
     unit: "count",
     chart: "bar",
@@ -167,6 +178,7 @@ export const ORG_METRICS: MetricDef[] = [
     owner: "Sanvi Mehta",
     targetLabel: "1 newsletter/week",
     monthlyTargets: M6([4, 4, 4, 4, 4, 4]),
+    targetDisplay: ["4", "4", "4", "4", "4", "4"],
     reset: "monthly",
     unit: "count",
     chart: "line",
@@ -177,6 +189,7 @@ export const ORG_METRICS: MetricDef[] = [
     owner: "Anthea Zamir",
     targetLabel: "8 hours – 1 day",
     monthlyTargets: M6([24, 24, 24, 24, 24, 24]),
+    targetDisplay: ["24h", "24h", "24h", "24h", "24h", "24h"],
     reset: "monthly",
     unit: "hours",
     chart: "line",
@@ -187,6 +200,7 @@ export const ORG_METRICS: MetricDef[] = [
     owner: "Anthea Zamir",
     targetLabel: "95% of time",
     monthlyTargets: M6([95, 95, 95, 95, 95, 95]),
+    targetDisplay: ["95%", "95%", "95%", "95%", "95%", "95%"],
     reset: "monthly",
     unit: "percent",
     chart: "line",
@@ -197,6 +211,7 @@ export const ORG_METRICS: MetricDef[] = [
     owner: "Everyone",
     targetLabel: "Refer 10 people for positions at YPP",
     monthlyTargets: M6([10, 10, 10, 10, 10, 10]),
+    targetDisplay: ["10", "10", "10", "10", "10", "10"],
     reset: "monthly",
     unit: "count",
     chart: "bar",
@@ -219,7 +234,7 @@ export const CP_CATEGORIES: CategoryDef[] = [
         id: "cp_confirmed_partners",
         label: "Confirmed",
         owner: "Chapter President",
-        targetLabel: "Current confirmed partners",
+        targetLabel: "Current Confirmed Partners",
         tracks: "Organizations that agreed to work with YPP and have a next step",
         why: "Shows partnerships that have moved beyond plain interest",
         monthlyTargets: M6([2, 5, 8, 8, 10, 10]),
@@ -255,7 +270,7 @@ export const CP_CATEGORIES: CategoryDef[] = [
         id: "cp_applicants",
         label: "Applicants",
         owner: "Chapter President",
-        targetLabel: "Cumulative instructor applications",
+        targetLabel: "Applicants, cumulative",
         tracks: "People who submit an instructor application",
         why: "Shows size of recruiting pipeline",
         monthlyTargets: M6([10, 20, 30, 40, 50, 60]),
@@ -268,7 +283,7 @@ export const CP_CATEGORIES: CategoryDef[] = [
         id: "cp_accepted_instructors",
         label: "Accepted Instructors",
         owner: "Chapter President",
-        targetLabel: "Current accepted instructors",
+        targetLabel: "Current Accepted Instructors",
         tracks: "Applicants approved through the YPP interview process",
         why: "Shows how many instructors have been approved",
         monthlyTargets: M6([5, 10, 15, 18, 22, 25]),
@@ -454,7 +469,7 @@ export const INSTRUCTOR_CATEGORIES: CategoryDef[] = [
         owner: "Instructor",
         targetLabel: "80%+",
         tracks:
-          "% of student, parent, and partner survey responses satisfied with the instructor’s programming",
+          "% of student, parent, and partner survey responses that report being satisfied with the instructor’s programming",
         monthlyTargets: M6([80, 80, 80, 80, 80, 80]),
         targetDisplay: ["80%+", "80%+", "80%+", "80%+", "80%+", "80%+"],
         reset: "monthly",
@@ -557,6 +572,7 @@ export const INSTRUCTOR_CATEGORIES: CategoryDef[] = [
         owner: "Instructor",
         targetLabel: "Share of new active instructors",
         tracks: "% of the chapter’s new active instructors that came through this instructor",
+        /** Spec lists the metric but no M1–M6 targets. */
         monthlyTargets: M6([null, null, null, null, null, null]),
         targetDisplay: ["—", "—", "—", "—", "—", "—"],
         reset: "monthly",
@@ -578,8 +594,8 @@ export const SCOPE_META: Record<
     icon: "🌐",
   },
   chapter_president: {
-    label: "Chapter President",
-    blurb: "Partnerships, instructors, students, programming, and quality by chapter month.",
+    label: "Chapters",
+    blurb: "Partnerships, instructors, students, programming, and quality for each operating chapter.",
     icon: "🏢",
   },
   instructor: {
@@ -597,7 +613,7 @@ export function categoriesForScope(scope: MetricsScope): CategoryDef[] {
         label: "Org Action Tracker",
         scope: "org",
         owner: "Leadership",
-        description: "Named owners, monthly targets, and status across growth and ops.",
+        description: "Action items with named owners, targets, and status.",
         metrics: ORG_METRICS,
       },
     ];
@@ -646,6 +662,17 @@ export type EditableCategorySnapshot = Omit<CategorySnapshot, "metrics"> & {
   metrics: EditableMetricSnapshot[];
 };
 
+export type EditableChapterGroupSnapshot = {
+  id: string;
+  chapterId: string | null;
+  label: string;
+  blurb: string;
+  status: PaceStatus;
+  categories: EditableCategorySnapshot[];
+};
+
 export type EditableScopeSnapshot = Omit<ScopeSnapshot, "categories"> & {
   categories: EditableCategorySnapshot[];
+  /** Populated for the Chapters tab — one group per operating chapter. */
+  chapterGroups?: EditableChapterGroupSnapshot[];
 };

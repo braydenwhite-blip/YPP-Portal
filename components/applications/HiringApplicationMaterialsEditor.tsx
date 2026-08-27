@@ -193,12 +193,12 @@ export function HiringApplicationMaterialsEditor({
                 </select>
               </Field>
               <div className="sm:col-span-2">
-                <Field label="Platforms">
+                <Field label="Technical interests / tools">
                   <input
                     className={fieldClass}
                     value={platforms}
                     onChange={(e) => setPlatforms(e.target.value)}
-                    placeholder="Instagram, TikTok, …"
+                    placeholder="Portal tools, automations, Google Workspace…"
                     required
                   />
                 </Field>
@@ -233,7 +233,7 @@ export function HiringApplicationMaterialsEditor({
                 </Field>
               </div>
               <div className="sm:col-span-2">
-                <Field label="Content ideas">
+                <Field label="Ideas for YPP systems">
                   <textarea
                     className={cn(fieldClass, "min-h-[88px] resize-y")}
                     value={contentIdeas}

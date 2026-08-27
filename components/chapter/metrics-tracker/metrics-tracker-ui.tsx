@@ -43,12 +43,16 @@ function statusLabel(status: PaceStatus | "informational") {
 }
 
 function statusAccent(status: PaceStatus | "informational") {
-  if (status === "above") return { bar: "#6b21c8", soft: "#f3ecff", border: "border-l-brand-500" };
-  if (status === "on_track") return { bar: "#15803d", soft: "#dcfce7", border: "border-l-success-700" };
+  // Match StatusBadge tones from app/ui-v2.css (complete / progress / blocked / brand / idle).
+  if (status === "above")
+    return { bar: "#6b21c8", soft: "#f3ecff", border: "border-l-brand-500" };
+  if (status === "on_track")
+    return { bar: "#0e7c52", soft: "#e7f6ee", border: "border-l-complete-700" };
   if (status === "needs_attention")
-    return { bar: "#b45309", soft: "#fef3c7", border: "border-l-warning-700" };
-  if (status === "at_risk") return { bar: "#dc2626", soft: "#fee2e2", border: "border-l-danger-700" };
-  return { bar: "#64748b", soft: "#f1f5f9", border: "border-l-slate-400" };
+    return { bar: "#b45309", soft: "#fdf2e3", border: "border-l-progress-700" };
+  if (status === "at_risk")
+    return { bar: "#c0392b", soft: "#fdecea", border: "border-l-blocked-700" };
+  return { bar: "#5c5c74", soft: "#f0f0f5", border: "border-l-idle-700" };
 }
 
 function fmt(unit: EditableMetricSnapshot["def"]["unit"], n: number) {
@@ -69,33 +73,7 @@ type GroupAccent = {
 };
 
 const GROUP_ACCENTS: GroupAccent[] = [
-  {
-    chip: "bg-brand-50 text-brand-800 border-brand-100",
-    chipActive: "bg-brand-600 text-white border-brand-600 shadow-sm",
-    panel: "from-brand-50/80 to-white",
-    dot: "bg-brand-500",
-    chartBar: "#6b21c8",
-    chartSoft: "#f3ecff",
-    cardBorder: "border-l-brand-500",
-  },
-  {
-    chip: "bg-emerald-50 text-emerald-900 border-emerald-100",
-    chipActive: "bg-emerald-600 text-white border-emerald-600 shadow-sm",
-    panel: "from-emerald-50/80 to-white",
-    dot: "bg-emerald-500",
-    chartBar: "#059669",
-    chartSoft: "#d1fae5",
-    cardBorder: "border-l-emerald-500",
-  },
-  {
-    chip: "bg-amber-50 text-amber-950 border-amber-100",
-    chipActive: "bg-amber-500 text-white border-amber-500 shadow-sm",
-    panel: "from-amber-50/70 to-white",
-    dot: "bg-amber-500",
-    chartBar: "#d97706",
-    chartSoft: "#fef3c7",
-    cardBorder: "border-l-amber-500",
-  },
+  // Intentionally not brand / complete / progress / blocked — those are reserved for StatusStrip.
   {
     chip: "bg-sky-50 text-sky-950 border-sky-100",
     chipActive: "bg-sky-600 text-white border-sky-600 shadow-sm",
@@ -106,13 +84,40 @@ const GROUP_ACCENTS: GroupAccent[] = [
     cardBorder: "border-l-sky-500",
   },
   {
-    chip: "bg-rose-50 text-rose-950 border-rose-100",
-    chipActive: "bg-rose-600 text-white border-rose-600 shadow-sm",
-    panel: "from-rose-50/70 to-white",
-    dot: "bg-rose-500",
-    chartBar: "#e11d48",
-    chartSoft: "#ffe4e6",
-    cardBorder: "border-l-rose-500",
+    chip: "bg-indigo-50 text-indigo-950 border-indigo-100",
+    chipActive: "bg-indigo-600 text-white border-indigo-600 shadow-sm",
+    panel: "from-indigo-50/80 to-white",
+    dot: "bg-indigo-500",
+    chartBar: "#4f46e5",
+    chartSoft: "#e0e7ff",
+    cardBorder: "border-l-indigo-500",
+  },
+  {
+    chip: "bg-teal-50 text-teal-950 border-teal-100",
+    chipActive: "bg-teal-600 text-white border-teal-600 shadow-sm",
+    panel: "from-teal-50/80 to-white",
+    dot: "bg-teal-500",
+    chartBar: "#0d9488",
+    chartSoft: "#ccfbf1",
+    cardBorder: "border-l-teal-500",
+  },
+  {
+    chip: "bg-fuchsia-50 text-fuchsia-950 border-fuchsia-100",
+    chipActive: "bg-fuchsia-600 text-white border-fuchsia-600 shadow-sm",
+    panel: "from-fuchsia-50/70 to-white",
+    dot: "bg-fuchsia-500",
+    chartBar: "#c026d3",
+    chartSoft: "#fae8ff",
+    cardBorder: "border-l-fuchsia-500",
+  },
+  {
+    chip: "bg-slate-50 text-slate-900 border-slate-200",
+    chipActive: "bg-slate-700 text-white border-slate-700 shadow-sm",
+    panel: "from-slate-50/80 to-white",
+    dot: "bg-slate-500",
+    chartBar: "#64748b",
+    chartSoft: "#f1f5f9",
+    cardBorder: "border-l-slate-400",
   },
 ];
 
@@ -122,6 +127,7 @@ type MetricGroup = {
   blurb: string;
   categoryId: string;
   metrics: EditableMetricSnapshot[];
+  categories?: EditableCategorySnapshot[];
   status: PaceStatus;
   accent: GroupAccent;
 };
@@ -130,7 +136,7 @@ const ORG_GROUP_DEFS: Array<{ id: string; label: string; blurb: string; keys: st
   {
     id: "growth",
     label: "Growth",
-    blurb: "Revenue, classes, chapters, referrals",
+    blurb: "Revenue, classes, expansion, referrals",
     keys: [
       "revenue",
       "students_per_class",
@@ -155,7 +161,7 @@ const ORG_GROUP_DEFS: Array<{ id: string; label: string; blurb: string; keys: st
   {
     id: "community",
     label: "Community",
-    blurb: "Parents and newsletters",
+    blurb: "Parent committees and newsletters",
     keys: ["parent_engagement", "newsletters"],
   },
   {
@@ -182,9 +188,12 @@ function buildGroups(scope: EditableScopeSnapshot): MetricGroup[] {
     const all = scope.categories.flatMap((c) =>
       c.metrics.map((metric) => ({ categoryId: c.def.id, metric }))
     );
+    const byKey = new Map(all.map((x) => [x.metric.def.id, x]));
     const used = new Set<string>();
     const groups: MetricGroup[] = ORG_GROUP_DEFS.map((def, i) => {
-      const items = all.filter(({ metric }) => def.keys.includes(metric.def.id));
+      const items = def.keys
+        .map((key) => byKey.get(key))
+        .filter((x): x is { categoryId: string; metric: EditableMetricSnapshot } => Boolean(x));
       items.forEach(({ metric }) => used.add(metric.def.id));
       const metrics = items.map((x) => x.metric);
       return {
@@ -212,6 +221,19 @@ function buildGroups(scope: EditableScopeSnapshot): MetricGroup[] {
       });
     }
     return groups;
+  }
+
+  if (scope.scope === "chapter_president" && scope.chapterGroups?.length) {
+    return scope.chapterGroups.map((chapter, i) => ({
+      id: chapter.id,
+      label: chapter.label,
+      blurb: chapter.blurb,
+      categoryId: chapter.categories[0]?.def.id ?? "partnerships",
+      metrics: chapter.categories.flatMap((c) => c.metrics),
+      categories: chapter.categories,
+      status: chapter.status,
+      accent: GROUP_ACCENTS[i % GROUP_ACCENTS.length]!,
+    }));
   }
 
   return scope.categories.map((cat, i) => ({
@@ -393,11 +415,9 @@ function MetricDetailModal({
 }) {
   const titleId = useId();
   if (!state) return null;
-  const { metric, groupAccent } = state;
+  const { metric } = state;
   const m = metric.def;
-  const headerAccent = groupAccent
-    ? { border: groupAccent.cardBorder, soft: groupAccent.chartSoft }
-    : statusAccent(metric.status);
+  const headerAccent = statusAccent(metric.status);
 
   return (
     <ModalV2 open={Boolean(state)} onClose={onClose} labelledBy={titleId} size="lg" className="max-w-[720px]">
@@ -463,11 +483,7 @@ function MetricDetailModal({
           <MetricChart
             metric={metric}
             height={220}
-            chartColors={
-              groupAccent
-                ? { bar: groupAccent.chartBar, soft: groupAccent.chartSoft }
-                : undefined
-            }
+            chartColors={{ bar: headerAccent.bar, soft: headerAccent.soft }}
           />
         </div>
 
@@ -496,24 +512,20 @@ function MetricDetailModal({
 function MetricCard({
   metric,
   onOpen,
-  groupAccent,
 }: {
   metric: EditableMetricSnapshot;
   onOpen: () => void;
+  /** Kept for call sites; cards follow status badge colors, not group accent. */
   groupAccent?: GroupAccent;
 }) {
-  const borderClass = groupAccent?.cardBorder ?? statusAccent(metric.status).border;
-  const chartSoft = groupAccent?.chartSoft ?? statusAccent(metric.status).soft;
-  const chartColors = groupAccent
-    ? { bar: groupAccent.chartBar, soft: groupAccent.chartSoft }
-    : undefined;
+  const accent = statusAccent(metric.status);
   return (
     <button
       type="button"
       onClick={onOpen}
       className={cn(
         "flex w-full flex-col rounded-[14px] border border-line-card border-l-4 bg-surface p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500",
-        borderClass
+        accent.border
       )}
     >
       <div className="flex items-start justify-between gap-2">
@@ -526,20 +538,26 @@ function MetricCard({
         <StatusBadge tone={tone(metric.status)}>{statusLabel(metric.status)}</StatusBadge>
       </div>
 
-      <div className="mt-3 flex items-baseline gap-2">
+      <div className="mt-3 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
         <span className="text-[22px] font-bold tabular-nums tracking-tight text-ink">
           {fmt(metric.def.unit, metric.actual)}
         </span>
         <span className="text-[12px] text-ink-muted">
-          /{" "}
-          {metric.target != null && !metric.def.noTarget
-            ? fmt(metric.def.unit, metric.target)
-            : "—"}
+          {metric.def.targetLabel.trim()
+            ? `Target: ${metric.def.targetLabel}`
+            : metric.target != null && !metric.def.noTarget
+              ? `/ ${fmt(metric.def.unit, metric.target)}`
+              : "/ —"}
         </span>
       </div>
 
-      <div className="mt-2 -mx-1 rounded-lg px-1" style={{ background: `${chartSoft}99` }}>
-        <MetricChart metric={metric} height={84} compact chartColors={chartColors} />
+      <div className="mt-2 -mx-1 rounded-lg px-1" style={{ background: `${accent.soft}99` }}>
+        <MetricChart
+          metric={metric}
+          height={84}
+          compact
+          chartColors={{ bar: accent.bar, soft: accent.soft }}
+        />
       </div>
     </button>
   );
@@ -556,15 +574,20 @@ function StatusStrip({ metrics }: { metrics: EditableMetricSnapshot[] }) {
   }, [metrics]);
 
   const items = [
-    { key: "above", label: "Above", n: counts.above, className: "bg-brand-100 text-brand-800" },
-    { key: "on_track", label: "On track", n: counts.on_track, className: "bg-success-100 text-success-700" },
+    { key: "above", label: "Above", n: counts.above, className: "bg-brand-50 text-brand-700" },
+    {
+      key: "on_track",
+      label: "On track",
+      n: counts.on_track,
+      className: "bg-complete-50 text-complete-700",
+    },
     {
       key: "needs_attention",
       label: "Watch",
       n: counts.needs_attention,
-      className: "bg-warning-100 text-warning-700",
+      className: "bg-progress-50 text-progress-700",
     },
-    { key: "at_risk", label: "At risk", n: counts.at_risk, className: "bg-danger-100 text-danger-700" },
+    { key: "at_risk", label: "At risk", n: counts.at_risk, className: "bg-blocked-50 text-blocked-700" },
   ] as const;
 
   return (
@@ -587,17 +610,20 @@ function StatusStrip({ metrics }: { metrics: EditableMetricSnapshot[] }) {
 
 const TABS: Array<{ scope: MetricsScope; label: string }> = [
   { scope: "org", label: "Organization" },
-  { scope: "chapter_president", label: "Chapter President" },
+  { scope: "chapter_president", label: "Chapters" },
   { scope: "instructor", label: "Instructor" },
 ];
 
 export function MetricsHubView({
   scopes,
   chapterMonth,
+  monthLabel,
   canEdit = false,
 }: {
   scopes: EditableScopeSnapshot[];
   chapterMonth: number;
+  /** Calendar month name shown in the banner, e.g. "August". */
+  monthLabel?: string;
   canEdit?: boolean;
 }) {
   const [tab, setTab] = useState<MetricsScope>("org");
@@ -656,14 +682,12 @@ export function MetricsHubView({
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-[14px] border border-line-card bg-surface px-4 py-3 shadow-sm">
-        <div>
-          <p className="m-0 text-[12px] font-semibold uppercase tracking-[0.06em] text-ink-muted">
-            Chapter month {chapterMonth} (M{chapterMonth})
-          </p>
-          <p className="m-0 mt-0.5 text-[13px] text-ink-muted">
-            Targets and pace for this lifecycle month — pick a group on the left.
-          </p>
-        </div>
+        <p className="m-0 text-[13px] text-ink-muted">
+          Targets and pace for {monthLabel ?? `Month ${chapterMonth}`}
+          {tab === "chapter_president"
+            ? " — pick a chapter on the left."
+            : " — pick a group on the left."}
+        </p>
         <StatusStrip metrics={allMetrics} />
       </div>
 
@@ -725,38 +749,64 @@ export function MetricsHubView({
                     </h2>
                   </div>
                   <p className="m-0 mt-1 text-[13px] text-ink-muted">{selected.blurb}</p>
-                  {active.categories
-                    .find((c) => c.def.id === selected.categoryId)
-                    ?.def.notes?.map((note) => (
-                      <p
-                        key={note}
-                        className="m-0 mt-2 max-w-2xl rounded-lg border border-warning-100 bg-warning-100/40 px-3 py-2 text-[12.5px] leading-snug text-ink-muted"
-                      >
-                        {note}
-                      </p>
-                    ))}
                 </div>
                 <p className="m-0 text-[12px] font-medium text-ink-muted">
                   Tap a card for the full chart
                 </p>
               </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {selected.metrics.map((metric) => (
-                  <MetricCard
-                    key={metric.rowId}
-                    metric={metric}
-                    groupAccent={selected.accent}
-                    onOpen={() =>
-                      setDetail({
-                        scope: active.scope,
-                        categoryId: selected.categoryId,
-                        metric,
-                        groupAccent: selected.accent,
-                      })
-                    }
-                  />
-                ))}
-              </div>
+              {selected.categories ? (
+                <div className="flex flex-col gap-6">
+                  {selected.categories.map((cat) => (
+                    <div key={cat.def.id}>
+                      <div className="mb-3">
+                        <h3 className="m-0 text-[15px] font-bold text-ink">{cat.def.label}</h3>
+                        <p className="m-0 mt-0.5 text-[13px] text-ink-muted">{cat.def.description}</p>
+                        {cat.def.notes?.map((note) => (
+                          <p
+                            key={note}
+                            className="m-0 mt-2 max-w-2xl rounded-lg border border-warning-100 bg-warning-100/40 px-3 py-2 text-[12.5px] leading-snug text-ink-muted"
+                          >
+                            {note}
+                          </p>
+                        ))}
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {cat.metrics.map((metric) => (
+                          <MetricCard
+                            key={`${selected.id}-${metric.def.id}`}
+                            metric={metric}
+                            onOpen={() =>
+                              setDetail({
+                                scope: active.scope,
+                                categoryId: cat.def.id,
+                                metric,
+                                groupAccent: selected.accent,
+                              })
+                            }
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {selected.metrics.map((metric) => (
+                    <MetricCard
+                      key={metric.rowId}
+                      metric={metric}
+                      onOpen={() =>
+                        setDetail({
+                          scope: active.scope,
+                          categoryId: selected.categoryId,
+                          metric,
+                          groupAccent: selected.accent,
+                        })
+                      }
+                    />
+                  ))}
+                </div>
+              )}
             </>
           ) : (
             <p className="m-0 text-[14px] text-ink-muted">No metrics in this scope yet.</p>
@@ -787,17 +837,19 @@ export function MetricsCategoryView({
   category,
   scope,
   chapterMonth,
+  monthLabel,
   canEdit = false,
 }: {
   category: EditableCategorySnapshot;
   scope: MetricsScope;
   chapterMonth: number;
+  monthLabel?: string;
   canEdit?: boolean;
 }) {
   return (
     <div className="flex flex-col gap-4">
       <Link
-        href={`/admin/metrics?month=${chapterMonth}`}
+        href="/admin/metrics"
         className="text-[13px] font-semibold text-brand-700 no-underline hover:underline"
       >
         ← Metrics
@@ -814,6 +866,7 @@ export function MetricsCategoryView({
           },
         ]}
         chapterMonth={chapterMonth}
+        monthLabel={monthLabel}
         canEdit={canEdit}
       />
     </div>

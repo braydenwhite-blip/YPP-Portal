@@ -1,6 +1,6 @@
 /**
  * Free-text staff applicant location (not a Chapter FK).
- * Stored on Application.additionalMaterials as JSON `location` so SMM metadata
+ * Stored on Application.additionalMaterials as JSON `location` so TM metadata
  * and other structured payloads keep working.
  */
 

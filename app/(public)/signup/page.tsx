@@ -284,7 +284,7 @@ export default function FamilySignupPage() {
             Already have an account? <Link href="/login">Sign in</Link>
           </div>
           <div className="login-help" style={{ marginTop: 8 }}>
-            Applying to teach? <Link href="/signup/instructor">Instructor application</Link>
+            Applying to teach or lead? <Link href="/signup/apply">Start your application</Link>
           </div>
         </div>
       </div>

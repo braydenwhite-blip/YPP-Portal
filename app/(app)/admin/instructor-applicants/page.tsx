@@ -7,14 +7,16 @@ import {
   getArchivedApplications,
 } from "@/lib/instructor-applicant-board-queries";
 import {
+  isActiveHiringBoardStatus,
   mapCpStatusToBoardStatus,
   mapStaffStatusToBoardStatus,
   parseApplicantKindFilter,
 } from "@/lib/applicant-board-kind";
-import { ensureSocialMediaManagerPosition } from "@/lib/application-actions";
+import { ensureTechnologyManagerPosition } from "@/lib/application-actions";
+import { loadStaffBoardApplications } from "@/lib/staff-board-applications";
 import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
 import { listOperatingChaptersForFilters } from "@/lib/chapters/operating";
-import { SOCIAL_MEDIA_MANAGER_POSITION_TITLE } from "@/lib/social-media-manager-application";
+import { TECHNOLOGY_MANAGER_POSITION_TITLE } from "@/lib/technology-manager-application";
 import { extractStaffLocation } from "@/lib/staff-applicant-location";
 import { ApplicationReviewShell } from "@/components/applications/application-review-shell";
 import InstructorApplicantsCommandCenter from "@/components/instructor-applicants/InstructorApplicantsCommandCenter";
@@ -325,72 +327,22 @@ export default async function AdminInstructorApplicantsPage({
   let staffApps: StaffBoardApp[] = [];
   let archivedStaffApps: StaffBoardApp[] = [];
 
-  const staffChapterWhere = effectiveChapterId
-    ? { applicant: { chapterId: effectiveChapterId } }
-    : {};
-
-  const staffBoardSelect = {
-    id: true,
-    status: true,
-    archivedAt: true,
-    updatedAt: true,
-    source: true,
-    coverLetter: true,
-    additionalMaterials: true,
-    applicant: {
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        chapter: { select: { id: true, name: true } },
-      },
-    },
-    position: {
-      select: {
-        id: true,
-        title: true,
-        chapter: { select: { id: true, name: true } },
-      },
-    },
-    interviewSlots: {
-      select: { scheduledAt: true },
-      orderBy: { scheduledAt: "asc" as const },
-      take: 1,
-    },
-  } as const;
-
-  const staffPositionWhere = {
-    type: "STAFF" as const,
-    title: { equals: SOCIAL_MEDIA_MANAGER_POSITION_TITLE, mode: "insensitive" as const },
-  };
-
   const loadStaffApps = async () => {
     if (!includeStaffApps) return [] as StaffBoardApp[];
-    // Ensure the Social Media Manager opening exists so title matching always works.
-    await ensureSocialMediaManagerPosition();
-    return prisma.application.findMany({
-      where: {
-        archivedAt: null,
-        status: { not: "WITHDRAWN" },
-        position: staffPositionWhere,
-        ...staffChapterWhere,
-      },
-      select: staffBoardSelect,
-      orderBy: [{ updatedAt: "desc" }, { submittedAt: "desc" }],
+    // Ensure the Technology Manager opening exists so title matching always works.
+    await ensureTechnologyManagerPosition();
+    return loadStaffBoardApplications({
+      archived: false,
+      chapterId: effectiveChapterId,
       take: hiringDemoMode ? DEMO_PIPELINE_TAKE : undefined,
     });
   };
 
   const loadArchivedStaffApps = async () => {
     if (!includeStaffApps || hiringDemoMode) return [] as StaffBoardApp[];
-    return prisma.application.findMany({
-      where: {
-        archivedAt: { not: null },
-        position: staffPositionWhere,
-        ...staffChapterWhere,
-      },
-      select: staffBoardSelect,
-      orderBy: { archivedAt: "desc" },
+    return loadStaffBoardApplications({
+      archived: true,
+      chapterId: effectiveChapterId,
       take: 50,
     });
   };
@@ -591,7 +543,7 @@ export default async function AdminInstructorApplicantsPage({
       updatedAt: app.updatedAt.toISOString(),
       overdue: false,
       awaitingSlots: false,
-      subjectsOfInterest: SOCIAL_MEDIA_MANAGER_POSITION_TITLE,
+      subjectsOfInterest: TECHNOLOGY_MANAGER_POSITION_TITLE,
       applicationTrack: "STAFF",
       instructorSubtype: "STAFF",
       legalName: app.applicant.name,
@@ -633,11 +585,14 @@ export default async function AdminInstructorApplicantsPage({
     ...pipelineApps.map(serializeApp),
     ...cpApps.map(serializeCpApp),
     ...staffApps.map(serializeStaffApp),
-  ].sort((a, b) => {
-    const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
-    const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
-    return bTime - aTime;
-  });
+  ]
+    // Board = only people already pulled off the hire waitlist into interviews.
+    .filter((app) => isActiveHiringBoardStatus(app.status))
+    .sort((a, b) => {
+      const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+      const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+      return bTime - aTime;
+    });
   const serializedArchive = [
     ...archiveResult.items.map((app) => {
       const archiveOutline = (app as {
@@ -697,6 +652,9 @@ export default async function AdminInstructorApplicantsPage({
   });
 
   const strip = [
+    ...(isAdmin
+      ? [{ label: "Waitlist", href: "/admin/applicants/waitlist", icon: "list" as const, primary: true }]
+      : []),
     { label: "Add Applicant", href: "/admin/external-applicants/new", icon: "user" as const },
   ];
 
@@ -708,9 +666,11 @@ export default async function AdminInstructorApplicantsPage({
           eyebrow="Applicants"
           title="Application board"
           subtitle={
-            serializedPipeline.length === 1
-              ? "1 applicant in the pipeline"
-              : `${serializedPipeline.length} applicants in the pipeline`
+            serializedPipeline.length === 0
+              ? "Pull someone from the Waitlist to start interviews — they’ll show up here."
+              : serializedPipeline.length === 1
+                ? "1 person in active interviews (pulled from the Waitlist)"
+                : `${serializedPipeline.length} people in active interviews (pulled from the Waitlist)`
           }
         />
       }

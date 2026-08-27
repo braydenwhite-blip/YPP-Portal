@@ -61,7 +61,7 @@ export function ActionUserPicker({
           return hay.includes(q);
         })
       : available;
-    return isCalm ? pool.slice(0, 6) : pool;
+    return isCalm ? pool.slice(0, 12) : pool;
   }, [available, query, isCalm]);
 
   const selectedUsers = useMemo(
@@ -84,7 +84,9 @@ export function ActionUserPicker({
 
   const searchId = id ? `${id}-search` : undefined;
   const showCalmList =
-    isCalm && (searchFocused || query.trim().length > 0) && available.length > 0;
+    isCalm &&
+    (searchFocused || query.trim().length > 0 || selectedUsers.length === 0) &&
+    available.length > 0;
 
   const calmInput =
     "w-full rounded-[12px] border border-line-soft bg-surface px-3.5 py-2.5 text-[14px] text-ink shadow-sm transition-colors placeholder:text-ink-muted/70 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100";

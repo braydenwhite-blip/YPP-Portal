@@ -28,9 +28,9 @@ import { normalizeRoleList } from "@/lib/authorization";
 import { listOperatingChaptersForFilters } from "@/lib/chapters/operating";
 import {
   gradeLabel,
-  isSocialMediaManagerPosition,
-  parseSocialMediaManagerMetadata,
-} from "@/lib/social-media-manager-application";
+  isTechnologyManagerPosition,
+  parseTechnologyManagerMetadata,
+} from "@/lib/technology-manager-application";
 import { extractStaffLocation } from "@/lib/staff-applicant-location";
 
 function formatStatus(status: string) {
@@ -52,6 +52,8 @@ function statusTone(status: string): StatusTone {
       return "info";
     case "UNDER_REVIEW":
       return "warning";
+    case "WAITLISTED":
+      return "info";
     case "SUBMITTED":
       return "brand";
     default:
@@ -297,7 +299,7 @@ export default async function ApplicationWorkspacePage({
         : "Pending";
 
   const chapterProposal = parseChapterProposalMetadata(application.additionalMaterials);
-  const socialMediaApplication = parseSocialMediaManagerMetadata(application.additionalMaterials);
+  const technologyManagerApplication = parseTechnologyManagerMetadata(application.additionalMaterials);
 
   // Interview detail for facts strip (scheduled / confirmed / completed).
   const interviewFactValue = completedSlot
@@ -408,8 +410,8 @@ export default async function ApplicationWorkspacePage({
       : application.position.chapter?.name ??
         application.applicant.chapter?.name ??
         "Global",
-    socialMediaApplication
-      ? `${socialMediaApplication.school} · ${gradeLabel(socialMediaApplication.grade)}`
+    technologyManagerApplication
+      ? `${technologyManagerApplication.school} · ${gradeLabel(technologyManagerApplication.grade)}`
       : null,
   ]
     .filter(Boolean)
@@ -486,42 +488,40 @@ export default async function ApplicationWorkspacePage({
       });
     }
   }
-  if (socialMediaApplication) {
+  if (technologyManagerApplication) {
     applicationFields.push(
-      { title: "School", body: socialMediaApplication.school },
-      { title: "Grade", body: gradeLabel(socialMediaApplication.grade) },
-      { title: "Platforms", body: socialMediaApplication.platforms },
-      { title: "Experience", body: socialMediaApplication.experience }
+      { title: "Technical interests", body: technologyManagerApplication.platforms },
+      { title: "Experience", body: technologyManagerApplication.experience }
     );
-    if (socialMediaApplication.portfolioLinks) {
+    if (technologyManagerApplication.portfolioLinks) {
       applicationFields.push({
         title: "Portfolio / links",
-        body: socialMediaApplication.portfolioLinks,
+        body: technologyManagerApplication.portfolioLinks,
       });
     }
     applicationFields.push(
-      { title: "Content ideas", body: socialMediaApplication.contentIdeas },
+      { title: "Ideas for YPP systems", body: technologyManagerApplication.contentIdeas },
       {
         title: "Weekly availability",
-        body: socialMediaApplication.weeklyAvailability,
+        body: technologyManagerApplication.weeklyAvailability,
       }
     );
-    if (socialMediaApplication.additionalNotes) {
+    if (technologyManagerApplication.additionalNotes) {
       applicationFields.push({
         title: "Additional notes",
-        body: socialMediaApplication.additionalNotes,
+        body: technologyManagerApplication.additionalNotes,
       });
     }
   }
   if (application.coverLetter?.trim()) {
     applicationFields.push({
-      title: socialMediaApplication ? "Why they want to join" : "Cover letter",
+      title: technologyManagerApplication ? "Why they want to join" : "Cover letter",
       body: application.coverLetter.trim(),
     });
   }
   if (
     !chapterProposal &&
-    !socialMediaApplication &&
+    !technologyManagerApplication &&
     application.additionalMaterials?.trim()
   ) {
     applicationFields.push({
@@ -542,7 +542,7 @@ export default async function ApplicationWorkspacePage({
   ];
 
   const materialsMode: "social_media" | "chapter_proposal" | "generic" =
-    socialMediaApplication || isSocialMediaManagerPosition(application.position.title)
+    technologyManagerApplication || isTechnologyManagerPosition(application.position.title)
       ? "social_media"
       : chapterProposal
         ? "chapter_proposal"
@@ -596,11 +596,11 @@ export default async function ApplicationWorkspacePage({
             canEdit={canEditMaterials}
             coverLetter={application.coverLetter ?? ""}
             additionalMaterials={
-              !chapterProposal && !socialMediaApplication
+              !chapterProposal && !technologyManagerApplication
                 ? application.additionalMaterials ?? ""
                 : ""
             }
-            socialMedia={socialMediaApplication}
+            socialMedia={technologyManagerApplication}
             chapterProposal={
               chapterProposal
                 ? {

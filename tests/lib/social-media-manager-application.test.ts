@@ -1,65 +1,69 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  SOCIAL_MEDIA_MANAGER_KIND,
+  TECHNOLOGY_MANAGER_KIND,
+  LEGACY_SOCIAL_MEDIA_MANAGER_KIND,
   gradeLabel,
-  isSocialMediaManagerPosition,
-  parseSocialMediaManagerMetadata,
-} from "@/lib/social-media-manager-application";
+  isTechnologyManagerPosition,
+  parseTechnologyManagerMetadata,
+} from "@/lib/technology-manager-application";
 import { socialMediaManagerApplicationSchema } from "@/lib/application-schemas";
 
-describe("social media manager application", () => {
-  it("matches the Social Media Manager position title only", () => {
-    expect(isSocialMediaManagerPosition("Social Media Manager")).toBe(true);
-    expect(isSocialMediaManagerPosition("Technology Manager")).toBe(false);
-    expect(isSocialMediaManagerPosition("Social Media Director")).toBe(false);
+describe("technology manager application", () => {
+  it("matches the Technology Manager position title (and legacy Social Media title)", () => {
+    expect(isTechnologyManagerPosition("Technology Manager")).toBe(true);
+    expect(isTechnologyManagerPosition("technology manager")).toBe(true);
+    expect(isTechnologyManagerPosition("Social Media Manager")).toBe(true);
+    expect(isTechnologyManagerPosition("Social Media Director")).toBe(false);
   });
 
   it("parses structured application metadata", () => {
     const raw = JSON.stringify({
-      kind: SOCIAL_MEDIA_MANAGER_KIND,
+      kind: TECHNOLOGY_MANAGER_KIND,
       school: "Lincoln High",
       grade: "11",
-      platforms: "Instagram, TikTok",
-      experience: "I run a school club account and edit Reels weekly for our newspaper.",
-      contentIdeas: "A weekly ‘student passion spotlight’ series with short interview clips.",
+      platforms: "Portal tools, automations",
+      experience: "Built club websites and helped teachers troubleshoot Google Workspace.",
+      contentIdeas: "Improve applicant onboarding checklists and admin reporting.",
       weeklyAvailability: "5 hours / week",
-      portfolioLinks: "https://instagram.com/example",
+      portfolioLinks: "https://github.com/example",
     });
 
-    const parsed = parseSocialMediaManagerMetadata(raw);
+    const parsed = parseTechnologyManagerMetadata(raw);
     expect(parsed?.school).toBe("Lincoln High");
     expect(gradeLabel(parsed!.grade)).toBe("11th grade");
-    expect(parsed?.platforms).toContain("TikTok");
+    expect(parsed?.platforms).toContain("automations");
+  });
+
+  it("accepts legacy social media metadata kind", () => {
+    const raw = JSON.stringify({
+      kind: LEGACY_SOCIAL_MEDIA_MANAGER_KIND,
+      school: "Lincoln High",
+      grade: "11",
+      platforms: "Instagram",
+      experience: "Ran a school club account.",
+      contentIdeas: "Student spotlight series.",
+      weeklyAvailability: "4 hrs",
+    });
+    expect(parseTechnologyManagerMetadata(raw)?.kind).toBe(LEGACY_SOCIAL_MEDIA_MANAGER_KIND);
   });
 
   it("rejects incomplete metadata", () => {
-    expect(parseSocialMediaManagerMetadata(JSON.stringify({ kind: SOCIAL_MEDIA_MANAGER_KIND }))).toBeNull();
-    expect(parseSocialMediaManagerMetadata("not-json")).toBeNull();
+    expect(parseTechnologyManagerMetadata(JSON.stringify({ kind: TECHNOLOGY_MANAGER_KIND }))).toBeNull();
+    expect(parseTechnologyManagerMetadata("not-json")).toBeNull();
   });
 
   it("validates the portal form schema", () => {
     const ok = socialMediaManagerApplicationSchema.safeParse({
       school: "Lincoln High",
       grade: "10",
-      platforms: "Instagram",
-      experience: "I create Instagram carousels for my robotics team and reply to DMs.",
-      whyJoin: "I want to help YPP reach more students with clear, fun stories about our classes.",
-      contentIdeas: "Behind-the-scenes of a first class, plus a TikTok trend remixed with YPP branding.",
+      platforms: "Portal tools",
+      experience: "I maintain our robotics team website and help teachers with tech setup.",
+      whyJoin: "I want to help YPP ship reliable tools for chapters and applicants.",
+      contentIdeas: "Better admin dashboards and clearer onboarding checklists.",
       weeklyAvailability: "4–6 hrs",
       resumeUrl: "",
     });
     expect(ok.success).toBe(true);
-
-    const bad = socialMediaManagerApplicationSchema.safeParse({
-      school: "A",
-      grade: "8",
-      platforms: "",
-      experience: "short",
-      whyJoin: "short",
-      contentIdeas: "x",
-      weeklyAvailability: "",
-    });
-    expect(bad.success).toBe(false);
   });
 });

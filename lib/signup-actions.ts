@@ -458,6 +458,14 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
       }
       await syncInstructorApplicationWorkflow(application.id);
 
+      try {
+        const { appendHiringWaitlistKey } = await import("@/lib/hiring-waitlist/order-store");
+        const { waitlistKey } = await import("@/lib/hiring-waitlist/types");
+        await appendHiringWaitlistKey(waitlistKey("instructor", application.id));
+      } catch (waitlistErr) {
+        console.error("[Signup] waitlist append failed", waitlistErr);
+      }
+
       // Best-effort: a newly submitted InstructorApplication can auto-start a
       // matching, published workflow template instance.
       await fireEntityStatusChanged({

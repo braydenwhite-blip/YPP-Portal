@@ -7,6 +7,7 @@ import {
 describe("demo mode middleware allowlist", () => {
   it("allows applicant application status and curriculum prep routes", () => {
     expect(isDemoAllowedPathname("/application-status")).toBe(true);
+    expect(isDemoAllowedPathname("/admin/applicants/waitlist")).toBe(true);
     expect(isDemoAllowedPathname("/instructor/lesson-design-studio")).toBe(true);
     expect(
       isDemoAllowedPathname(

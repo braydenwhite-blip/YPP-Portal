@@ -56,10 +56,10 @@ const STATUS_LABELS: Record<string, string> = {
   SUBMITTED: "New",
   UNDER_REVIEW: "Under Review",
   INFO_REQUESTED: "Info Requested",
-  PRE_APPROVED: "Pre-Approved",
-  INTERVIEW_SCHEDULED: "Interview Scheduled",
-  INTERVIEW_COMPLETED: "Interview Completed",
-  CHAIR_REVIEW: "Chair Review",
+  PRE_APPROVED: "Ready to schedule",
+  INTERVIEW_SCHEDULED: "Needs scheduling",
+  INTERVIEW_COMPLETED: "Interview done",
+  CHAIR_REVIEW: "Chair review",
   APPROVED: "Approved",
   REJECTED: "Rejected",
   ON_HOLD: "On Hold",
@@ -174,7 +174,7 @@ export default function ApplicantQuickDrawer({
   // below ("Not scheduled") would contradict the header pill.
   const statusLabel =
     app.status === "INTERVIEW_SCHEDULED" && !app.interviewScheduledAt
-      ? "Awaiting Time"
+      ? "Needs scheduling"
       : STATUS_LABELS[app.status] ?? app.status.replace(/_/g, " ");
 
   return (

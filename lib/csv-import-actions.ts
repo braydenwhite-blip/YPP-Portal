@@ -15,7 +15,7 @@ import { z } from "zod";
 import { findDefaultInitialReviewerForChapter } from "@/lib/instructor-application-defaults";
 import { requireSessionUser } from "@/lib/authorization";
 import { hasAnyRole } from "@/lib/authorization-roles";
-import { ensureSocialMediaManagerPosition } from "@/lib/application-actions";
+import { ensureTechnologyManagerPosition } from "@/lib/application-actions";
 import { mergeStaffLocationIntoMaterials } from "@/lib/staff-applicant-location";
 import { getChapterViewerContext, requireChapterManager } from "@/lib/chapters/access";
 import { takeSeatRaceSafe } from "@/lib/class-seat-allocation";
@@ -273,7 +273,7 @@ export async function importApplicantCsvRows(input: unknown): Promise<ApplicantC
   const errors: string[] = [];
 
   const staffPosition =
-    role === "staff" ? await ensureSocialMediaManagerPosition() : null;
+    role === "staff" ? await ensureTechnologyManagerPosition() : null;
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
@@ -398,7 +398,7 @@ export async function importApplicantCsvRows(input: unknown): Promise<ApplicantC
       } else {
         if (!staffPosition) {
           skipped++;
-          errors.push(`${label}: Social Media Manager opening is missing`);
+          errors.push(`${label}: Technology Manager opening is missing`);
           continue;
         }
         const open = await prisma.application.findFirst({

@@ -9,6 +9,7 @@ import {
 } from "@/lib/chapters/analytics-loader";
 import type { AnalyticsRangeMonths } from "@/lib/chapters/analytics-types";
 import { getChapterViewerContext, requireChapterManager } from "@/lib/chapters/access";
+import { isActionTrackerEnabled } from "@/lib/feature-flags";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Chapter Analytics — Pathways Portal" };
@@ -120,6 +121,7 @@ export default async function ChapterImpactPage({
           focusChapterId={chapterId}
           overviewHref={overviewFromBoard}
           isLeadership={ctx.isLeadership}
+          actionTrackerEnabled={isActionTrackerEnabled()}
         />
       </div>
     );

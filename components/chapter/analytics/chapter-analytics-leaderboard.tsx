@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { cn } from "@/components/ui-v2";
@@ -98,25 +99,32 @@ function ActionPanel({
   onClose,
   onRefresh,
   canCreateActions,
+  actionTrackerEnabled,
 }: {
   panel: MetricPanelModel;
   periodKey: string;
   onClose: () => void;
   onRefresh: () => void;
   canCreateActions: boolean;
+  actionTrackerEnabled: boolean;
 }) {
   const [pending, startTransition] = useTransition();
   const [title, setTitle] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const canMutate = canCreateActions && actionTrackerEnabled;
 
   const gap = Math.round((panel.cell.actual - panel.cell.expected) * 10) / 10;
 
   function run(fn: () => Promise<{ ok: boolean; error?: string }>) {
     setError(null);
     startTransition(async () => {
-      const res = await fn();
-      if (!res.ok) setError(res.error ?? "Something went wrong");
-      else onRefresh();
+      try {
+        const res = await fn();
+        if (!res.ok) setError(res.error ?? "Something went wrong");
+        else onRefresh();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Something went wrong");
+      }
     });
   }
 
@@ -218,7 +226,7 @@ function ActionPanel({
               type="checkbox"
               className="h-4 w-4 rounded border-[#cbd5e1] text-[#6b21c8] focus:ring-[#c4b5fd]"
               checked={Boolean(panel.discussedOn)}
-              disabled={pending || !canCreateActions}
+              disabled={pending || !canMutate}
               onChange={(e) =>
                 run(() =>
                   markAnalyticsMetricDiscussed({
@@ -252,7 +260,7 @@ function ActionPanel({
             className="space-y-2 border-t border-[#f3f0f8] pt-2.5"
             onSubmit={(e) => {
               e.preventDefault();
-              if (!canCreateActions || !title.trim()) return;
+              if (!canMutate || !title.trim()) return;
               const due = new Date();
               due.setDate(due.getDate() + 7);
               run(async () => {
@@ -267,7 +275,7 @@ function ActionPanel({
               });
             }}
           >
-            {canCreateActions ? (
+            {canMutate ? (
               <>
                 <input
                   value={title}
@@ -285,7 +293,11 @@ function ActionPanel({
               </>
             ) : (
               <p className="m-0 text-[12px] leading-snug text-[#64748b]">
-                You can add action items for your own chapter.
+                {!actionTrackerEnabled
+                  ? "Turn on Action Tracker to add and manage action items here."
+                  : canCreateActions
+                    ? "You can add action items for chapters you manage."
+                    : "You can add action items for your own chapter."}
               </p>
             )}
           </form>
@@ -306,7 +318,7 @@ function ActionPanel({
                   type="checkbox"
                   className="mt-0.5 h-4 w-4 rounded border-[#cbd5e1] text-[#6b21c8]"
                   checked={a.status === "COMPLETE"}
-                  disabled={pending || !canCreateActions}
+                  disabled={pending || !canMutate}
                   onChange={(e) =>
                     run(() =>
                       toggleAnalyticsMetricAction({
@@ -346,9 +358,9 @@ function ActionPanel({
                   <input
                     type="checkbox"
                     className="mt-0.5 h-4 w-4 rounded border-[#cbd5e1] text-[#6b21c8]"
-                    disabled={pending || !canCreateActions}
+                    disabled={pending || !canMutate}
                     onChange={(e) => {
-                      if (!canCreateActions || !e.target.checked) return;
+                      if (!canMutate || !e.target.checked) return;
                       const due = new Date();
                       due.setDate(due.getDate() + 7);
                       run(() =>
@@ -385,15 +397,22 @@ export function ChapterAnalyticsLeaderboard({
   focusChapterId,
   overviewHref,
   isLeadership = false,
+  actionTrackerEnabled = true,
 }: {
   model: LeaderboardModel;
   focusChapterId?: string | null;
   overviewHref: string;
   isLeadership?: boolean;
+  /** When false, Discussion & Ownership stays read-only with a clear reason. */
+  actionTrackerEnabled?: boolean;
 }) {
+  const router = useRouter();
   // Start with no cell selected so the full table uses the viewport width.
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const panel = selectedKey ? model.panels[selectedKey] : null;
+
+  const canCreateForPanel = (chapterId: string) =>
+    Boolean(isLeadership || (focusChapterId && chapterId === focusChapterId));
 
   return (
     <div className="relative flex flex-col gap-5">
@@ -538,12 +557,11 @@ export function ChapterAnalyticsLeaderboard({
           <ActionPanel
             panel={panel}
             periodKey={model.asOfKey}
-            canCreateActions={Boolean(
-              isLeadership || (focusChapterId && panel.chapterId === focusChapterId)
-            )}
+            canCreateActions={canCreateForPanel(panel.chapterId)}
+            actionTrackerEnabled={actionTrackerEnabled}
             onClose={() => setSelectedKey(null)}
             onRefresh={() => {
-              window.location.reload();
+              router.refresh();
             }}
           />
         ) : null}

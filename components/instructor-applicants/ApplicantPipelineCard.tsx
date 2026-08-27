@@ -24,11 +24,13 @@ export const PIPELINE_STATUS_LABELS: Record<string, string> = {
   SUBMITTED: "New",
   UNDER_REVIEW: "Under Review",
   INFO_REQUESTED: "Info Requested",
-  PRE_APPROVED: "Pre-Approved",
-  INTERVIEW_SCHEDULED: "Awaiting Time",
-  INTERVIEW_SCHEDULED_READY: "Interview Scheduled",
-  INTERVIEW_COMPLETED: "Interview Done",
-  CHAIR_REVIEW: "Chair Review",
+  /** Pulled off waitlist — ready to book an interview. */
+  PRE_APPROVED: "Ready to schedule",
+  /** Interview stage opened, no time picked yet. */
+  INTERVIEW_SCHEDULED: "Needs scheduling",
+  INTERVIEW_SCHEDULED_READY: "Scheduled",
+  INTERVIEW_COMPLETED: "Interview done",
+  CHAIR_REVIEW: "Chair review",
   APPROVED: "Approved",
   REJECTED: "Rejected",
   ON_HOLD: "On Hold",
@@ -50,15 +52,12 @@ const STATUS_TONES: Record<string, string> = {
   WAITLISTED: "bg-violet-50 text-violet-700",
 };
 
-/** Board-column stages for the simple status filter. */
+/** Board stages — only people already pulled off the hire waitlist. */
 export const PIPELINE_STAGE_FILTERS = [
   { value: "", label: "All Stages" },
-  { value: "new", label: "New" },
-  { value: "review", label: "Review" },
   { value: "interview", label: "Interview" },
   { value: "chair", label: "Chair" },
-  { value: "on_hold", label: "On Hold" },
-  { value: "waitlisted", label: "Waitlisted" },
+  { value: "decided", label: "Decided" },
 ] as const;
 
 export const PIPELINE_STAGE_LABELS: Record<string, string> = Object.fromEntries(
@@ -66,12 +65,9 @@ export const PIPELINE_STAGE_LABELS: Record<string, string> = Object.fromEntries(
 );
 
 const STAGE_STATUSES: Record<string, string[]> = {
-  new: ["SUBMITTED"],
-  review: ["UNDER_REVIEW", "INFO_REQUESTED"],
   interview: ["PRE_APPROVED", "INTERVIEW_SCHEDULED", "INTERVIEW_SCHEDULED_READY"],
   chair: ["INTERVIEW_COMPLETED", "CHAIR_REVIEW"],
-  on_hold: ["ON_HOLD"],
-  waitlisted: ["WAITLISTED"],
+  decided: ["APPROVED", "REJECTED"],
 };
 
 /** @deprecated Prefer PIPELINE_STAGE_FILTERS — kept for any leftover imports. */
@@ -102,7 +98,7 @@ export function matchesPipelineStatusFilter(
   app: { status: string; interviewScheduledAt?: Date | string | null },
   filter: string
 ): boolean {
-  if (!filter) return true;
+  if (!filter || filter === "waitlisted") return true;
   const stageStatuses = STAGE_STATUSES[filter];
   if (stageStatuses) {
     const derived = cardStatusFilterValue(app);
@@ -180,7 +176,7 @@ export default function ApplicantPipelineCard({
             {app.kind === "cp"
               ? "CP"
               : app.kind === "staff"
-                ? "SMM"
+                ? "TM"
                 : "Instructor"}
           </span>
         ) : null}

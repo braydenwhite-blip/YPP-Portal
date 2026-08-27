@@ -17,7 +17,7 @@ const KIND_OPTIONS = [
   { value: "", label: "All Roles" },
   { value: "instructor", label: "Instructor" },
   { value: "cp", label: "Chapter President" },
-  { value: "staff", label: "Social Media Manager" },
+  { value: "staff", label: "Technology Manager" },
 ] as const;
 
 const TRACK_OPTIONS = [

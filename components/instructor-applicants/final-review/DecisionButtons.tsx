@@ -12,7 +12,6 @@ import ActionButton, { type ActionTone } from "./ActionButton";
 import {
   CheckIcon,
   XIcon,
-  PauseIcon,
   ClockIcon,
   RotateCwIcon,
 } from "./cockpit-icons";
@@ -59,15 +58,8 @@ const CONFIG: ActionConfig[] = [
     action: "WAITLIST",
     label: "Waitlist",
     description:
-      "Waitlist the applicant. Sets status to WAITLISTED and removes them from the chair queue.",
+      "Return to hire waitlist. Puts them back in the ordered applicant queue so you can interview the next person.",
     icon: ClockIcon,
-    baseTone: "secondary",
-  },
-  {
-    action: "HOLD",
-    label: "Hold",
-    description: "Hold. Sets status to ON_HOLD without notifying the applicant.",
-    icon: PauseIcon,
     baseTone: "secondary",
   },
   {
@@ -101,9 +93,10 @@ export default function DecisionButtons({
 }: DecisionButtonsProps) {
   const rejectIsPrimary = hasRedFlags || hasMajorityReject;
   const conditionalIsPrimary = !rejectIsPrimary && hasMixedConsensus;
-  const configs = allowedActions?.length
+  const configs = (allowedActions?.length
     ? CONFIG.filter((cfg) => allowedActions.includes(cfg.action))
-    : CONFIG;
+    : CONFIG
+  ).filter((cfg) => cfg.action !== "HOLD");
 
   function toneFor(cfg: ActionConfig): ActionTone {
     if (cfg.action === "APPROVE") {

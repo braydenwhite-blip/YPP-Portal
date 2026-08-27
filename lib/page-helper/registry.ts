@@ -1590,13 +1590,13 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
-    pattern: "/applications/social-media",
-    title: "Social Media Manager Apply",
+    pattern: "/applications/technology-manager",
+    title: "Technology Manager Apply",
     content: {
       purpose:
-        "Apply to join YPP’s Social Media team — create content, engage the community, and grow our presence across Instagram, TikTok, and more.",
+        "Apply to join YPP’s tech team — improve portal tools, support chapters, and ship reliable internal systems.",
       firstStep:
-        "Complete each step: school and grade, platforms and experience, why you want to join, then optional resume links.",
+        "Complete each step: school and grade, technical interests and experience, why you want to join, then optional portfolio links.",
       nextStep:
         "After you submit, reviewers see your application under Position Applications and will email you as it moves forward.",
     },

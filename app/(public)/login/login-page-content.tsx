@@ -293,7 +293,7 @@ export function LoginPageContent({
           </span>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", marginTop: 24 }}>
             <Link
-              href="/signup/instructor"
+              href="/signup/apply"
               className="button"
               style={{
                 display: "inline-flex",

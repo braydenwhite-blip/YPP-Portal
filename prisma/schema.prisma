@@ -338,6 +338,7 @@ enum ApplicationStatus {
   ACCEPTED
   REJECTED
   WITHDRAWN
+  WAITLISTED
 }
 
 /// Where an application originated. Defaults to PORTAL for portal-native

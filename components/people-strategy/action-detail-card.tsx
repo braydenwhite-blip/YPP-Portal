@@ -487,14 +487,28 @@ export default function ActionDetailCard({
         title="People"
         action={
           canAssign ? (
-            <button
-              type="button"
-              className={BTN_SECONDARY_SM}
-              onClick={() => setAddingRole(addingRole ? null : "EXECUTING")}
-              disabled={pending}
-            >
-              {addingRole ? "Done" : "+ Add people"}
-            </button>
+            <div className="flex flex-wrap gap-2">
+              {!item.people.lead.length ? (
+                <button
+                  type="button"
+                  className={BTN_SECONDARY_SM}
+                  onClick={() => setAddingRole(addingRole === "LEAD" ? null : "LEAD")}
+                  disabled={pending}
+                >
+                  {addingRole === "LEAD" ? "Done" : "Assign lead"}
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className={BTN_SECONDARY_SM}
+                onClick={() =>
+                  setAddingRole(addingRole === "EXECUTING" ? null : "EXECUTING")
+                }
+                disabled={pending}
+              >
+                {addingRole === "EXECUTING" ? "Done" : "+ Add executing"}
+              </button>
+            </div>
           ) : null
         }
       >

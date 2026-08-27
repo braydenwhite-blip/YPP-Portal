@@ -8,6 +8,7 @@ export const DEMO_ALLOWED_PREFIXES = [
   "/interviews",
   "/instructor/lesson-design-studio",
   "/admin/applications",
+  "/admin/applicants/waitlist",
   "/admin/recruiting",
   "/admin/hiring-committee",
   "/admin/instructor-applicants",

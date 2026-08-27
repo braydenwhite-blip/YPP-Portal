@@ -197,11 +197,8 @@ export function ActionCreateForm({
       return;
     }
 
-    // The creator is the accountable Lead. Everyone picked is "on this" as
-    // an executor — the first name in the picker is often a chapter instructor,
-    // who must not 500 the save on lead-eligibility.
-    const leadId = currentUserId || assignedUserIds[0];
-    const executingUserIds = assignedUserIds.filter((id) => id !== leadId);
+    const leadId = assignedUserIds[0];
+    const executingUserIds = assignedUserIds.slice(1);
 
     startTransition(async () => {
       try {
@@ -282,7 +279,11 @@ export function ActionCreateForm({
 
           <div className="h-px bg-line-soft/80" aria-hidden />
 
-          <FormSection step={2} title="Who's on this?" hint="Add everyone who should see it.">
+          <FormSection
+            step={2}
+            title="Who's on this?"
+            hint="Search and add people. The first person is the accountable lead; everyone else executes."
+          >
             <ActionUserPicker
               id="action-create-people"
               variant="calm"

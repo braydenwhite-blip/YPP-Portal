@@ -29,9 +29,9 @@ export async function getChapterViewerContext(): Promise<ChapterViewerContext> {
   const isLeadership = isChapterLeadership(user);
 
   let ledChapterId: string | null = null;
-  if (!isLeadership && hasAnyRole(user.roles, ["CHAPTER_PRESIDENT"])) {
-    // Prefer an explicit president link; fall back to the user's chapter
-    // membership for chapters provisioned before presidentId was set.
+  // Resolve the chapter a CP leads even when they also have national leadership
+  // roles — analytics focus + action ownership still need it.
+  if (hasAnyRole(user.roles, ["CHAPTER_PRESIDENT"])) {
     const led = await prisma.chapter.findFirst({
       where: { presidentId: user.id, archivedAt: null },
       select: { id: true },
