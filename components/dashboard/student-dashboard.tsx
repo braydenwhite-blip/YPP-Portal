@@ -193,7 +193,7 @@ export default function StudentDashboard({
           <>
             <span className={s.heroKicker}>You're on track</span>
             <h2 id="home-hero-title" className={s.heroTitle}>
-              Nice momentum, {name}.
+              You're on track, {name}.
             </h2>
             <p className={s.heroText}>
               No class sessions in the next 7 days. Check what's due, or
@@ -257,7 +257,7 @@ export default function StudentDashboard({
                   Get set up
                 </h2>
                 <p className={s.checklistSub}>
-                  A few quick steps to unlock the full YPP experience.
+                  A few quick steps to complete your setup.
                 </p>
               </div>
               <span className={s.checklistCount}>

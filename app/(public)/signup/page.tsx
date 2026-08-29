@@ -19,9 +19,15 @@ const HEAR_ABOUT_OPTIONS = [
   "Other",
 ] as const;
 
+function getMaxStudentDateOfBirth() {
+  const today = new Date();
+  return today.toISOString().slice(0, 10);
+}
+
 export default function FamilySignupPage() {
   const [state, formAction] = useFormState(signUpFamily, initialState);
   const [chapters, setChapters] = useState<Array<{ id: string; name: string }>>([]);
+  const [maxStudentDateOfBirth, setMaxStudentDateOfBirth] = useState("");
   const [studentUsesParentPhone, setStudentUsesParentPhone] = useState(true);
   const [submittedParentEmail, setSubmittedParentEmail] = useState("");
   const [submittedStudentEmail, setSubmittedStudentEmail] = useState("");
@@ -36,7 +42,11 @@ export default function FamilySignupPage() {
       setChapters(Array.isArray(data) ? data : []);
     }
 
-    loadChapters();
+        loadChapters();
+  }, []);
+
+  useEffect(() => {
+    setMaxStudentDateOfBirth(getMaxStudentDateOfBirth());
   }, []);
 
   if (state.status === "success" && state.message === "FAMILY_SETUP_SENT") {
@@ -161,9 +171,15 @@ export default function FamilySignupPage() {
             </label>
 
             <div className="grid two">
-              <label className="form-label">
+                            <label className="form-label">
                 Student date of birth
-                <input className="input" name="studentDateOfBirth" type="date" required />
+                <input
+                  className="input"
+                  name="studentDateOfBirth"
+                  type="date"
+                  max={maxStudentDateOfBirth || undefined}
+                  required
+                />
               </label>
               <label className="form-label">
                 Grade for current academic year
