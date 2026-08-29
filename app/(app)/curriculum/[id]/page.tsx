@@ -448,7 +448,7 @@ export default async function ClassDetailPage({
             {opportunityContext.requiresFallbackApproval &&
             opportunityContext.fallbackRequestStatus !== "APPROVED"
               ? "You can request partner-chapter access from the class card above. While that is pending, here are other classes that keep you moving."
-              : "You can still join the waitlist, and you do not have to stop there. These similar options can keep your momentum going right away."}
+              : "You can still join the waitlist, and you do not have to stop there. These similar options are ready to explore right away."}
           </p>
 
           {opportunityContext.alternatives.length > 0 ? (

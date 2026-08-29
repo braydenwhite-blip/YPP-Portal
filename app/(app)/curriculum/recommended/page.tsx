@@ -39,7 +39,7 @@ export default async function RecommendedCurriculumPage({
             {interest ? `${interest} Recommendations` : "Recommended Classes"}
           </h1>
           <p className="page-subtitle">
-            Picks based on your interests, chapter, and the areas where you already have momentum.
+            Picks based on your interests, chapter, and the classes you've already completed.
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>

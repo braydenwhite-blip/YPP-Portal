@@ -263,7 +263,7 @@ export default async function CurriculumPage({
             <div>
               <div className="section-title">Recommended for You</div>
               <p style={{ color: "var(--text-secondary)", fontSize: 13, marginTop: 4 }}>
-                Based on your interests, your chapter, and the areas where you already have momentum.
+                Based on your interests, your chapter, and the classes you've already completed.
               </p>
             </div>
             <Link href="/curriculum/recommended" style={{ color: "var(--ypp-purple)" }}>
@@ -403,9 +403,6 @@ export default async function CurriculumPage({
 
       {offerings.length === 0 ? (
         <div className="card" style={{ textAlign: "center", padding: "48px 32px" }}>
-          <div style={{ fontSize: 56, marginBottom: 12 }} aria-hidden="true">
-            {hasFilters ? "🔍" : "🗓️"}
-          </div>
           <h3 style={{ marginTop: 0 }}>
             {hasFilters ? "No classes match those filters" : "No classes are open right now"}
           </h3>

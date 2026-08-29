@@ -507,6 +507,7 @@ export function LoginPageContent({
               >
                 Start Summer Workshop Application
               </Link>
+              <div style={{ textAlign: "center", fontSize: 13, color: "var(--muted)" }}> New student or family?{" "} <Link href="/signup" style={{ color: "var(--ypp-purple)", fontWeight: 600 }}> Sign up </Link> </div>
             </div>
           </>}
         </div>
