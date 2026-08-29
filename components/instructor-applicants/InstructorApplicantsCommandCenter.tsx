@@ -51,13 +51,6 @@ interface InstructorApplicantsCommandCenterProps {
 }
 
 const BOARD_COLUMNS: KanbanColumnDef[] = [
-  { id: "new", title: "New", statuses: ["SUBMITTED"], color: "#6b21c8" },
-  {
-    id: "review",
-    title: "Review",
-    statuses: ["UNDER_REVIEW", "INFO_REQUESTED"],
-    color: "#2563eb",
-  },
   {
     id: "interview",
     title: "Interview",
@@ -70,12 +63,10 @@ const BOARD_COLUMNS: KanbanColumnDef[] = [
     statuses: ["INTERVIEW_COMPLETED", "CHAIR_REVIEW"],
     color: "#b45309",
   },
-  { id: "on_hold", title: "On Hold", statuses: ["ON_HOLD"], color: "#a16207" },
-  { id: "waitlisted", title: "Waitlisted", statuses: ["WAITLISTED"], color: "#7c3aed" },
   { id: "decided", title: "Decided", statuses: ["APPROVED", "REJECTED"], color: "#71717a" },
 ];
 
-const CORE_COLUMN_IDS = new Set(["new", "review", "interview", "chair"]);
+const CORE_COLUMN_IDS = new Set(["interview", "chair"]);
 
 function getDerivedStatus(app: PipelineApp): string {
   if (app.status === "INTERVIEW_SCHEDULED") {

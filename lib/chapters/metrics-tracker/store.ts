@@ -111,42 +111,115 @@ export async function ensureMetricsTrackerSeeded(): Promise<boolean> {
 
   try {
     const count = await delegate.count();
-    if (count > 0) return true;
+    if (count === 0) {
+      const scopes: MetricsScope[] = ["org", "chapter_president", "instructor"];
+      const rows: Array<Record<string, unknown>> = [];
 
-    const scopes: MetricsScope[] = ["org", "chapter_president", "instructor"];
-    const rows: Array<Record<string, unknown>> = [];
-
-    for (const scope of scopes) {
-      for (const cat of categoriesForScope(scope)) {
-        cat.metrics.forEach((m, index) => {
-          rows.push({
-            key: m.id,
-            scope,
-            categoryId: cat.id,
-            label: m.label,
-            owner: m.owner,
-            targetLabel: m.targetLabel,
-            monthlyTargets: m.monthlyTargets,
-            targetDisplay: m.targetDisplay ?? undefined,
-            reset: m.reset,
-            unit: m.unit,
-            chart: m.chart,
-            tracks: m.tracks ?? null,
-            why: m.why ?? null,
-            noTarget: Boolean(m.noTarget),
-            sortOrder: index,
+      for (const scope of scopes) {
+        for (const cat of categoriesForScope(scope)) {
+          cat.metrics.forEach((m, index) => {
+            rows.push({
+              key: m.id,
+              scope,
+              categoryId: cat.id,
+              label: m.label,
+              owner: m.owner,
+              targetLabel: m.targetLabel,
+              monthlyTargets: m.monthlyTargets,
+              targetDisplay: m.targetDisplay ?? undefined,
+              reset: m.reset,
+              unit: m.unit,
+              chart: m.chart,
+              tracks: m.tracks ?? null,
+              why: m.why ?? null,
+              noTarget: Boolean(m.noTarget),
+              sortOrder: index,
+            });
           });
-        });
+        }
+      }
+
+      if (rows.length > 0) {
+        await delegate.createMany({ data: rows, skipDuplicates: true });
       }
     }
 
-    if (rows.length > 0) {
-      await delegate.createMany({ data: rows, skipDuplicates: true });
-    }
+    // Re-align unedited catalog rows so labels/owners/targets stay accurate.
+    await syncUneditedCatalogRows(delegate);
     return true;
   } catch {
     return false;
   }
+}
+
+let catalogSyncPromise: Promise<void> | null = null;
+
+/** Push catalog fields onto DB rows that admins have not customized (once per process). */
+async function syncUneditedCatalogRows(delegate: MetricsDelegate): Promise<void> {
+  if (catalogSyncPromise) return catalogSyncPromise;
+  catalogSyncPromise = (async () => {
+    const scopes: MetricsScope[] = ["org", "chapter_president", "instructor"];
+    const catalogByKey = new Map<
+      string,
+      { catId: string; index: number; m: MetricDef; scope: MetricsScope }
+    >();
+    for (const scope of scopes) {
+      for (const cat of categoriesForScope(scope)) {
+        cat.metrics.forEach((m, index) => {
+          catalogByKey.set(`${scope}:${cat.id}:${m.id}`, { catId: cat.id, index, m, scope });
+        });
+      }
+    }
+
+    const rows = await delegate.findMany({
+      where: { archivedAt: null, updatedById: null },
+      select: {
+        id: true,
+        key: true,
+        scope: true,
+        categoryId: true,
+        label: true,
+        owner: true,
+        targetLabel: true,
+        monthlyTargets: true,
+        targetDisplay: true,
+        reset: true,
+        unit: true,
+        chart: true,
+        tracks: true,
+        why: true,
+        noTarget: true,
+        sortOrder: true,
+      },
+    });
+
+    for (const row of rows) {
+      const hit = catalogByKey.get(`${row.scope}:${row.categoryId}:${row.key}`);
+      if (!hit) continue;
+      const { m, index } = hit;
+      await delegate.update({
+        where: { id: row.id },
+        data: {
+          label: m.label,
+          owner: m.owner,
+          targetLabel: m.targetLabel,
+          monthlyTargets: m.monthlyTargets,
+          targetDisplay: m.targetDisplay ?? undefined,
+          reset: m.reset,
+          unit: m.unit,
+          chart: m.chart,
+          tracks: m.tracks ?? null,
+          why: m.why ?? null,
+          noTarget: Boolean(m.noTarget),
+          sortOrder: index,
+        },
+      });
+    }
+  })().catch((err) => {
+    catalogSyncPromise = null;
+    throw err;
+  });
+  return catalogSyncPromise;
 }
 
 export async function listActiveMetricsForScope(scope: MetricsScope): Promise<DbMetricRow[]> {

@@ -3,18 +3,18 @@
  * applicants onto one kanban (same columns as the instructor pipeline).
  */
 
-import { SOCIAL_MEDIA_MANAGER_POSITION_TITLE } from "@/lib/social-media-manager-application";
+import { TECHNOLOGY_MANAGER_POSITION_TITLE } from "@/lib/technology-manager-application";
 
 /** Legacy staff opening — never shown on the unified applicants board. */
-export const HIDDEN_STAFF_POSITION_TITLES = new Set(["technology manager"]);
+export const HIDDEN_STAFF_POSITION_TITLES = new Set(["social media manager"]);
 
 export function isHiddenStaffPositionTitle(title: string | null | undefined): boolean {
   return HIDDEN_STAFF_POSITION_TITLES.has((title ?? "").trim().toLowerCase());
 }
 
-/** Staff openings that appear on the Application board (SMM only for now). */
+/** Staff openings that appear on the Application board (Technology Manager). */
 export function isBoardStaffPositionTitle(title: string | null | undefined): boolean {
-  return (title ?? "").trim().toLowerCase() === SOCIAL_MEDIA_MANAGER_POSITION_TITLE.toLowerCase();
+  return (title ?? "").trim().toLowerCase() === TECHNOLOGY_MANAGER_POSITION_TITLE.toLowerCase();
 }
 
 /** Map a CP application status onto an instructor-board column status. */
@@ -68,12 +68,32 @@ export function mapStaffStatusToBoardStatus(status: string): string {
       return "INTERVIEW_COMPLETED";
     case "ACCEPTED":
       return "APPROVED";
+    case "WAITLISTED":
+      return "WAITLISTED";
     case "REJECTED":
     case "WITHDRAWN":
       return "REJECTED";
     default:
       return "SUBMITTED";
   }
+}
+
+/**
+ * Applicants board = people already pulled off the hire waitlist into
+ * interviews / chair / decided. Waitlist-pool statuses stay on Waitlist.
+ */
+const ACTIVE_BOARD_STATUSES = new Set([
+  "PRE_APPROVED",
+  "INTERVIEW_SCHEDULED",
+  "INTERVIEW_SCHEDULED_READY",
+  "INTERVIEW_COMPLETED",
+  "CHAIR_REVIEW",
+  "APPROVED",
+  "REJECTED",
+]);
+
+export function isActiveHiringBoardStatus(status: string | null | undefined): boolean {
+  return ACTIVE_BOARD_STATUSES.has((status ?? "").trim());
 }
 
 export type ApplicantBoardKind = "instructor" | "cp" | "staff";
@@ -98,6 +118,9 @@ export function parseApplicantKindFilter(
   }
   if (
     value === "staff" ||
+    value === "technology_manager" ||
+    value === "technology-manager" ||
+    value === "tech_manager" ||
     value === "social_media_manager" ||
     value === "social-media-manager" ||
     value === "smm"

@@ -13,6 +13,7 @@ import { StatusBadge } from "@/components/ui-v2";
 const STAFF_ACTIONS = new Set<ChairDecisionAction>([
   "APPROVE",
   "APPROVE_WITH_CONDITIONS",
+  "WAITLIST",
   "REJECT",
   "REQUEST_SECOND_INTERVIEW",
 ]);
@@ -23,6 +24,8 @@ function actionLabel(action: ChairDecisionAction): string {
       return "Approve";
     case "APPROVE_WITH_CONDITIONS":
       return "Approve w/ conditions";
+    case "WAITLIST":
+      return "Return to waitlist";
     case "REJECT":
       return "Reject";
     case "REQUEST_SECOND_INTERVIEW":
@@ -148,6 +151,7 @@ export function StaffDecisionPanel({
         allowedActions={[
           "APPROVE",
           "APPROVE_WITH_CONDITIONS",
+          "WAITLIST",
           "REQUEST_SECOND_INTERVIEW",
           "REJECT",
         ]}
@@ -159,7 +163,9 @@ export function StaffDecisionPanel({
             Confirm {actionLabel(pendingAction)}?
           </p>
           <p className="m-0 mt-1 text-[12.5px] text-ink-muted">
-            This saves immediately — no Chair approval after.
+            {pendingAction === "WAITLIST"
+              ? "Sends them back to the hire waitlist queue so you can interview someone else. You can pull them again later."
+              : "This saves immediately — no Chair approval after."}
           </p>
           {error ? (
             <p className="m-0 mt-2 text-[13px] font-medium text-danger-700">{error}</p>

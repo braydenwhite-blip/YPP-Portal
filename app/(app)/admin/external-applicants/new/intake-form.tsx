@@ -20,7 +20,7 @@ interface StaffPosition {
 interface Props {
   chapters: Array<{ id: string; name: string }>;
   staffPositions: StaffPosition[];
-  /** Prefills Staff opening — usually Social Media Manager. */
+  /** Prefills Staff opening — usually Technology Manager. */
   defaultStaffPositionId?: string;
   scopedChapterId: string | null;
   hasNetworkScope: boolean;
@@ -313,7 +313,7 @@ export default function ExternalApplicantIntakeForm({
                       </option>
                     ))}
                   </select>
-                  <input type="hidden" name="positionTitle" value="Social Media Manager" />
+                  <input type="hidden" name="positionTitle" value="Technology Manager" />
                 </label>
               ) : null}
 

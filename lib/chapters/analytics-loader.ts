@@ -491,6 +491,9 @@ export async function loadChapterAnalyticsLeaderboard(
   const metricActions = await prisma.actionItem.findMany({
     where: {
       chapterId: { in: chapterIds },
+      // Discussion markers share goalCategory / metric tokens but are not
+      // assignable work — keep them out of the ActionPanel list.
+      NOT: { sourceId: { startsWith: "chapter-analytics:discussed:" } },
       OR: [
         { sourceId: { startsWith: "chapter-analytics:action:" } },
         { goalCategory: "Chapter analytics" },

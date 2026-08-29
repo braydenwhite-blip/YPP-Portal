@@ -8,6 +8,7 @@ import type { MentorshipWorkspace } from "@/lib/mentorship/workspace";
 import { GoalsSection } from "./goals-section";
 import { ProgressUpdateSection } from "./progress-update-section";
 import { FeedbackSection } from "./feedback-section";
+import { PersonMetricsSection } from "./person-metrics-section";
 import { ChairApprovalPanel } from "./chair-approval-panel";
 import {
   SetupRepairPanel,
@@ -26,6 +27,7 @@ const SECTIONS = [
   { id: "goals", label: "G&R" },
   { id: "feedback", label: "Feedback" },
   { id: "progress", label: "Review" },
+  { id: "metrics", label: "Metrics" },
 ] as const;
 
 type SectionId = (typeof SECTIONS)[number]["id"];
@@ -139,11 +141,14 @@ export function MentorshipWorkspaceView({
       {!isSelf && (workspace.isAdmin || workspace.isLeadership) ? (
         <div className="rounded-[12px] border border-brand-200 bg-brand-50/60 px-4 py-3">
           <p className="m-0 text-[13.5px] font-semibold text-ink">
-            Viewing as admin
+            {workspace.person.name?.trim()
+              ? `Viewing ${workspace.person.name.trim()} as admin`
+              : "Viewing as admin"}
           </p>
           <p className="m-0 mt-0.5 text-[12.5px] text-ink-muted">
-            Same Home / G&amp;R / Feedback / Review tools their mentor uses — you can
-            create reviews, request feedback, and manage the relationship.
+            {workspace.person.name?.trim()
+              ? `Same Home / G&R / Feedback / Review / Metrics tools ${workspace.person.name.trim()}'s mentor uses — you can create reviews, request feedback, and manage the relationship.`
+              : "Same Home / G&R / Feedback / Review / Metrics tools their mentor uses — you can create reviews, request feedback, and manage the relationship."}
           </p>
         </div>
       ) : null}
@@ -260,6 +265,10 @@ export function MentorshipWorkspaceView({
           reviewId={reviewId}
           sectionHref={sectionHref}
         />
+      ) : null}
+
+      {!focusedReviewPanel && active === "metrics" ? (
+        <PersonMetricsSection workspace={workspace} />
       ) : null}
     </>
   );

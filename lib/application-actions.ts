@@ -31,14 +31,14 @@ import {
 } from "@/lib/hiring-decision-utils";
 import { jobApplicationSchema } from "@/lib/application-schemas";
 import {
-  SOCIAL_MEDIA_MANAGER_KIND,
-  SOCIAL_MEDIA_MANAGER_POSITION_DESCRIPTION,
-  SOCIAL_MEDIA_MANAGER_POSITION_REQUIREMENTS,
-  SOCIAL_MEDIA_MANAGER_POSITION_TITLE,
-  SOCIAL_MEDIA_MANAGER_TEAM_SLUG,
-  isSocialMediaManagerPosition,
-  type SocialMediaManagerMetadata,
-} from "@/lib/social-media-manager-application";
+  TECHNOLOGY_MANAGER_KIND,
+  TECHNOLOGY_MANAGER_POSITION_DESCRIPTION,
+  TECHNOLOGY_MANAGER_POSITION_REQUIREMENTS,
+  TECHNOLOGY_MANAGER_POSITION_TITLE,
+  TECHNOLOGY_MANAGER_TEAM_SLUG,
+  isTechnologyManagerPosition,
+  type TechnologyManagerMetadata,
+} from "@/lib/technology-manager-application";
 
 const REVIEWABLE_APPLICATION_STATUSES: ApplicationStatus[] = [
   "UNDER_REVIEW",
@@ -161,7 +161,7 @@ const FIELD_LABELS: Record<string, string> = {
   grade: "Grade is required (9th–12th).",
   platforms: "List the platforms you use.",
   experience: "Share your social media or content experience.",
-  whyJoin: "Tell us why you want to join the Social Media team.",
+  whyJoin: "Tell us why you want to join the YPP tech team.",
   contentIdeas: "Share at least one content idea.",
   weeklyAvailability: "Share your weekly availability.",
   status: "Status selection",
@@ -559,18 +559,18 @@ async function applyAcceptedCandidateEffects(
 
   if (
     application.position.type === "STAFF" &&
-    isSocialMediaManagerPosition(application.position.title)
+    isTechnologyManagerPosition(application.position.title)
   ) {
     await tx.user.update({
       where: { id: application.applicantId },
       data: {
-        title: SOCIAL_MEDIA_MANAGER_POSITION_TITLE,
-        canonicalTitle: SOCIAL_MEDIA_MANAGER_POSITION_TITLE,
+        title: TECHNOLOGY_MANAGER_POSITION_TITLE,
+        canonicalTitle: TECHNOLOGY_MANAGER_POSITION_TITLE,
       },
     });
 
     const socialMediaTeam = await tx.team.findUnique({
-      where: { slug: SOCIAL_MEDIA_MANAGER_TEAM_SLUG },
+      where: { slug: TECHNOLOGY_MANAGER_TEAM_SLUG },
       select: { id: true },
     });
 
@@ -585,11 +585,11 @@ async function applyAcceptedCandidateEffects(
         create: {
           teamId: socialMediaTeam.id,
           userId: application.applicantId,
-          role: SOCIAL_MEDIA_MANAGER_POSITION_TITLE,
+          role: TECHNOLOGY_MANAGER_POSITION_TITLE,
           isLead: false,
         },
         update: {
-          role: SOCIAL_MEDIA_MANAGER_POSITION_TITLE,
+          role: TECHNOLOGY_MANAGER_POSITION_TITLE,
         },
       });
     }
@@ -601,7 +601,7 @@ async function applyAcceptedCandidateEffects(
         eventData: {
           applicationId: application.id,
           applicantId: application.applicantId,
-          teamSlug: SOCIAL_MEDIA_MANAGER_TEAM_SLUG,
+          teamSlug: TECHNOLOGY_MANAGER_TEAM_SLUG,
         },
       },
     });
@@ -1456,12 +1456,45 @@ export async function submitChapterProposal(formData: FormData) {
   };
 }
 
-export async function ensureSocialMediaManagerPosition() {
+export async function ensureTechnologyManagerPosition() {
+  const legacy = await prisma.position.findFirst({
+    where: {
+      type: "STAFF",
+      chapterId: null,
+      title: "Social Media Manager",
+    },
+    select: {
+      id: true,
+      title: true,
+      isOpen: true,
+      interviewRequired: true,
+      applicationDeadline: true,
+    },
+  });
+
+  if (legacy) {
+    return prisma.position.update({
+      where: { id: legacy.id },
+      data: {
+        title: TECHNOLOGY_MANAGER_POSITION_TITLE,
+        description: TECHNOLOGY_MANAGER_POSITION_DESCRIPTION,
+        requirements: TECHNOLOGY_MANAGER_POSITION_REQUIREMENTS,
+      },
+      select: {
+        id: true,
+        title: true,
+        isOpen: true,
+        interviewRequired: true,
+        applicationDeadline: true,
+      },
+    });
+  }
+
   const existing = await prisma.position.findFirst({
     where: {
       type: "STAFF",
       chapterId: null,
-      title: SOCIAL_MEDIA_MANAGER_POSITION_TITLE,
+      title: TECHNOLOGY_MANAGER_POSITION_TITLE,
     },
     select: {
       id: true,
@@ -1478,10 +1511,10 @@ export async function ensureSocialMediaManagerPosition() {
 
   return prisma.position.create({
     data: {
-      title: SOCIAL_MEDIA_MANAGER_POSITION_TITLE,
+      title: TECHNOLOGY_MANAGER_POSITION_TITLE,
       type: "STAFF",
-      description: SOCIAL_MEDIA_MANAGER_POSITION_DESCRIPTION,
-      requirements: SOCIAL_MEDIA_MANAGER_POSITION_REQUIREMENTS,
+      description: TECHNOLOGY_MANAGER_POSITION_DESCRIPTION,
+      requirements: TECHNOLOGY_MANAGER_POSITION_REQUIREMENTS,
       chapterId: null,
       visibility: "NETWORK_WIDE",
       interviewRequired: true,
@@ -1496,6 +1529,9 @@ export async function ensureSocialMediaManagerPosition() {
     },
   });
 }
+
+/** @deprecated Use ensureTechnologyManagerPosition */
+export const ensureSocialMediaManagerPosition = ensureTechnologyManagerPosition;
 
 export async function submitSocialMediaManagerApplication(formData: FormData) {
   const session = await requireAuth();
@@ -1516,14 +1552,14 @@ export async function submitSocialMediaManagerApplication(formData: FormData) {
     throw new Error("Select your grade (9th–12th).");
   }
 
-  const position = await ensureSocialMediaManagerPosition();
+  const position = await ensureTechnologyManagerPosition();
 
   if (!position.isOpen) {
-    throw new Error("Social Media Manager applications are not open right now. Please try again later.");
+    throw new Error("Technology Manager applications are not open right now. Please try again later.");
   }
 
   if (position.applicationDeadline && position.applicationDeadline < new Date()) {
-    throw new Error("Social Media Manager applications are currently closed.");
+    throw new Error("Technology Manager applications are currently closed.");
   }
 
   const existingOpen = await prisma.application.findFirst({
@@ -1536,11 +1572,11 @@ export async function submitSocialMediaManagerApplication(formData: FormData) {
   });
 
   if (existingOpen && existingOpen.status !== "SUBMITTED") {
-    throw new Error("You already have a Social Media Manager application in progress.");
+    throw new Error("You already have a Technology Manager application in progress.");
   }
 
-  const metadata: SocialMediaManagerMetadata = {
-    kind: SOCIAL_MEDIA_MANAGER_KIND,
+  const metadata: TechnologyManagerMetadata = {
+    kind: TECHNOLOGY_MANAGER_KIND,
     school,
     grade,
     platforms,
@@ -1583,10 +1619,10 @@ export async function submitSocialMediaManagerApplication(formData: FormData) {
     await createSystemNotification(
       admin.id,
       "SYSTEM",
-      existingOpen ? "Social Media Manager Application Updated" : "New Social Media Manager Application",
+      existingOpen ? "Technology Manager Application Updated" : "New Technology Manager Application",
       existingOpen
-        ? `A Social Media Manager application was updated by the applicant.`
-        : `A new Social Media Manager application was submitted.`,
+        ? `A Technology Manager application was updated by the applicant.`
+        : `A new Technology Manager application was submitted.`,
       `/applications/${application.id}`,
       { sendEmail: true }
     );
@@ -1604,11 +1640,21 @@ export async function submitSocialMediaManagerApplication(formData: FormData) {
 
   revalidateHiringPaths(null, application.id);
 
+  try {
+    const { appendHiringWaitlistKey } = await import("@/lib/hiring-waitlist/order-store");
+    const { waitlistKey } = await import("@/lib/hiring-waitlist/types");
+    await appendHiringWaitlistKey(waitlistKey("staff", application.id));
+  } catch (waitlistErr) {
+    console.error("[submitTechnologyManagerApplication] waitlist append failed", waitlistErr);
+  }
+
   return {
     applicationId: application.id,
     action: existingOpen ? "updated" : "created",
   };
 }
+
+export const submitTechnologyManagerApplication = submitSocialMediaManagerApplication;
 
 export async function withdrawApplication(formData: FormData) {
   const session = await requireAuth();
@@ -1770,7 +1816,7 @@ export async function updateHiringApplicationMaterials(input: {
   applicationId: string;
   coverLetter?: string | null;
   additionalMaterials?: string | null;
-  /** Structured Social Media Manager answers (preferred over free-text materials). */
+  /** Structured Technology Manager answers (preferred over free-text materials). */
   socialMedia?: {
     school: string;
     grade: string;
@@ -1862,8 +1908,8 @@ export async function updateHiringApplicationMaterials(input: {
         }
       }
 
-      const metadata: SocialMediaManagerMetadata & { location?: string } = {
-        kind: SOCIAL_MEDIA_MANAGER_KIND,
+      const metadata: TechnologyManagerMetadata & { location?: string } = {
+        kind: TECHNOLOGY_MANAGER_KIND,
         school: sm.school.trim(),
         grade: sm.grade.trim(),
         platforms: sm.platforms.trim(),
@@ -2704,6 +2750,7 @@ export async function makeDecision(formData: FormData) {
  * Staff / org-role decisions finalize immediately — no hiring Chair queue.
  * Approve / approve-with-conditions → ACCEPTED + role effects.
  * Reject → REJECTED.
+ * Waitlist → WAITLISTED + Hiring Waitlist queue (no final Decision).
  * Second interview → back to INTERVIEW_SCHEDULED (no final Decision).
  */
 export async function finalizeStaffApplicationDecision(formData: FormData) {
@@ -2717,6 +2764,7 @@ export async function finalizeStaffApplicationDecision(formData: FormData) {
   const allowed = new Set([
     "APPROVE",
     "APPROVE_WITH_CONDITIONS",
+    "WAITLIST",
     "REJECT",
     "REQUEST_SECOND_INTERVIEW",
   ]);
@@ -2773,6 +2821,49 @@ export async function finalizeStaffApplicationDecision(formData: FormData) {
     });
 
     revalidateHiringPaths(application.position.chapterId, applicationId);
+    return;
+  }
+
+  if (action === "WAITLIST") {
+    await prisma.$transaction(async (tx) => {
+      if (application.decision) {
+        await tx.decision.delete({ where: { id: application.decision.id } });
+      }
+      // Raw SQL — ApplicationStatus.WAITLISTED may not be in a stale Prisma client yet.
+      await tx.$executeRaw`
+        UPDATE "Application"
+        SET status = 'WAITLISTED'::"ApplicationStatus", "updatedAt" = NOW()
+        WHERE id = ${applicationId}
+      `;
+    });
+
+    try {
+      const { appendHiringWaitlistKey } = await import("@/lib/hiring-waitlist/order-store");
+      const { waitlistKey } = await import("@/lib/hiring-waitlist/types");
+      await appendHiringWaitlistKey(waitlistKey("staff", applicationId));
+    } catch (waitlistErr) {
+      console.error("[finalizeStaffApplicationDecision] failed to append hiring waitlist", waitlistErr);
+    }
+
+    await createSystemNotification(
+      application.applicantId,
+      "SYSTEM",
+      "Application Waitlisted",
+      `Your application for ${application.position.title} was waitlisted. We'll reach out when a seat opens.`,
+      `/applications/${applicationId}`,
+      { policyKey: "APPLICATION_DECISIONS" }
+    );
+
+    await createHiringAudit(actor.id, "staff_application_waitlisted", {
+      applicationId,
+      chapterId: application.position.chapterId,
+      notes,
+      positionTitle: application.position.title,
+    });
+
+    revalidateHiringPaths(application.position.chapterId, applicationId);
+    revalidatePath("/admin/applicants/waitlist");
+    revalidatePath("/admin/instructor-applicants");
     return;
   }
 

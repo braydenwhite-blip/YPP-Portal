@@ -3,9 +3,9 @@ import { getSession } from "@/lib/auth-supabase";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import ApplicationForm from "@/components/application-form";
-import SocialMediaManagerApplicationForm from "@/components/social-media-manager-application-form";
+import TechnologyManagerApplicationForm from "@/components/technology-manager-application-form";
 import { normalizeRoleList } from "@/lib/authorization";
-import { isSocialMediaManagerPosition } from "@/lib/social-media-manager-application";
+import { isTechnologyManagerPosition } from "@/lib/technology-manager-application";
 
 function formatDate(value: Date | null) {
   if (!value) return "-";
@@ -270,8 +270,8 @@ export default async function PositionDetailPage({
                 </p>
               </div>
             ) : (
-              isSocialMediaManagerPosition(position.title) ? (
-                <SocialMediaManagerApplicationForm />
+              isTechnologyManagerPosition(position.title) ? (
+                <TechnologyManagerApplicationForm />
               ) : (
                 <ApplicationForm
                   positionId={position.id}

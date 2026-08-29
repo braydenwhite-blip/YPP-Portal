@@ -1,10 +1,13 @@
 import "server-only";
 
 import { pacePercent, paceStatus, type PaceStatus } from "@/lib/chapters/analytics-pace";
+import { ensureOperatingChapters } from "@/lib/chapters/operating";
+import { OPERATING_CHAPTERS } from "@/lib/chapters/operating-chapters";
 import {
   categoriesForScope,
   type CategoryDef,
   type EditableCategorySnapshot,
+  type EditableChapterGroupSnapshot,
   type EditableMetricSnapshot,
   type EditableScopeSnapshot,
   type MetricDef,
@@ -32,17 +35,25 @@ function hash01(seed: string): number {
   return ((h >>> 0) % 10_000) / 10_000;
 }
 
-function actualFor(def: MetricDef, monthIndex: number, chapterMonth: number): number {
+function actualFor(
+  def: MetricDef,
+  monthIndex: number,
+  chapterMonth: number,
+  chapterKey?: string
+): number {
   const target = def.monthlyTargets[Math.min(monthIndex, 5)];
+  const seedBase = chapterKey
+    ? `${def.id}:${monthIndex}:${chapterKey}`
+    : `${def.id}:${monthIndex}`;
   if (target == null) {
-    return Math.round(8 + chapterMonth * 1.5 + hash01(`${def.id}:${monthIndex}`) * 4);
+    return Math.round(8 + chapterMonth * 1.5 + hash01(`${seedBase}:f`) * 4);
   }
-  const ratio = 0.72 + hash01(`${def.id}:${monthIndex}:r`) * 0.4;
+  const ratio = 0.72 + hash01(`${seedBase}:r`) * 0.4;
   if (def.reset === "cumulative") {
     return Math.round(target * Math.min(1.15, ratio));
   }
   if (def.id === "mttr") {
-    return Math.round(target * (0.7 + hash01(`${def.id}:${monthIndex}`) * 0.5));
+    return Math.round(target * (0.7 + hash01(seedBase) * 0.5));
   }
   return Math.round(target * ratio);
 }
@@ -62,10 +73,14 @@ function statusFor(
   return paceStatus(actual, target);
 }
 
-function seriesFor(def: MetricDef, chapterMonth: number): MetricPoint[] {
+function seriesFor(
+  def: MetricDef,
+  chapterMonth: number,
+  chapterKey?: string
+): MetricPoint[] {
   return MONTH_LABELS.map((month, i) => ({
     month,
-    actual: actualFor(def, i, chapterMonth),
+    actual: actualFor(def, i, chapterMonth, chapterKey),
     target: def.monthlyTargets[i],
   }));
 }
@@ -73,10 +88,11 @@ function seriesFor(def: MetricDef, chapterMonth: number): MetricPoint[] {
 function snapshotMetric(
   def: MetricDef,
   chapterMonth: number,
-  rowId: string
+  rowId: string,
+  chapterKey?: string
 ): EditableMetricSnapshot {
   const idx = Math.min(Math.max(chapterMonth, 1), 6) - 1;
-  const series = seriesFor(def, chapterMonth);
+  const series = seriesFor(def, chapterMonth, chapterKey);
   const point = series[idx] ?? series[0];
   const target = point.target;
   const actual = point.actual;
@@ -111,11 +127,49 @@ function rollupPercent(metrics: MetricSnapshot[]): number {
 function metricsForCategory(
   rows: DbMetricRow[],
   category: CategoryDef,
-  chapterMonth: number
+  chapterMonth: number,
+  chapterKey?: string
 ): EditableMetricSnapshot[] {
   return rows
     .filter((r) => r.categoryId === category.id)
-    .map((r) => snapshotMetric(rowToMetricDef(r), chapterMonth, r.id));
+    .map((r) => snapshotMetric(rowToMetricDef(r), chapterMonth, r.id, chapterKey));
+}
+
+function chapterSlug(name: string): string {
+  return name.toLowerCase().replace(/\s+/g, "-");
+}
+
+async function loadChapterGroups(
+  rows: DbMetricRow[],
+  chapterMonth: number
+): Promise<EditableChapterGroupSnapshot[]> {
+  const dbChapters = await ensureOperatingChapters();
+  const byName = new Map(dbChapters.map((c) => [c.name, c.id]));
+
+  return OPERATING_CHAPTERS.map((chapter) => {
+    const chapterKey = chapter.name;
+    const categories: EditableCategorySnapshot[] = categoriesForScope("chapter_president").map(
+      (def) => {
+        const metrics = metricsForCategory(rows, def, chapterMonth, chapterKey);
+        return {
+          def,
+          status: rollupStatus(metrics.map((m) => m.status)),
+          percentOfTarget: rollupPercent(metrics),
+          metrics,
+        };
+      }
+    );
+    const allMetrics = categories.flatMap((c) => c.metrics);
+
+    return {
+      id: chapterSlug(chapter.name),
+      chapterId: byName.get(chapter.name) ?? null,
+      label: chapter.name,
+      blurb: `${chapter.city} · ${chapter.region}`,
+      status: rollupStatus(allMetrics.map((m) => m.status)),
+      categories,
+    };
+  });
 }
 
 export async function loadScopeSnapshot(
@@ -125,6 +179,22 @@ export async function loadScopeSnapshot(
   const chapterMonth = opts.chapterMonth ?? 3;
   const meta = SCOPE_META[scope];
   const rows = await listActiveMetricsForScope(scope);
+
+  if (scope === "chapter_president") {
+    const chapterGroups = await loadChapterGroups(rows, chapterMonth);
+    const categories = chapterGroups[0]?.categories ?? [];
+
+    return {
+      scope,
+      label: meta.label,
+      blurb: meta.blurb,
+      icon: meta.icon,
+      status: rollupStatus(chapterGroups.map((g) => g.status)),
+      categories,
+      chapterGroups,
+    };
+  }
+
   const categories: EditableCategorySnapshot[] = categoriesForScope(scope).map((def) => {
     const metrics = metricsForCategory(rows, def, chapterMonth);
     return {
@@ -165,4 +235,43 @@ export async function loadCategoryDetail(
 ): Promise<EditableCategorySnapshot | null> {
   const hub = await loadScopeSnapshot(scope, opts);
   return hub.categories.find((c) => c.def.id === categoryId) ?? null;
+}
+
+/**
+ * Instructor metrics for one person (mentorship Metrics tab).
+ * Seeded by personId so each mentee’s charts differ; owner is their name.
+ */
+export async function loadPersonInstructorMetrics(
+  personId: string,
+  opts: { chapterMonth?: number; personName?: string } = {}
+): Promise<EditableScopeSnapshot> {
+  const chapterMonth = opts.chapterMonth ?? 3;
+  const ownerName = opts.personName?.trim() || "Instructor";
+  const meta = SCOPE_META.instructor;
+  const rows = await listActiveMetricsForScope("instructor");
+  const categories: EditableCategorySnapshot[] = categoriesForScope("instructor").map(
+    (def) => {
+      const metrics = metricsForCategory(rows, def, chapterMonth, `person:${personId}`).map(
+        (m) => ({
+          ...m,
+          def: { ...m.def, owner: ownerName },
+        })
+      );
+      return {
+        def: { ...def, owner: ownerName },
+        status: rollupStatus(metrics.map((m) => m.status)),
+        percentOfTarget: rollupPercent(metrics),
+        metrics,
+      };
+    }
+  );
+
+  return {
+    scope: "instructor",
+    label: meta.label,
+    blurb: meta.blurb,
+    icon: meta.icon,
+    status: rollupStatus(categories.map((c) => c.status)),
+    categories,
+  };
 }

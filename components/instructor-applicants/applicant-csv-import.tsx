@@ -25,7 +25,7 @@ type FieldKey =
 const ROLE_OPTIONS: Array<{ value: Role; label: string }> = [
   { value: "instructor", label: "Instructor" },
   { value: "cp", label: "Chapter President" },
-  { value: "staff", label: "Social Media Manager" },
+  { value: "staff", label: "Technology Manager" },
   { value: "student", label: "Student" },
 ];
 

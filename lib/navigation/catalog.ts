@@ -479,18 +479,21 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 14,
     },
     {
-      href: "/applications/social-media",
-      label: "Social Media Apply",
-      icon: "📣",
+      href: "/applications/technology-manager",
+      label: "Technology Manager Apply",
+      icon: "💻",
       roles: APPLICANT_ROLES,
       searchAliases: [
+        "Technology Manager",
+        "Tech Manager",
+        "Technology Application",
+        "Portal tools",
+        "Tech team",
         "Social Media Manager",
-        "Social Media Application",
-        "Instagram",
-        "TikTok",
+        "Social Media Apply",
       ],
       dashboardDescription:
-        "Apply to join YPP’s social media team creating content and growing our community.",
+        "Apply to join YPP’s tech team — improve portal tools and support chapters.",
       dashboardPriority: 13,
     },
     {
@@ -1646,6 +1649,21 @@ export const NAV_CATALOG: NavLink[] = [
         "admin/instructor-applicants",
       ],
       dashboardBadgeKey: "instructor_applicants",
+    },
+    {
+      href: "/admin/applicants/waitlist",
+      label: "Hiring Waitlist",
+      icon: "⏳",
+      roles: ADMIN_ONLY,
+      dashboardDescription:
+        "Ordered hire queue of everyone who applied — pull the next person into interviews when a seat opens.",
+      searchAliases: [
+        "Waitlist",
+        "Hiring Waitlist",
+        "People Waitlist",
+        "Next to hire",
+        "Applicant Waitlist",
+      ],
     },
     {
       href: "/admin/instructor-applicants",

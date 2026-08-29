@@ -2,11 +2,11 @@ import { prisma } from "@/lib/prisma";
 import skin from "@/components/ui-v2/portal-skin.module.css";
 import { SimpleActionStrip, SimpleSurface, type SimpleAction } from "@/components/command-center/simple";
 import { PageHeaderV2 } from "@/components/ui-v2";
-import { ensureSocialMediaManagerPosition } from "@/lib/application-actions";
+import { ensureTechnologyManagerPosition } from "@/lib/application-actions";
 import { requireApplicationReviewerPage } from "@/lib/page-guards";
 import { isHiddenStaffPositionTitle } from "@/lib/applicant-board-kind";
 import { listOperatingChaptersForFilters } from "@/lib/chapters/operating";
-import { SOCIAL_MEDIA_MANAGER_POSITION_TITLE } from "@/lib/social-media-manager-application";
+import { TECHNOLOGY_MANAGER_POSITION_TITLE } from "@/lib/technology-manager-application";
 import ExternalApplicantIntakeForm from "./intake-form";
 
 export const dynamic = "force-dynamic";
@@ -45,8 +45,8 @@ export default async function NewExternalApplicantPage() {
   }> = [];
 
   if (canAddStaff) {
-    // Ensure the Social Media Manager opening exists so Staff intake always lists it.
-    const smm = await ensureSocialMediaManagerPosition();
+    // Ensure the Technology Manager opening exists so Staff intake always lists it.
+    const tm = await ensureTechnologyManagerPosition();
 
     const openStaff = await prisma.position.findMany({
       where: { type: "STAFF", isOpen: true },
@@ -66,25 +66,25 @@ export default async function NewExternalApplicantPage() {
         chapterName: position.chapter?.name ?? null,
       }));
 
-    if (!staffPositions.some((p) => p.id === smm.id)) {
+    if (!staffPositions.some((p) => p.id === tm.id)) {
       staffPositions.unshift({
-        id: smm.id,
-        title: SOCIAL_MEDIA_MANAGER_POSITION_TITLE,
+        id: tm.id,
+        title: TECHNOLOGY_MANAGER_POSITION_TITLE,
         chapterName: null,
       });
     }
 
-    // Prefer Social Media Manager first in the list.
+    // Prefer Technology Manager first in the list.
     staffPositions.sort((a, b) => {
-      const aSmm = a.title === SOCIAL_MEDIA_MANAGER_POSITION_TITLE ? 0 : 1;
-      const bSmm = b.title === SOCIAL_MEDIA_MANAGER_POSITION_TITLE ? 0 : 1;
-      if (aSmm !== bSmm) return aSmm - bSmm;
+      const aTm = a.title === TECHNOLOGY_MANAGER_POSITION_TITLE ? 0 : 1;
+      const bTm = b.title === TECHNOLOGY_MANAGER_POSITION_TITLE ? 0 : 1;
+      if (aTm !== bTm) return aTm - bTm;
       return a.title.localeCompare(b.title);
     });
   }
 
   const defaultStaffPositionId =
-    staffPositions.find((p) => p.title === SOCIAL_MEDIA_MANAGER_POSITION_TITLE)?.id ??
+    staffPositions.find((p) => p.title === TECHNOLOGY_MANAGER_POSITION_TITLE)?.id ??
     staffPositions[0]?.id ??
     "";
 

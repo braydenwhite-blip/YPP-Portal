@@ -2981,9 +2981,19 @@ export async function chairDecide(formData: FormData): Promise<ChairDecideResult
       status: String(newStatus),
       meta: { action },
     });
+    if (action === "WAITLIST") {
+      try {
+        const { appendHiringWaitlistKey } = await import("@/lib/hiring-waitlist/order-store");
+        const { waitlistKey } = await import("@/lib/hiring-waitlist/types");
+        await appendHiringWaitlistKey(waitlistKey("instructor", applicationId));
+      } catch (waitlistErr) {
+        console.error("[chairDecide] failed to append hiring waitlist", waitlistErr);
+      }
+    }
     revalidatePath(`/applications/instructor/${applicationId}`);
     revalidatePath("/admin/instructor-applicants");
     revalidatePath("/admin/instructor-applicants/chair-queue");
+    revalidatePath("/admin/applicants/waitlist");
     return { success: true, decidedAt: now.toISOString() };
   } catch (error) {
     console.error("[chairDecide]", error);

@@ -76,8 +76,8 @@ export default async function ApplyChapterPresidentPage() {
           <p className="badge">Chapter Leadership</p>
           <h1 className="page-title">Apply for Chapter President</h1>
           <p className="page-subtitle">
-            Submit your application to lead a YPP chapter. The review process
-            typically takes 7-14 days.
+            Part of the unified YPP application. Phase 1 is basic info and resume; prompts and
+            waitlists come after review.
           </p>
         </div>
       </div>
@@ -86,9 +86,18 @@ export default async function ApplyChapterPresidentPage() {
         <h3 style={{ marginTop: 0 }}>How it works</h3>
         <div style={{ display: "grid", gap: 10 }}>
           {[
-            { step: "1", text: "Submit your application with leadership experience, chapter vision, and availability." },
-            { step: "2", text: "An admin reviews your application and schedules an interview to discuss your vision." },
-            { step: "3", text: "If approved, you are assigned as chapter president and begin onboarding." },
+            {
+              step: "1",
+              text: "Submit basic info and your resume — one application covers instructor and leadership interest.",
+            },
+            {
+              step: "2",
+              text: "If we’re good with your Phase 1 submission, we unlock prompts: one required for everyone, plus up to four specialty prompts you can choose (0–4).",
+            },
+            {
+              step: "3",
+              text: "We place you on the relevant waitlists based on your interests and our needs, then schedule interviews or onboarding.",
+            },
           ].map((item) => (
             <div
               key={item.step}

@@ -7,6 +7,7 @@ import {
   applicantDetailHref,
   isHiddenStaffPositionTitle,
   isBoardStaffPositionTitle,
+  isActiveHiringBoardStatus,
 } from "@/lib/applicant-board-kind";
 
 describe("applicant-board-kind", () => {
@@ -25,6 +26,7 @@ describe("applicant-board-kind", () => {
     expect(mapStaffStatusToBoardStatus("INTERVIEW_SCHEDULED")).toBe("INTERVIEW_SCHEDULED");
     expect(mapStaffStatusToBoardStatus("INTERVIEW_COMPLETED")).toBe("INTERVIEW_COMPLETED");
     expect(mapStaffStatusToBoardStatus("ACCEPTED")).toBe("APPROVED");
+    expect(mapStaffStatusToBoardStatus("WAITLISTED")).toBe("WAITLISTED");
     expect(mapStaffStatusToBoardStatus("REJECTED")).toBe("REJECTED");
     expect(mapStaffStatusToBoardStatus("WITHDRAWN")).toBe("REJECTED");
   });
@@ -35,6 +37,7 @@ describe("applicant-board-kind", () => {
     expect(parseApplicantKindFilter("instructor")).toBe("instructor");
     expect(parseApplicantKindFilter("chapter-president")).toBe("cp");
     expect(parseApplicantKindFilter("staff")).toBe("staff");
+    expect(parseApplicantKindFilter("technology-manager")).toBe("staff");
     expect(parseApplicantKindFilter("smm")).toBe("staff");
   });
 
@@ -44,12 +47,23 @@ describe("applicant-board-kind", () => {
     expect(applicantDetailHref("staff", "s1")).toBe("/applications/s1");
   });
 
-  it("hides Technology Manager and keeps Social Media Manager on the board", () => {
-    expect(isHiddenStaffPositionTitle("Technology Manager")).toBe(true);
-    expect(isHiddenStaffPositionTitle("technology manager")).toBe(true);
-    expect(isHiddenStaffPositionTitle("Social Media Manager")).toBe(false);
-    expect(isBoardStaffPositionTitle("Social Media Manager")).toBe(true);
-    expect(isBoardStaffPositionTitle("social media manager")).toBe(true);
-    expect(isBoardStaffPositionTitle("Technology Manager")).toBe(false);
+  it("hides Social Media Manager and keeps Technology Manager on the board", () => {
+    expect(isHiddenStaffPositionTitle("Social Media Manager")).toBe(true);
+    expect(isHiddenStaffPositionTitle("social media manager")).toBe(true);
+    expect(isHiddenStaffPositionTitle("Technology Manager")).toBe(false);
+    expect(isBoardStaffPositionTitle("Technology Manager")).toBe(true);
+    expect(isBoardStaffPositionTitle("technology manager")).toBe(true);
+    expect(isBoardStaffPositionTitle("Social Media Manager")).toBe(false);
+  });
+
+  it("only treats interview+ statuses as active board (not waitlist pool)", () => {
+    expect(isActiveHiringBoardStatus("SUBMITTED")).toBe(false);
+    expect(isActiveHiringBoardStatus("UNDER_REVIEW")).toBe(false);
+    expect(isActiveHiringBoardStatus("WAITLISTED")).toBe(false);
+    expect(isActiveHiringBoardStatus("ON_HOLD")).toBe(false);
+    expect(isActiveHiringBoardStatus("PRE_APPROVED")).toBe(true);
+    expect(isActiveHiringBoardStatus("INTERVIEW_SCHEDULED")).toBe(true);
+    expect(isActiveHiringBoardStatus("CHAIR_REVIEW")).toBe(true);
+    expect(isActiveHiringBoardStatus("APPROVED")).toBe(true);
   });
 });

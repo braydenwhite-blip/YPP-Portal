@@ -108,6 +108,7 @@ const SIDEBAR_BY_HREF: Record<string, { group: NavGroup; label: string; icon: st
 
   // Applicants — application review workflows.
   "/admin/applicants": { group: "Applicants", label: "Applicants", icon: "📝" },
+  "/admin/applicants/waitlist": { group: "Applicants", label: "Hiring Waitlist", icon: "⏳" },
   "/admin/instructor-applicants": { group: "Applicants", label: "Applicants", icon: "📝" },
   "/admin/users": { group: "Admin", label: "Users", icon: "🛠" },
   "/interviews": { group: "Applicants", label: "Interviews", icon: "🎤" },

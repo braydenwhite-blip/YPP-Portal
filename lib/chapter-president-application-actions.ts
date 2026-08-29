@@ -269,6 +269,13 @@ export async function submitChapterPresidentApplication(
     });
     if (createdApplicationId) {
       await syncChapterPresidentApplicationWorkflow(createdApplicationId);
+      try {
+        const { appendHiringWaitlistKey } = await import("@/lib/hiring-waitlist/order-store");
+        const { waitlistKey } = await import("@/lib/hiring-waitlist/types");
+        await appendHiringWaitlistKey(waitlistKey("cp", createdApplicationId));
+      } catch (waitlistErr) {
+        console.error("[submitCPApplication] waitlist append failed", waitlistErr);
+      }
     }
 
     // Notify reviewers
@@ -859,6 +866,13 @@ export async function makeCPDecisionAction(formData: FormData) {
         decisionAt: new Date(),
       },
     });
+    try {
+      const { appendHiringWaitlistKey } = await import("@/lib/hiring-waitlist/order-store");
+      const { waitlistKey } = await import("@/lib/hiring-waitlist/types");
+      await appendHiringWaitlistKey(waitlistKey("cp", applicationId));
+    } catch (waitlistErr) {
+      console.error("[makeCPDecisionAction] failed to append hiring waitlist", waitlistErr);
+    }
   } else if (decision === "DECLINE") {
     await prisma.chapterPresidentApplication.update({
       where: { id: applicationId },
