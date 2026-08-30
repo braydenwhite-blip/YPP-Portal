@@ -188,7 +188,9 @@ export async function ensurePortalOnboardingComplete(params: {
 
   const { userId, roles, primaryRole } = params;
   const isInstructor = primaryRole === "INSTRUCTOR" || roles.includes("INSTRUCTOR");
-
+  const isParent = primaryRole === "PARENT" || roles.includes("PARENT");
+  if (isParent) { return; 
+  }
   if (isInstructor) {
     // Launchpad is forced once on first login. After the instructor has been
     // presented it (journey row exists) — or finished the legacy onboarding —

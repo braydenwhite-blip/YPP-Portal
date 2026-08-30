@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-supabase";
 import { isInstructorSurface } from "@/lib/org/role-sets";
+import { requireGuardianAccessToStudent } from "@/lib/family-access";
 import { revalidatePath } from "next/cache";
 import { ConversationContextType } from "@prisma/client";
 
@@ -38,13 +39,7 @@ export async function getOrCreateParentConversation(studentId: string) {
   const session = await requireParent();
   const parentId = session.user.id;
 
-  // Verify approved parent-student link
-  const link = await prisma.parentStudent.findUnique({
-    where: { parentId_studentId: { parentId, studentId } },
-  });
-  if (!link || link.approvalStatus !== "APPROVED") {
-    throw new Error("You do not have access to this student's data");
-  }
+  // Verify approved parent-student link (checks both current // StudentGuardianRelationship and legacy ParentStudent records). await requireGuardianAccessToStudent(parentId, studentId);
 
   // Get student info and their lead instructor
   const student = await prisma.user.findUnique({
@@ -199,6 +194,8 @@ export async function sendParentMessage(formData: FormData) {
   });
 
   revalidatePath(`/parent/${studentId}/messages`);
+  revalidatePath(`/parent/messages/${conversationId}`); 
+  revalidatePath("/parent/messages"); 
   revalidatePath("/messages");
   revalidatePath("/messages?tab=parent");
 }

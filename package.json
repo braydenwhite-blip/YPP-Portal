@@ -37,6 +37,7 @@
     "backfill:applicant-workflow": "node scripts/backfill-instructor-applicant-workflow.mjs",
     "seed": "prisma db seed",
     "db:sync-seed-password": "node scripts/sync-seed-password.mjs",
+    "db:seed-test-parent": "node scripts/seed-test-parent.mjs",
     "db:studio": "prisma studio",
     "backfill:instructor-readiness": "node scripts/backfill-native-instructor-readiness.mjs",
     "backfill:passion-taxonomy": "node scripts/backfill-passion-taxonomy.mjs",

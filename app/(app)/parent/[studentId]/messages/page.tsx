@@ -20,5 +20,5 @@ export default async function ParentStudentMessagesPage({
   }
 
   const conversation = await getOrCreateParentConversation(studentId);
-  redirect(`/messages/${conversation.id}?tab=parent`);
+  redirect(`/parent/messages/${conversation.id}`);
 }
