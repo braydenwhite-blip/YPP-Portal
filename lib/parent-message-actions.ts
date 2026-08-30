@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth-supabase";
 import { isInstructorSurface } from "@/lib/org/role-sets";
 import { requireGuardianAccessToStudent } from "@/lib/family-access";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { ConversationContextType } from "@prisma/client";
 
 async function requireAuth() {
@@ -150,6 +151,11 @@ export async function getOrCreateParentConversation(studentId: string) {
   });
 
   return conversation;
+}
+
+export async function openParentConversation(studentId: string) {
+  const conversation = await getOrCreateParentConversation(studentId);
+  redirect(`/messages/${conversation.id}?tab=parent`);
 }
 
 // ============================================
