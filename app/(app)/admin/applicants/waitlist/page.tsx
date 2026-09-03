@@ -20,7 +20,7 @@ export default async function AdminHiringWaitlistPage() {
         <PageHeaderV2
           eyebrow="Applicants"
           title="Waitlist"
-          subtitle="Everyone who applied for instructor, chapter president, or staff roles — ordered hire queue. When you need someone, start interviews with #1 (or reorder first). They leave this list and move onto the applicants board for interviews. If that person isn’t a fit, reject them and pull #2."
+          subtitle="New applications land here directly after signup — instructor, chapter president, and staff, in hire order. Pull #1 (or reorder) to start interviews on the applicants board; they leave this list once selected."
           actions={
             <Link
               href="/admin/instructor-applicants"

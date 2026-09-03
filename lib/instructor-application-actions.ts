@@ -180,7 +180,7 @@ export async function notifyReviewersOfNewApplication(applicantId: string) {
   await sendNewApplicationNotification({
     to: emails,
     applicantName: applicant.name,
-    reviewUrl: `${baseUrl}/admin/instructor-applicants`,
+    reviewUrl: `${baseUrl}/admin/applicants/waitlist`,
   });
 }
 

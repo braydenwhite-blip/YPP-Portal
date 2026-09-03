@@ -595,7 +595,7 @@ export const SCOPE_META: Record<
   },
   chapter_president: {
     label: "Chapters",
-    blurb: "Partnerships, instructors, students, programming, and quality for each operating chapter.",
+    blurb: "Chapter leadership and instructor metrics for each operating chapter.",
     icon: "🏢",
   },
   instructor: {

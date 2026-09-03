@@ -2,21 +2,13 @@
 
 import Link from "next/link";
 import { useId, useMemo, useState } from "react";
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 
 import { PACE_STATUS_LABELS, type PaceStatus } from "@/lib/chapters/analytics-pace";
+import {
+  MetricPerformanceChart,
+  formatMetricValue,
+} from "@/components/chapter/metrics-tracker/metric-performance-chart";
+import { MetricMonthlyTargetsTable } from "@/components/chapter/metrics-tracker/metric-monthly-targets-table";
 import { Button, ModalFooterV2, ModalV2, cn, StatusBadge } from "@/components/ui-v2";
 import type {
   EditableCategorySnapshot,
@@ -55,13 +47,6 @@ function statusAccent(status: PaceStatus | "informational") {
   return { bar: "#5c5c74", soft: "#f0f0f5", border: "border-l-idle-700" };
 }
 
-function fmt(unit: EditableMetricSnapshot["def"]["unit"], n: number) {
-  if (unit === "currency") return `$${n.toLocaleString()}`;
-  if (unit === "percent") return `${Math.round(n)}%`;
-  if (unit === "hours") return `${n}h`;
-  return n.toLocaleString();
-}
-
 type GroupAccent = {
   chip: string;
   chipActive: string;
@@ -73,51 +58,56 @@ type GroupAccent = {
 };
 
 const GROUP_ACCENTS: GroupAccent[] = [
-  // Intentionally not brand / complete / progress / blocked — those are reserved for StatusStrip.
+  // Soft pastels idle + selected — selected keeps dark text, stronger border, left accent.
   {
-    chip: "bg-sky-50 text-sky-950 border-sky-100",
-    chipActive: "bg-sky-600 text-white border-sky-600 shadow-sm",
-    panel: "from-sky-50/80 to-white",
-    dot: "bg-sky-500",
+    chip: "border-sky-200/80 bg-gradient-to-br from-sky-50 to-cyan-50/50 text-sky-950",
+    chipActive:
+      "border-sky-400 bg-gradient-to-br from-sky-100 to-cyan-50 text-sky-950 shadow-sm shadow-sky-200/60 ring-1 ring-sky-300/50 border-l-[3px] border-l-sky-500",
+    panel: "from-sky-50/90 via-cyan-50/40 to-white",
+    dot: "bg-sky-500 shadow-[0_0_0_3px_rgba(14,165,233,0.18)]",
     chartBar: "#0284c7",
     chartSoft: "#e0f2fe",
     cardBorder: "border-l-sky-500",
   },
   {
-    chip: "bg-indigo-50 text-indigo-950 border-indigo-100",
-    chipActive: "bg-indigo-600 text-white border-indigo-600 shadow-sm",
-    panel: "from-indigo-50/80 to-white",
-    dot: "bg-indigo-500",
-    chartBar: "#4f46e5",
-    chartSoft: "#e0e7ff",
-    cardBorder: "border-l-indigo-500",
+    chip: "border-violet-200/80 bg-gradient-to-br from-violet-50 to-indigo-50/50 text-violet-950",
+    chipActive:
+      "border-violet-400 bg-gradient-to-br from-violet-100 to-indigo-50 text-violet-950 shadow-sm shadow-violet-200/60 ring-1 ring-violet-300/50 border-l-[3px] border-l-violet-500",
+    panel: "from-violet-50/90 via-indigo-50/40 to-white",
+    dot: "bg-violet-500 shadow-[0_0_0_3px_rgba(139,92,246,0.18)]",
+    chartBar: "#7c3aed",
+    chartSoft: "#ede9fe",
+    cardBorder: "border-l-violet-500",
   },
   {
-    chip: "bg-teal-50 text-teal-950 border-teal-100",
-    chipActive: "bg-teal-600 text-white border-teal-600 shadow-sm",
-    panel: "from-teal-50/80 to-white",
-    dot: "bg-teal-500",
-    chartBar: "#0d9488",
-    chartSoft: "#ccfbf1",
-    cardBorder: "border-l-teal-500",
+    chip: "border-emerald-200/80 bg-gradient-to-br from-emerald-50 to-teal-50/50 text-emerald-950",
+    chipActive:
+      "border-emerald-400 bg-gradient-to-br from-emerald-100 to-teal-50 text-emerald-950 shadow-sm shadow-emerald-200/60 ring-1 ring-emerald-300/50 border-l-[3px] border-l-emerald-500",
+    panel: "from-emerald-50/90 via-teal-50/40 to-white",
+    dot: "bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.18)]",
+    chartBar: "#059669",
+    chartSoft: "#d1fae5",
+    cardBorder: "border-l-emerald-500",
   },
   {
-    chip: "bg-fuchsia-50 text-fuchsia-950 border-fuchsia-100",
-    chipActive: "bg-fuchsia-600 text-white border-fuchsia-600 shadow-sm",
-    panel: "from-fuchsia-50/70 to-white",
-    dot: "bg-fuchsia-500",
-    chartBar: "#c026d3",
-    chartSoft: "#fae8ff",
-    cardBorder: "border-l-fuchsia-500",
+    chip: "border-rose-200/80 bg-gradient-to-br from-rose-50 to-orange-50/40 text-rose-950",
+    chipActive:
+      "border-rose-400 bg-gradient-to-br from-rose-100 to-orange-50 text-rose-950 shadow-sm shadow-rose-200/60 ring-1 ring-rose-300/50 border-l-[3px] border-l-rose-500",
+    panel: "from-rose-50/90 via-orange-50/35 to-white",
+    dot: "bg-rose-500 shadow-[0_0_0_3px_rgba(244,63,94,0.16)]",
+    chartBar: "#e11d48",
+    chartSoft: "#ffe4e6",
+    cardBorder: "border-l-rose-500",
   },
   {
-    chip: "bg-slate-50 text-slate-900 border-slate-200",
-    chipActive: "bg-slate-700 text-white border-slate-700 shadow-sm",
-    panel: "from-slate-50/80 to-white",
-    dot: "bg-slate-500",
-    chartBar: "#64748b",
-    chartSoft: "#f1f5f9",
-    cardBorder: "border-l-slate-400",
+    chip: "border-amber-200/80 bg-gradient-to-br from-amber-50 to-yellow-50/50 text-amber-950",
+    chipActive:
+      "border-amber-400 bg-gradient-to-br from-amber-100 to-yellow-50 text-amber-950 shadow-sm shadow-amber-200/60 ring-1 ring-amber-300/50 border-l-[3px] border-l-amber-500",
+    panel: "from-amber-50/90 via-yellow-50/40 to-white",
+    dot: "bg-amber-500 shadow-[0_0_0_3px_rgba(245,158,11,0.18)]",
+    chartBar: "#d97706",
+    chartSoft: "#fef3c7",
+    cardBorder: "border-l-amber-500",
   },
 ];
 
@@ -247,154 +237,6 @@ function buildGroups(scope: EditableScopeSnapshot): MetricGroup[] {
   }));
 }
 
-function MetricChart({
-  metric,
-  height = 140,
-  compact = false,
-  chartColors,
-}: {
-  metric: EditableMetricSnapshot;
-  height?: number;
-  compact?: boolean;
-  chartColors?: { bar: string; soft: string };
-}) {
-  const fallback = statusAccent(metric.status);
-  const bar = chartColors?.bar ?? fallback.bar;
-  const soft = chartColors?.soft ?? fallback.soft;
-  const data = metric.series.map((p) => ({
-    m: p.month,
-    have: p.actual,
-    goal: p.target ?? undefined,
-  }));
-  const tip = compact ? null : (
-    <Tooltip
-      contentStyle={{
-        borderRadius: 10,
-        fontSize: 12,
-        border: "1px solid #e8e4ef",
-        boxShadow: "0 8px 24px rgba(46,16,101,0.08)",
-      }}
-    />
-  );
-  const tick = { fontSize: compact ? 10 : 11, fill: "#94a3b8" };
-
-  if (metric.def.chart === "bar" || metric.def.chart === "scatter") {
-    return (
-      <ResponsiveContainer width="100%" height={height}>
-        <BarChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-          {!compact ? <CartesianGrid strokeDasharray="3 3" stroke="#f3f0f8" vertical={false} /> : null}
-          <XAxis dataKey="m" tick={tick} axisLine={false} tickLine={false} />
-          {!compact ? (
-            <YAxis tick={tick} width={36} axisLine={false} tickLine={false} />
-          ) : null}
-          {tip}
-          <Bar dataKey="have" fill={bar} radius={[3, 3, 0, 0]} name="Have" />
-          {!compact ? (
-            <Bar dataKey="goal" fill="#e2e8f0" radius={[3, 3, 0, 0]} name="Goal" />
-          ) : null}
-        </BarChart>
-      </ResponsiveContainer>
-    );
-  }
-
-  if (metric.def.chart === "area") {
-    return (
-      <ResponsiveContainer width="100%" height={height}>
-        <AreaChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-          {!compact ? <CartesianGrid strokeDasharray="3 3" stroke="#f3f0f8" vertical={false} /> : null}
-          <XAxis dataKey="m" tick={tick} axisLine={false} tickLine={false} />
-          {!compact ? (
-            <YAxis tick={tick} width={36} axisLine={false} tickLine={false} />
-          ) : null}
-          {tip}
-          <Area type="monotone" dataKey="have" stroke={bar} fill={soft} name="Have" />
-          {!compact ? (
-            <Line
-              type="monotone"
-              dataKey="goal"
-              stroke="#94a3b8"
-              strokeDasharray="4 4"
-              dot={false}
-              name="Goal"
-            />
-          ) : null}
-        </AreaChart>
-      </ResponsiveContainer>
-    );
-  }
-
-  return (
-    <ResponsiveContainer width="100%" height={height}>
-      <LineChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-        {!compact ? <CartesianGrid strokeDasharray="3 3" stroke="#f3f0f8" vertical={false} /> : null}
-        <XAxis dataKey="m" tick={tick} axisLine={false} tickLine={false} />
-        {!compact ? (
-          <YAxis tick={tick} width={36} axisLine={false} tickLine={false} />
-        ) : null}
-        {tip}
-        <Line
-          type="monotone"
-          dataKey="have"
-          stroke={bar}
-          strokeWidth={compact ? 1.75 : 2.25}
-          dot={compact ? false : { r: 3, fill: bar }}
-          name="Have"
-        />
-        {!compact ? (
-          <Line
-            type="monotone"
-            dataKey="goal"
-            stroke="#94a3b8"
-            strokeDasharray="4 4"
-            dot={false}
-            name="Goal"
-          />
-        ) : null}
-      </LineChart>
-    </ResponsiveContainer>
-  );
-}
-
-function MonthlyTargetsTable({ metric }: { metric: EditableMetricSnapshot }) {
-  const m = metric.def;
-  const months = ["M1", "M2", "M3", "M4", "M5", "M6"];
-  return (
-    <div className="overflow-x-auto rounded-[12px] border border-line-card bg-surface">
-      <table className="w-full min-w-[420px] border-collapse text-left text-[13px]">
-        <thead>
-          <tr className="border-b border-line-card bg-surface-soft">
-            <th className="px-3 py-2 font-semibold text-ink-muted">Month</th>
-            {months.map((mo) => (
-              <th key={mo} className="px-2 py-2 text-center font-semibold text-ink-muted">
-                {mo}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td className="px-3 py-2 font-medium text-ink">Target</td>
-            {months.map((mo, i) => {
-              const display = m.targetDisplay?.[i];
-              const num = m.monthlyTargets[i];
-              const cell =
-                display ??
-                (m.noTarget || num == null
-                  ? "—"
-                  : fmt(m.unit, num));
-              return (
-                <td key={mo} className="px-2 py-2 text-center tabular-nums text-ink">
-                  {cell}
-                </td>
-              );
-            })}
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
 type DetailState = {
   scope: MetricsScope;
   categoryId: string;
@@ -439,10 +281,10 @@ function MetricDetailModal({
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[
-            { k: "Have", v: fmt(m.unit, metric.actual) },
+            { k: "Performance", v: formatMetricValue(m.unit, metric.actual) },
             {
-              k: "Goal",
-              v: metric.target != null && !m.noTarget ? fmt(m.unit, metric.target) : "—",
+              k: "Expectation",
+              v: metric.target != null && !m.noTarget ? formatMetricValue(m.unit, metric.target) : "—",
             },
             {
               k: "Pace",
@@ -476,14 +318,14 @@ function MetricDetailModal({
           <p className="m-0 mb-2 text-[12px] font-semibold uppercase tracking-[0.05em] text-ink-muted">
             Monthly targets (M1–M6)
           </p>
-          <MonthlyTargetsTable metric={metric} />
+          <MetricMonthlyTargetsTable metric={metric} />
         </div>
 
         <div className="rounded-[12px] border border-line-card bg-surface px-2 py-3">
-          <MetricChart
+          <MetricPerformanceChart
             metric={metric}
             height={220}
-            chartColors={{ bar: headerAccent.bar, soft: headerAccent.soft }}
+            performanceColor={headerAccent.bar}
           />
         </div>
 
@@ -540,23 +382,23 @@ function MetricCard({
 
       <div className="mt-3 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
         <span className="text-[22px] font-bold tabular-nums tracking-tight text-ink">
-          {fmt(metric.def.unit, metric.actual)}
+          {formatMetricValue(metric.def.unit, metric.actual)}
         </span>
         <span className="text-[12px] text-ink-muted">
           {metric.def.targetLabel.trim()
             ? `Target: ${metric.def.targetLabel}`
             : metric.target != null && !metric.def.noTarget
-              ? `/ ${fmt(metric.def.unit, metric.target)}`
+              ? `/ ${formatMetricValue(metric.def.unit, metric.target)}`
               : "/ —"}
         </span>
       </div>
 
       <div className="mt-2 -mx-1 rounded-lg px-1" style={{ background: `${accent.soft}99` }}>
-        <MetricChart
+        <MetricPerformanceChart
           metric={metric}
-          height={84}
+          height={112}
           compact
-          chartColors={{ bar: accent.bar, soft: accent.soft }}
+          performanceColor={accent.bar}
         />
       </div>
     </button>
@@ -611,7 +453,6 @@ function StatusStrip({ metrics }: { metrics: EditableMetricSnapshot[] }) {
 const TABS: Array<{ scope: MetricsScope; label: string }> = [
   { scope: "org", label: "Organization" },
   { scope: "chapter_president", label: "Chapters" },
-  { scope: "instructor", label: "Instructor" },
 ];
 
 export function MetricsHubView({
@@ -685,14 +526,14 @@ export function MetricsHubView({
         <p className="m-0 text-[13px] text-ink-muted">
           Targets and pace for {monthLabel ?? `Month ${chapterMonth}`}
           {tab === "chapter_president"
-            ? " — pick a chapter on the left."
+            ? " — pick a chapter, then review chapter and instructor metrics."
             : " — pick a group on the left."}
         </p>
         <StatusStrip metrics={allMetrics} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
-        <aside className="flex flex-col gap-2">
+        <aside className="flex flex-col gap-2.5">
           {groups.map((g) => {
             const on = selected?.id === g.id;
             return (
@@ -701,16 +542,18 @@ export function MetricsHubView({
                 type="button"
                 onClick={() => setGroupId(g.id)}
                 className={cn(
-                  "rounded-[12px] border px-3 py-3 text-left transition",
-                  on ? g.accent.chipActive : cn(g.accent.chip, "hover:brightness-[0.98]")
+                  "rounded-[14px] border px-3.5 py-3.5 text-left transition-all duration-200",
+                  on
+                    ? g.accent.chipActive
+                    : cn(g.accent.chip, "hover:-translate-y-px hover:shadow-sm")
                 )}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[13.5px] font-bold">{g.label}</span>
+                  <span className="text-[13.5px] font-bold tracking-tight">{g.label}</span>
                   <span
                     className={cn(
-                      "rounded-full px-1.5 py-0.5 text-[11px] font-bold tabular-nums",
-                      on ? "bg-white/20 text-white" : "bg-white/70 text-ink"
+                      "rounded-full px-2 py-0.5 text-[11px] font-bold tabular-nums",
+                      on ? "bg-black/5 text-ink" : "bg-white/80 text-ink/80"
                     )}
                   >
                     {g.metrics.length}
@@ -718,13 +561,13 @@ export function MetricsHubView({
                 </div>
                 <p
                   className={cn(
-                    "m-0 mt-1 line-clamp-2 text-[12px] leading-snug",
-                    on ? "text-white/85" : "text-ink-muted"
+                    "m-0 mt-1.5 line-clamp-2 text-[12px] leading-snug",
+                    on ? "text-ink-muted" : "text-ink-muted"
                   )}
                 >
                   {g.blurb}
                 </p>
-                <div className="mt-2">
+                <div className="mt-2.5">
                   <StatusBadge tone={tone(g.status)}>{statusLabel(g.status)}</StatusBadge>
                 </div>
               </button>
@@ -756,8 +599,22 @@ export function MetricsHubView({
               </div>
               {selected.categories ? (
                 <div className="flex flex-col gap-6">
-                  {selected.categories.map((cat) => (
+                  {selected.categories.map((cat, index) => {
+                    const showInstructorSection =
+                      cat.def.scope === "instructor" &&
+                      selected.categories?.[index - 1]?.def.scope === "chapter_president";
+                    return (
                     <div key={cat.def.id}>
+                      {showInstructorSection ? (
+                        <div className="mb-4 border-t border-line-card pt-5">
+                          <h3 className="m-0 text-[13px] font-bold uppercase tracking-[0.06em] text-ink-muted">
+                            Instructor metrics
+                          </h3>
+                          <p className="m-0 mt-1 text-[13px] text-ink-muted">
+                            Per-instructor quality, teaching impact, and growth within this chapter.
+                          </p>
+                        </div>
+                      ) : null}
                       <div className="mb-3">
                         <h3 className="m-0 text-[15px] font-bold text-ink">{cat.def.label}</h3>
                         <p className="m-0 mt-0.5 text-[13px] text-ink-muted">{cat.def.description}</p>
@@ -777,7 +634,7 @@ export function MetricsHubView({
                             metric={metric}
                             onOpen={() =>
                               setDetail({
-                                scope: active.scope,
+                                scope: cat.def.scope,
                                 categoryId: cat.def.id,
                                 metric,
                                 groupAccent: selected.accent,
@@ -787,7 +644,8 @@ export function MetricsHubView({
                         ))}
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="grid gap-3 sm:grid-cols-2">

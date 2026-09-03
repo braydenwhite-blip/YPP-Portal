@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useFormState, useFormStatus } from "react-dom";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useFormStatus } from "react-dom";
+import { useActionState, useCallback, useEffect, useRef, useState } from "react";
 
 import BrandLockup from "@/components/brand-lockup";
 import SpamFolderNotice from "@/components/spam-folder-notice";
@@ -19,6 +19,16 @@ import { signUp } from "@/lib/signup-actions";
 import type { SignupFormState } from "@/lib/signup-form-utils";
 
 const initialState: SignupFormState = { status: "idle" as const, message: "" };
+
+function shouldShowSpamFolderNotice(state: SignupFormState): boolean {
+  if (state.status === "error" && state.message === "ACCOUNT_EXISTS_SIGNIN_REQUIRED") {
+    return true;
+  }
+  if (state.status === "success" && state.message !== "APPLICATION_SUBMITTED") {
+    return /email|inbox/i.test(state.message);
+  }
+  return false;
+}
 
 /** Submit button bound to the parent <form>'s pending state via useFormStatus. */
 function SubmitButton({ label }: { label: string }) {
@@ -132,7 +142,7 @@ const HELPER: React.CSSProperties = {
 };
 
 export default function InstructorSignupPage() {
-  const [state, formAction] = useFormState(signUp, initialState);
+  const [state, formAction] = useActionState(signUp, initialState);
   const [chapters, setChapters] = useState<Array<{ id: string; name: string }>>([]);
   const [activeSection, setActiveSection] = useState(1);
   const [formKey, setFormKey] = useState(0);
@@ -313,8 +323,6 @@ export default function InstructorSignupPage() {
         <h1 style={{ fontSize: 26, fontWeight: 700, margin: "0 0 8px" }}>
           {isSummerWorkshop ? "Apply to be a YPP Summer Workshop Instructor." : "Apply to become a YPP instructor."}
         </h1>
-
-        <SpamFolderNotice style={{ margin: "16px 0 24px" }} />
 
         {/* Track selector */}
         {!REGULAR_INSTRUCTOR_ENABLED ? (
@@ -851,6 +859,10 @@ export default function InstructorSignupPage() {
                 </div>
               );
             })()
+          ) : null}
+
+          {shouldShowSpamFolderNotice(state) ? (
+            <SpamFolderNotice style={{ marginTop: 16 }} />
           ) : null}
 
           <SubmitButton
