@@ -45,7 +45,7 @@ export default async function AdminMetricsPage({
         <PageHeaderV2
           eyebrow="Admin"
           title="Metrics"
-          subtitle="Full org, chapter, and instructor trackers. Admins can edit any metric, owner, and M1–M6 target."
+          subtitle="Full org and chapter trackers — chapter leadership plus instructor metrics per chapter. Admins can edit any metric, owner, and M1–M6 target."
           actions={<ChapterMonthNav month={calendarMonth} />}
         />
 

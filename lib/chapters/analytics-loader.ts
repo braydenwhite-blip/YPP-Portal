@@ -426,7 +426,7 @@ export async function loadChapterAnalyticsLeaderboard(
   const asOfKey = `${asOf.getUTCFullYear()}-${String(asOf.getUTCMonth() + 1).padStart(2, "0")}`;
   const prior = new Date(Date.UTC(asOf.getUTCFullYear(), asOf.getUTCMonth(), 0, 23, 59, 59, 999));
 
-  // Ensure the four operating chapters exist before ranking.
+  // Ensure the operating chapters exist before ranking.
   await ensureOperatingChapters();
 
   const chapters = await prisma.chapter.findMany({

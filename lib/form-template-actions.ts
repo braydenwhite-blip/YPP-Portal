@@ -73,6 +73,7 @@ export async function deleteFormTemplate(formData: FormData) {
 
   await prisma.applicationFormTemplate.delete({ where: { id } });
   revalidatePath("/admin/form-templates");
+  revalidatePath("/signup/instructor");
 }
 
 export async function addFormField(formData: FormData) {
@@ -163,4 +164,5 @@ export async function reorderFormFields(templateId: string, fieldIds: string[]) 
   );
 
   revalidatePath("/admin/form-templates");
+  revalidatePath("/signup/instructor");
 }

@@ -22,7 +22,13 @@ const prisma = new PrismaClient();
 
 const SEED_PATHWAY_NAME = "Psychology Pathway";
 
-async function findOrCreateChapter(input: { name: string; city: string; region: string }) {
+async function findOrCreateChapter(input: {
+  name: string;
+  city: string;
+  region: string;
+  state?: string;
+  country?: string;
+}) {
   const existing = await prisma.chapter.findFirst({ where: { name: input.name } });
   if (existing) return existing;
   return prisma.chapter.create({ data: input });
@@ -203,6 +209,13 @@ async function main() {
     name: "Brooklyn Bay Ridge",
     city: "Brooklyn",
     region: "Northeast",
+  });
+  await findOrCreateChapter({
+    name: "Frisco",
+    city: "Frisco",
+    region: "South",
+    state: "TX",
+    country: "United States",
   });
 
   await prisma.user.upsert({

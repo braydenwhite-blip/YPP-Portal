@@ -9,6 +9,7 @@ export const OPERATING_CHAPTERS = [
   { name: "Scarsdale", city: "Scarsdale", region: "Northeast" },
   { name: "Lower Manhattan", city: "New York", region: "Northeast" },
   { name: "Brooklyn Bay Ridge", city: "Brooklyn", region: "Northeast" },
+  { name: "Frisco", city: "Frisco", region: "South", state: "TX", country: "United States" },
 ] as const;
 
 export const OPERATING_CHAPTER_NAMES = OPERATING_CHAPTERS.map((c) => c.name);
@@ -26,6 +27,8 @@ export function operatingChapterNameAliases(name: OperatingChapterName): string[
       return ["Lower Manhattan", "Manhattan"];
     case "Brooklyn Bay Ridge":
       return ["Brooklyn Bay Ridge", "Bay Ridge", "Brooklyn"];
+    case "Frisco":
+      return ["Frisco", "Frisco TX", "Frisco, TX", "Frisco Texas"];
     default:
       return [name];
   }
@@ -64,6 +67,15 @@ export function inferOperatingChapterName(
     normalized.includes("brooklyn")
   ) {
     return "Brooklyn Bay Ridge";
+  }
+  if (
+    normalized === "frisco" ||
+    normalized === "frisco tx" ||
+    normalized === "frisco, tx" ||
+    normalized === "frisco texas" ||
+    normalized.includes("frisco")
+  ) {
+    return "Frisco";
   }
   return null;
 }

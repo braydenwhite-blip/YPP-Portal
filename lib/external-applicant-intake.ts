@@ -315,8 +315,20 @@ export async function createExternalInstructorApplicant(
     createdById: importedById,
   });
 
+  // Waitlist pool — skip when admin already scheduled an interview (board-ready).
+  if (!interviewScheduledAt) {
+    try {
+      const { appendHiringWaitlistKey } = await import("@/lib/hiring-waitlist/order-store");
+      const { waitlistKey } = await import("@/lib/hiring-waitlist/types");
+      await appendHiringWaitlistKey(waitlistKey("instructor", application.id));
+    } catch (waitlistErr) {
+      console.error("[createExternalInstructorApplicant] waitlist append failed", waitlistErr);
+    }
+  }
+
   // 4) Cache invalidation so the admin board reflects the new applicant.
   revalidatePath("/admin/instructor-applicants");
+  revalidatePath("/admin/applicants/waitlist");
   revalidatePath("/admin/applications");
   revalidatePath("/admin/external-applicants");
   revalidatePath(`/applications/instructor/${application.id}`);

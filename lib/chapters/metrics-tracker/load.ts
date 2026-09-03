@@ -139,8 +139,67 @@ function chapterSlug(name: string): string {
   return name.toLowerCase().replace(/\s+/g, "-");
 }
 
-async function loadChapterGroups(
+function normalizeOwnerName(name: string): string {
+  return name.trim().toLowerCase();
+}
+
+function ownerMatchesPerson(metricOwner: string, personName: string): boolean {
+  const person = normalizeOwnerName(personName);
+  if (!person) return false;
+  return normalizeOwnerName(metricOwner) === person;
+}
+
+function isInstructorTemplateOwner(owner: string): boolean {
+  return normalizeOwnerName(owner) === "instructor";
+}
+
+function rowAssignedToPerson(
+  row: DbMetricRow,
+  personName: string,
+  includeInstructorTemplate: boolean
+): boolean {
+  if (ownerMatchesPerson(row.owner, personName)) return true;
+  return (
+    includeInstructorTemplate &&
+    row.scope === "instructor" &&
+    isInstructorTemplateOwner(row.owner)
+  );
+}
+
+function metricDefForPerson(row: DbMetricRow, personName: string): MetricDef {
+  const def = rowToMetricDef(row);
+  if (row.scope === "instructor" && isInstructorTemplateOwner(row.owner)) {
+    return { ...def, owner: personName.trim() || def.owner };
+  }
+  return def;
+}
+
+function assignedMetricsForCategory(
   rows: DbMetricRow[],
+  category: CategoryDef,
+  chapterMonth: number,
+  personId: string,
+  personName: string,
+  includeInstructorTemplate: boolean
+): EditableMetricSnapshot[] {
+  const seed = `person:${personId}`;
+  return rows
+    .filter((r) => r.categoryId === category.id)
+    .filter((r) => rowAssignedToPerson(r, personName, includeInstructorTemplate))
+    .map((r) =>
+      snapshotMetric(metricDefForPerson(r, personName), chapterMonth, r.id, seed)
+    );
+}
+
+const PERSON_SCOPE_ORDER: MetricsScope[] = ["org", "chapter_president", "instructor"];
+
+export type PersonMetricsCategorySnapshot = EditableCategorySnapshot & {
+  scope: MetricsScope;
+};
+
+async function loadChapterGroups(
+  cpRows: DbMetricRow[],
+  instructorRows: DbMetricRow[],
   chapterMonth: number
 ): Promise<EditableChapterGroupSnapshot[]> {
   const dbChapters = await ensureOperatingChapters();
@@ -148,9 +207,9 @@ async function loadChapterGroups(
 
   return OPERATING_CHAPTERS.map((chapter) => {
     const chapterKey = chapter.name;
-    const categories: EditableCategorySnapshot[] = categoriesForScope("chapter_president").map(
+    const cpCategories: EditableCategorySnapshot[] = categoriesForScope("chapter_president").map(
       (def) => {
-        const metrics = metricsForCategory(rows, def, chapterMonth, chapterKey);
+        const metrics = metricsForCategory(cpRows, def, chapterMonth, chapterKey);
         return {
           def,
           status: rollupStatus(metrics.map((m) => m.status)),
@@ -159,6 +218,18 @@ async function loadChapterGroups(
         };
       }
     );
+    const instructorCategories: EditableCategorySnapshot[] = categoriesForScope("instructor").map(
+      (def) => {
+        const metrics = metricsForCategory(instructorRows, def, chapterMonth, chapterKey);
+        return {
+          def,
+          status: rollupStatus(metrics.map((m) => m.status)),
+          percentOfTarget: rollupPercent(metrics),
+          metrics,
+        };
+      }
+    );
+    const categories = [...cpCategories, ...instructorCategories];
     const allMetrics = categories.flatMap((c) => c.metrics);
 
     return {
@@ -178,10 +249,11 @@ export async function loadScopeSnapshot(
 ): Promise<EditableScopeSnapshot> {
   const chapterMonth = opts.chapterMonth ?? 3;
   const meta = SCOPE_META[scope];
-  const rows = await listActiveMetricsForScope(scope);
 
   if (scope === "chapter_president") {
-    const chapterGroups = await loadChapterGroups(rows, chapterMonth);
+    const cpRows = await listActiveMetricsForScope("chapter_president");
+    const instructorRows = await listActiveMetricsForScope("instructor");
+    const chapterGroups = await loadChapterGroups(cpRows, instructorRows, chapterMonth);
     const categories = chapterGroups[0]?.categories ?? [];
 
     return {
@@ -195,6 +267,7 @@ export async function loadScopeSnapshot(
     };
   }
 
+  const rows = await listActiveMetricsForScope(scope);
   const categories: EditableCategorySnapshot[] = categoriesForScope(scope).map((def) => {
     const metrics = metricsForCategory(rows, def, chapterMonth);
     return {
@@ -221,7 +294,7 @@ export async function loadMetricsHub(opts: { chapterMonth?: number } = {}): Prom
 }> {
   const chapterMonth = opts.chapterMonth ?? 3;
   const scopes = await Promise.all(
-    (["org", "chapter_president", "instructor"] as MetricsScope[]).map((scope) =>
+    (["org", "chapter_president"] as MetricsScope[]).map((scope) =>
       loadScopeSnapshot(scope, { chapterMonth })
     )
   );
@@ -238,40 +311,75 @@ export async function loadCategoryDetail(
 }
 
 /**
- * Instructor metrics for one person (mentorship Metrics tab).
- * Seeded by personId so each mentee’s charts differ; owner is their name.
+ * Metrics assigned to one person (mentorship Metrics tab).
+ * Includes org/chapter rows whose owner matches their name, plus instructor-track
+ * template metrics when requested.
  */
+export async function loadPersonAssignedMetrics(
+  personId: string,
+  opts: {
+    chapterMonth?: number;
+    personName?: string;
+    /** Include generic instructor-catalog metrics for instructor-track people. */
+    includeInstructorTemplate?: boolean;
+  } = {}
+): Promise<{ categories: PersonMetricsCategorySnapshot[]; status: PaceStatus }> {
+  const chapterMonth = opts.chapterMonth ?? 3;
+  const personName = opts.personName?.trim() ?? "";
+  const includeInstructorTemplate = opts.includeInstructorTemplate ?? true;
+
+  const rowsByScope = await Promise.all(
+    PERSON_SCOPE_ORDER.map(async (scope) => ({
+      scope,
+      rows: await listActiveMetricsForScope(scope),
+    }))
+  );
+
+  const categories: PersonMetricsCategorySnapshot[] = [];
+
+  for (const { scope, rows } of rowsByScope) {
+    for (const catDef of categoriesForScope(scope)) {
+      const metrics = assignedMetricsForCategory(
+        rows,
+        catDef,
+        chapterMonth,
+        personId,
+        personName,
+        includeInstructorTemplate
+      );
+      if (metrics.length === 0) continue;
+      categories.push({
+        def: catDef,
+        scope,
+        status: rollupStatus(metrics.map((m) => m.status)),
+        percentOfTarget: rollupPercent(metrics),
+        metrics,
+      });
+    }
+  }
+
+  return {
+    categories,
+    status: rollupStatus(categories.map((c) => c.status)),
+  };
+}
+
+/** @deprecated Use loadPersonAssignedMetrics */
 export async function loadPersonInstructorMetrics(
   personId: string,
   opts: { chapterMonth?: number; personName?: string } = {}
 ): Promise<EditableScopeSnapshot> {
-  const chapterMonth = opts.chapterMonth ?? 3;
-  const ownerName = opts.personName?.trim() || "Instructor";
   const meta = SCOPE_META.instructor;
-  const rows = await listActiveMetricsForScope("instructor");
-  const categories: EditableCategorySnapshot[] = categoriesForScope("instructor").map(
-    (def) => {
-      const metrics = metricsForCategory(rows, def, chapterMonth, `person:${personId}`).map(
-        (m) => ({
-          ...m,
-          def: { ...m.def, owner: ownerName },
-        })
-      );
-      return {
-        def: { ...def, owner: ownerName },
-        status: rollupStatus(metrics.map((m) => m.status)),
-        percentOfTarget: rollupPercent(metrics),
-        metrics,
-      };
-    }
-  );
-
+  const { categories, status } = await loadPersonAssignedMetrics(personId, {
+    ...opts,
+    includeInstructorTemplate: true,
+  });
   return {
     scope: "instructor",
     label: meta.label,
     blurb: meta.blurb,
     icon: meta.icon,
-    status: rollupStatus(categories.map((c) => c.status)),
+    status,
     categories,
   };
 }

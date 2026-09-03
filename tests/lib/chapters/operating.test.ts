@@ -16,8 +16,9 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-const FOUR = [
+const FIVE = [
   "Brooklyn Bay Ridge",
+  "Frisco",
   "Lower Manhattan",
   "Scarsdale",
   "The Bronx",
@@ -29,23 +30,24 @@ describe("operating chapters", () => {
     vi.resetModules();
   });
 
-  it("creates all four operating chapters when missing", async () => {
+  it("creates all five operating chapters when missing", async () => {
     findFirst.mockResolvedValue(null);
     create
       .mockResolvedValueOnce({ id: "bronx", name: "The Bronx", isPublic: true })
       .mockResolvedValueOnce({ id: "scarsdale", name: "Scarsdale", isPublic: true })
       .mockResolvedValueOnce({ id: "lm", name: "Lower Manhattan", isPublic: true })
-      .mockResolvedValueOnce({ id: "bbr", name: "Brooklyn Bay Ridge", isPublic: true });
+      .mockResolvedValueOnce({ id: "bbr", name: "Brooklyn Bay Ridge", isPublic: true })
+      .mockResolvedValueOnce({ id: "frisco", name: "Frisco", isPublic: true });
 
     const { ensureOperatingChapters, OPERATING_CHAPTER_NAMES } = await import(
       "@/lib/chapters/operating"
     );
 
-    expect([...OPERATING_CHAPTER_NAMES].sort()).toEqual(FOUR);
+    expect([...OPERATING_CHAPTER_NAMES].sort()).toEqual(FIVE);
 
     const rows = await ensureOperatingChapters();
-    expect(create).toHaveBeenCalledTimes(4);
-    expect(rows.map((r) => r.name).sort()).toEqual(FOUR);
+    expect(create).toHaveBeenCalledTimes(5);
+    expect(rows.map((r) => r.name).sort()).toEqual(FIVE);
   });
 
   it("normalizes a short Bronx name to The Bronx", async () => {
@@ -77,6 +79,13 @@ describe("operating chapters", () => {
         isPublic: true,
         archivedAt: null,
         lifecycleStatus: "ACTIVE",
+      })
+      .mockResolvedValueOnce({
+        id: "frisco",
+        name: "Frisco",
+        isPublic: true,
+        archivedAt: null,
+        lifecycleStatus: "ACTIVE",
       });
     update.mockResolvedValue({ id: "bronx", name: "The Bronx", isPublic: true });
 
@@ -92,10 +101,13 @@ describe("operating chapters", () => {
     expect(rows.some((r) => r.name === "The Bronx")).toBe(true);
   });
 
-  it("infers Lower Manhattan and Brooklyn Bay Ridge", async () => {
+  it("infers Lower Manhattan, Brooklyn Bay Ridge, and Frisco", async () => {
     const { inferOperatingChapterName } = await import("@/lib/chapters/operating");
     expect(inferOperatingChapterName("manhattan")).toBe("Lower Manhattan");
     expect(inferOperatingChapterName("Bay Ridge")).toBe("Brooklyn Bay Ridge");
     expect(inferOperatingChapterName("Brooklyn")).toBe("Brooklyn Bay Ridge");
+    expect(inferOperatingChapterName("Frisco")).toBe("Frisco");
+    expect(inferOperatingChapterName("Frisco, TX")).toBe("Frisco");
+    expect(inferOperatingChapterName("frisco texas")).toBe("Frisco");
   });
 });
