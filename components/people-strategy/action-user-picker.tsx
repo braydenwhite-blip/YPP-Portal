@@ -99,8 +99,8 @@ export function ActionUserPicker({
             {label}
             {required ? <span className="text-brand-600"> *</span> : null}
           </label>
-          {selectedUsers.length > 0 ? (
-            <span className="text-[12px] text-ink-muted">First person is the lead</span>
+          {selectedUsers.length > 0 && !single ? (
+            <span className="text-[12px] text-ink-muted">Add anyone who should execute</span>
           ) : null}
         </div>
 
@@ -115,7 +115,7 @@ export function ActionUserPicker({
                 <span className="min-w-0 truncate text-[13px] font-medium text-ink">
                   {displayName(u)}
                 </span>
-                {index === 0 ? (
+                {single && index === 0 ? (
                   <span className="shrink-0 rounded-full bg-brand-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-brand-700">
                     Lead
                   </span>
@@ -132,7 +132,11 @@ export function ActionUserPicker({
             ))}
           </div>
         ) : (
-          <p className="m-0 text-[13px] text-ink-muted">Search and add everyone who should see this.</p>
+          <p className="m-0 text-[13px] text-ink-muted">
+            {single
+              ? "Search and pick one accountable lead — nobody is selected yet."
+              : "Search and add people who should execute."}
+          </p>
         )}
 
         <input

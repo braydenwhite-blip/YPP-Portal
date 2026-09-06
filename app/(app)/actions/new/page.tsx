@@ -140,9 +140,7 @@ export default async function NewActionInTrackerPage({
   const suggestedOwnerId =
     ctx.suggestedOwnerId && users.some((u) => u.id === ctx.suggestedOwnerId)
       ? ctx.suggestedOwnerId
-      : !chapterCtx.isLeadership && users.some((u) => u.id === viewer.id)
-        ? viewer.id
-        : null;
+      : null;
 
   const prefillInitial: ActionItemFormInitial = {
     ...(titleParam ? { title: titleParam } : {}),
