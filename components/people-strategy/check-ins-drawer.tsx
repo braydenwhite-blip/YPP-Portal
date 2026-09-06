@@ -148,7 +148,7 @@ function MonthRow({
           ? "border-[#f5d0a8] bg-[#fffbf5]"
           : month.readiness.suggestRecompile
             ? "border-[#dcd4f5] bg-[#faf7ff]"
-            : "border-[#ebebf2] bg-white"
+            : "border-[#ebebf2] bg-surface"
       )}
     >
       <div className="flex items-start justify-between gap-3">
@@ -209,7 +209,7 @@ function MonthRow({
             <button
               type="button"
               onClick={onRequestFeedback}
-              className="rounded-lg border border-[#dcd4f5] bg-white px-2.5 py-1 text-[11.5px] font-semibold text-[#5a1da8] hover:bg-[#f5f0ff]"
+              className="rounded-lg border border-[#dcd4f5] bg-surface px-2.5 py-1 text-[11.5px] font-semibold text-[#5a1da8] hover:bg-[#f5f0ff]"
             >
               Request feedback
             </button>
@@ -459,7 +459,7 @@ export function CheckInsDrawer({
               {snapshot.personHref ? (
                 <Link
                   href={snapshot.personHref}
-                  className="inline-flex items-center rounded-lg border border-[#ebebf2] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#1c1a2e] no-underline hover:bg-[#fafafd]"
+                  className="inline-flex items-center rounded-lg border border-[#ebebf2] bg-surface px-3 py-1.5 text-[12px] font-semibold text-[#1c1a2e] no-underline hover:bg-[#fafafd]"
                 >
                   Person record →
                 </Link>

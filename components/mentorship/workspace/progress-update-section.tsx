@@ -371,7 +371,7 @@ export async function ProgressUpdateSection({
           <div className="flex flex-wrap items-center gap-2">
             <a
               href={activePdfHref}
-              className="inline-flex min-h-8 items-center justify-center rounded-full border border-line-soft bg-white px-3.5 text-[12.5px] font-semibold text-ink no-underline hover:border-brand-300 hover:text-brand-800"
+              className="inline-flex min-h-8 items-center justify-center rounded-full border border-line-soft bg-surface px-3.5 text-[12.5px] font-semibold text-ink no-underline hover:border-brand-300 hover:text-brand-800"
             >
               Print / download PDF
             </a>
@@ -562,7 +562,7 @@ export async function ProgressUpdateSection({
                       "flex flex-wrap items-center justify-between gap-2 rounded-[12px] border px-4 py-3 no-underline",
                       isActive
                         ? "border-brand-300 bg-brand-50/40"
-                        : "border-line-soft bg-white hover:border-brand-200",
+                        : "border-line-soft bg-surface hover:border-brand-200",
                     ].join(" ")}
                   >
                     <span>

@@ -34,7 +34,7 @@ function StatusPill({ status }: { status: InstructorApplicationStatus }) {
     REJECTED: { label: "Not Accepted", cls: "bg-rose-50 text-rose-700" },
     ON_HOLD: { label: "On Hold", cls: "bg-gray-100 text-gray-700" },
     WITHDRAWN: { label: "Withdrawn", cls: "bg-rose-50 text-rose-700" },
-    WAITLISTED: { label: "Waitlisted", cls: "bg-violet-50 text-violet-700" },
+    WAITLISTED: { label: "Waitlisted", cls: "bg-violet-50 text-brand-700" },
   };
   const { label, cls } = map[status] ?? { label: status, cls: "bg-gray-100 text-gray-700" };
   return (

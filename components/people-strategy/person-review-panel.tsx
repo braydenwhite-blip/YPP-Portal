@@ -142,7 +142,7 @@ export function PersonReviewPanel({
     .join(" · ");
 
   return (
-    <div className="mb-4 rounded-[12px] border border-[#ebebf2] bg-white px-4 py-3.5 shadow-[0_1px_2px_rgba(20,20,50,0.03)]">
+    <div className="mb-4 rounded-[12px] border border-[#ebebf2] bg-surface px-4 py-3.5 shadow-[0_1px_2px_rgba(20,20,50,0.03)]">
       <p className="m-0 text-[14px] font-semibold leading-snug text-[#1c1a2e]">
         {action.actionLabel}
         <span className="font-normal text-[#717189]"> · {action.reason}</span>

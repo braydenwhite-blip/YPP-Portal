@@ -109,7 +109,7 @@ export function ClassSettingsPanel({
 
       <form
         action={submit}
-        className="mt-6 space-y-6 rounded-xl border border-[#dadce0] bg-white p-5 shadow-[0_1px_2px_rgba(60,64,67,0.08)]"
+        className="mt-6 space-y-6 rounded-xl border border-[#dadce0] bg-surface p-5 shadow-[0_1px_2px_rgba(60,64,67,0.08)]"
       >
         <div>
           <p className="m-0 text-[13px] font-medium text-[#202124]">Color</p>
@@ -203,7 +203,7 @@ export function ClassSettingsPanel({
                     "min-h-9 min-w-11 rounded-full border px-3 text-[13px] font-medium transition",
                     active
                       ? "border-[#1967d2] bg-[#e8f0fe] text-[#1967d2]"
-                      : "border-[#dadce0] bg-white text-[#5f6368] hover:bg-[#f8f9fa]",
+                      : "border-[#dadce0] bg-surface text-[#5f6368] hover:bg-[#f8f9fa]",
                   ].join(" ")}
                 >
                   {day.short}

@@ -14,11 +14,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
   return (
     <div className="space-y-6">
       <header>
-        <p className="text-sm font-semibold text-violet-700">Support</p>
+        <p className="text-sm font-semibold text-brand-700">Support</p>
         <h1 className="text-3xl font-semibold">Ask YPP for help.</h1>
-        <p className="text-slate-600">Choose a reason and YPP will route it safely.</p>
+        <p className="text-ink-muted">Choose a reason and YPP will route it safely.</p>
       </header>
-      <form action={createStudentSupportRequest} className="rounded-3xl bg-white p-5 space-y-4">
+      <form action={createStudentSupportRequest} className="rounded-3xl bg-surface p-5 space-y-4">
         {sp.offeringId ? <input type="hidden" name="offeringId" value={sp.offeringId} /> : null}
         {sp.sessionId ? <input type="hidden" name="sessionId" value={sp.sessionId} /> : null}
         <label className="block">
@@ -31,21 +31,21 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
           <span className="font-semibold">Tell us what happened</span>
           <textarea name="description" required className="mt-1 min-h-28 w-full rounded-xl border p-3" />
         </label>
-        <button className="rounded-full bg-violet-700 px-4 py-2 font-semibold text-white">Send request</button>
+        <button className="rounded-full bg-brand-600 px-4 py-2 font-semibold text-white">Send request</button>
       </form>
-      <section className="rounded-3xl bg-white p-5">
+      <section className="rounded-3xl bg-surface p-5">
         <h2 className="text-xl font-semibold">Your requests</h2>
         {reqs.length ? (
           <ul className="mt-3 space-y-3">
             {reqs.map((r) => (
               <li key={r.id} className="rounded-2xl border p-3">
                 <b>{r.category}</b>
-                <p className="text-sm text-slate-600">{familySupportStatusLabel(r.externalStatus)}</p>
+                <p className="text-sm text-ink-muted">{familySupportStatusLabel(r.externalStatus)}</p>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="mt-2 text-slate-600">No support requests yet.</p>
+          <p className="mt-2 text-ink-muted">No support requests yet.</p>
         )}
       </section>
     </div>

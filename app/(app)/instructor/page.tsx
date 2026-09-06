@@ -93,13 +93,13 @@ export default async function Page() {
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <p className="font-semibold text-slate-950">{a.title}</p>
-                      {a.description && <p className="mt-1 whitespace-pre-line text-sm text-slate-500">{a.description}</p>}
+                      {a.description && <p className="mt-1 whitespace-pre-line text-sm text-ink-muted">{a.description}</p>}
                     </div>
-                    <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700">{actionItemStatusLabel(a.status)}</span>
+                    <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-brand-700">{actionItemStatusLabel(a.status)}</span>
                   </div>
                   <form action={resolveInstructorFollowUp} className="mt-3">
                     <input type="hidden" name="actionItemId" value={a.id} />
-                    <button className="min-h-11 rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-white">
+                    <button className="min-h-11 rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-surface">
                       Mark resolved
                     </button>
                   </form>
@@ -120,7 +120,7 @@ export default async function Page() {
         </S8Card>
 
         <S8Card title="Instructor Development" actionHref="/instructor/onboarding">
-          <p className="text-sm text-slate-600">Onboarding, training, availability, performance evidence, feedback, and reviews are grouped in your development pages.</p>
+          <p className="text-sm text-ink-muted">Onboarding, training, availability, performance evidence, feedback, and reviews are grouped in your development pages.</p>
         </S8Card>
       </S8Grid>
     </S8Page>

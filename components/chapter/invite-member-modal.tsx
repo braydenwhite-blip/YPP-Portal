@@ -139,7 +139,7 @@ export function InviteMemberButton({
               name="name"
               autoComplete="name"
               placeholder="Jordan Lee"
-              className="rounded-lg border border-line bg-white px-3 py-2 text-[13.5px] text-ink"
+              className="rounded-lg border border-line bg-surface px-3 py-2 text-[13.5px] text-ink"
             />
           </label>
 
@@ -151,7 +151,7 @@ export function InviteMemberButton({
               name="email"
               autoComplete="email"
               placeholder="jordan@email.com"
-              className="rounded-lg border border-line bg-white px-3 py-2 text-[13.5px] text-ink"
+              className="rounded-lg border border-line bg-surface px-3 py-2 text-[13.5px] text-ink"
             />
           </label>
 

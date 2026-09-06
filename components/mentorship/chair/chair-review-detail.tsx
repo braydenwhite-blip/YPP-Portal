@@ -299,7 +299,7 @@ export async function ChairReviewDetail({ reviewId }: { reviewId: string }) {
 
 function MetaChip({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[12px] border border-line-soft bg-white px-3.5 py-2.5">
+    <div className="rounded-[12px] border border-line-soft bg-surface px-3.5 py-2.5">
       <p className="m-0 text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-muted">
         {label}
       </p>

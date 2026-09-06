@@ -48,7 +48,7 @@ function ProcessStepper({ steps }: { steps: MenteeHomeProcessStep[] }) {
                       ? warn
                         ? "border-amber-500 bg-amber-500 text-white"
                         : "border-brand-600 bg-brand-600 text-white"
-                      : "border-line bg-white text-transparent",
+                      : "border-line bg-surface text-transparent",
                 ].join(" ")}
                 title={step.label}
               >
@@ -273,7 +273,7 @@ export function MenteeHomeDocumentsTable({
                       "inline-flex min-h-8 items-center justify-center rounded-full px-3.5 text-[12.5px] font-semibold no-underline",
                       doc.actionVariant === "primary"
                         ? "bg-brand-600 text-white hover:brightness-95"
-                        : "border border-brand-300 bg-white text-brand-700 hover:bg-brand-50",
+                        : "border border-brand-300 bg-surface text-brand-700 hover:bg-brand-50",
                     ].join(" ")}
                   >
                     {doc.actionLabel}

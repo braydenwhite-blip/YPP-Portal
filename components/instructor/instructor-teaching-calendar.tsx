@@ -112,7 +112,7 @@ export function InstructorTeachingCalendar({
   return (
     <div className="space-y-6">
       <section
-        className="overflow-hidden rounded-2xl border border-[#dadce0] bg-white shadow-[0_1px_2px_rgba(60,64,67,0.08)]"
+        className="overflow-hidden rounded-2xl border border-[#dadce0] bg-surface shadow-[0_1px_2px_rgba(60,64,67,0.08)]"
         aria-label="Teaching calendar"
       >
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#f1f3f4] px-4 py-3 sm:px-5">
@@ -182,7 +182,7 @@ export function InstructorTeachingCalendar({
                 onClick={() => setSelectedKey(cell.key)}
                 className={[
                   "flex min-h-[92px] flex-col gap-1 border-b border-r border-[#f1f3f4] p-1.5 text-left transition",
-                  isSelected ? "bg-[#e8f0fe]" : "bg-white hover:bg-[#f8f9fa]",
+                  isSelected ? "bg-[#e8f0fe]" : "bg-surface hover:bg-[#f8f9fa]",
                 ].join(" ")}
               >
                 <span
@@ -221,7 +221,7 @@ export function InstructorTeachingCalendar({
       </section>
 
       <section
-        className="rounded-2xl border border-[#dadce0] bg-white p-4 shadow-[0_1px_2px_rgba(60,64,67,0.08)] sm:p-5"
+        className="rounded-2xl border border-[#dadce0] bg-surface p-4 shadow-[0_1px_2px_rgba(60,64,67,0.08)] sm:p-5"
         aria-label="Selected day"
       >
         <h2 className="m-0 text-[16px] font-medium text-[#202124]">

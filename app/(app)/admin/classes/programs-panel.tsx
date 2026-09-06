@@ -130,7 +130,7 @@ export default function ProgramsPanel({
 
       {/* Create form */}
       {isCreating && (
-        <div className="card mb-4 p-4 border border-line-soft rounded-lg bg-white">
+        <div className="card mb-4 p-4 border border-line-soft rounded-lg bg-surface">
           <h3 className="text-sm font-semibold mb-3">Create New Program</h3>
           <form action={handleCreate} className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
@@ -248,7 +248,7 @@ function ProgramCard({
   setTagInput: (val: string) => void;
 }) {
   return (
-    <div className="card p-4 border border-line-soft rounded-lg bg-white">
+    <div className="card p-4 border border-line-soft rounded-lg bg-surface">
       {/* Header */}
       <div className="flex items-start justify-between mb-2">
         <div className="flex-1 min-w-0">

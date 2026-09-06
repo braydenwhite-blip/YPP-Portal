@@ -152,7 +152,7 @@ export function AttendanceRoster({
               <li key={s.id} className="rounded-xl border p-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0 sm:pr-4">
                   <p className="font-medium text-slate-900 truncate">{s.name ?? s.email ?? s.id}</p>
-                  {rowFinalized && <p className="text-xs text-slate-500">Finalized</p>}
+                  {rowFinalized && <p className="text-xs text-ink-muted">Finalized</p>}
                 </div>
                 <div
                   role="radiogroup"
@@ -253,7 +253,7 @@ export function SessionAttendancePanel({
   const selected = sessions.find((s) => s.id === selectedId);
 
   if (!sessions.length) {
-    return <p className="rounded-2xl border border-dashed p-6 text-sm text-slate-600">No sessions scheduled yet.</p>;
+    return <p className="rounded-2xl border border-dashed p-6 text-sm text-ink-muted">No sessions scheduled yet.</p>;
   }
 
   return (
@@ -286,7 +286,7 @@ export function SessionAttendancePanel({
           loadedAt={loadedAt}
         />
       )}
-      {selected?.isCancelled && <p className="rounded-2xl border border-dashed p-6 text-sm text-slate-600">This session is cancelled; attendance is not recorded.</p>}
+      {selected?.isCancelled && <p className="rounded-2xl border border-dashed p-6 text-sm text-ink-muted">This session is cancelled; attendance is not recorded.</p>}
     </div>
   );
 }

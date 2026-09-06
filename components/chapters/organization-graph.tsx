@@ -83,7 +83,7 @@ export function OrganizationGraphInspector({ model }: { model: OrgGraphViewModel
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search the organization…"
-          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+          className="w-full rounded-lg border border-slate-200 bg-surface px-3 py-2 text-sm text-slate-900 outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
         />
         <div className="flex flex-wrap gap-1.5">
           <KindChip active={kindFilter === "all"} onClick={() => setKindFilter("all")} label={`All ${model.nodes.length}`} />
@@ -96,9 +96,9 @@ export function OrganizationGraphInspector({ model }: { model: OrgGraphViewModel
             />
           ))}
         </div>
-        <div className="max-h-[640px] overflow-y-auto rounded-xl border border-slate-200 bg-white">
+        <div className="max-h-[640px] overflow-y-auto rounded-xl border border-slate-200 bg-surface">
           {visibleNodes.length === 0 ? (
-            <p className="px-3 py-6 text-center text-sm text-slate-500">No entities match.</p>
+            <p className="px-3 py-6 text-center text-sm text-ink-muted">No entities match.</p>
           ) : (
             <ul className="divide-y divide-slate-100">
               {visibleNodes.map((n) => (
@@ -113,7 +113,7 @@ export function OrganizationGraphInspector({ model }: { model: OrgGraphViewModel
                     <Dot kind={n.kind} />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-medium text-slate-900">{n.label}</span>
-                      <span className="block truncate text-[11px] text-slate-500">
+                      <span className="block truncate text-[11px] text-ink-muted">
                         {NODE_KIND_LABELS[n.kind]}
                         {n.status ? ` · ${n.status}` : ""}
                       </span>
@@ -140,12 +140,12 @@ function Inspector({ summary, onNavigate }: { summary: SummaryVM; onNavigate: (i
       <CardV2 className="border border-slate-200">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
               <Dot kind={node.kind} />
               {NODE_KIND_LABELS[node.kind]}
             </div>
             <h2 className="mt-1 truncate text-xl font-semibold text-slate-900">{node.label}</h2>
-            <p className="mt-1 max-w-2xl text-sm text-slate-600">{summary.purpose}</p>
+            <p className="mt-1 max-w-2xl text-sm text-ink-muted">{summary.purpose}</p>
           </div>
           <div className="flex flex-col items-end gap-2">
             <div className="flex items-center gap-2">
@@ -162,7 +162,7 @@ function Inspector({ summary, onNavigate }: { summary: SummaryVM; onNavigate: (i
         <div className="mt-4">
           <HealthBar score={summary.healthScore} tone={node.tone} />
           {summary.healthReasons.length > 0 ? (
-            <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[12.5px] text-slate-600">
+            <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[12.5px] text-ink-muted">
               {summary.healthReasons.map((r, i) => (
                 <li key={i} className="flex items-center gap-1.5">
                   <span className="h-1 w-1 rounded-full bg-slate-400" aria-hidden />
@@ -274,7 +274,7 @@ function KindChip({ active, onClick, label }: { active: boolean; onClick: () => 
       type="button"
       onClick={onClick}
       className={`rounded-full border px-2.5 py-1 text-[11.5px] font-medium transition-colors ${
-        active ? "border-brand-300 bg-brand-50 text-brand-700" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+        active ? "border-brand-300 bg-brand-50 text-brand-700" : "border-slate-200 bg-surface text-ink-muted hover:bg-slate-50"
       }`}
     >
       {label}
@@ -287,7 +287,7 @@ function Section({ title, subtitle, children }: { title: string; subtitle?: stri
     <section>
       <div className="mb-2 flex items-baseline justify-between">
         <h3 className="text-sm font-semibold text-slate-800">{title}</h3>
-        {subtitle ? <span className="text-[11px] text-slate-500">{subtitle}</span> : null}
+        {subtitle ? <span className="text-[11px] text-ink-muted">{subtitle}</span> : null}
       </div>
       {children}
     </section>
@@ -302,12 +302,12 @@ function NodeList({ nodes, onNavigate }: { nodes: NodeRefVM[]; onNavigate: (id: 
           key={n.id}
           type="button"
           onClick={() => onNavigate(n.id)}
-          className="group flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-left transition-colors hover:border-brand-300 hover:bg-brand-50"
+          className="group flex items-center gap-2 rounded-lg border border-slate-200 bg-surface px-2.5 py-1.5 text-left transition-colors hover:border-brand-300 hover:bg-brand-50"
         >
           <Dot kind={n.kind} />
           <span className="min-w-0">
             <span className="block max-w-[200px] truncate text-[13px] font-medium text-slate-900">{n.label}</span>
-            <span className="block text-[11px] text-slate-500">{NODE_KIND_LABELS[n.kind]}</span>
+            <span className="block text-[11px] text-ink-muted">{NODE_KIND_LABELS[n.kind]}</span>
           </span>
           <span className={`ml-1 h-1.5 w-1.5 rounded-full ${toneBg(n.tone)}`} title={n.healthLabel} aria-hidden />
         </button>
@@ -322,10 +322,10 @@ function DependencyRow({ dep, onNavigate }: { dep: DependencyVM; onNavigate: (id
   const stateLabel =
     dep.state === "satisfied" ? "Done" : dep.state === "in_progress" ? "In progress" : dep.state === "blocked" ? "Blocked" : "Unknown";
   return (
-    <div className="flex items-start justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
+    <div className="flex items-start justify-between gap-3 rounded-lg border border-slate-200 bg-surface px-3 py-2">
       <div className="min-w-0">
         <p className="text-[13px] font-medium text-slate-900">{dep.label}</p>
-        {dep.detail ? <p className="mt-0.5 text-[12px] text-slate-500">{dep.detail}</p> : null}
+        {dep.detail ? <p className="mt-0.5 text-[12px] text-ink-muted">{dep.detail}</p> : null}
         {dep.nodeId ? (
           <button
             type="button"
@@ -343,7 +343,7 @@ function DependencyRow({ dep, onNavigate }: { dep: DependencyVM; onNavigate: (id
 
 function Recommendation({ rec, onNavigate }: { rec: RecommendationVM; onNavigate: (id: string) => void }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white px-3.5 py-3">
+    <div className="rounded-lg border border-slate-200 bg-surface px-3.5 py-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <StatusBadge tone={REC_TONE[rec.kind]}>{REC_KIND_LABEL[rec.kind]}</StatusBadge>
@@ -351,10 +351,10 @@ function Recommendation({ rec, onNavigate }: { rec: RecommendationVM; onNavigate
         </div>
         <span className="text-[11px] uppercase tracking-wide text-slate-400">{rec.confidence} confidence</span>
       </div>
-      <p className="mt-1 text-[12.5px] text-slate-600">{rec.detail}</p>
+      <p className="mt-1 text-[12.5px] text-ink-muted">{rec.detail}</p>
       <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
         {rec.evidence.map((e, i) => (
-          <li key={i} className="rounded bg-slate-50 px-1.5 py-0.5 text-[11px] text-slate-600">
+          <li key={i} className="rounded bg-slate-50 px-1.5 py-0.5 text-[11px] text-ink-muted">
             {e}
           </li>
         ))}
@@ -385,7 +385,7 @@ function TimelineRow({ event }: { event: EventVM }) {
       <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-300" aria-hidden />
       <div className="min-w-0 flex-1">
         <p className="text-[13px] text-slate-800">{event.title}</p>
-        {event.detail ? <p className="text-[12px] text-slate-500">{event.detail}</p> : null}
+        {event.detail ? <p className="text-[12px] text-ink-muted">{event.detail}</p> : null}
       </div>
       <span className="shrink-0 text-[11px] text-slate-400">{event.when}</span>
     </li>
@@ -396,11 +396,11 @@ function Stat({ metric, emphasis }: { metric: MetricVM; emphasis?: boolean }) {
   return (
     <div
       className={`rounded-lg px-3 py-1.5 ${
-        emphasis ? "bg-brand-50 text-brand-800" : "border border-slate-200 bg-white text-slate-800"
+        emphasis ? "bg-brand-50 text-brand-800" : "border border-slate-200 bg-surface text-slate-800"
       }`}
     >
       <span className="text-base font-semibold">{metric.value}</span>
-      <span className="ml-1.5 text-[11.5px] text-slate-500">{metric.label}</span>
+      <span className="ml-1.5 text-[11.5px] text-ink-muted">{metric.label}</span>
     </div>
   );
 }
@@ -411,7 +411,7 @@ function HealthBar({ score, tone }: { score: number; tone: StatusTone }) {
       <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
         <div className={`h-full rounded-full ${toneBg(tone)}`} style={{ width: `${Math.max(4, Math.min(100, score))}%` }} />
       </div>
-      <span className="text-[11px] font-medium text-slate-500">{score}/100</span>
+      <span className="text-[11px] font-medium text-ink-muted">{score}/100</span>
     </div>
   );
 }
@@ -423,7 +423,7 @@ function Muted({ children }: { children: React.ReactNode }) {
 function Empty() {
   return (
     <CardV2 className="border border-slate-200">
-      <p className="text-sm text-slate-500">Select an entity to inspect its place in the organization.</p>
+      <p className="text-sm text-ink-muted">Select an entity to inspect its place in the organization.</p>
     </CardV2>
   );
 }

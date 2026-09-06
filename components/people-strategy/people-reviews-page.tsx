@@ -147,7 +147,7 @@ export async function PeopleReviewsPage({
 
   if (loadError) {
     return (
-      <div className="rounded-[14px] border border-[#f0d4d4] bg-white px-5 py-8 text-center">
+      <div className="rounded-[14px] border border-[#f0d4d4] bg-surface px-5 py-8 text-center">
         <p className="m-0 text-[15px] font-semibold text-[#c0392b]">Could not load people</p>
         <p className="m-0 mt-1 text-[13px] text-[#717189]">{loadError}</p>
       </div>

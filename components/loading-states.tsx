@@ -83,7 +83,7 @@ export function CardLoadingSkeleton({ count = 3 }: LoadingSkeletonProps) {
       {Array.from({ length: count }).map((_, i) => (
         <div
           key={i}
-          className="animate-pulse bg-white border border-gray-200 rounded-lg p-6 shadow-sm"
+          className="animate-pulse bg-surface border border-gray-200 rounded-lg p-6 shadow-sm"
         >
           {/* Card image placeholder */}
           <div className="w-full h-48 bg-gray-200 rounded-lg mb-4" />
@@ -121,7 +121,7 @@ export function CardLoadingSkeleton({ count = 3 }: LoadingSkeletonProps) {
  */
 export function FormLoadingSkeleton({ fields = 5 }: { fields?: number }) {
   return (
-    <div className="max-w-2xl mx-auto bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+    <div className="max-w-2xl mx-auto bg-surface border border-gray-200 rounded-lg p-6 shadow-sm">
       <div className="space-y-6">
         {Array.from({ length: fields }).map((_, i) => (
           <div key={i} className="animate-pulse">
@@ -159,7 +159,7 @@ export function ListLoadingSkeleton({ items = 8 }: { items?: number }) {
       {Array.from({ length: items }).map((_, i) => (
         <div
           key={i}
-          className="animate-pulse flex items-center gap-4 p-4 bg-white border border-gray-200 rounded-lg"
+          className="animate-pulse flex items-center gap-4 p-4 bg-surface border border-gray-200 rounded-lg"
         >
           {/* Avatar/Icon */}
           <div className="w-10 h-10 bg-gray-200 rounded-full flex-shrink-0" />
@@ -194,7 +194,7 @@ export function DashboardStatsLoadingSkeleton() {
       {Array.from({ length: 4 }).map((_, i) => (
         <div
           key={i}
-          className="animate-pulse bg-white border border-gray-200 rounded-lg p-6 shadow-sm"
+          className="animate-pulse bg-surface border border-gray-200 rounded-lg p-6 shadow-sm"
         >
           {/* Icon placeholder */}
           <div className="w-12 h-12 bg-gray-200 rounded-lg mb-4" />
@@ -223,7 +223,7 @@ export function DashboardStatsLoadingSkeleton() {
 export function ProfileLoadingSkeleton() {
   return (
     <div className="max-w-4xl mx-auto">
-      <div className="animate-pulse bg-white border border-gray-200 rounded-lg p-8 shadow-sm">
+      <div className="animate-pulse bg-surface border border-gray-200 rounded-lg p-8 shadow-sm">
         {/* Profile header */}
         <div className="flex items-center gap-6 mb-8">
           {/* Avatar */}
@@ -296,7 +296,7 @@ export function ContentLoadingSkeleton() {
  */
 export function PageLoadingSpinner() {
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-white bg-opacity-75 z-50">
+    <div className="fixed inset-0 flex items-center justify-center bg-surface bg-opacity-75 z-50">
       <div className="text-center">
         <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-purple-600 border-t-transparent" />
         <p className="mt-4 text-gray-600 font-medium">Loading...</p>

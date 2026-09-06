@@ -83,7 +83,7 @@ function ReviewRow({ row }: { row: QuarterlyReviewRow }) {
 
 export function QuarterlyReviewsClient({ rows }: { rows: QuarterlyReviewRow[] }) {
   return (
-    <section className="overflow-hidden rounded-[14px] border border-[#ebebf2] bg-white shadow-[0_1px_2px_rgba(20,20,50,0.03)]">
+    <section className="overflow-hidden rounded-[14px] border border-[#ebebf2] bg-surface shadow-[0_1px_2px_rgba(20,20,50,0.03)]">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[760px] border-collapse text-left">
           <thead>

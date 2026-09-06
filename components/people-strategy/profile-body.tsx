@@ -17,7 +17,7 @@ import { cn } from "@/components/ui-v2";
  */
 
 const CARD =
-  "overflow-hidden rounded-[14px] border border-[#ebebf2] bg-white shadow-[0_1px_2px_rgba(20,20,50,0.03)]";
+  "overflow-hidden rounded-[14px] border border-[#ebebf2] bg-surface shadow-[0_1px_2px_rgba(20,20,50,0.03)]";
 
 export function activeLabel(months: number): string {
   if (months <= 0) return "Active · new";

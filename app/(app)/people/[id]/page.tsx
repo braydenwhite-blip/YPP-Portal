@@ -284,7 +284,7 @@ export default async function PublicProfilePage({ params, searchParams }: PagePr
       </div>
 
       {showLinkedActions && opsContext && !fromPeopleReviews ? (
-        <details className="group mt-4 overflow-hidden rounded-[14px] border border-[#ebebf2] bg-white shadow-[0_1px_2px_rgba(20,20,50,0.03)]">
+        <details className="group mt-4 overflow-hidden rounded-[14px] border border-[#ebebf2] bg-surface shadow-[0_1px_2px_rgba(20,20,50,0.03)]">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 marker:content-none [&::-webkit-details-marker]:hidden">
             <span className="text-[15px] font-semibold text-[#1c1a2e]">Leadership tools</span>
             <span className="text-[12.5px] text-[#9a9ab0]">

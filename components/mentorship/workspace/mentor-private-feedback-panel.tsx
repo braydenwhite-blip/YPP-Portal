@@ -52,7 +52,7 @@ export async function MentorPrivateFeedbackPanel({
   const count = rows.length;
 
   return (
-    <details className="overflow-hidden rounded-[14px] border border-[#e8e4f0] bg-white shadow-[0_1px_2px_rgb(46_16_101/0.04)]">
+    <details className="overflow-hidden rounded-[14px] border border-[#e8e4f0] bg-surface shadow-[0_1px_2px_rgb(46_16_101/0.04)]">
       <summary className="cursor-pointer list-none px-5 py-4 marker:content-none [&::-webkit-details-marker]:hidden hover:bg-[#faf8ff]">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">

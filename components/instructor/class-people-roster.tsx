@@ -163,13 +163,13 @@ function PeopleSection({
         {title} ({count})
       </h2>
       {rows.length === 0 ? (
-        <p className="m-0 rounded-2xl border border-[#dadce0] bg-white px-4 py-5 text-[14px] text-[#5f6368]">
+        <p className="m-0 rounded-2xl border border-[#dadce0] bg-surface px-4 py-5 text-[14px] text-[#5f6368]">
           {empty}
         </p>
       ) : (
         <ul
           className={[
-            "m-0 list-none divide-y divide-[#f1f3f4] overflow-hidden rounded-2xl border border-[#dadce0] bg-white p-0 shadow-[0_1px_2px_rgba(60,64,67,0.08)]",
+            "m-0 list-none divide-y divide-[#f1f3f4] overflow-hidden rounded-2xl border border-[#dadce0] bg-surface p-0 shadow-[0_1px_2px_rgba(60,64,67,0.08)]",
             muted ? "opacity-90" : "",
           ].join(" ")}
         >

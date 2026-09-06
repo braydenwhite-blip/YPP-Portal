@@ -59,7 +59,7 @@ export function ClassAttendanceRoster({ roster }: { roster: RosterData }) {
         ) : !hasSessions ? (
           <EmptyStateV2 title="No sessions yet" body="Attendance will show here once sessions are scheduled." />
         ) : (
-          <div className="overflow-x-auto rounded-2xl border border-[#dadce0] bg-white">
+          <div className="overflow-x-auto rounded-2xl border border-[#dadce0] bg-surface">
             <table className="w-full min-w-[640px] border-collapse text-left text-[13px]">
               <thead>
                 <tr className="border-b border-[#dadce0] bg-[#f8f9fa]">
@@ -81,7 +81,7 @@ export function ClassAttendanceRoster({ roster }: { roster: RosterData }) {
                   const stat = roster.stats[student.id] ?? { present: 0, absent: 0, late: 0, excused: 0 };
                   return (
                     <tr key={student.id} className="border-b border-[#f1f3f4] last:border-b-0">
-                      <td className="sticky left-0 z-10 bg-white px-4 py-3">
+                      <td className="sticky left-0 z-10 bg-surface px-4 py-3">
                         <div className="font-medium text-[#202124]">{student.name || "Student"}</div>
                         {student.email ? (
                           <div className="text-[11.5px] text-[#80868b]">{student.email}</div>

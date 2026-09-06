@@ -31,7 +31,7 @@ export default async function Page({ params }: { params: Promise<{ id: string; s
           <p>{dateTime(s.date, s.startTime)}–{s.endTime}</p>
           <p>{s.offering.deliveryMode} · {s.offering.locationName ?? "Location/link pending"}</p>
           <p>{s.description}</p>
-          <p className="mt-2 text-sm text-slate-500">Roster: {s.rosterCount} active student(s)</p>
+          <p className="mt-2 text-sm text-ink-muted">Roster: {s.rosterCount} active student(s)</p>
         </S8Card>
 
         {!isPast && (
@@ -53,7 +53,7 @@ export default async function Page({ params }: { params: Promise<{ id: string; s
                 </label>
                 <label className="block text-sm font-semibold" htmlFor="note">Readiness note</label>
                 <textarea id="note" name="note" defaultValue={prep?.note ?? ""} className="w-full rounded-2xl border p-3" placeholder="Materials reviewed, student context checked, logistics confirmed" />
-                <button className="min-h-11 rounded-full bg-violet-700 px-4 py-2 font-semibold text-white">Save readiness</button>
+                <button className="min-h-11 rounded-full bg-brand-600 px-4 py-2 font-semibold text-white">Save readiness</button>
               </form>
             </S8Card>
 
@@ -91,13 +91,13 @@ export default async function Page({ params }: { params: Promise<{ id: string; s
                   {s.openReviewRequests.length} open attendance review request(s) for this session — respond from the class page.
                 </p>
               )}
-              <a href={`/instructor/classes/${id}`} className="block text-sm font-semibold text-violet-700 underline">
+              <a href={`/instructor/classes/${id}`} className="block text-sm font-semibold text-brand-700 underline">
                 Write student feedback on the class page
               </a>
               {s.offering.sessions.find((os: any) => new Date(os.date) > new Date(s.date) && !os.isCancelled) && (
                 <a
                   href={`/instructor/classes/${id}/sessions/${s.offering.sessions.filter((os: any) => new Date(os.date) > new Date(s.date) && !os.isCancelled).sort((a: any, b: any) => +new Date(a.date) - +new Date(b.date))[0].id}`}
-                  className="mt-2 block text-sm font-semibold text-violet-700 underline"
+                  className="mt-2 block text-sm font-semibold text-brand-700 underline"
                 >
                   Go prep the next session
                 </a>
@@ -107,7 +107,7 @@ export default async function Page({ params }: { params: Promise<{ id: string; s
         )}
 
         <S8Card title="Follow-up actions">
-          <p className="mb-2 text-sm text-slate-600">Create a structured follow-up item for location issues, participation concerns, family-facing notes, or anything else that needs attention.</p>
+          <p className="mb-2 text-sm text-ink-muted">Create a structured follow-up item for location issues, participation concerns, family-facing notes, or anything else that needs attention.</p>
           <form action={createInstructorFollowUp} className="space-y-2">
             <input type="hidden" name="sessionId" value={s.id} />
             <label className="block text-sm font-semibold" htmlFor="fu-title">Title</label>
@@ -121,7 +121,7 @@ export default async function Page({ params }: { params: Promise<{ id: string; s
               <option value="HIGH">High</option>
               <option value="URGENT">Urgent</option>
             </select>
-            <button className="min-h-11 rounded-full bg-violet-700 px-4 py-2 text-sm font-semibold text-white">Create follow-up</button>
+            <button className="min-h-11 rounded-full bg-brand-600 px-4 py-2 text-sm font-semibold text-white">Create follow-up</button>
           </form>
         </S8Card>
       </S8Grid>

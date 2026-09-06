@@ -50,7 +50,7 @@ function statusPillClass(item: MonthlyCheckInQueueItem): string {
 
 function actionButtonClass(kind: MonthlyCheckInActionKind): string {
   if (kind === "send-reminder") {
-    return "border border-[#e8b4b0] bg-white text-[#c0392b] shadow-none hover:bg-[#fef8f7]";
+    return "border border-[#e8b4b0] bg-surface text-[#c0392b] shadow-none hover:bg-[#fef8f7]";
   }
   if (kind === "request-feedback") {
     return "border border-[#dcd4f5] bg-[#f5f0ff] text-[#5a1da8] shadow-none hover:bg-[#ede8fb]";
@@ -60,7 +60,7 @@ function actionButtonClass(kind: MonthlyCheckInActionKind): string {
 
 function WorkflowStepper() {
   return (
-    <div className="overflow-x-auto rounded-[14px] border border-[#ebebf2] bg-white px-5 py-5 shadow-[0_1px_2px_rgba(20,20,50,0.03)]">
+    <div className="overflow-x-auto rounded-[14px] border border-[#ebebf2] bg-surface px-5 py-5 shadow-[0_1px_2px_rgba(20,20,50,0.03)]">
       <div className="flex min-w-[760px] items-start">
         {CHECK_IN_WORKFLOW_STEPS.map((step, index) => (
           <div key={step.key} className="flex min-w-0 flex-1 items-start">
@@ -183,7 +183,7 @@ function QueueRow({
 
 function EvaluationScale() {
   return (
-    <section className="rounded-[14px] border border-[#ebebf2] bg-white p-5 shadow-[0_1px_2px_rgba(20,20,50,0.03)]">
+    <section className="rounded-[14px] border border-[#ebebf2] bg-surface p-5 shadow-[0_1px_2px_rgba(20,20,50,0.03)]">
       <h2 className="m-0 text-[11px] font-bold uppercase tracking-[0.06em] text-[#9a9ab0]">
         Evaluation scale
       </h2>
@@ -316,7 +316,7 @@ export function MonthlyCheckInsClient({
       <WorkflowStepper />
 
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_292px]">
-        <section className="overflow-hidden rounded-[14px] border border-[#ebebf2] bg-white shadow-[0_1px_2px_rgba(20,20,50,0.03)]">
+        <section className="overflow-hidden rounded-[14px] border border-[#ebebf2] bg-surface shadow-[0_1px_2px_rgba(20,20,50,0.03)]">
           <header className="border-b border-[#f1f1f6] px-5 py-3.5">
             <h2 className="m-0 text-[11px] font-bold uppercase tracking-[0.06em] text-[#9a9ab0]">
               {monthQueueLabel} check-in queue

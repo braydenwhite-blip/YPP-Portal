@@ -26,7 +26,7 @@ export default async function Page() {
         ))
       ) : (
         <S8Card title="No students available">
-          <p className="text-sm text-slate-600">You don&apos;t currently have learning-visibility permission for any linked student, or no students are linked to your account yet.</p>
+          <p className="text-sm text-ink-muted">You don&apos;t currently have learning-visibility permission for any linked student, or no students are linked to your account yet.</p>
         </S8Card>
       )}
     </S8Page>

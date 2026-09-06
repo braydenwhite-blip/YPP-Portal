@@ -91,7 +91,7 @@ export function UpcomingHomeCalendar({ events }: { events: LeadershipHomeUpcomin
               onClick={() => setActiveType(filter.type)}
             >
               {TYPE_LABEL[filter.type]}
-              <span className="rounded-full bg-white px-1.5 text-[11px] text-ink-muted">
+              <span className="rounded-full bg-surface px-1.5 text-[11px] text-ink-muted">
                 {filter.count}
               </span>
             </button>

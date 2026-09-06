@@ -34,9 +34,9 @@ export default async function ParentMessagesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-sm font-medium text-violet-700">Family portal</p>
+        <p className="text-sm font-medium text-brand-700">Family portal</p>
         <h1 className="text-3xl font-semibold">Messages</h1>
-        <p className="mt-2 text-slate-600">
+        <p className="mt-2 text-ink-muted">
           Conversations with your student&apos;s instructors, in one place.
         </p>
       </div>
@@ -48,7 +48,7 @@ export default async function ParentMessagesPage() {
           action={
             <Link
               href="/parent/students"
-              className="inline-flex rounded-full bg-violet-700 px-4 py-2 text-sm font-semibold text-white"
+              className="inline-flex rounded-full bg-brand-600 px-4 py-2 text-sm font-semibold text-white"
             >
               View my students
             </Link>
@@ -60,22 +60,22 @@ export default async function ParentMessagesPage() {
             <Link
               key={conversation.conversationId}
               href={`/parent/messages/${conversation.conversationId}`}
-              className="flex items-center justify-between gap-4 rounded-2xl border border-stone-200 bg-white p-4 hover:border-violet-300"
+              className="flex items-center justify-between gap-4 rounded-2xl border border-line-card bg-surface p-4 hover:border-brand-300"
             >
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <p className="truncate font-semibold">{conversation.subject}</p>
                   {conversation.hasUnread ? (
-                    <span className="inline-flex h-2 w-2 shrink-0 rounded-full bg-violet-700" aria-label="Unread" />
+                    <span className="inline-flex h-2 w-2 shrink-0 rounded-full bg-brand-600" aria-label="Unread" />
                   ) : null}
                 </div>
-                <p className="mt-1 truncate text-sm text-slate-600">
+                <p className="mt-1 truncate text-sm text-ink-muted">
                   {conversation.lastMessage
                     ? `${conversation.lastMessage.sender?.name ?? "Someone"}: ${truncate(conversation.lastMessage.content, 90)}`
                     : "No messages yet"}
                 </p>
               </div>
-              <span className="shrink-0 text-xs text-slate-500">
+              <span className="shrink-0 text-xs text-ink-muted">
                 {formatTimestamp(conversation.updatedAt)}
               </span>
             </Link>

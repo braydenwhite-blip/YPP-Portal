@@ -49,7 +49,7 @@ const STATUS_TONES: Record<string, string> = {
   APPROVED: "bg-emerald-50 text-emerald-700",
   REJECTED: "bg-rose-50 text-rose-700",
   ON_HOLD: "bg-amber-50 text-amber-800",
-  WAITLISTED: "bg-violet-50 text-violet-700",
+  WAITLISTED: "bg-violet-50 text-brand-700",
 };
 
 /** Board stages — only people already pulled off the hire waitlist. */

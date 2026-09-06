@@ -156,7 +156,7 @@ function AttentionPanel({ groups }: { groups: AttentionGroup[] }) {
           {groups.map((g) => (
             <div key={g.label}>
               <div className="mb-1 flex items-center gap-2">
-                <span className="inline-flex items-center rounded-md bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#c4ccda]">
+                <span className="inline-flex items-center rounded-md bg-surface/[0.06] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#c4ccda]">
                   {g.label}
                 </span>
                 <span className="text-[10.5px] text-[#5f6b80]">{g.hint}</span>
@@ -167,7 +167,7 @@ function AttentionPanel({ groups }: { groups: AttentionGroup[] }) {
                     <Link
                       href={f.href}
                       prefetch={false}
-                      className="flex items-start justify-between gap-3 rounded-md px-1.5 py-1 transition-colors hover:bg-white/[0.04]"
+                      className="flex items-start justify-between gap-3 rounded-md px-1.5 py-1 transition-colors hover:bg-surface/[0.04]"
                     >
                       <span className="min-w-0">
                         <span className="block truncate text-[12.5px] text-[#dbe2ec]">
@@ -202,7 +202,7 @@ function RecentPanel({ items }: { items: Data360Overview["recent"] }) {
               <Link
                 href={it.href}
                 prefetch={false}
-                className="flex items-center justify-between gap-3 rounded-md px-1.5 py-1.5 transition-colors hover:bg-white/[0.04]"
+                className="flex items-center justify-between gap-3 rounded-md px-1.5 py-1.5 transition-colors hover:bg-surface/[0.04]"
               >
                 <span className="min-w-0">
                   <span className="block truncate text-[12.5px] text-[#dbe2ec]">{it.title}</span>
@@ -772,7 +772,7 @@ function WorkflowNeedsAttentionQueue({
                 <Link
                   href={`/workflows/${i.id}`}
                   prefetch={false}
-                  className="flex items-start justify-between gap-3 px-3 py-2.5 transition-colors hover:bg-white/[0.04]"
+                  className="flex items-start justify-between gap-3 px-3 py-2.5 transition-colors hover:bg-surface/[0.04]"
                 >
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
@@ -1175,7 +1175,7 @@ function ChapterComparisonGrid({ rows }: { rows: ChapterComparisonRow[] }) {
                   </th>
                 ))}
               </tr>
-              <tr className="border-b border-white/10 bg-white/[0.03] text-[10px]">
+              <tr className="border-b border-white/10 bg-surface/[0.03] text-[10px]">
                 <th className="sticky left-0 z-10 bg-[#0f1420] px-3 py-1.5 text-left font-semibold text-[#8b94a7]">
                   Expectation
                 </th>

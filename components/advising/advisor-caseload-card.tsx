@@ -77,7 +77,7 @@ export async function AdvisorCaseloadCard({
         {stats.map((s) => (
           <div
             key={s.label}
-            className="rounded-[10px] border border-[#ebebf2] bg-white px-3 py-2.5"
+            className="rounded-[10px] border border-[#ebebf2] bg-surface px-3 py-2.5"
           >
             <div
               className={`text-[20px] font-bold leading-none tabular-nums ${
@@ -92,7 +92,7 @@ export async function AdvisorCaseloadCard({
       </div>
 
       {roll.nextAction ? (
-        <p className="m-0 mt-3 rounded-[8px] bg-white px-3 py-2 text-[12.5px] text-[#1c1a2e]">
+        <p className="m-0 mt-3 rounded-[8px] bg-surface px-3 py-2 text-[12.5px] text-[#1c1a2e]">
           <span className="font-semibold">Next: </span>
           {roll.nextAction}
         </p>

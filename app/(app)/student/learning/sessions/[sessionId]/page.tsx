@@ -42,7 +42,7 @@ export default async function Page({ params }: { params: Promise<{ sessionId: st
                 {d.attendance ? "This is your recorded status for this session." : "Attendance has not been recorded for this session yet."}
               </S8Item>
               {d.openReviewRequest ? (
-                <p className="mt-3 text-sm font-medium text-slate-600">
+                <p className="mt-3 text-sm font-medium text-ink-muted">
                   Review requested — {d.openReviewRequest.externalStatus === "SENT" ? "sent, awaiting review" : d.openReviewRequest.externalStatus === "REVIEWING" ? "being reviewed" : "more information needed"}
                 </p>
               ) : (
@@ -58,7 +58,7 @@ export default async function Page({ params }: { params: Promise<{ sessionId: st
         )}
 
         <S8Card title="Support">
-          <p className="mb-3 text-sm text-slate-600">Report an absence, technical issue, schedule issue, or discomfort. Internal notes and safety-sensitive handling remain restricted.</p>
+          <p className="mb-3 text-sm text-ink-muted">Report an absence, technical issue, schedule issue, or discomfort. Internal notes and safety-sensitive handling remain restricted.</p>
           <Link href={`/student/support?category=${encodeURIComponent("I have a question about a class")}&offeringId=${s.offeringId}&sessionId=${s.id}`} className="rounded-full border px-4 py-2 text-sm font-semibold">Get support for this session</Link>
         </S8Card>
       </S8Grid>

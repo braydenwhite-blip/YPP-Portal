@@ -115,7 +115,7 @@ export function PeoplePerformanceClient({
         />
 
         {pageRows.length > 0 ? (
-          <div className="min-w-0 overflow-hidden rounded-[16px] border border-[#ebebf2] bg-white shadow-[0_1px_2px_rgba(20,20,50,0.03)]">
+          <div className="min-w-0 overflow-hidden rounded-[16px] border border-[#ebebf2] bg-surface shadow-[0_1px_2px_rgba(20,20,50,0.03)]">
             <PeoplePerformanceTable
               rows={pageRows}
               monthLabel={monthLabel}
@@ -130,7 +130,7 @@ export function PeoplePerformanceClient({
             <PeopleReviewsPagination total={sortedRows.length} page={page} basePath={basePath} />
           </div>
         ) : (
-          <div className="rounded-[16px] border border-[#ebebf2] bg-white px-5 py-14 text-center shadow-[0_1px_2px_rgba(20,20,50,0.03)]">
+          <div className="rounded-[16px] border border-[#ebebf2] bg-surface px-5 py-14 text-center shadow-[0_1px_2px_rgba(20,20,50,0.03)]">
             <p className="m-0 text-[15px] font-semibold text-[#3a3a52]">Nobody here</p>
             <p className="m-0 mt-1 text-[13px] text-[#9a9ab0]">
               Try another group, or clear the search.

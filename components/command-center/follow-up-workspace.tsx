@@ -190,7 +190,7 @@ function FollowUpExecutive({ vm }: { vm: FollowUpWorkspaceVM }) {
             )}
           >
             {chip.label}
-            <span className={cn("rounded-full px-1.5 text-[11px] font-bold", filter === chip.key ? "bg-white/20 text-white" : "bg-brand-50 text-brand-700")}>
+            <span className={cn("rounded-full px-1.5 text-[11px] font-bold", filter === chip.key ? "bg-surface/20 text-white" : "bg-brand-50 text-brand-700")}>
               {chip.count}
             </span>
           </button>

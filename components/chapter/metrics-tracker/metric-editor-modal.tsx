@@ -81,7 +81,7 @@ function initialForm(state: MetricEditorState): FormState {
 }
 
 const fieldClass =
-  "mt-1 w-full rounded-lg border border-line-card bg-white px-3 py-2 text-[13px] text-ink outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-100";
+  "mt-1 w-full rounded-lg border border-line-card bg-surface px-3 py-2 text-[13px] text-ink outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-100";
 
 export function MetricEditorModal({
   state,

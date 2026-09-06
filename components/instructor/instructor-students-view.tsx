@@ -56,7 +56,7 @@ export function InstructorStudentsView({
             <h2 className="m-0 mb-3 text-[14px] font-medium uppercase tracking-[0.06em] text-[#b06000]">
               Needs attention ({attentionItems.length})
             </h2>
-            <div className="divide-y divide-[#f1f3f4] overflow-hidden rounded-2xl border border-[#f9e4a8] bg-white shadow-[0_1px_2px_rgba(60,64,67,0.08)]">
+            <div className="divide-y divide-[#f1f3f4] overflow-hidden rounded-2xl border border-[#f9e4a8] bg-surface shadow-[0_1px_2px_rgba(60,64,67,0.08)]">
               {attentionItems.map((item) => (
                 <StudentFollowUpRow key={item.key} item={item} />
               ))}
@@ -115,7 +115,7 @@ function ClassPeopleBlock({
   return (
     <article
       className={[
-        "overflow-hidden rounded-2xl border border-[#dadce0] bg-white shadow-[0_1px_2px_rgba(60,64,67,0.08)]",
+        "overflow-hidden rounded-2xl border border-[#dadce0] bg-surface shadow-[0_1px_2px_rgba(60,64,67,0.08)]",
         archived ? "opacity-90" : "",
       ].join(" ")}
     >
@@ -300,7 +300,7 @@ function StudentFollowUpRow({ item }: { item: StudentAttentionItem }) {
                   ? "Name what worked and one useful next step."
                   : "Example: Spoke with the family. Student will return Tuesday."
               }
-              className="mt-1.5 w-full resize-y rounded-[8px] border border-[#dadce0] bg-white px-3 py-2 text-[13px] font-normal leading-5 text-[#202124] outline-none focus:border-brand-400"
+              className="mt-1.5 w-full resize-y rounded-[8px] border border-[#dadce0] bg-surface px-3 py-2 text-[13px] font-normal leading-5 text-[#202124] outline-none focus:border-brand-400"
             />
           </label>
           {state.kind !== "idle" ? (

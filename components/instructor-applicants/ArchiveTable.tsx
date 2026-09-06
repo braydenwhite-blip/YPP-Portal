@@ -221,7 +221,7 @@ export default function ArchiveTable({ applications }: ArchiveTableProps) {
                 <TableCell className="font-semibold">
                   <div>{formatApplicantDisplayName(app)}</div>
                   {app.kind === "cp" ? (
-                    <div className="text-[11px] font-medium text-violet-700">Chapter President</div>
+                    <div className="text-[11px] font-medium text-brand-700">Chapter President</div>
                   ) : app.kind === "staff" ? (
                     <div className="text-[11px] font-medium text-sky-700">Technology Manager</div>
                   ) : null}

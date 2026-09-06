@@ -33,7 +33,7 @@ function ClassOperationsCard({ card }: { card: ClassOperationsCardData }) {
     <Link
       href={card.href}
       className={cn(
-        "group flex flex-col rounded-[14px] border border-[#ebebf2] bg-white p-[18px] no-underline shadow-[0_1px_2px_rgba(20,20,50,0.03)]",
+        "group flex flex-col rounded-[14px] border border-[#ebebf2] bg-surface p-[18px] no-underline shadow-[0_1px_2px_rgba(20,20,50,0.03)]",
         "transition-colors hover:border-[#d8d8e8] hover:shadow-[0_2px_8px_rgba(20,20,50,0.06)]",
         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-400"
       )}

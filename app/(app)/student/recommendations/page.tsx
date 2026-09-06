@@ -15,12 +15,12 @@ export default async function Page() {
       <S8Grid>
         {recs.map((r: any) => (
           <S8Card key={r.id} title={r.title} subtitle={r.source} actionHref={r.opportunityHref ?? r.href} actionLabel="View opportunity">
-            <p className="text-sm text-slate-600">{r.reason}</p>
-            <p className="text-sm text-slate-500">Eligibility: {r.eligibility}</p>
+            <p className="text-sm text-ink-muted">{r.reason}</p>
+            <p className="text-sm text-ink-muted">Eligibility: {r.eligibility}</p>
             {r.passionId ? (
               <form action={expressRecommendationInterest}>
                 <input type="hidden" name="passionId" value={r.passionId} />
-                <button className="rounded-full bg-violet-700 px-4 py-2 text-sm font-semibold text-white">I&apos;m interested</button>
+                <button className="rounded-full bg-brand-600 px-4 py-2 text-sm font-semibold text-white">I&apos;m interested</button>
               </form>
             ) : null}
           </S8Card>

@@ -54,7 +54,7 @@ export async function ChairQueueList() {
       </header>
 
       {pending.length === 0 && changes.length === 0 ? (
-        <section className="rounded-[14px] border border-[#e8e4f0] bg-white px-5 py-8 text-center shadow-[0_1px_2px_rgb(46_16_101/0.04)]">
+        <section className="rounded-[14px] border border-[#e8e4f0] bg-surface px-5 py-8 text-center shadow-[0_1px_2px_rgb(46_16_101/0.04)]">
           <p className="m-0 text-[15px] font-semibold text-ink">You&apos;re caught up</p>
           <p className="m-0 mt-1 text-[13.5px] text-ink-muted">
             No reviews waiting for chair approval right now.
@@ -99,7 +99,7 @@ function QueueSection({
 }) {
   return (
     <section
-      className={`overflow-hidden rounded-[14px] border border-[#e8e4f0] bg-white shadow-[0_1px_2px_rgb(46_16_101/0.04)] ${
+      className={`overflow-hidden rounded-[14px] border border-[#e8e4f0] bg-surface shadow-[0_1px_2px_rgb(46_16_101/0.04)] ${
         muted ? "opacity-90" : ""
       }`}
     >

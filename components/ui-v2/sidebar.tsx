@@ -196,7 +196,7 @@ export function SidebarUserCard({
 /** Light-surface secondary button (sign out, sidebar utilities). */
 export const sidebarGhostButtonClass = cn(
   "inline-flex w-full cursor-pointer items-center justify-center rounded-[var(--radius-md)]",
-  "border border-[var(--border)] bg-white px-3 py-1.5",
+  "border border-[var(--border)] bg-surface px-3 py-1.5",
   "text-[12px] font-semibold text-[var(--text-secondary)] transition-colors duration-150",
   "hover:border-[rgba(99,102,241,0.22)] hover:bg-[#f8f9fc] hover:text-[var(--nav-purple-800)]",
   "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[rgba(99,102,241,0.45)]"

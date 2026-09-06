@@ -97,7 +97,7 @@ export function SetupRepairPanel({
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Type a name, email, or role"
-                  className="h-10 rounded-lg border border-subtle bg-white px-3 text-[13px] font-normal outline-none focus:border-brand-600"
+                  className="h-10 rounded-lg border border-subtle bg-surface px-3 text-[13px] font-normal outline-none focus:border-brand-600"
                 />
               </label>
               <label className="grid gap-1.5 text-[12.5px] font-semibold text-ink">
@@ -107,7 +107,7 @@ export function SetupRepairPanel({
                   required
                   value={selectedMentorId}
                   onChange={(event) => setSelectedMentorId(event.target.value)}
-                  className="h-10 rounded-lg border border-subtle bg-white px-3 text-[13px] font-normal outline-none focus:border-brand-600"
+                  className="h-10 rounded-lg border border-subtle bg-surface px-3 text-[13px] font-normal outline-none focus:border-brand-600"
                 >
                   <option value="">Select a mentor</option>
                   {visibleCandidates.map((candidate) => (
@@ -130,7 +130,7 @@ export function SetupRepairPanel({
                   name="reason"
                   rows={2}
                   placeholder="Why this assignment is the right fit"
-                  className="rounded-lg border border-subtle bg-white px-3 py-2 text-[13px] font-normal outline-none focus:border-brand-600"
+                  className="rounded-lg border border-subtle bg-surface px-3 py-2 text-[13px] font-normal outline-none focus:border-brand-600"
                 />
               </label>
               <button
@@ -195,7 +195,7 @@ export function SetupRepairPanel({
                   name="userId"
                   required
                   defaultValue=""
-                  className="h-10 rounded-lg border border-subtle bg-white px-3 text-[13px] font-normal outline-none focus:border-brand-600"
+                  className="h-10 rounded-lg border border-subtle bg-surface px-3 text-[13px] font-normal outline-none focus:border-brand-600"
                 >
                   <option value="" disabled>
                     Select any active member

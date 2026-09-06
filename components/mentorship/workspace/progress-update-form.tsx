@@ -90,7 +90,7 @@ const ACTION_PREFIX = /^\[ACTION_PLAN:([a-z_]+)\]\n?/;
 const SCALE_ORDER: GoalRatingColor[] = [...RATING_ORDER].reverse();
 
 const textareaClass =
-  "w-full resize-y rounded-[10px] border border-[#e8e4f0] bg-white px-3 py-2.5 text-[13px] leading-relaxed text-ink outline-none placeholder:text-ink-muted/55 focus:border-brand-400";
+  "w-full resize-y rounded-[10px] border border-[#e8e4f0] bg-surface px-3 py-2.5 text-[13px] leading-relaxed text-ink outline-none placeholder:text-ink-muted/55 focus:border-brand-400";
 const textareaFieldClass = `mt-2 ${textareaClass}`;
 
 function unpackPlan(raw: string | undefined): {
@@ -181,7 +181,7 @@ function OverallRatingScale({
                 "flex min-h-[3.75rem] flex-col items-center justify-center gap-1.5 rounded-[10px] border px-2 py-2 transition disabled:opacity-50",
                 selected
                   ? "shadow-sm"
-                  : "border-[#ebe6f4] bg-white hover:border-brand-200 hover:bg-[#faf8ff]",
+                  : "border-[#ebe6f4] bg-surface hover:border-brand-200 hover:bg-[#faf8ff]",
               ].join(" ")}
               style={
                 selected
@@ -193,14 +193,14 @@ function OverallRatingScale({
               }
             >
               <span
-                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-[2px] bg-white"
+                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-[2px] bg-surface"
                 style={{
                   borderColor: copy.color,
                   background: selected ? copy.color : "#fff",
                 }}
               >
                 {selected ? (
-                  <span className="h-1.5 w-1.5 rounded-full bg-white" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-surface" />
                 ) : null}
               </span>
               <span
@@ -471,7 +471,7 @@ export function ProgressUpdateForm({
       : "Send review to mentee";
 
   const cardClass =
-    "rounded-[14px] border border-[#e8e4f0] bg-white shadow-[0_1px_2px_rgb(46_16_101/0.04)]";
+    "rounded-[14px] border border-[#e8e4f0] bg-surface shadow-[0_1px_2px_rgb(46_16_101/0.04)]";
 
   return (
     <div className="flex w-full flex-col gap-5">
@@ -853,7 +853,7 @@ export function ProgressUpdateForm({
             type="button"
             disabled={pending}
             onClick={() => submit("draft")}
-            className="h-9.5 rounded-[9px] border border-brand-300 bg-white px-4 text-[13.5px] font-semibold text-brand-700 hover:bg-brand-50 disabled:opacity-50"
+            className="h-9.5 rounded-[9px] border border-brand-300 bg-surface px-4 text-[13.5px] font-semibold text-brand-700 hover:bg-brand-50 disabled:opacity-50"
           >
             Save as Draft
           </button>

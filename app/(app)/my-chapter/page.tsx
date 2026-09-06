@@ -58,7 +58,7 @@ export default async function StudentChapterPage() {
       </S8Grid>
       {!members.length ? (
         <S8Card title="No chapter members yet">
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-ink-muted">
             Your chapter roster will appear here once members are added.
           </p>
         </S8Card>

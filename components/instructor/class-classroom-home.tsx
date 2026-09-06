@@ -219,7 +219,7 @@ export function ClassClassroomHome({
         </div>
       </div>
 
-      <div className="sticky top-0 z-10 border-b border-[#e0e0e0] bg-white">
+      <div className="sticky top-0 z-10 border-b border-[#e0e0e0] bg-surface">
         <nav
           className="mx-auto flex max-w-5xl gap-1 px-4 sm:px-6"
           aria-label="Class sections"
@@ -252,7 +252,7 @@ export function ClassClassroomHome({
         {tab === "home" ? (
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
             <div className="flex flex-col gap-4">
-              <div className="rounded-xl border border-[#e0e0e0] bg-white px-4 py-3 shadow-[0_1px_2px_rgba(60,64,67,0.08)]">
+              <div className="rounded-xl border border-[#e0e0e0] bg-surface px-4 py-3 shadow-[0_1px_2px_rgba(60,64,67,0.08)]">
                 <AnnouncementComposer offeringId={id} />
               </div>
 
@@ -277,7 +277,7 @@ export function ClassClassroomHome({
               ) : null}
 
               {streamItems.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-[#dadce0] bg-white px-6 py-10 text-center">
+                <div className="rounded-xl border border-dashed border-[#dadce0] bg-surface px-6 py-10 text-center">
                   <p className="m-0 text-[15px] text-[#5f6368]">
                     Nothing here yet. Post a message or open the next class.
                   </p>
@@ -297,12 +297,12 @@ export function ClassClassroomHome({
                       {item.href ? (
                         <Link
                           href={item.href}
-                          className="block rounded-xl border border-[#e0e0e0] bg-white p-4 shadow-[0_1px_2px_rgba(60,64,67,0.08)] no-underline transition hover:border-[#dadce0] hover:shadow-[0_1px_3px_rgba(60,64,67,0.16)]"
+                          className="block rounded-xl border border-[#e0e0e0] bg-surface p-4 shadow-[0_1px_2px_rgba(60,64,67,0.08)] no-underline transition hover:border-[#dadce0] hover:shadow-[0_1px_3px_rgba(60,64,67,0.16)]"
                         >
                           <StreamCardBody item={item} />
                         </Link>
                       ) : (
-                        <div className="rounded-xl border border-[#e0e0e0] bg-white p-4 shadow-[0_1px_2px_rgba(60,64,67,0.08)]">
+                        <div className="rounded-xl border border-[#e0e0e0] bg-surface p-4 shadow-[0_1px_2px_rgba(60,64,67,0.08)]">
                           <StreamCardBody item={item} />
                         </div>
                       )}
@@ -313,7 +313,7 @@ export function ClassClassroomHome({
             </div>
 
             <aside className="flex flex-col gap-4">
-              <div className="rounded-xl border border-[#e0e0e0] bg-white p-4">
+              <div className="rounded-xl border border-[#e0e0e0] bg-surface p-4">
                 <p className="m-0 text-[14px] font-medium text-[#202124]">
                   Coming up
                 </p>
@@ -342,7 +342,7 @@ export function ClassClassroomHome({
                 )}
               </div>
 
-              <div className="rounded-xl border border-[#e0e0e0] bg-white p-4">
+              <div className="rounded-xl border border-[#e0e0e0] bg-surface p-4">
                 <p className="m-0 text-[14px] font-medium text-[#202124]">About</p>
                 <dl className="m-0 mt-3 flex flex-col gap-2 text-[13px]">
                   <div>
@@ -392,11 +392,11 @@ export function ClassClassroomHome({
               Instructors ({instructors.length})
             </h3>
             {instructors.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-[#dadce0] bg-white px-4 py-6 text-center text-[14px] text-[#5f6368]">
+              <p className="rounded-xl border border-dashed border-[#dadce0] bg-surface px-4 py-6 text-center text-[14px] text-[#5f6368]">
                 No instructors listed yet.
               </p>
             ) : (
-              <ul className="m-0 mb-8 divide-y divide-[#e0e0e0] overflow-hidden rounded-xl border border-[#e0e0e0] bg-white p-0">
+              <ul className="m-0 mb-8 divide-y divide-[#e0e0e0] overflow-hidden rounded-xl border border-[#e0e0e0] bg-surface p-0">
                 {instructors.map((person) => (
                   <li key={person.id} className="flex items-center gap-3 px-4 py-3">
                     <span
@@ -420,11 +420,11 @@ export function ClassClassroomHome({
               Students ({currentStudents.length})
             </h3>
             {currentStudents.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-[#dadce0] bg-white px-4 py-8 text-center text-[14px] text-[#5f6368]">
+              <p className="rounded-xl border border-dashed border-[#dadce0] bg-surface px-4 py-8 text-center text-[14px] text-[#5f6368]">
                 No students yet.
               </p>
             ) : (
-              <ul className="m-0 divide-y divide-[#e0e0e0] overflow-hidden rounded-xl border border-[#e0e0e0] bg-white p-0">
+              <ul className="m-0 divide-y divide-[#e0e0e0] overflow-hidden rounded-xl border border-[#e0e0e0] bg-surface p-0">
                 {currentStudents.map((e) => (
                   <li key={e.id} className="flex items-center gap-3 px-4 py-3">
                     <span
@@ -450,11 +450,11 @@ export function ClassClassroomHome({
               Parents ({currentParents.length})
             </h3>
             {currentParents.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-[#dadce0] bg-white px-4 py-6 text-center text-[14px] text-[#5f6368]">
+              <p className="rounded-xl border border-dashed border-[#dadce0] bg-surface px-4 py-6 text-center text-[14px] text-[#5f6368]">
                 No parents linked yet.
               </p>
             ) : (
-              <ul className="m-0 divide-y divide-[#e0e0e0] overflow-hidden rounded-xl border border-[#e0e0e0] bg-white p-0">
+              <ul className="m-0 divide-y divide-[#e0e0e0] overflow-hidden rounded-xl border border-[#e0e0e0] bg-surface p-0">
                 {currentParents.map((p) => (
                   <li key={p.id} className="flex items-center gap-3 px-4 py-3">
                     <span
@@ -477,7 +477,7 @@ export function ClassClassroomHome({
               </ul>
             )}
 
-            <details className="mt-6 rounded-xl border border-[#e0e0e0] bg-white">
+            <details className="mt-6 rounded-xl border border-[#e0e0e0] bg-surface">
               <summary className="cursor-pointer list-none px-4 py-3 text-[14px] font-medium text-[#202124] marker:content-none [&::-webkit-details-marker]:hidden">
                 Feedback
               </summary>

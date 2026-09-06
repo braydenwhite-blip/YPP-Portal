@@ -98,7 +98,7 @@ export function InstructorClassesList({ workspace }: { workspace: InstructorTeac
           <div className="flex shrink-0 items-center gap-4">
             <Link
               href="/instructor/curriculum-builder"
-              className="shrink-0 rounded-lg border border-[#dadce0] bg-white px-3.5 py-2 text-[13.5px] font-medium text-[#202124] no-underline hover:bg-[#f8f9fa]"
+              className="shrink-0 rounded-lg border border-[#dadce0] bg-surface px-3.5 py-2 text-[13.5px] font-medium text-[#202124] no-underline hover:bg-[#f8f9fa]"
             >
               Create a class
             </Link>
@@ -118,7 +118,7 @@ export function InstructorClassesList({ workspace }: { workspace: InstructorTeac
             action={
               <Link
                 href="/instructor/curriculum-builder"
-                className="inline-flex shrink-0 rounded-lg border border-[#dadce0] bg-white px-3.5 py-2 text-[13.5px] font-medium text-[#202124] no-underline hover:bg-[#f8f9fa]"
+                className="inline-flex shrink-0 rounded-lg border border-[#dadce0] bg-surface px-3.5 py-2 text-[13.5px] font-medium text-[#202124] no-underline hover:bg-[#f8f9fa]"
               >
                 Create a class
               </Link>
@@ -172,7 +172,7 @@ function ClassCard({
     <Link
       href={href}
       className={[
-        "group flex flex-col overflow-hidden rounded-2xl border border-[#dadce0] bg-white no-underline shadow-[0_1px_2px_rgba(60,64,67,0.08)] transition-[box-shadow,transform] duration-200",
+        "group flex flex-col overflow-hidden rounded-2xl border border-[#dadce0] bg-surface no-underline shadow-[0_1px_2px_rgba(60,64,67,0.08)] transition-[box-shadow,transform] duration-200",
         "hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(60,64,67,0.14)]",
         "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600",
         muted ? "opacity-80" : "",

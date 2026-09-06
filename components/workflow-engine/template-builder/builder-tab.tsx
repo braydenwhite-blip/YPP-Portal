@@ -237,7 +237,7 @@ export function BuilderTab({
             {activeStep ? (
               <StepCard step={activeStep} stageId={activeStep.stageId} />
             ) : activeStage ? (
-              <div className="w-[280px] rounded-xl border border-brand-400 bg-white px-3 py-2 text-[13px] font-semibold shadow-lg">
+              <div className="w-[280px] rounded-xl border border-brand-400 bg-surface px-3 py-2 text-[13px] font-semibold shadow-lg">
                 {activeStage.name}
               </div>
             ) : null}

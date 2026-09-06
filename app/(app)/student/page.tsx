@@ -52,7 +52,7 @@ export default async function StudentHome() {
       </S8Grid>
       {!data.needsAttention.length && !data.nextUp && !data.learning.active.length && !data.recentProgress.length && !data.recommendations.length ? (
         <S8Card title="Welcome to YPP">
-          <p className="text-sm text-slate-600">Your account is set up but you&apos;re not enrolled in anything yet. Head to Explore to find your first opportunity.</p>
+          <p className="text-sm text-ink-muted">Your account is set up but you&apos;re not enrolled in anything yet. Head to Explore to find your first opportunity.</p>
         </S8Card>
       ) : null}
     </S8Page>

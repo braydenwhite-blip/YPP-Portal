@@ -124,7 +124,7 @@ export function ChapterCalendarBoard({
   ];
 
   return (
-    <section className="overflow-hidden rounded-[20px] border border-[#dadce0] bg-white shadow-[0_1px_2px_rgba(60,64,67,0.06)]">
+    <section className="overflow-hidden rounded-[20px] border border-[#dadce0] bg-surface shadow-[0_1px_2px_rgba(60,64,67,0.06)]">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#f1f3f4] bg-linear-to-br from-brand-50/80 via-white to-[#f8f9fa] px-4 py-4 sm:px-5">
         <div>
           <p className="m-0 text-[12px] font-semibold uppercase tracking-[0.06em] text-brand-700">
@@ -143,7 +143,7 @@ export function ChapterCalendarBoard({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex rounded-full border border-[#dadce0] bg-white p-1">
+          <div className="inline-flex rounded-full border border-[#dadce0] bg-surface p-1">
             {filters.map((f) => {
               const active = filter === f.id;
               return (
@@ -163,7 +163,7 @@ export function ChapterCalendarBoard({
               );
             })}
           </div>
-          <div className="inline-flex overflow-hidden rounded-full border border-[#dadce0] bg-white">
+          <div className="inline-flex overflow-hidden rounded-full border border-[#dadce0] bg-surface">
             <button
               type="button"
               onClick={() => shiftMonth(-1)}
@@ -225,8 +225,8 @@ export function ChapterCalendarBoard({
                     isSelected
                       ? "border-brand-400 bg-brand-50/70"
                       : isToday
-                        ? "border-brand-200 bg-white"
-                        : "border-transparent bg-[#f8f9fa] hover:border-[#dadce0] hover:bg-white",
+                        ? "border-brand-200 bg-surface"
+                        : "border-transparent bg-[#f8f9fa] hover:border-[#dadce0] hover:bg-surface",
                   ].join(" ")}
                 >
                   <span
@@ -287,7 +287,7 @@ export function ChapterCalendarBoard({
               {selectedEvents.map((event) => (
                 <li
                   key={event.id}
-                  className="rounded-2xl border border-[#dadce0] bg-white p-3 shadow-[0_1px_2px_rgba(60,64,67,0.04)]"
+                  className="rounded-2xl border border-[#dadce0] bg-surface p-3 shadow-[0_1px_2px_rgba(60,64,67,0.04)]"
                 >
                   <div className="flex items-start gap-2">
                     <span

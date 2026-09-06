@@ -33,7 +33,7 @@ export function ReviewCopySwitcher({
   const activeCopy = copies.find((c) => c.id === activeId) ?? null;
 
   return (
-    <div className="flex flex-col gap-3 rounded-[14px] border border-[#e8e4f0] bg-white px-4 py-3.5 shadow-[0_1px_2px_rgb(46_16_101/0.04)]">
+    <div className="flex flex-col gap-3 rounded-[14px] border border-[#e8e4f0] bg-surface px-4 py-3.5 shadow-[0_1px_2px_rgb(46_16_101/0.04)]">
       <div className="flex flex-wrap items-center gap-2">
         <p className="m-0 mr-1 text-[12px] font-bold uppercase tracking-[0.05em] text-ink-muted">
           Copies
@@ -58,7 +58,7 @@ export function ReviewCopySwitcher({
         {activeCopy?.pdfHref ? (
           <a
             href={activeCopy.pdfHref}
-            className="ml-auto rounded-full border border-line-soft bg-white px-3 py-1 text-[12.5px] font-semibold text-ink no-underline hover:border-brand-300 hover:text-brand-800"
+            className="ml-auto rounded-full border border-line-soft bg-surface px-3 py-1 text-[12.5px] font-semibold text-ink no-underline hover:border-brand-300 hover:text-brand-800"
           >
             Print PDF
           </a>

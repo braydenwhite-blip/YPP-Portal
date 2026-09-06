@@ -25,7 +25,7 @@ export default async function Page() {
               status={r.status}
             >
               {r.reviewRequestStatus ? (
-                <p className="mt-3 text-sm font-medium text-slate-600">
+                <p className="mt-3 text-sm font-medium text-ink-muted">
                   Review requested — {r.reviewRequestStatus === "SENT" ? "sent, awaiting review" : r.reviewRequestStatus === "REVIEWING" ? "being reviewed" : "more information needed"}
                 </p>
               ) : (

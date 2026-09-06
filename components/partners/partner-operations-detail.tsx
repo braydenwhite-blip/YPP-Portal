@@ -102,7 +102,7 @@ function SidebarSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-[14px] border border-[#ebebf2] bg-white p-4 shadow-[0_1px_2px_rgba(20,20,50,0.03)]">
+    <section className="rounded-[14px] border border-[#ebebf2] bg-surface p-4 shadow-[0_1px_2px_rgba(20,20,50,0.03)]">
       <h2 className="m-0 text-[11px] font-bold uppercase tracking-[0.06em] text-[#9a9ab0]">
         {title}
       </h2>
@@ -142,7 +142,7 @@ export function PartnerOperationsDetailView({
           </span>
         </header>
 
-        <section className="rounded-[14px] border border-[#ebebf2] bg-white p-5 shadow-[0_1px_2px_rgba(20,20,50,0.03)]">
+        <section className="rounded-[14px] border border-[#ebebf2] bg-surface p-5 shadow-[0_1px_2px_rgba(20,20,50,0.03)]">
           <div className="mb-4 flex items-center justify-between gap-2">
             <h2 className="m-0 text-[11px] font-bold uppercase tracking-[0.06em] text-[#9a9ab0]">
               Classes with this partner
@@ -168,7 +168,7 @@ export function PartnerOperationsDetailView({
           </Link>
         </section>
 
-        <section className="rounded-[14px] border border-[#ebebf2] bg-white p-5 shadow-[0_1px_2px_rgba(20,20,50,0.03)]">
+        <section className="rounded-[14px] border border-[#ebebf2] bg-surface p-5 shadow-[0_1px_2px_rgba(20,20,50,0.03)]">
           <div className="mb-3 flex items-center justify-between gap-2">
             <h2 className="m-0 text-[11px] font-bold uppercase tracking-[0.06em] text-[#9a9ab0]">
               Open actions
@@ -211,7 +211,7 @@ export function PartnerOperationsDetailView({
           )}
         </section>
 
-        <section className="rounded-[14px] border border-[#ebebf2] bg-white p-5 shadow-[0_1px_2px_rgba(20,20,50,0.03)]">
+        <section className="rounded-[14px] border border-[#ebebf2] bg-surface p-5 shadow-[0_1px_2px_rgba(20,20,50,0.03)]">
           <h2 className="m-0 text-[11px] font-bold uppercase tracking-[0.06em] text-[#9a9ab0]">
             Follow-up history
           </h2>

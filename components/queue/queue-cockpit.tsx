@@ -221,7 +221,7 @@ export function QueueCockpit({
               <span
                 className={cn(
                   "inline-flex min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-bold",
-                  active ? "bg-white/20 text-white" : "bg-brand-50 text-brand-700"
+                  active ? "bg-surface/20 text-white" : "bg-brand-50 text-brand-700"
                 )}
               >
                 {count}

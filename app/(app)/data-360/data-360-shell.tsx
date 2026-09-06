@@ -165,7 +165,7 @@ export function Data360Shell({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search students, instructors, chapters, programs, partners…"
-                className="h-9 w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 text-[13px] text-[#e6edf3] placeholder:text-[#5f6b80] outline-none transition-colors focus:border-[#8b3fe8]/60"
+                className="h-9 w-full rounded-lg border border-white/10 bg-surface/[0.04] px-3 text-[13px] text-[#e6edf3] placeholder:text-[#5f6b80] outline-none transition-colors focus:border-[#8b3fe8]/60"
                 aria-label="Search org intelligence"
               />
               {query.trim().length > 0 ? (
@@ -181,7 +181,7 @@ export function Data360Shell({
                           <Link
                             href={e.href}
                             prefetch={false}
-                            className="flex items-center justify-between gap-3 px-3 py-1.5 transition-colors hover:bg-white/[0.05]"
+                            className="flex items-center justify-between gap-3 px-3 py-1.5 transition-colors hover:bg-surface/[0.05]"
                           >
                             <span className="min-w-0">
                               <span className="block truncate text-[12.5px] text-[#dbe2ec]">
@@ -206,7 +206,7 @@ export function Data360Shell({
             <div className="flex flex-wrap items-center gap-2">
               {/* Date range (URL-driven) */}
               <div
-                className="inline-flex items-center gap-0.5 rounded-lg border border-white/10 bg-white/[0.03] p-0.5"
+                className="inline-flex items-center gap-0.5 rounded-lg border border-white/10 bg-surface/[0.03] p-0.5"
                 role="group"
                 aria-label="Date range"
               >
@@ -220,7 +220,7 @@ export function Data360Shell({
                       scroll={false}
                       className={`rounded-md px-2.5 py-1 text-[11.5px] font-medium transition-colors ${
                         active
-                          ? "bg-white/[0.12] text-white"
+                          ? "bg-surface/[0.12] text-white"
                           : "text-[#8b94a7] hover:text-[#e6edf3]"
                       }`}
                     >
@@ -232,7 +232,7 @@ export function Data360Shell({
 
               {/* Lens (client state) */}
               <div
-                className="inline-flex items-center gap-0.5 rounded-lg border border-white/10 bg-white/[0.03] p-0.5"
+                className="inline-flex items-center gap-0.5 rounded-lg border border-white/10 bg-surface/[0.03] p-0.5"
                 role="group"
                 aria-label="View lens"
               >
@@ -245,7 +245,7 @@ export function Data360Shell({
                       onClick={() => setLens(key)}
                       className={`rounded-md px-2.5 py-1 text-[11.5px] font-medium transition-colors ${
                         active
-                          ? "bg-white/[0.12] text-white"
+                          ? "bg-surface/[0.12] text-white"
                           : "text-[#8b94a7] hover:text-[#e6edf3]"
                       }`}
                     >

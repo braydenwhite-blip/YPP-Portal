@@ -165,7 +165,7 @@ export default async function ChapterCalendarPage(props: ChapterCalendarPageProp
 
         <section
           id="manage-calendar"
-          className="mt-8 overflow-hidden rounded-[20px] border border-[#dadce0] bg-white shadow-[0_1px_2px_rgba(60,64,67,0.06)]"
+          className="mt-8 overflow-hidden rounded-[20px] border border-[#dadce0] bg-surface shadow-[0_1px_2px_rgba(60,64,67,0.06)]"
         >
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#f1f3f4] px-5 py-4">
             <div>
@@ -203,7 +203,7 @@ export default async function ChapterCalendarPage(props: ChapterCalendarPageProp
                 name="title"
                 defaultValue={defaults.title}
                 placeholder="e.g. Spring Showcase"
-                className="rounded-lg border border-[#dadce0] bg-white px-3 py-2 text-[13.5px] text-[#202124]"
+                className="rounded-lg border border-[#dadce0] bg-surface px-3 py-2 text-[13.5px] text-[#202124]"
               />
             </label>
 
@@ -212,7 +212,7 @@ export default async function ChapterCalendarPage(props: ChapterCalendarPageProp
               <select
                 name="eventType"
                 defaultValue={defaults.eventType}
-                className="rounded-lg border border-[#dadce0] bg-white px-3 py-2 text-[13.5px] text-[#202124]"
+                className="rounded-lg border border-[#dadce0] bg-surface px-3 py-2 text-[13.5px] text-[#202124]"
               >
                 <option value="WORKSHOP">Workshop</option>
                 <option value="SHOWCASE">Showcase</option>
@@ -227,7 +227,7 @@ export default async function ChapterCalendarPage(props: ChapterCalendarPageProp
               <select
                 name="visibility"
                 defaultValue={defaults.visibility}
-                className="rounded-lg border border-[#dadce0] bg-white px-3 py-2 text-[13.5px] text-[#202124]"
+                className="rounded-lg border border-[#dadce0] bg-surface px-3 py-2 text-[13.5px] text-[#202124]"
               >
                 <option value="INTERNAL">Chapter only</option>
                 <option value="PUBLIC">Public</option>
@@ -241,7 +241,7 @@ export default async function ChapterCalendarPage(props: ChapterCalendarPageProp
                 type="datetime-local"
                 name="startDate"
                 defaultValue={defaults.startDate}
-                className="rounded-lg border border-[#dadce0] bg-white px-3 py-2 text-[13.5px] text-[#202124]"
+                className="rounded-lg border border-[#dadce0] bg-surface px-3 py-2 text-[13.5px] text-[#202124]"
               />
             </label>
 
@@ -252,7 +252,7 @@ export default async function ChapterCalendarPage(props: ChapterCalendarPageProp
                 type="datetime-local"
                 name="endDate"
                 defaultValue={defaults.endDate}
-                className="rounded-lg border border-[#dadce0] bg-white px-3 py-2 text-[13.5px] text-[#202124]"
+                className="rounded-lg border border-[#dadce0] bg-surface px-3 py-2 text-[13.5px] text-[#202124]"
               />
             </label>
 
@@ -262,7 +262,7 @@ export default async function ChapterCalendarPage(props: ChapterCalendarPageProp
                 name="location"
                 defaultValue={defaults.location}
                 placeholder="Room, school, or address"
-                className="rounded-lg border border-[#dadce0] bg-white px-3 py-2 text-[13.5px] text-[#202124]"
+                className="rounded-lg border border-[#dadce0] bg-surface px-3 py-2 text-[13.5px] text-[#202124]"
               />
             </label>
 
@@ -272,7 +272,7 @@ export default async function ChapterCalendarPage(props: ChapterCalendarPageProp
                 name="meetingUrl"
                 defaultValue={defaults.meetingUrl}
                 placeholder="https://"
-                className="rounded-lg border border-[#dadce0] bg-white px-3 py-2 text-[13.5px] text-[#202124]"
+                className="rounded-lg border border-[#dadce0] bg-surface px-3 py-2 text-[13.5px] text-[#202124]"
               />
             </label>
 
@@ -283,7 +283,7 @@ export default async function ChapterCalendarPage(props: ChapterCalendarPageProp
                 rows={3}
                 defaultValue={defaults.description}
                 placeholder="What members should know…"
-                className="rounded-lg border border-[#dadce0] bg-white px-3 py-2 text-[13.5px] text-[#202124]"
+                className="rounded-lg border border-[#dadce0] bg-surface px-3 py-2 text-[13.5px] text-[#202124]"
               />
             </label>
 
@@ -310,7 +310,7 @@ export default async function ChapterCalendarPage(props: ChapterCalendarPageProp
                 {manualEvents.map((event) => (
                   <li
                     key={event.id}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#dadce0] bg-white px-4 py-3"
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#dadce0] bg-surface px-4 py-3"
                   >
                     <div className="min-w-0">
                       <p className="m-0 truncate text-[14px] font-semibold text-[#202124]">{event.title}</p>
@@ -338,7 +338,7 @@ export default async function ChapterCalendarPage(props: ChapterCalendarPageProp
                           value="Cancelled from the chapter calendar."
                         />
                         <ConfirmSubmitButton
-                          className="cursor-pointer rounded-full border border-[#dadce0] bg-white px-3 py-1.5 text-[12.5px] font-medium text-[#c5221f] hover:bg-[#fce8e6]"
+                          className="cursor-pointer rounded-full border border-[#dadce0] bg-surface px-3 py-1.5 text-[12.5px] font-medium text-[#c5221f] hover:bg-[#fce8e6]"
                           confirm={`Cancel "${event.title}"?`}
                           pendingText="Cancelling…"
                         >

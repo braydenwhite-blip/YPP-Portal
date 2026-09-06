@@ -189,7 +189,7 @@ export default async function ChapterHubPage() {
 
         <section
           aria-label="Chapter overview"
-          className="mb-8 overflow-hidden rounded-[20px] border border-[#dadce0] bg-white shadow-[0_1px_2px_rgba(60,64,67,0.06)]"
+          className="mb-8 overflow-hidden rounded-[20px] border border-[#dadce0] bg-surface shadow-[0_1px_2px_rgba(60,64,67,0.06)]"
         >
           <div className="relative overflow-hidden bg-linear-to-br from-brand-50 via-white to-[#f8f9fa] px-6 py-7 sm:px-8">
             <div
@@ -237,7 +237,7 @@ export default async function ChapterHubPage() {
                 ].join(" ")}
               >
                 <span
-                  className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-[18px] shadow-sm ring-1 ring-black/5"
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-surface/90 text-[18px] shadow-sm ring-1 ring-black/5"
                   aria-hidden
                 >
                   {metric.icon}
@@ -267,7 +267,7 @@ export default async function ChapterHubPage() {
               <Link
                 key={link.href}
                 href={link.href}
-                className="flex items-center gap-3 rounded-2xl border border-[#dadce0] bg-white px-4 py-3.5 no-underline shadow-[0_1px_2px_rgba(60,64,67,0.06)] transition-colors hover:border-brand-300 hover:bg-brand-50/40"
+                className="flex items-center gap-3 rounded-2xl border border-[#dadce0] bg-surface px-4 py-3.5 no-underline shadow-[0_1px_2px_rgba(60,64,67,0.06)] transition-colors hover:border-brand-300 hover:bg-brand-50/40"
               >
                 <span
                   className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#f8f9fa] text-[18px]"

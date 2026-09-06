@@ -93,7 +93,7 @@ export function HelpAgentTrigger({ className }: { className?: string }) {
       className={cn(
         "flex w-full items-center gap-2 rounded-[10px] border border-[rgba(99,102,241,0.14)] bg-[rgba(255,255,255,0.92)] px-3 py-2",
         "text-left text-[13px] font-medium text-[var(--text-secondary)] shadow-[0_1px_3px_rgba(59,15,110,0.06)]",
-        "transition-colors duration-150 hover:border-[rgba(99,102,241,0.22)] hover:bg-white hover:text-[var(--nav-purple-800)]",
+        "transition-colors duration-150 hover:border-[rgba(99,102,241,0.22)] hover:bg-surface hover:text-[var(--nav-purple-800)]",
         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgba(99,102,241,0.45)]",
         className
       )}

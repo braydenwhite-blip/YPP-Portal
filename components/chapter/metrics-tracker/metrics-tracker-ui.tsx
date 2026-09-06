@@ -710,7 +710,7 @@ export function MetricsHubView({
                   <span
                     className={cn(
                       "rounded-full px-1.5 py-0.5 text-[11px] font-bold tabular-nums",
-                      on ? "bg-white/20 text-white" : "bg-white/70 text-ink"
+                      on ? "bg-surface/20 text-white" : "bg-surface/70 text-ink"
                     )}
                   >
                     {g.metrics.length}

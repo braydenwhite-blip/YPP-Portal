@@ -624,7 +624,7 @@ function AwardsBlock({
 /* ------------------------------ Help / support ---------------------------- */
 
 const inputCls =
-  "w-full rounded-[12px] border border-line bg-white px-3.5 py-2.5 text-[13.5px] text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] placeholder:text-ink-muted/80 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100";
+  "w-full rounded-[12px] border border-line bg-surface px-3.5 py-2.5 text-[13.5px] text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] placeholder:text-ink-muted/80 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100";
 
 /** Ask-your-mentor form at the bottom of the mentee home. */
 export function SelfHelpCard({

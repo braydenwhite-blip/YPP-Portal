@@ -9,7 +9,7 @@ import type { ReviewHistory } from "@/lib/gr-actions";
 export function ReviewHistoryPanel({ history, personName }: { history: ReviewHistory; personName: string }) {
   if (history.entries.length === 0) {
     return (
-      <details className="group overflow-hidden rounded-[14px] border border-[#ebebf2] bg-white">
+      <details className="group overflow-hidden rounded-[14px] border border-[#ebebf2] bg-surface">
         <summary className="cursor-pointer list-none px-5 py-3 text-[13.5px] font-semibold text-[#1c1a2e] marker:content-none [&::-webkit-details-marker]:hidden">
           Review history
         </summary>
@@ -21,7 +21,7 @@ export function ReviewHistoryPanel({ history, personName }: { history: ReviewHis
   }
 
   return (
-    <details className="group overflow-hidden rounded-[14px] border border-[#ebebf2] bg-white">
+    <details className="group overflow-hidden rounded-[14px] border border-[#ebebf2] bg-surface">
       <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-3 marker:content-none [&::-webkit-details-marker]:hidden">
         <span className="text-[13.5px] font-semibold text-[#1c1a2e]">Review history</span>
         <span className="text-[12px] text-[#9a9ab0]">

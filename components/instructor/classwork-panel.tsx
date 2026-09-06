@@ -157,7 +157,7 @@ export function ClassworkPanel({
             + Create
           </button>
           {menuOpen ? (
-            <div className="absolute right-0 z-20 mt-2 w-64 overflow-hidden rounded-xl border border-[#dadce0] bg-white py-1 shadow-[0_8px_24px_rgba(60,64,67,0.18)]">
+            <div className="absolute right-0 z-20 mt-2 w-64 overflow-hidden rounded-xl border border-[#dadce0] bg-surface py-1 shadow-[0_8px_24px_rgba(60,64,67,0.18)]">
               {CREATE_KINDS.map((k) => (
                 <button
                   key={k.id}
@@ -184,7 +184,7 @@ export function ClassworkPanel({
       {kind ? (
         <form
           action={submit}
-          className="rounded-xl border border-[#dadce0] bg-white p-4 shadow-[0_1px_2px_rgba(60,64,67,0.08)]"
+          className="rounded-xl border border-[#dadce0] bg-surface p-4 shadow-[0_1px_2px_rgba(60,64,67,0.08)]"
         >
           <div className="mb-3 flex items-center justify-between gap-2">
             <p className="m-0 text-[14px] font-medium text-[#202124]">
@@ -300,13 +300,13 @@ export function ClassworkPanel({
       ) : null}
 
       {feed.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-[#dadce0] bg-white px-6 py-10 text-center">
+        <div className="rounded-xl border border-dashed border-[#dadce0] bg-surface px-6 py-10 text-center">
           <p className="m-0 text-[15px] text-[#5f6368]">
             Nothing here yet. Hit Create to add something.
           </p>
         </div>
       ) : (
-        <ul className="m-0 list-none divide-y divide-[#e0e0e0] overflow-hidden rounded-xl border border-[#e0e0e0] bg-white p-0 shadow-[0_1px_2px_rgba(60,64,67,0.08)]">
+        <ul className="m-0 list-none divide-y divide-[#e0e0e0] overflow-hidden rounded-xl border border-[#e0e0e0] bg-surface p-0 shadow-[0_1px_2px_rgba(60,64,67,0.08)]">
           {feed.map((a) => {
             const due = formatDue(a.suggestedDueDate);
             return (
@@ -352,7 +352,7 @@ export function ClassworkPanel({
         </ul>
       )}
 
-      <div className="rounded-xl border border-[#e0e0e0] bg-white p-4">
+      <div className="rounded-xl border border-[#e0e0e0] bg-surface p-4">
         <p className="m-0 text-[14px] font-medium text-[#202124]">End of class</p>
         <div className="mt-2">
           <ClassCompletionAction

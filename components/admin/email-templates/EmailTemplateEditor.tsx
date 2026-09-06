@@ -254,7 +254,7 @@ export function EmailTemplateEditor({
           <iframe
             title="Email preview"
             srcDoc={previewDoc}
-            className="h-[560px] w-full rounded-[8px] border border-line bg-white"
+            className="h-[560px] w-full rounded-[8px] border border-line bg-surface"
           />
         </div>
         <p className="text-[12px] text-ink-muted">

@@ -105,8 +105,8 @@ export function PeopleRosterOverviewPanel({
                 selected
                   ? "border-[#6b21c8] bg-[#f7f2ff] shadow-[0_0_0_1px_#6b21c8]"
                   : urgent
-                    ? "border-[#f0d4d4] bg-white hover:border-[#e8b4b4]"
-                    : "border-[#ebebf2] bg-white hover:border-[#d8d8e4]"
+                    ? "border-[#f0d4d4] bg-surface hover:border-[#e8b4b4]"
+                    : "border-[#ebebf2] bg-surface hover:border-[#d8d8e4]"
               )}
             >
               <span

@@ -29,11 +29,11 @@ export default async function ParentConversationPage({
   return (
     <div className="space-y-6">
       <div>
-        <Link href="/parent/messages" className="text-sm font-semibold text-violet-700 hover:underline">
+        <Link href="/parent/messages" className="text-sm font-semibold text-brand-700 hover:underline">
           ← Back to messages
         </Link>
         <h1 className="mt-2 text-3xl font-semibold">{conversation.subject ?? "Conversation"}</h1>
-        <p className="mt-1 text-sm text-slate-600">
+        <p className="mt-1 text-sm text-ink-muted">
           With {conversation.participants
             .filter((p) => p.user.id !== user.id)
             .map((p) => p.user.name)
@@ -41,9 +41,9 @@ export default async function ParentConversationPage({
         </p>
       </div>
 
-      <div className="rounded-3xl border border-stone-200 bg-white p-4">
+      <div className="rounded-3xl border border-line-card bg-surface p-4">
         {conversation.messages.length === 0 ? (
-          <p className="py-8 text-center text-sm text-slate-600">
+          <p className="py-8 text-center text-sm text-ink-muted">
             No messages yet. Say hello below.
           </p>
         ) : (
@@ -54,14 +54,14 @@ export default async function ParentConversationPage({
                 <div key={message.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
                   <div
                     className={`max-w-[80%] rounded-2xl px-4 py-2 ${
-                      isMine ? "bg-violet-700 text-white" : "bg-stone-100 text-slate-900"
+                      isMine ? "bg-brand-600 text-white" : "bg-stone-100 text-slate-900"
                     }`}
                   >
                     {!isMine ? (
                       <p className="mb-1 text-xs font-semibold opacity-70">{message.sender.name}</p>
                     ) : null}
                     <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
-                    <p className={`mt-1 text-[11px] ${isMine ? "text-violet-100" : "text-slate-500"}`}>
+                    <p className={`mt-1 text-[11px] ${isMine ? "text-violet-100" : "text-ink-muted"}`}>
                       {formatTimestamp(message.createdAt)}
                     </p>
                   </div>
@@ -83,7 +83,7 @@ export default async function ParentConversationPage({
         />
         <button
           type="submit"
-          className="rounded-full bg-violet-700 px-5 py-2 text-sm font-semibold text-white self-end"
+          className="rounded-full bg-brand-600 px-5 py-2 text-sm font-semibold text-white self-end"
         >
           Send
         </button>

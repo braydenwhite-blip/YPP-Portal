@@ -142,7 +142,7 @@ function ClassViewTabs({
             <span key={t.value} className="ps-tab" aria-current="page">
               {t.label}
               {count > 0 ? (
-                <span className="ml-1.5 rounded-full bg-white/20 px-1.5 text-[10px] font-bold">
+                <span className="ml-1.5 rounded-full bg-surface/20 px-1.5 text-[10px] font-bold">
                   {count}
                 </span>
               ) : null}

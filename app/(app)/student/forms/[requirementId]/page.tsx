@@ -34,7 +34,7 @@ export default async function Page({ params }: { params: Promise<{ requirementId
           {req.dueAt ? <>Due {shortDate(req.dueAt)}</> : "No due date set."}
         </S8Item>
         {whyReasons.length ? (
-          <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-600">
+          <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-ink-muted">
             {whyReasons.map((r) => <li key={r}>{r}</li>)}
           </ul>
         ) : null}
@@ -42,7 +42,7 @@ export default async function Page({ params }: { params: Promise<{ requirementId
 
       {fields.length ? (
         <S8Card title="What this form asks for">
-          <ul className="space-y-2 text-sm text-slate-600">
+          <ul className="space-y-2 text-sm text-ink-muted">
             {fields.map((f: any, i: number) => (
               <li key={f.key ?? i} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
                 <p className="font-medium text-slate-900">{f.label ?? f.prompt ?? `Field ${i + 1}`}</p>
@@ -54,7 +54,7 @@ export default async function Page({ params }: { params: Promise<{ requirementId
       ) : null}
 
       <S8Card title="A parent or guardian needs to complete this">
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-ink-muted">
           Every YPP family form requires a parent or guardian&apos;s signature, so it can&apos;t be finished here in the
           Student Portal. Ask your parent or guardian to open the Parent Portal and go to Forms — this requirement will
           be waiting for them there.
@@ -67,7 +67,7 @@ export default async function Page({ params }: { params: Promise<{ requirementId
               : ""}
           </p>
         ) : (
-          <p className="mt-3 text-sm text-slate-500">No submission has been recorded yet.</p>
+          <p className="mt-3 text-sm text-ink-muted">No submission has been recorded yet.</p>
         )}
         <Link href="/student/forms" className="mt-4 inline-block rounded-full border px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
           Back to your forms

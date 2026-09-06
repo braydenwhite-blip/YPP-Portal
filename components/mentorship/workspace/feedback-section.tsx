@@ -12,7 +12,7 @@ import { RequestCollaboratorFeedbackButton } from "./request-collaborator-feedba
 import { SimpleReflectionForm } from "./simple-reflection-form";
 
 const card =
-  "overflow-hidden rounded-[14px] border border-[#e8e4f0] bg-white shadow-[0_1px_2px_rgb(46_16_101/0.04)]";
+  "overflow-hidden rounded-[14px] border border-[#e8e4f0] bg-surface shadow-[0_1px_2px_rgb(46_16_101/0.04)]";
 
 function formatMonth(value: Date) {
   return value.toLocaleDateString("en-US", {

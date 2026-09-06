@@ -67,14 +67,14 @@ export function PartnersOperationsTable({ rows }: { rows: PartnerOperationsListR
 
   if (rows.length === 0) {
     return (
-      <div className="rounded-[14px] border border-[#ebebf2] bg-white px-5 py-12 text-center text-[13px] text-[#9a9ab0] shadow-[0_1px_2px_rgba(20,20,50,0.03)]">
+      <div className="rounded-[14px] border border-[#ebebf2] bg-surface px-5 py-12 text-center text-[13px] text-[#9a9ab0] shadow-[0_1px_2px_rgba(20,20,50,0.03)]">
         No partners yet.
       </div>
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-[14px] border border-[#ebebf2] bg-white shadow-[0_1px_2px_rgba(20,20,50,0.03)]">
+    <div className="overflow-hidden rounded-[14px] border border-[#ebebf2] bg-surface shadow-[0_1px_2px_rgba(20,20,50,0.03)]">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[980px] border-collapse text-left">
           <thead>

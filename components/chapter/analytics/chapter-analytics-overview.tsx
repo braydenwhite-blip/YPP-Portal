@@ -311,7 +311,7 @@ function NotesEditor({
         disabled={pending}
         placeholder="Context, blockers, or plans for this category…"
         rows={3}
-        className="w-full resize-none rounded-lg border border-[#e5e7eb] bg-white px-3 py-2 text-[13px] text-[#111827] outline-none transition focus:border-[#c4b5fd] focus:ring-2 focus:ring-[#ede9fe]"
+        className="w-full resize-none rounded-lg border border-[#e5e7eb] bg-surface px-3 py-2 text-[13px] text-[#111827] outline-none transition focus:border-[#c4b5fd] focus:ring-2 focus:ring-[#ede9fe]"
       />
     </div>
   );
@@ -371,7 +371,7 @@ function CategoryDetailModal({
         <button
           type="button"
           onClick={onClose}
-          className="rounded-lg px-2 py-1 text-[18px] leading-none text-[#9aa2b1] hover:bg-white/70"
+          className="rounded-lg px-2 py-1 text-[18px] leading-none text-[#9aa2b1] hover:bg-surface/70"
           aria-label="Close"
         >
           ×
@@ -402,7 +402,7 @@ function CategoryDetailModal({
         </div>
       ) : null}
 
-      <div className="rounded-xl border border-[#f0ecf6] bg-white p-2">
+      <div className="rounded-xl border border-[#f0ecf6] bg-surface p-2">
         <div className="flex justify-end px-2 pt-2">
           <ChartKeys variant={category === "quality" ? "bar" : "line"} />
         </div>
@@ -592,7 +592,7 @@ export function ChapterAnalyticsOverview({
               </Link>
               <Link
                 href={leaderboardHref}
-                className="rounded-full border border-[#e5e7eb] bg-white px-3 py-1 text-[12px] font-semibold text-[#4b5563] hover:border-[#c7d2fe] hover:text-[#4338ca]"
+                className="rounded-full border border-[#e5e7eb] bg-surface px-3 py-1 text-[12px] font-semibold text-[#4b5563] hover:border-[#c7d2fe] hover:text-[#4338ca]"
               >
                 Leaderboard
               </Link>
@@ -601,7 +601,7 @@ export function ChapterAnalyticsOverview({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <label className="inline-flex items-center gap-2 rounded-xl border border-[#e5e7eb] bg-white px-3 py-2 text-[13px] shadow-sm">
+          <label className="inline-flex items-center gap-2 rounded-xl border border-[#e5e7eb] bg-surface px-3 py-2 text-[13px] shadow-sm">
             <span className="text-[#9aa2b1]">Chapter</span>
             <select
               className="max-w-[180px] border-0 bg-transparent font-semibold text-[#111827] outline-none"
@@ -619,7 +619,7 @@ export function ChapterAnalyticsOverview({
               ))}
             </select>
           </label>
-          <label className="inline-flex items-center gap-2 rounded-xl border border-[#e5e7eb] bg-white px-3 py-2 text-[13px] shadow-sm">
+          <label className="inline-flex items-center gap-2 rounded-xl border border-[#e5e7eb] bg-surface px-3 py-2 text-[13px] shadow-sm">
             <span className="text-[#9aa2b1]">Range</span>
             <select
               className="border-0 bg-transparent font-semibold text-[#111827] outline-none"
@@ -638,7 +638,7 @@ export function ChapterAnalyticsOverview({
           <button
             type="button"
             onClick={() => exportOverviewCsv(model)}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-[#e5e7eb] bg-white px-3 py-2 text-[13px] font-semibold text-[#374151] shadow-sm hover:border-[#c7d2fe]"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-[#e5e7eb] bg-surface px-3 py-2 text-[13px] font-semibold text-[#374151] shadow-sm hover:border-[#c7d2fe]"
           >
             Export
           </button>

@@ -18,7 +18,7 @@ export function ClassCompletionAction({ offeringId, offeringEnded, alreadyComple
     return <p className="rounded-2xl bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-900">This class is done.</p>;
   }
   if (!offeringEnded) {
-    return <p className="rounded-2xl bg-slate-50 p-3 text-sm text-slate-600">You can finish the class after the last class day.</p>;
+    return <p className="rounded-2xl bg-slate-50 p-3 text-sm text-ink-muted">You can finish the class after the last class day.</p>;
   }
 
   async function run() {
@@ -54,7 +54,7 @@ export function ClassCompletionAction({ offeringId, offeringEnded, alreadyComple
             </div>
           </div>
         ) : (
-          <button onClick={() => setConfirming(true)} className="min-h-11 rounded-full bg-violet-700 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-800">
+          <button onClick={() => setConfirming(true)} className="min-h-11 rounded-full bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-800">
             Finish class & send certificates
           </button>
         )
@@ -79,12 +79,12 @@ export function StudentFeedbackPanel({ offeringId, students, feedback }: { offer
               <div>
                 <p className="font-semibold text-slate-950">{s.name ?? "Student"}</p>
                 {existing ? (
-                  <p className="text-sm text-slate-500">{existing.releasedToFamilyAt ? "Feedback released to family" : "Draft not yet released"}</p>
+                  <p className="text-sm text-ink-muted">{existing.releasedToFamilyAt ? "Feedback released to family" : "Draft not yet released"}</p>
                 ) : (
-                  <p className="text-sm text-slate-500">No feedback written yet.</p>
+                  <p className="text-sm text-ink-muted">No feedback written yet.</p>
                 )}
               </div>
-              <button type="button" onClick={() => setOpenFor(openFor === s.id ? null : s.id)} className="min-h-11 rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-white">
+              <button type="button" onClick={() => setOpenFor(openFor === s.id ? null : s.id)} className="min-h-11 rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-surface">
                 {openFor === s.id ? "Close" : existing ? "Edit feedback" : "Write feedback"}
               </button>
             </div>
@@ -98,7 +98,7 @@ export function StudentFeedbackPanel({ offeringId, students, feedback }: { offer
                 <textarea id={`strengths-${s.id}`} name="strengths" defaultValue={existing?.strengths ?? ""} className="w-full rounded-xl border p-3 text-sm" />
                 <label className="block text-sm font-semibold" htmlFor={`growth-${s.id}`}>Growth areas (optional)</label>
                 <textarea id={`growth-${s.id}`} name="growthAreas" defaultValue={existing?.growthAreas ?? ""} className="w-full rounded-xl border p-3 text-sm" />
-                <button className="min-h-11 rounded-full bg-violet-700 px-4 py-2 text-sm font-semibold text-white">Save feedback</button>
+                <button className="min-h-11 rounded-full bg-brand-600 px-4 py-2 text-sm font-semibold text-white">Save feedback</button>
               </form>
             )}
             {existing && !existing.releasedToFamilyAt && (
@@ -179,7 +179,7 @@ export function AnnouncementComposer({ offeringId }: { offeringId: string }) {
                   "inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-[13px]",
                   publishWhen === "asap"
                     ? "border-[#1967d2] bg-[#e8f0fe] font-medium text-[#174ea6]"
-                    : "border-[#dadce0] bg-white text-[#5f6368]",
+                    : "border-[#dadce0] bg-surface text-[#5f6368]",
                 ].join(" ")}
               >
                 <input
@@ -196,7 +196,7 @@ export function AnnouncementComposer({ offeringId }: { offeringId: string }) {
                   "inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-[13px]",
                   publishWhen === "at"
                     ? "border-[#1967d2] bg-[#e8f0fe] font-medium text-[#174ea6]"
-                    : "border-[#dadce0] bg-white text-[#5f6368]",
+                    : "border-[#dadce0] bg-surface text-[#5f6368]",
                 ].join(" ")}
               >
                 <input
@@ -283,7 +283,7 @@ export function AttendanceReviewResponse({ requestId }: { requestId: string }) {
     <form action={submit} className="mt-2 space-y-2">
       <textarea name="body" required placeholder="Response visible to the family" className="w-full rounded-xl border p-2 text-sm" />
       <div className="flex gap-2">
-        <button className="min-h-11 rounded-full bg-violet-700 px-3 py-1.5 text-sm font-semibold text-white">Send response</button>
+        <button className="min-h-11 rounded-full bg-brand-600 px-3 py-1.5 text-sm font-semibold text-white">Send response</button>
         <button type="button" onClick={() => setOpen(false)} className="min-h-11 rounded-full border px-3 py-1.5 text-sm font-semibold text-slate-700">Cancel</button>
       </div>
     </form>

@@ -132,7 +132,7 @@ function ClassCard({
     <Link
       href={`/instructor/classes/${offering.id}`}
       className={[
-        "group flex flex-col overflow-hidden rounded-2xl border border-[#dadce0] bg-white no-underline shadow-[0_1px_2px_rgba(60,64,67,0.08)] transition-[box-shadow,transform] duration-200",
+        "group flex flex-col overflow-hidden rounded-2xl border border-[#dadce0] bg-surface no-underline shadow-[0_1px_2px_rgba(60,64,67,0.08)] transition-[box-shadow,transform] duration-200",
         "hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(60,64,67,0.14)]",
         "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600",
         muted ? "opacity-80" : "",
@@ -187,7 +187,7 @@ function AddClassCard({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="flex min-h-[180px] cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[#dadce0] bg-white/70 px-4 py-6 text-center transition-colors hover:border-brand-400 hover:bg-brand-50/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
+      className="flex min-h-[180px] cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[#dadce0] bg-surface/70 px-4 py-6 text-center transition-colors hover:border-brand-400 hover:bg-brand-50/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
     >
       <span className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-100 text-[22px] font-semibold leading-none text-brand-700">
         +
@@ -443,7 +443,7 @@ function AddClassModal({
               required
               value={instructorId}
               onChange={(e) => setInstructorId(e.target.value)}
-              className="rounded-lg border border-line bg-white px-3 py-2 text-[13.5px] text-ink"
+              className="rounded-lg border border-line bg-surface px-3 py-2 text-[13.5px] text-ink"
             >
               <option value="" disabled>
                 Select instructor
@@ -462,7 +462,7 @@ function AddClassModal({
               required
               value={templateId}
               onChange={(e) => onTemplateChange(e.target.value)}
-              className="rounded-lg border border-line bg-white px-3 py-2 text-[13.5px] text-ink"
+              className="rounded-lg border border-line bg-surface px-3 py-2 text-[13.5px] text-ink"
             >
               {templates.length === 0 ? (
                 <option value="" disabled>
@@ -486,7 +486,7 @@ function AddClassModal({
             name="title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="rounded-lg border border-line bg-white px-3 py-2 text-[13.5px] text-ink"
+            className="rounded-lg border border-line bg-surface px-3 py-2 text-[13.5px] text-ink"
             placeholder="e.g. Behavioral Science — Spring Cohort C"
           />
         </label>
@@ -503,7 +503,7 @@ function AddClassModal({
                 required
                 value={partnerId}
                 onChange={(e) => setPartnerId(e.target.value)}
-                className="rounded-lg border border-line bg-white px-3 py-2 text-[13.5px] text-ink"
+                className="rounded-lg border border-line bg-surface px-3 py-2 text-[13.5px] text-ink"
               >
                 {locations.map((loc) => (
                   <option key={loc.id} value={loc.id}>
@@ -527,7 +527,7 @@ function AddClassModal({
               type="date"
               name="startDate"
               defaultValue={isoDateOffset(7)}
-              className="rounded-lg border border-line bg-white px-3 py-2 text-[13.5px] text-ink"
+              className="rounded-lg border border-line bg-surface px-3 py-2 text-[13.5px] text-ink"
             />
           </label>
           <label className="flex flex-col gap-1 text-[13px]">
@@ -539,7 +539,7 @@ function AddClassModal({
               defaultValue={isoDateOffset(
                 7 + Math.max(1, (selectedTemplate?.durationWeeks ?? 6) * 7)
               )}
-              className="rounded-lg border border-line bg-white px-3 py-2 text-[13.5px] text-ink"
+              className="rounded-lg border border-line bg-surface px-3 py-2 text-[13.5px] text-ink"
             />
           </label>
         </div>
@@ -558,7 +558,7 @@ function AddClassModal({
                     "rounded-full border px-3 py-1 text-[12.5px] font-medium transition-colors",
                     on
                       ? "border-brand-600 bg-brand-50 text-brand-800"
-                      : "border-line bg-white text-ink-muted hover:border-brand-300",
+                      : "border-line bg-surface text-ink-muted hover:border-brand-300",
                   ].join(" ")}
                 >
                   {day.slice(0, 3)}
@@ -576,7 +576,7 @@ function AddClassModal({
               name="meetingTime"
               defaultValue="16:00-17:00"
               placeholder="16:00-17:00"
-              className="rounded-lg border border-line bg-white px-3 py-2 text-[13.5px] text-ink"
+              className="rounded-lg border border-line bg-surface px-3 py-2 text-[13.5px] text-ink"
             />
           </label>
           <label className="flex flex-col gap-1 text-[13px]">
@@ -587,7 +587,7 @@ function AddClassModal({
               name="capacity"
               min={1}
               defaultValue={selectedTemplate?.maxStudents ?? 18}
-              className="rounded-lg border border-line bg-white px-3 py-2 text-[13.5px] text-ink"
+              className="rounded-lg border border-line bg-surface px-3 py-2 text-[13.5px] text-ink"
             />
           </label>
         </div>

@@ -130,7 +130,7 @@ function ActionPanel({
 
   return (
     <section className="border-t border-[#ebe6f4] bg-[#fcfbfe]">
-      <div className="flex items-center justify-between border-b border-[#efeaf7] bg-white px-4 py-2.5">
+      <div className="flex items-center justify-between border-b border-[#efeaf7] bg-surface px-4 py-2.5">
         <div className="min-w-0">
           <h2 className="text-[14px] font-bold tracking-tight text-[#1e1b4b]">Action Items</h2>
           <p className="truncate text-[12px] font-semibold text-[#6b21c8]">
@@ -151,7 +151,7 @@ function ActionPanel({
 
       <div className="grid gap-3 p-3 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)_minmax(0,1.2fr)]">
         <div className="space-y-3">
-          <div className="rounded-xl border border-[#ebe6f4] bg-white p-3 shadow-[0_1px_2px_rgba(46,16,101,0.04)]">
+          <div className="rounded-xl border border-[#ebe6f4] bg-surface p-3 shadow-[0_1px_2px_rgba(46,16,101,0.04)]">
             <div className="grid grid-cols-3 gap-2 text-center">
               <div>
                 <div className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[#94a3b8]">Current</div>
@@ -217,7 +217,7 @@ function ActionPanel({
           </div>
         </div>
 
-        <div className="space-y-2.5 rounded-xl border border-[#ebe6f4] bg-white p-3">
+        <div className="space-y-2.5 rounded-xl border border-[#ebe6f4] bg-surface p-3">
           <h3 className="text-[10px] font-bold uppercase tracking-[0.06em] text-[#94a3b8]">
             Discussion & Ownership
           </h3>
@@ -281,7 +281,7 @@ function ActionPanel({
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="New action item…"
-                  className="w-full rounded-lg border border-[#e2e8f0] bg-white px-3 py-2 text-[13px] outline-none transition focus:border-[#c4b5fd] focus:ring-2 focus:ring-[#ede9fe]"
+                  className="w-full rounded-lg border border-[#e2e8f0] bg-surface px-3 py-2 text-[13px] outline-none transition focus:border-[#c4b5fd] focus:ring-2 focus:ring-[#ede9fe]"
                 />
                 <button
                   type="submit"
@@ -312,7 +312,7 @@ function ActionPanel({
             {panel.actions.map((a) => (
               <li
                 key={a.id}
-                className="flex items-start gap-2 rounded-lg border border-[#efeaf7] bg-white px-2.5 py-2"
+                className="flex items-start gap-2 rounded-lg border border-[#efeaf7] bg-surface px-2.5 py-2"
               >
                 <input
                   type="checkbox"
@@ -353,7 +353,7 @@ function ActionPanel({
               .map((rec, idx) => (
                 <li
                   key={rec}
-                  className="flex items-start gap-2 rounded-lg border border-dashed border-[#e2e8f0] bg-white/70 px-2.5 py-2"
+                  className="flex items-start gap-2 rounded-lg border border-dashed border-[#e2e8f0] bg-surface/70 px-2.5 py-2"
                 >
                   <input
                     type="checkbox"
@@ -440,7 +440,7 @@ export function ChapterAnalyticsLeaderboard({
             <div className="mt-2 flex flex-wrap gap-2">
               <Link
                 href={overviewHref}
-                className="rounded-full border border-[#e5e7eb] bg-white px-3 py-1 text-[12px] font-semibold text-[#4b5563] hover:border-[#c7d2fe] hover:text-[#4338ca]"
+                className="rounded-full border border-[#e5e7eb] bg-surface px-3 py-1 text-[12px] font-semibold text-[#4b5563] hover:border-[#c7d2fe] hover:text-[#4338ca]"
               >
                 Overview
               </Link>
@@ -452,12 +452,12 @@ export function ChapterAnalyticsLeaderboard({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-xl border border-[#e5e7eb] bg-white px-3 py-2 text-[13px] font-semibold text-[#111827] shadow-sm">
+          <span className="inline-flex items-center gap-1.5 rounded-xl border border-[#e5e7eb] bg-surface px-3 py-2 text-[13px] font-semibold text-[#111827] shadow-sm">
             {model.asOfLabel}
           </span>
           <button
             type="button"
-            className="inline-flex items-center gap-1.5 rounded-xl border border-[#e5e7eb] bg-white px-3 py-2 text-[13px] font-semibold text-[#374151] shadow-sm hover:border-[#c7d2fe]"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-[#e5e7eb] bg-surface px-3 py-2 text-[13px] font-semibold text-[#374151] shadow-sm hover:border-[#c7d2fe]"
             aria-label="Refresh"
             onClick={() => window.location.reload()}
           >

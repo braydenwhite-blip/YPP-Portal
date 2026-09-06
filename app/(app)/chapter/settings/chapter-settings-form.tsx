@@ -45,7 +45,7 @@ export function ChapterSettingsForm({ settings }: { settings: Settings }) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="overflow-hidden rounded-[20px] border border-[#dadce0] bg-white shadow-[0_1px_2px_rgba(60,64,67,0.06)]"
+      className="overflow-hidden rounded-[20px] border border-[#dadce0] bg-surface shadow-[0_1px_2px_rgba(60,64,67,0.06)]"
     >
       <div className="border-b border-[#f1f3f4] px-5 py-4">
         <h2 className="m-0 text-[16px] font-semibold text-[#202124]">About your chapter</h2>
@@ -79,7 +79,7 @@ export function ChapterSettingsForm({ settings }: { settings: Settings }) {
             defaultValue={settings.tagline ?? ""}
             placeholder="One line about your chapter"
             maxLength={100}
-            className="rounded-lg border border-[#dadce0] bg-white px-3 py-2 text-[13.5px] text-[#202124]"
+            className="rounded-lg border border-[#dadce0] bg-surface px-3 py-2 text-[13.5px] text-[#202124]"
           />
         </label>
 
@@ -91,7 +91,7 @@ export function ChapterSettingsForm({ settings }: { settings: Settings }) {
             placeholder="What should new members know?"
             rows={3}
             maxLength={1000}
-            className="rounded-lg border border-[#dadce0] bg-white px-3 py-2 text-[13.5px] text-[#202124]"
+            className="rounded-lg border border-[#dadce0] bg-surface px-3 py-2 text-[13.5px] text-[#202124]"
           />
         </label>
 
@@ -100,7 +100,7 @@ export function ChapterSettingsForm({ settings }: { settings: Settings }) {
           <select
             name="joinPolicy"
             defaultValue={settings.joinPolicy}
-            className="rounded-lg border border-[#dadce0] bg-white px-3 py-2 text-[13.5px] text-[#202124]"
+            className="rounded-lg border border-[#dadce0] bg-surface px-3 py-2 text-[13.5px] text-[#202124]"
           >
             <option value="OPEN">Anyone can join</option>
             <option value="APPROVAL">I approve each request</option>

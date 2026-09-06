@@ -214,7 +214,7 @@ export function BarRows({
             >
               {d.label}
             </span>
-            <span className="relative h-2 flex-1 overflow-hidden rounded-full bg-white/[0.06]">
+            <span className="relative h-2 flex-1 overflow-hidden rounded-full bg-surface/[0.06]">
               <span
                 className="absolute inset-y-0 left-0 rounded-full"
                 style={{ width: `${(d.value / peak) * 100}%`, background: color }}
@@ -231,7 +231,7 @@ export function BarRows({
               <Link
                 href={d.href}
                 prefetch={false}
-                className="flex items-center gap-2.5 rounded-md px-1 py-0.5 transition-colors hover:bg-white/[0.04]"
+                className="flex items-center gap-2.5 rounded-md px-1 py-0.5 transition-colors hover:bg-surface/[0.04]"
               >
                 {body}
               </Link>
