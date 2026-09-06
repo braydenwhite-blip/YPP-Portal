@@ -1,3 +1,26 @@
+enum MillenniumEducationStatus {
+  ENROLLED
+  IN_PROGRESS
+  COMPLETED
+  WITHDRAWN
+}
+
+model MillenniumEducationRecord {
+  id                String                     @id @default(cuid())
+  studentId         String
+  student           User                       @relation("MillenniumEducationStudent", fields: [studentId], references: [id])
+  status            MillenniumEducationStatus  @default(ENROLLED)
+  startDate         DateTime?
+  completionDate    DateTime?
+  hoursCompleted    Int                        @default(0)
+  certificateIssued Boolean                    @default(false)
+  notes             String?                    @db.Text
+  createdAt         DateTime                   @default(now())
+  updatedAt         DateTime                   @updatedAt
+
+  @@index([studentId])
+}
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -955,6 +978,7 @@ model ChapterNote {
 
 model User {
   id                              String                    @id @default(cuid())
+  millenniumEducationRecords MillenniumEducationRecord[] @relation("MillenniumEducationStudent")
   name                            String
   email                           String                    @unique
   phone                           String?

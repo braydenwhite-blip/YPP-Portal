@@ -1314,13 +1314,25 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardDescription: "Create chapter events, recurring series, and public calendar items.",
       dashboardPriority: 4,
     },
-    {
+        {
       href: "/chapter/student-intake",
       label: "Student Intake",
       icon: "🧭",
       roles: ["CHAPTER_PRESIDENT", "ADMIN"] as NavRole[],
       dashboardDescription: "Review parent-led student journeys and launch early support plans.",
       dashboardPriority: 5,
+    },
+    {
+      href: "/chapter/millennium-education",
+      label: "Millennium Education",
+      icon: "",
+      roles: ["CHAPTER_PRESIDENT", "ADMIN"] as NavRole[],
+    },
+    {
+      href: "/admin/millennium-education",
+      label: "Millennium Education",
+      icon: "",
+      roles: ADMIN_ONLY,
     },
     {
       href: "/chapter/onboarding",

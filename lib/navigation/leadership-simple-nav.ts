@@ -50,7 +50,7 @@ export const LEADERSHIP_FULL_CORE_NAV_MAP: Partial<Record<NavRole, string[]>> = 
 
 export function leadershipSimpleNavHrefs(primaryRole: NavRole): readonly string[] {
   if (primaryRole === "ADMIN") {
-    return ["/", "/actions", ADMIN_APPLICANTS, "/admin/chapters", ADMIN_METRICS, "/mentorship", ADMIN_USERS];
+    return ["/", "/actions", ADMIN_APPLICANTS, "/admin/chapters", ADMIN_METRICS, "/mentorship", ADMIN_USERS, "/admin/millennium-education"];
   }
   if (primaryRole === "CHAPTER_PRESIDENT") {
     return [
@@ -58,6 +58,7 @@ export function leadershipSimpleNavHrefs(primaryRole: NavRole): readonly string[
       "/chapter/hub",
       "/chapter/instructors",
       "/chapter/impact",
+      "/chapter/millennium-education",
       "/actions",
       "/mentorship",
     ];
