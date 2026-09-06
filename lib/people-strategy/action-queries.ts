@@ -1,8 +1,8 @@
-import type { Prisma } from "@prisma/client";
+import type { Prisma, RoleType } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
-import { whereActiveMember } from "@/lib/user-role-where";
+import { whereActiveMember, whereUserHasAnyRole } from "@/lib/user-role-where";
 
 import {
   ensureStandingActionDepartments,
@@ -577,11 +577,29 @@ export type ActionPickerUser = {
 };
 
 /**
+ * Roles that can always be picked as Lead / people on an action, even when the
+ * picker is chapter-scoped (network staff, admins, CPs, mentors, hiring chairs).
+ * Board members are covered via ADMIN + SUPER_ADMIN / LEADERSHIP subtypes on
+ * those ADMIN users.
+ */
+const ACTION_NETWORK_ASSIGNABLE_ROLES: RoleType[] = [
+  "ADMIN",
+  "STAFF",
+  "CHAPTER_PRESIDENT",
+  "HIRING_CHAIR",
+  "MENTOR",
+];
+
+/**
  * Candidate users for the Lead / Executing / Input pickers on the Action form.
  * Active (non-archived) portal members, name-sorted. Kept broad on purpose: a
  * Lead/Executor is typically officer-tier, but Input can be requested from
  * anyone, so we don't pre-filter by role beyond excluding applicants. Capped
  * for payload sanity.
+ *
+ * When `chapterId` is set (e.g. chapter president creating work), include that
+ * chapter's members plus network leadership roles so staff / admin / CP / mentor
+ * / board users stay selectable even if their home chapter differs.
  *
  * Applicants are `User` rows distinguished only by role, so they must be
  * filtered out explicitly (`whereActiveMember`) — otherwise pending applicants
@@ -598,8 +616,19 @@ export async function listActionAssignableUsers(opts?: {
     .findMany({
       where: {
         archivedAt: null,
-        ...whereActiveMember(),
-        ...(chapterId ? { chapterId } : {}),
+        AND: [
+          whereActiveMember(),
+          ...(chapterId
+            ? [
+                {
+                  OR: [
+                    { chapterId },
+                    whereUserHasAnyRole(ACTION_NETWORK_ASSIGNABLE_ROLES),
+                  ],
+                },
+              ]
+            : []),
+        ],
       },
       select: {
         id: true,

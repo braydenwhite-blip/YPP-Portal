@@ -177,13 +177,7 @@ export default function ActionItemForm({
     )
   );
   const defaultLeadId =
-    initial?.leadId ??
-    (!isEdit && initial?.suggestedOwnerId && users.some((u) => u.id === initial.suggestedOwnerId)
-      ? initial.suggestedOwnerId
-      : null) ??
-    (!isEdit && currentUserId && users.some((u) => u.id === currentUserId)
-      ? currentUserId
-      : null);
+    initial?.leadId && users.some((u) => u.id === initial.leadId) ? initial.leadId : null;
   const [leadIds, setLeadIds] = useState<string[]>(
     defaultLeadId ? [defaultLeadId] : []
   );

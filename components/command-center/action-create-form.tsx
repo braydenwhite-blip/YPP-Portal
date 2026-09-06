@@ -42,25 +42,27 @@ function asDate(value: Date | string | null | undefined): Date | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-function defaultAssigneeIds(users: ActionUserOption[], currentUserId: string): string[] {
-  const defaultAssignee =
-    users.some((u) => u.id === currentUserId) ? currentUserId : users[0]?.id ?? "";
-  return defaultAssignee ? [defaultAssignee] : [];
-}
-
-function initialAssigneeIds(
+function initialLeadIds(
   users: ActionUserOption[],
-  currentUserId: string,
   initial?: ActionItemFormInitial
 ): string[] {
-  if (initial?.suggestedOwnerId && users.some((u) => u.id === initial.suggestedOwnerId)) {
-    return [initial.suggestedOwnerId];
-  }
+  // Only preselect when editing an existing action that already has a lead.
+  // New actions start with nobody selected so the creator chooses intentionally.
   if (initial?.leadId && users.some((u) => u.id === initial.leadId)) {
-    const executing = (initial.executingUserIds ?? []).filter((id) => id !== initial.leadId);
-    return [initial.leadId, ...executing];
+    return [initial.leadId];
   }
-  return defaultAssigneeIds(users, currentUserId);
+  return [];
+}
+
+function initialExecutingIds(
+  users: ActionUserOption[],
+  leadIds: string[],
+  initial?: ActionItemFormInitial
+): string[] {
+  const lead = new Set(leadIds);
+  return (initial?.executingUserIds ?? []).filter(
+    (id) => !lead.has(id) && users.some((u) => u.id === id)
+  );
 }
 
 function initialDeadlineValue(initial?: ActionItemFormInitial): string {
@@ -158,8 +160,9 @@ export function ActionCreateForm({
   const [error, setError] = useState<string | null>(null);
 
   const [title, setTitle] = useState(initial?.title ?? "");
-  const [assignedUserIds, setAssignedUserIds] = useState<string[]>(() =>
-    initialAssigneeIds(users, currentUserId, initial)
+  const [leadIds, setLeadIds] = useState<string[]>(() => initialLeadIds(users, initial));
+  const [executingIds, setExecutingIds] = useState<string[]>(() =>
+    initialExecutingIds(users, initialLeadIds(users, initial), initial)
   );
   const [deadline, setDeadline] = useState(() => initialDeadlineValue(initial));
   const [description, setDescription] = useState(initial?.description ?? "");
@@ -176,6 +179,7 @@ export function ActionCreateForm({
   );
   const [status, setStatus] = useState(initial?.status ?? "NOT_STARTED");
 
+  const leadId = leadIds[0] ?? "";
   const activePreset = matchActionDeadlinePreset(deadline);
   const presetHint = activePreset ? actionDeadlinePresetHint(activePreset) : null;
   const backHref = cancelHref ?? redirectTo;
@@ -192,20 +196,20 @@ export function ActionCreateForm({
       setError("Add a short title — what needs to get done?");
       return;
     }
-    if (assignedUserIds.length === 0 || !deadline) {
-      setError("Pick at least one person and a due date.");
+    if (!leadId || !deadline) {
+      setError("Pick a lead and a due date.");
       return;
     }
-
-    const leadId = assignedUserIds[0];
-    const executingUserIds = assignedUserIds.slice(1);
 
     startTransition(async () => {
       try {
         await createActionItem({
           title: trimmed,
           leadId,
-          executingUserIds: executingUserIds.length > 0 ? executingUserIds : undefined,
+          executingUserIds:
+            executingIds.filter((id) => id !== leadId).length > 0
+              ? executingIds.filter((id) => id !== leadId)
+              : undefined,
           deadlineStart: deadline,
           description: description.trim() || undefined,
           goalCategory: initial?.goalCategory?.trim() || undefined,
@@ -282,31 +286,50 @@ export function ActionCreateForm({
           <FormSection
             step={2}
             title="Who's on this?"
-            hint="Search and add people. The first person is the accountable lead; everyone else executes."
+            hint="Choose a lead intentionally — nobody is selected by default. Staff, admins, chapter presidents, mentors, and board members are all eligible."
           >
             <ActionUserPicker
-              id="action-create-people"
+              id="action-create-lead"
               variant="calm"
-              label="People"
+              label="Lead"
               required
+              single
               users={users}
-              selected={assignedUserIds}
-              onChange={setAssignedUserIds}
+              selected={leadIds}
+              onChange={(next) => {
+                setLeadIds(next.slice(0, 1));
+                if (next[0]) {
+                  setExecutingIds((current) => current.filter((id) => id !== next[0]));
+                }
+              }}
               emptyHint="No assignable users found."
             />
             {currentUserId &&
             users.some((u) => u.id === currentUserId) &&
-            !assignedUserIds.includes(currentUserId) ? (
+            leadIds[0] !== currentUserId ? (
               <Button
                 type="button"
                 variant="secondary"
                 size="sm"
                 className="self-start"
-                onClick={() => setAssignedUserIds((current) => [currentUserId, ...current])}
+                onClick={() => {
+                  setLeadIds([currentUserId]);
+                  setExecutingIds((current) => current.filter((id) => id !== currentUserId));
+                }}
               >
-                Add me
+                Assign me as lead
               </Button>
             ) : null}
+            <ActionUserPicker
+              id="action-create-executing"
+              variant="calm"
+              label="Also executing"
+              users={users}
+              selected={executingIds}
+              onChange={setExecutingIds}
+              excludeIds={leadIds}
+              emptyHint="No assignable users found."
+            />
           </FormSection>
 
           <div className="h-px bg-line-soft/80" aria-hidden />

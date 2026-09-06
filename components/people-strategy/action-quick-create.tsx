@@ -31,12 +31,6 @@ type UserOption = ActionUserOption;
 
 const DEADLINE_PRESETS = ACTION_DEADLINE_PRESETS.filter((preset) => preset.id !== "this-week");
 
-function defaultAssigneeIds(users: UserOption[], currentUserId: string): string[] {
-  const defaultAssignee =
-    users.some((u) => u.id === currentUserId) ? currentUserId : users[0]?.id ?? "";
-  return defaultAssignee ? [defaultAssignee] : [];
-}
-
 /**
  * Add an action — inline expander on initiative panels and the action tracker.
  * For the dedicated `/actions/new` page, use {@link ActionCreateForm} instead.
@@ -71,9 +65,8 @@ export function ActionQuickCreate({
   }, [defaultOpen]);
 
   const [title, setTitle] = useState("");
-  const [assignedUserIds, setAssignedUserIds] = useState<string[]>(() =>
-    defaultAssigneeIds(users, currentUserId)
-  );
+  const [leadIds, setLeadIds] = useState<string[]>([]);
+  const [executingIds, setExecutingIds] = useState<string[]>([]);
   const [deadline, setDeadline] = useState(
     toDateInputValue(addDays(new Date(), DEFAULT_ACTION_DEADLINE_DAYS))
   );
@@ -82,6 +75,7 @@ export function ActionQuickCreate({
   const [status, setStatus] = useState("NOT_STARTED");
   const [priority, setPriority] = useState("MEDIUM");
 
+  const leadId = leadIds[0] ?? "";
   const activePreset = matchActionDeadlinePreset(deadline);
   const presetHint = activePreset ? actionDeadlinePresetHint(activePreset) : null;
 
@@ -91,7 +85,8 @@ export function ActionQuickCreate({
 
   function resetForm() {
     setTitle("");
-    setAssignedUserIds(defaultAssigneeIds(users, currentUserId));
+    setLeadIds([]);
+    setExecutingIds([]);
     setDescription("");
     setDepartmentId("");
     setStatus("NOT_STARTED");
@@ -106,20 +101,20 @@ export function ActionQuickCreate({
       setError("Add a title — what needs to get done?");
       return;
     }
-    if (assignedUserIds.length === 0 || !deadline) {
-      setError("Add at least one person and a due date.");
+    if (!leadId || !deadline) {
+      setError("Pick a lead and a due date.");
       return;
     }
-
-    const leadId = assignedUserIds[0];
-    const executingUserIds = assignedUserIds.slice(1);
 
     startTransition(async () => {
       try {
         await createActionItem({
           title: trimmed,
           leadId,
-          executingUserIds: executingUserIds.length > 0 ? executingUserIds : undefined,
+          executingUserIds:
+            executingIds.filter((id) => id !== leadId).length > 0
+              ? executingIds.filter((id) => id !== leadId)
+              : undefined,
           deadlineStart: deadline,
           description: description.trim() || undefined,
           departmentId: departmentId || undefined,
@@ -215,29 +210,48 @@ export function ActionQuickCreate({
         </div>
 
         <ActionUserPicker
-          id="quick-action-people-inline"
-          label="Who's involved?"
+          id="quick-action-lead-inline"
+          label="Lead"
           required
+          single
           users={users}
-          selected={assignedUserIds}
-          onChange={setAssignedUserIds}
+          selected={leadIds}
+          onChange={(next) => {
+            setLeadIds(next.slice(0, 1));
+            if (next[0]) {
+              setExecutingIds((current) => current.filter((id) => id !== next[0]));
+            }
+          }}
           emptyHint="No assignable users found."
         />
         <p className="-mt-1 text-[12px] text-[var(--ps-ink-soft,var(--muted))]">
-          Add everyone who should see this. The first person is the lead.
+          Nobody is selected by default — pick the accountable lead.
         </p>
 
         {currentUserId &&
         users.some((u) => u.id === currentUserId) &&
-        !assignedUserIds.includes(currentUserId) ? (
+        leadIds[0] !== currentUserId ? (
           <button
             type="button"
             className="button outline small -mt-1 justify-self-start"
-            onClick={() => setAssignedUserIds((current) => [currentUserId, ...current])}
+            onClick={() => {
+              setLeadIds([currentUserId]);
+              setExecutingIds((current) => current.filter((id) => id !== currentUserId));
+            }}
           >
-            Add me
+            Assign me as lead
           </button>
         ) : null}
+
+        <ActionUserPicker
+          id="quick-action-executing-inline"
+          label="Also executing"
+          users={users}
+          selected={executingIds}
+          onChange={setExecutingIds}
+          excludeIds={leadIds}
+          emptyHint="No assignable users found."
+        />
 
         <div className="ps-field">
           <label className="ps-label" htmlFor="quick-action-deadline-inline">
