@@ -162,6 +162,12 @@ export default async function ChapterHubPage() {
       description: "Who’s enrolled and who needs a nudge",
     },
     {
+      href: "/chapter/millennium-education",
+      label: "Millennium Education",
+      icon: "🎓",
+      description: "Track enrollment, progress, and certificates",
+    },
+    {
       href: "/chapter/calendar",
       label: "Calendar",
       icon: "🗓",

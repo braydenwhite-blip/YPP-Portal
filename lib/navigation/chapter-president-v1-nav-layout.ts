@@ -19,7 +19,6 @@ export const CHAPTER_PRESIDENT_SIMPLE_ALLOWED_HREFS: ReadonlySet<string> = new S
   "/chapter/instructors",
   "/mentorship",
   "/chapter/impact",
-  "/chapter/millennium-education",
   "/actions",
 ]);
 
@@ -85,18 +84,15 @@ const SIDEBAR_BY_HREF: Record<string, { group: NavGroup; label: string; icon: st
   "/chapter/hub": { group: "Start Here", label: "My Chapter", icon: "🗺" },
   "/chapter/instructors": { group: "Start Here", label: "Classes", icon: "🎓" },
   "/chapter/impact": { group: "Start Here", label: "Analytics", icon: "📊" },
-  "/chapter/millennium-education": { group: "Start Here", label: "Millennium Education", icon: "" },
   "/actions": { group: "Start Here", label: "Actions", icon: "✅" },
   "/mentorship": { group: "Start Here", label: "Mentorship", icon: "🤝" },
 };
 
-/** Order of links within the chapter-president sidebar (lower = earlier). */
 export const CHAPTER_PRESIDENT_SIDEBAR_LINK_ORDER: string[] = [
   "/chapter",
   "/chapter/hub",
   "/chapter/instructors",
   "/chapter/impact",
-  "/chapter/millennium-education",
   "/actions",
   "/mentorship",
 ];

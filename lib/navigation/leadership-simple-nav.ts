@@ -58,7 +58,6 @@ export function leadershipSimpleNavHrefs(primaryRole: NavRole): readonly string[
       "/chapter/hub",
       "/chapter/instructors",
       "/chapter/impact",
-      "/chapter/millennium-education",
       "/actions",
       "/mentorship",
     ];
