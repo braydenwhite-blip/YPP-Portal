@@ -1170,7 +1170,7 @@ export default function InterviewScheduleClient({
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             {data.viewer.isReviewer ? (
               <Link href="/chapter" className="button small outline" style={{ textDecoration: "none" }}>
-                Open Chapter OS
+                Open Chapter Home
               </Link>
             ) : null}
           </div>

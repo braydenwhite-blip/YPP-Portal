@@ -3,6 +3,7 @@ import {
   CardV2,
   Button,
   StatusBadge,
+  StatCardV2,
   EmptyStateV2,
 } from "@/components/ui-v2";
 import { DataTableShell, TableV2 } from "@/components/ui-v2/data-table-shell";
@@ -25,6 +26,15 @@ const STATUS_LABEL: Record<string, string> = {
   WITHDRAWN: "Withdrawn",
 };
 
+const STATUS_ORDER = ["ENROLLED", "IN_PROGRESS", "COMPLETED", "WITHDRAWN"] as const;
+
+const STATUS_ACCENT: Record<string, "brand" | "neutral" | "success" | "danger"> = {
+  ENROLLED: "brand",
+  IN_PROGRESS: "neutral",
+  COMPLETED: "success",
+  WITHDRAWN: "danger",
+};
+
 type RecordRow = {
   id: string;
   status: string;
@@ -40,13 +50,27 @@ type UntrackedStudent = { id: string; name: string; chapter: { name: string } | 
 
 export function MillenniumEducationView({
   eyebrow,
+  basePath,
   records,
   untrackedStudents,
+  activeStatus,
 }: {
   eyebrow: string;
+  /** e.g. "/chapter/millennium-education" or "/admin/millennium-education" — used to build filter links. */
+  basePath: string;
   records: RecordRow[];
   untrackedStudents: UntrackedStudent[];
+  /** Status currently filtered to via ?status=, or undefined for "All". */
+  activeStatus?: string;
 }) {
+  const counts = STATUS_ORDER.reduce<Record<string, number>>((acc, s) => {
+    acc[s] = records.filter((r) => r.status === s).length;
+    return acc;
+  }, {});
+  const visibleRecords = activeStatus
+    ? records.filter((r) => r.status === activeStatus)
+    : records;
+
   return (
     <div className="space-y-6">
       <PageHeaderV2
@@ -54,6 +78,25 @@ export function MillenniumEducationView({
         title="Millennium Education tracking"
         subtitle="Every student enrolled in the Millennium Education partnership, across all chapters."
       />
+
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
+        <StatCardV2
+          label="Total"
+          value={records.length}
+          href={basePath}
+          selected={!activeStatus}
+        />
+        {STATUS_ORDER.map((s) => (
+          <StatCardV2
+            key={s}
+            label={STATUS_LABEL[s]}
+            value={counts[s]}
+            href={`${basePath}?status=${s}`}
+            selected={activeStatus === s}
+            accent={STATUS_ACCENT[s]}
+          />
+        ))}
+      </div>
 
       <CardV2 padding="lg">
         <h2 className="text-[15px] font-semibold text-ink">Add a student</h2>
@@ -81,12 +124,19 @@ export function MillenniumEducationView({
           title="No students tracked yet"
           body="Add a student above to start tracking their Millennium Education progress."
         />
+      ) : visibleRecords.length === 0 ? (
+        <EmptyStateV2
+          title={`No ${STATUS_LABEL[activeStatus ?? ""]?.toLowerCase() ?? ""} students`}
+          body="Try a different status above, or select All to see every record."
+        />
       ) : (
         <DataTableShell
           header={
             <>
-              <h2 className="text-[15px] font-semibold text-ink">All records</h2>
-              <span className="text-[12.5px] text-ink-muted">{records.length} total</span>
+              <h2 className="text-[15px] font-semibold text-ink">
+                {activeStatus ? STATUS_LABEL[activeStatus] : "All records"}
+              </h2>
+              <span className="text-[12.5px] text-ink-muted">{visibleRecords.length} total</span>
             </>
           }
         >
@@ -103,7 +153,7 @@ export function MillenniumEducationView({
               </tr>
             </thead>
             <tbody>
-              {records.map((r) => (
+              {visibleRecords.map((r) => (
                 <tr key={r.id} className="border-b border-line-soft last:border-0">
                   <td className="px-5 py-3 font-medium text-ink">{r.student.name}</td>
                   <td className="px-5 py-3 text-ink-muted">{r.student.chapter?.name ?? "—"}</td>

@@ -9,13 +9,16 @@ import { MillenniumEducationView } from "@/components/millennium-education/mille
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Millennium Education — Pathways Portal" };
 
-export default async function ChapterMillenniumEducationPage() {
+export default async function ChapterMillenniumEducationPage(props: {
+  searchParams: Promise<{ status?: string }>;
+}) {
   const session = await getSession();
   const roles = session?.user?.roles ?? [];
   if (!roles.includes("CHAPTER_PRESIDENT") && !roles.includes("ADMIN") && !roles.includes("STAFF")) {
     redirect("/");
   }
 
+  const searchParams = await props.searchParams;
   const [records, untrackedStudents] = await Promise.all([
     loadMillenniumEducationRecords(),
     loadUntrackedStudents(),
@@ -24,6 +27,8 @@ export default async function ChapterMillenniumEducationPage() {
   return (
     <MillenniumEducationView
       eyebrow="Chapter President"
+      basePath="/chapter/millennium-education"
+      activeStatus={searchParams.status}
       records={records}
       untrackedStudents={untrackedStudents}
     />
