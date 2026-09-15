@@ -196,14 +196,14 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/my-classes/feedback",
       label: "Feedback",
-      icon: "",
+      icon: "💬",
       roles: STUDENT_ONLY,
       dashboardDescription: "Notes your instructors have shared about your progress.",
     },
     {
       href: "/my-classes/attendance",
       label: "Attendance",
-      icon: "",
+      icon: "🧾",
       roles: STUDENT_ONLY,
       dashboardDescription: "Your finalized attendance record across all classes.",
     },
@@ -1325,13 +1325,13 @@ export const NAV_CATALOG: NavLink[] = [
     {
       href: "/chapter/millennium-education",
       label: "Millennium Education",
-      icon: "",
+      icon: "🎓",
       roles: ["CHAPTER_PRESIDENT", "ADMIN"] as NavRole[],
     },
     {
       href: "/admin/millennium-education",
       label: "Millennium Education",
-      icon: "",
+      icon: "🎓",
       roles: ADMIN_ONLY,
     },
     {
