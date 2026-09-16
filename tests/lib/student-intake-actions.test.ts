@@ -43,7 +43,7 @@ describe("student-intake-actions", () => {
     vi.mocked(getSession).mockResolvedValue({
       user: {
         id: "lead-1",
-        roles: ["CHAPTER_PRESIDENT"],
+        roles: ["ADMIN"],
       },
     } as any);
 
@@ -75,7 +75,7 @@ describe("student-intake-actions", () => {
         id: "lead-1",
         chapterId: "chapter-1",
         chapter: { id: "chapter-1", name: "Austin" },
-        roles: [{ role: "CHAPTER_PRESIDENT" }],
+        roles: [{ role: "ADMIN" }],
       })
       .mockResolvedValueOnce(null);
 
@@ -175,7 +175,7 @@ describe("student-intake-actions", () => {
         id: "lead-1",
         chapterId: "chapter-1",
         chapter: { id: "chapter-1", name: "Austin" },
-        roles: [{ role: "CHAPTER_PRESIDENT" }],
+        roles: [{ role: "ADMIN" }],
       })
       .mockResolvedValueOnce({
         id: "student-existing",

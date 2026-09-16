@@ -5,7 +5,7 @@ import { isLeadershipFullPortalExplorerEnabled } from "@/lib/navigation/leadersh
  * Chapter President navigation.
  *
  * Shipped: Dashboard · My Chapter · Classes · Analytics · Actions · Mentorship.
- * Partners, student invites / intake, and the instructor application board are
+ * Partners, student invites, and the instructor application board are
  * reached from Dashboard + My Chapter (not extra sidebar pins).
  *
  * Full explorer (`LEADERSHIP_FULL_PORTAL_EXPLORER=true`): chapter ops + People ·
@@ -38,7 +38,6 @@ export const CHAPTER_PRESIDENT_FULL_ALLOWED_HREFS: ReadonlySet<string> = new Set
   "/chapter/impact",
   "/chapter-lead/instructor-applicants",
   "/chapter-lead/instructor-readiness",
-  "/chapter/student-intake",
   "/chapter/invites",
   "/chapter/marketing",
   "/chapter/achievements",

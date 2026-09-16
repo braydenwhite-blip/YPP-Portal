@@ -502,11 +502,22 @@ export function LoginPageContent({
             >
               <Link
                 className="button"
-                href="/signup/instructor"
+                href="/signup/apply"
                 style={{ display: "flex", marginTop: 0, justifyContent: "center" }}
               >
-                Start Summer Workshop Application
+                Start a YPP Application
               </Link>
+              <p
+                style={{
+                  margin: 0,
+                  textAlign: "center",
+                  fontSize: 12,
+                  color: "var(--muted)",
+                  lineHeight: 1.45,
+                }}
+              >
+                Instructors, chapter presidents, and technology managers
+              </p>
               <div style={{ textAlign: "center", fontSize: 13, color: "var(--muted)" }}> New student or family?{" "} <Link href="/signup" style={{ color: "var(--ypp-purple)", fontWeight: 600 }}> Sign up </Link> </div>
             </div>
           </>}

@@ -132,12 +132,6 @@ export default async function ChapterHubPage() {
       description: "Share links for families to join",
     },
     {
-      href: "/chapter/student-intake",
-      label: "Student Intake",
-      icon: "🎒",
-      description: "Review parent-led student journeys",
-    },
-    {
       href: "/chapter-lead/instructor-applicants",
       label: "Instructor applicants",
       icon: "📝",

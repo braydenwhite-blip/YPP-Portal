@@ -6,7 +6,7 @@ import {
 
 /**
  * Nightly applicant archive sweep (vercel.json cron).
- * - Terminal decisions older than 30 days → archive with status reason
+ * - Terminal decisions older than 7 days → archive with status reason
  * - Open apps idle 14+ days → archive as INACTIVE_14D (nudges on day 3/7/14 stubbed)
  */
 export async function POST(req: NextRequest) {

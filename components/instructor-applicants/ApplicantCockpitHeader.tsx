@@ -12,8 +12,8 @@ interface Step {
 const STEPS: Step[] = [
   { label: "Submitted", statuses: ["SUBMITTED"] },
   { label: "Under Review", statuses: ["UNDER_REVIEW", "INFO_REQUESTED"] },
-  { label: "Interview", statuses: ["PRE_APPROVED", "INTERVIEW_SCHEDULED", "INTERVIEW_COMPLETED"] },
-  { label: "Chair Review", statuses: ["CHAIR_REVIEW"] },
+  { label: "Interviewing", statuses: ["PRE_APPROVED", "INTERVIEW_SCHEDULED", "INTERVIEW_COMPLETED"] },
+  { label: "Needs decision", statuses: ["CHAIR_REVIEW"] },
   { label: "Decision", statuses: ["APPROVED", "REJECTED", "ON_HOLD", "WITHDRAWN", "WAITLISTED"] },
 ];
 
@@ -29,7 +29,7 @@ function StatusPill({ status }: { status: InstructorApplicationStatus }) {
     PRE_APPROVED: { label: "Pre-Approved", cls: "bg-emerald-50 text-emerald-700" },
     INTERVIEW_SCHEDULED: { label: "Interview Scheduled", cls: "bg-amber-50 text-amber-800" },
     INTERVIEW_COMPLETED: { label: "Interview Completed", cls: "bg-emerald-50 text-emerald-700" },
-    CHAIR_REVIEW: { label: "Chair Review", cls: "bg-amber-50 text-amber-800" },
+    CHAIR_REVIEW: { label: "Needs hire decision", cls: "bg-amber-50 text-amber-800" },
     APPROVED: { label: "Approved", cls: "bg-emerald-50 text-emerald-700" },
     REJECTED: { label: "Not Accepted", cls: "bg-rose-50 text-rose-700" },
     ON_HOLD: { label: "On Hold", cls: "bg-gray-100 text-gray-700" },

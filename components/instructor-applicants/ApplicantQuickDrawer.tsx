@@ -59,7 +59,7 @@ const STATUS_LABELS: Record<string, string> = {
   PRE_APPROVED: "Ready to schedule",
   INTERVIEW_SCHEDULED: "Needs scheduling",
   INTERVIEW_COMPLETED: "Interview done",
-  CHAIR_REVIEW: "Chair review",
+  CHAIR_REVIEW: "Needs hire decision",
   APPROVED: "Approved",
   REJECTED: "Rejected",
   ON_HOLD: "On Hold",

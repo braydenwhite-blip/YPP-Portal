@@ -30,8 +30,9 @@ export default async function ChapterStudentIntakePage() {
   }
 
   const roles = session.user.roles ?? [];
-  if (!roles.includes("ADMIN") && !roles.includes("CHAPTER_PRESIDENT")) {
-    redirect("/");
+  // Student Intake is admin-only; CPs use invite links instead.
+  if (!roles.includes("ADMIN")) {
+    redirect("/chapter");
   }
 
   const intakeCases = await getStudentIntakeCasesForReview();

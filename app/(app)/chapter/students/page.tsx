@@ -110,14 +110,11 @@ export default async function ChapterStudentsPage() {
         <div className="card" style={{ textAlign: "center", padding: 32 }}>
           <h2 style={{ margin: "0 0 6px", fontSize: 18 }}>No students yet</h2>
           <p style={{ color: "var(--muted)", marginBottom: 16 }}>
-            Import a CSV to add students to a class, share an invite link, or review parent-led applications on Student Intake.
+            Import a CSV to add students to a class, or share an invite link so families can join.
           </p>
           <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
             <Link href="/chapter/invites" className="button" style={{ textDecoration: "none" }}>
               Create invite link
-            </Link>
-            <Link href="/chapter/student-intake" className="button outline" style={{ textDecoration: "none" }}>
-              Student Intake
             </Link>
           </div>
         </div>

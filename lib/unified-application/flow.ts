@@ -33,22 +33,22 @@ export const UNIFIED_APPLICATION_STEPS = [
   {
     step: "1",
     title: "Basic info & resume",
-    body: "Create your account and share contact details, school, chapter interest, and your resume. One application covers instructor and leadership paths.",
+    body: "Share your contact details, school, chapter interest, and resume. One application covers instructor, chapter president, and technology manager roles.",
   },
   {
     step: "2",
     title: "Team review",
-    body: "We review your Phase 1 submission. If it looks like a fit, we unlock the prompt section — similar to the chapter president flow.",
+    body: "Our team reviews your application. If it looks like a fit, we’ll ask a few follow-up questions.",
   },
   {
     step: "3",
-    title: "Prompts",
-    body: "Answer one required prompt everyone completes, then choose up to four specialty prompts that match your strengths (0–4 optional).",
+    title: "Follow-up prompts",
+    body: "Answer one required prompt, then optionally add up to four specialty prompts that match your strengths.",
   },
   {
     step: "4",
-    title: "Waitlists & next steps",
-    body: "Based on your interests and our needs, we add you to the relevant waitlists and follow up with interview or onboarding steps.",
+    title: "Next steps",
+    body: "Based on your interests and our openings, we’ll place you in the right queue and follow up about interviews or onboarding.",
   },
 ] as const;
 

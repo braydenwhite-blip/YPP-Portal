@@ -23,8 +23,8 @@ const STAGES: Array<{
 }> = [
   { key: "newApplications", label: "New", dotClass: "bg-brand-600" },
   { key: "needsReview", label: "Needs review", dotClass: "bg-blue-600" },
-  { key: "interviewStage", label: "Interview", dotClass: "bg-emerald-600" },
-  { key: "postInterview", label: "Post-interview", dotClass: "bg-indigo-600" },
+  { key: "interviewStage", label: "Interviewing", dotClass: "bg-emerald-600" },
+  { key: "postInterview", label: "Needs decision", dotClass: "bg-indigo-600" },
 ];
 
 const STATUS_LABELS: Record<string, string> = {
@@ -34,7 +34,7 @@ const STATUS_LABELS: Record<string, string> = {
   PRE_APPROVED: "Pre-approved",
   INTERVIEW_SCHEDULED: "Interview scheduled",
   INTERVIEW_COMPLETED: "Interview completed",
-  CHAIR_REVIEW: "Chair review",
+  CHAIR_REVIEW: "Needs hire decision",
   APPROVED: "Approved",
   REJECTED: "Rejected",
   ON_HOLD: "On hold",

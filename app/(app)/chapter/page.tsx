@@ -21,10 +21,8 @@ const GROW_LINKS = [
     href: "/chapter/invites",
     icon: "🔗",
     title: "Students",
-    body: "Share invite links so families can join. Review parent-led student journeys on the Student Intake board.",
+    body: "Share invite links so families can join your chapter’s classes.",
     cta: "Create invite links",
-    secondaryHref: "/chapter/student-intake",
-    secondaryCta: "Student Intake",
     primary: false,
   },
   {
@@ -152,7 +150,7 @@ export default async function ChapterHomePage() {
         </h2>
         <p className="m-0 mt-1 max-w-2xl text-[13.5px] text-ink-muted">
           Instructors apply on the application board. Partners are added in the CRM. Students join via invite
-          links or parent intake.
+          links.
         </p>
         <ul className="mt-4 grid list-none grid-cols-1 gap-4 p-0 lg:grid-cols-3">
           {GROW_LINKS.map((link) => (

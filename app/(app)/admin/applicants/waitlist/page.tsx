@@ -1,8 +1,7 @@
-import Link from "next/link";
-
 import { HiringWaitlistView } from "@/components/hiring-waitlist/hiring-waitlist-ui";
 import { ApplicationReviewShell } from "@/components/applications/application-review-shell";
-import { PageHeaderV2, buttonVariants } from "@/components/ui-v2";
+import { HiringNavLinks } from "@/components/hiring/hiring-nav-links";
+import { PageHeaderV2 } from "@/components/ui-v2";
 import { requireAdmin } from "@/lib/authorization-helpers";
 import { loadHiringWaitlist } from "@/lib/hiring-waitlist/load";
 
@@ -20,15 +19,8 @@ export default async function AdminHiringWaitlistPage() {
         <PageHeaderV2
           eyebrow="Applicants"
           title="Waitlist"
-          subtitle="New applications land here directly after signup — instructor, chapter president, and staff, in hire order. Pull #1 (or reorder) to start interviews on the applicants board; they leave this list once selected."
-          actions={
-            <Link
-              href="/admin/instructor-applicants"
-              className={buttonVariants({ variant: "secondary", size: "md" })}
-            >
-              Applicants board
-            </Link>
-          }
+          subtitle="New applications land here after signup. Reorder freely, then pull #1 into interviews."
+          actions={<HiringNavLinks current="waitlist" />}
         />
       }
     >

@@ -24,10 +24,10 @@ const STATUS_RANK: Record<string, number> = {
 };
 
 const STAGE_LABEL: Record<string, string> = {
-  CHAIR_REVIEW: "Final review",
-  INTERVIEW_COMPLETED: "Post-interview",
+  CHAIR_REVIEW: "Needs hire decision",
+  INTERVIEW_COMPLETED: "Interview done",
   INTERVIEW_SCHEDULED: "Interview scheduled",
-  PRE_APPROVED: "Interview prep",
+  PRE_APPROVED: "Ready to schedule",
   UNDER_REVIEW: "Under review",
   INFO_REQUESTED: "Info requested",
 };

@@ -35,7 +35,7 @@ function SubmitButton() {
   );
 }
 
-export default function ChapterPresidentSignupPage() {
+export default function TechnologyManagerSignupPage() {
   const [state, formAction] = useActionState(submitUnifiedApply, initialState);
   const [autoLoggingIn, setAutoLoggingIn] = useState(false);
   const [autoLoginError, setAutoLoginError] = useState<string | null>(null);
@@ -126,27 +126,17 @@ export default function ChapterPresidentSignupPage() {
   }
 
   return (
-    <YppApplyShell role="cp">
+    <YppApplyShell role="staff">
       <form action={formAction}>
-        <input type="hidden" name="hiringRole" value="cp" />
+        <input type="hidden" name="hiringRole" value="staff" />
 
         <SharedApplyFields emailRef={emailRef} passwordRef={passwordRef} />
 
         <hr style={YPP_APPLY_HR} />
 
         <div>
-          <div style={YPP_APPLY_SECTION_STYLE}>Chapter president details</div>
+          <div style={YPP_APPLY_SECTION_STYLE}>Technology manager details</div>
           <label className="form-label" style={{ marginTop: 0 }}>
-            Is your school public or private? *
-            <select className="input" name="schoolType" required defaultValue="">
-              <option value="" disabled>
-                Select one
-              </option>
-              <option value="Public">Public</option>
-              <option value="Private">Private</option>
-            </select>
-          </label>
-          <label className="form-label">
             Grade *
             <select className="input" name="grade" required defaultValue="">
               <option value="" disabled>
@@ -159,16 +149,17 @@ export default function ChapterPresidentSignupPage() {
             </select>
           </label>
           <label className="form-label">
-            Supporting document link (optional)
-            <input
+            Describe your experience with programming *
+            <textarea
               className="input"
-              name="documentUrl"
-              type="url"
-              placeholder="https://… résumé, awards, or credentials"
+              name="programmingExperience"
+              rows={6}
+              required
+              placeholder="Include any projects you have participated in."
             />
             <span style={YPP_APPLY_HELPER}>
-              One document that helps us get to know you — résumé, awards/credentials, or similar.
-              Paste a shareable link for now.
+              Experience is required for this role. Share languages, tools, and projects you’ve built
+              or contributed to.
             </span>
           </label>
         </div>
@@ -193,7 +184,7 @@ export default function ChapterPresidentSignupPage() {
             Sign in to continue your application.
             <div style={{ marginTop: 12 }}>
               <Link
-                href="/login?callbackUrl=/chapter/apply"
+                href="/login?callbackUrl=/applications/technology-manager"
                 className="button"
                 style={{ fontSize: 13, padding: "8px 14px", textDecoration: "none" }}
               >
@@ -216,7 +207,8 @@ export default function ChapterPresidentSignupPage() {
       </form>
 
       <div className="login-help" style={{ marginTop: 24 }}>
-        Already have an account? <Link href="/login?callbackUrl=/chapter/apply">Sign in</Link>
+        Already have an account?{" "}
+        <Link href="/login?callbackUrl=/applications/technology-manager">Sign in</Link>
       </div>
     </YppApplyShell>
   );

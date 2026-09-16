@@ -11,7 +11,9 @@ export const APPLICANT_ARCHIVE_REASONS = {
   WAITLISTED: "WAITLISTED",
   ON_HOLD: "ON_HOLD",
   MANUAL: "MANUAL",
+  /** @deprecated Prefer TERMINAL_7D; kept for rows archived under the old TTL. */
   TERMINAL_30D: "TERMINAL_30D",
+  TERMINAL_7D: "TERMINAL_7D",
 } as const;
 
 export type ApplicantArchiveReason =
@@ -26,7 +28,34 @@ export const APPLICANT_ARCHIVE_REASON_LABELS: Record<string, string> = {
   ON_HOLD: "On hold",
   MANUAL: "Manually archived",
   TERMINAL_30D: "Auto-archived after final decision",
+  TERMINAL_7D: "Auto-archived after final decision",
 };
+
+/** Closed column keeps hire decisions for this many days, then they move to Archive. */
+export const TERMINAL_ARCHIVE_DAYS = 7;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+/**
+ * True while an APPROVED/REJECTED decision should still appear in the Closed
+ * kanban column (past week). Older decisions belong in Archive.
+ */
+export function isRecentClosedDecision(input: {
+  decidedAt?: Date | string | null;
+  updatedAt?: Date | string | null;
+  now?: Date;
+}): boolean {
+  const raw = input.decidedAt ?? input.updatedAt;
+  if (!raw) return true;
+  const t = typeof raw === "string" ? Date.parse(raw) : raw.getTime();
+  if (Number.isNaN(t)) return true;
+  const now = input.now ?? new Date();
+  return now.getTime() - t < TERMINAL_ARCHIVE_DAYS * MS_PER_DAY;
+}
+
+export function isClosedBoardStatus(status: string | null | undefined): boolean {
+  const s = (status ?? "").trim();
+  return s === "APPROVED" || s === "REJECTED";
+}
 
 /** Open statuses where applicant silence should trigger inactivity nudges + archive. */
 export const INSTRUCTOR_INACTIVITY_STATUSES = [
@@ -91,7 +120,7 @@ export function terminalArchiveReasonForStatus(status: string): ApplicantArchive
     case "WAITLISTED":
       return APPLICANT_ARCHIVE_REASONS.WAITLISTED;
     default:
-      return APPLICANT_ARCHIVE_REASONS.TERMINAL_30D;
+      return APPLICANT_ARCHIVE_REASONS.TERMINAL_7D;
   }
 }
 

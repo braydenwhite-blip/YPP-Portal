@@ -76,8 +76,8 @@ export default async function ApplyChapterPresidentPage() {
           <p className="badge">Chapter Leadership</p>
           <h1 className="page-title">Apply for Chapter President</h1>
           <p className="page-subtitle">
-            Part of the unified YPP application. Phase 1 is basic info and resume; prompts and
-            waitlists come after review.
+            Part of the YPP application for open roles. Start with basics and your resume;
+            we&apos;ll ask follow-up questions after review if it looks like a fit.
           </p>
         </div>
       </div>
@@ -88,15 +88,15 @@ export default async function ApplyChapterPresidentPage() {
           {[
             {
               step: "1",
-              text: "Submit basic info and your resume — one application covers instructor and leadership interest.",
+              text: "Submit basic info and your resume — one application covers instructor, chapter president, and technology manager interest.",
             },
             {
               step: "2",
-              text: "If we’re good with your Phase 1 submission, we unlock prompts: one required for everyone, plus up to four specialty prompts you can choose (0–4).",
+              text: "If it looks like a fit, we’ll ask follow-up prompts: one required for everyone, plus up to four optional specialty prompts.",
             },
             {
               step: "3",
-              text: "We place you on the relevant waitlists based on your interests and our needs, then schedule interviews or onboarding.",
+              text: "We’ll place you in the right queue based on your interests and our openings, then follow up about interviews or onboarding.",
             },
           ].map((item) => (
             <div

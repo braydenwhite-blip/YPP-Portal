@@ -236,8 +236,9 @@ export const instructorApplicationSchema = z.object({
   // Personal Information
   legalName: z
     .string()
-    .min(2, "Please enter your full legal name (at least 2 characters).")
-    .max(200, "Name should be under 200 characters."),
+    .max(200, "Name should be under 200 characters.")
+    .optional()
+    .or(z.literal("")),
   preferredFirstName: z
     .string()
     .min(1, "Please enter your preferred first name.")
@@ -259,9 +260,13 @@ export const instructorApplicationSchema = z.object({
     .max(100, "State/province should be under 100 characters."),
   zipCode: z
     .string()
-    .min(3, "Please enter a valid ZIP or postal code.")
-    .max(20, "ZIP code should be under 20 characters."),
-  country: z.enum(["United States", "Other"], { errorMap: () => ({ message: "Please select a country." }) }),
+    .max(20, "ZIP code should be under 20 characters.")
+    .optional()
+    .or(z.literal("")),
+  country: z
+    .string()
+    .min(1, "Please select a country.")
+    .max(100, "Country should be under 100 characters."),
   countryOther: z.string().max(100).optional(),
 
   // Academic

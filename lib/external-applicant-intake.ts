@@ -315,8 +315,11 @@ export async function createExternalInstructorApplicant(
     createdById: importedById,
   });
 
-  // Waitlist pool — skip when admin already scheduled an interview (board-ready).
-  if (!interviewScheduledAt) {
+  // Waitlist pool — standard/new apps only; skip summer workshop + already-scheduled.
+  if (
+    !interviewScheduledAt &&
+    applicationTrack === ApplicationTrack.STANDARD_INSTRUCTOR
+  ) {
     try {
       const { appendHiringWaitlistKey } = await import("@/lib/hiring-waitlist/order-store");
       const { waitlistKey } = await import("@/lib/hiring-waitlist/types");

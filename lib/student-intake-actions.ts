@@ -59,24 +59,26 @@ async function requireChapterReviewer() {
     throw new Error("Unauthorized");
   }
 
+  const roles = session.user.roles ?? [];
+  const isAdmin = roles.includes("ADMIN");
+  if (!isAdmin) {
+    throw new Error("Unauthorized");
+  }
+
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
     include: { roles: true, chapter: { select: { id: true, name: true } } },
   });
 
-  const roles = session.user.roles ?? [];
-  const isAdmin = roles.includes("ADMIN");
-  const isChapterPresident = roles.includes("CHAPTER_PRESIDENT");
-
-  if (!user || (!isAdmin && !isChapterPresident)) {
+  if (!user) {
     throw new Error("Unauthorized");
   }
 
   return {
     session,
     user,
-    isAdmin,
-    isChapterPresident,
+    isAdmin: true,
+    isChapterPresident: false,
   };
 }
 
@@ -138,26 +140,14 @@ async function createMilestone(params: {
   });
 }
 
-async function getChapterIntakeRecipients(chapterId: string) {
+async function getChapterIntakeRecipients(_chapterId: string) {
   const recipients = await prisma.user.findMany({
     where: {
-      OR: [
-        {
-          roles: {
-            some: {
-              role: "ADMIN",
-            },
-          },
+      roles: {
+        some: {
+          role: "ADMIN",
         },
-        {
-          chapterId,
-          roles: {
-            some: {
-              role: "CHAPTER_PRESIDENT",
-            },
-          },
-        },
-      ],
+      },
     },
     select: { id: true },
   });
@@ -528,27 +518,17 @@ export async function getParentStudentIntakeCase(caseId: string) {
 }
 
 export async function getStudentIntakeCasesForReview() {
-  const { user: reviewer, isAdmin } = await requireChapterReviewer();
+  await requireChapterReviewer();
 
   return prisma.studentIntakeCase.findMany({
-    where: isAdmin
-      ? {
-          status: {
-            in: [
-              StudentIntakeCaseStatus.SUBMITTED,
-              StudentIntakeCaseStatus.UNDER_REVIEW,
-            ],
-          },
-        }
-      : {
-          chapterId: reviewer.chapterId ?? "__none__",
-          status: {
-            in: [
-              StudentIntakeCaseStatus.SUBMITTED,
-              StudentIntakeCaseStatus.UNDER_REVIEW,
-            ],
-          },
-        },
+    where: {
+      status: {
+        in: [
+          StudentIntakeCaseStatus.SUBMITTED,
+          StudentIntakeCaseStatus.UNDER_REVIEW,
+        ],
+      },
+    },
     include: {
       parent: { select: { id: true, name: true, email: true } },
       chapter: { select: { id: true, name: true } },

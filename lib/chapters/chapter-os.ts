@@ -211,9 +211,9 @@ export async function loadChapterOS(
   const concerns: StudentConcernRecord[] = concernRows.map((c) => ({
     id: c.id,
     studentName: c.studentName ?? null,
-    summary: c.blockerNote?.trim() || c.supportNeeds?.trim() || "Pending student intake case",
+    summary: c.blockerNote?.trim() || c.supportNeeds?.trim() || "Pending student support case",
     createdAt: c.createdAt,
-    href: "/chapter/student-intake",
+    href: "/chapter/students",
   }));
 
   const studentCommunity = summarizeStudentCommunity({ enrollments, attendance, feedback, concerns }, now);

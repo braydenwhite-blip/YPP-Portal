@@ -1,26 +1,3 @@
-enum MillenniumEducationStatus {
-  ENROLLED
-  IN_PROGRESS
-  COMPLETED
-  WITHDRAWN
-}
-
-model MillenniumEducationRecord {
-  id                String                     @id @default(cuid())
-  studentId         String
-  student           User                       @relation("MillenniumEducationStudent", fields: [studentId], references: [id])
-  status            MillenniumEducationStatus  @default(ENROLLED)
-  startDate         DateTime?
-  completionDate    DateTime?
-  hoursCompleted    Int                        @default(0)
-  certificateIssued Boolean                    @default(false)
-  notes             String?                    @db.Text
-  createdAt         DateTime                   @default(now())
-  updatedAt         DateTime                   @updatedAt
-
-  @@index([studentId])
-}
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -39,6 +16,13 @@ datasource db {
 // ============================================
 // ENUMS
 // ============================================
+
+enum MillenniumEducationStatus {
+  ENROLLED
+  IN_PROGRESS
+  COMPLETED
+  WITHDRAWN
+}
 
 enum RoleType {
   ADMIN
@@ -976,9 +960,25 @@ model ChapterNote {
   @@index([aboutUserId])
 }
 
+model MillenniumEducationRecord {
+  id                String                    @id @default(cuid())
+  studentId         String
+  student           User                      @relation("MillenniumEducationStudent", fields: [studentId], references: [id])
+  status            MillenniumEducationStatus @default(ENROLLED)
+  startDate         DateTime?
+  completionDate    DateTime?
+  hoursCompleted    Int                       @default(0)
+  certificateIssued Boolean                   @default(false)
+  notes             String?                   @db.Text
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+
+  @@index([studentId])
+}
+
 model User {
-  id                              String                    @id @default(cuid())
-  millenniumEducationRecords MillenniumEducationRecord[] @relation("MillenniumEducationStudent")
+  id                              String                         @id @default(cuid())
+  millenniumEducationRecords      MillenniumEducationRecord[]    @relation("MillenniumEducationStudent")
   name                            String
   email                           String                    @unique
   phone                           String?
@@ -10789,21 +10789,24 @@ model ChapterPresidentApplication {
 // ============================================
 
 model ApplicationFormTemplate {
-  id        String                 @id @default(cuid())
-  name      String
-  roleType  PositionType
-  isActive  Boolean                @default(true)
-  fields    ApplicationFormField[]
-  createdAt DateTime               @default(now())
-  updatedAt DateTime               @updatedAt
+  id               String            @id @default(cuid())
+  name             String
+  roleType         PositionType
+  applicationTrack ApplicationTrack?
+  isActive         Boolean           @default(true)
+  fields           ApplicationFormField[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
 
   @@index([roleType, isActive])
+  @@index([applicationTrack, isActive])
 }
 
 model ApplicationFormField {
   id          String                    @id @default(cuid())
   templateId  String
   template    ApplicationFormTemplate   @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  fieldKey    String?
   label       String
   fieldType   ApplicationFormFieldType
   required    Boolean                   @default(true)
@@ -10814,6 +10817,7 @@ model ApplicationFormField {
   responses   ApplicationFormResponse[]
   createdAt   DateTime                  @default(now())
 
+  @@unique([templateId, fieldKey])
   @@index([templateId, sortOrder])
 }
 

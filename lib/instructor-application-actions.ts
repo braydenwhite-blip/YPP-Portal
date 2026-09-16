@@ -46,6 +46,7 @@ import {
   CP_INACTIVITY_STATUSES,
   sendInactivityNudgeEmailStub,
   terminalArchiveReasonForStatus,
+  TERMINAL_ARCHIVE_DAYS,
   type ApplicantArchiveReason,
 } from "@/lib/applicant-archive";
 import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
@@ -2981,7 +2982,10 @@ export async function chairDecide(formData: FormData): Promise<ChairDecideResult
       status: String(newStatus),
       meta: { action },
     });
-    if (action === "WAITLIST") {
+    if (
+      action === "WAITLIST" &&
+      app.applicationTrack !== "SUMMER_WORKSHOP_INSTRUCTOR"
+    ) {
       try {
         const { appendHiringWaitlistKey } = await import("@/lib/hiring-waitlist/order-store");
         const { waitlistKey } = await import("@/lib/hiring-waitlist/types");
@@ -3360,7 +3364,8 @@ export async function archiveApplication(formData: FormData): Promise<{ success:
 }
 
 /**
- * Server-only cron helper — archives terminal applications older than 30 days.
+ * Server-only cron helper — archives terminal applications older than
+ * TERMINAL_ARCHIVE_DAYS (Closed column → Archive).
  * Called from /api/admin/applicants/auto-archive (cron-protected route).
  * Idempotent: safe to run multiple times.
  */
@@ -3370,7 +3375,7 @@ export async function autoArchiveTerminalApplications(): Promise<{ archived: num
     InstructorApplicationStatus.REJECTED,
     InstructorApplicationStatus.WITHDRAWN,
   ];
-  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const cutoff = new Date(Date.now() - TERMINAL_ARCHIVE_DAYS * 24 * 60 * 60 * 1000);
 
   const candidates = await prisma.instructorApplication.findMany({
     where: {
@@ -3397,7 +3402,11 @@ export async function autoArchiveTerminalApplications(): Promise<{ archived: num
             applicationId: app.id,
             kind: "ARCHIVED",
             actorId: null,
-            payload: { manual: false, reason: archiveReason, source: "auto-archive-30d" },
+            payload: {
+              manual: false,
+              reason: archiveReason,
+              source: `auto-archive-${TERMINAL_ARCHIVE_DAYS}d`,
+            },
           },
         });
       });

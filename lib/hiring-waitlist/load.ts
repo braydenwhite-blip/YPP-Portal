@@ -42,21 +42,18 @@ function toIso(d: Date | string | null | undefined): string {
   return d instanceof Date ? d.toISOString() : new Date(d).toISOString();
 }
 
-function roleLabelForInstructor(track: string | null | undefined): string {
-  if (track === "SUMMER_WORKSHOP_INSTRUCTOR") return "Summer workshop instructor";
-  return "Instructor";
-}
-
 async function loadInstructorPool(): Promise<HiringWaitlistEntry[]> {
+  // Hire waitlist is the new apply queue only — summer workshop apps stay on
+  // their own summer track and must not appear here.
   const rows = await prisma.instructorApplication.findMany({
     where: {
       status: { in: [...INSTRUCTOR_POOL] },
       archivedAt: null,
+      applicationTrack: "STANDARD_INSTRUCTOR",
     },
     select: {
       id: true,
       subjectsOfInterest: true,
-      applicationTrack: true,
       createdAt: true,
       updatedAt: true,
       legalName: true,
@@ -81,7 +78,7 @@ async function loadInstructorPool(): Promise<HiringWaitlistEntry[]> {
       id: row.id,
       name: formatApplicantDisplayName(row),
       email: row.applicant.email,
-      roleLabel: roleLabelForInstructor(row.applicationTrack),
+      roleLabel: "Instructor",
       subjects: row.subjectsOfInterest?.trim() || null,
       chapterName: row.applicant.chapter?.name ?? null,
       waitlistedAt: toIso(row.createdAt ?? row.updatedAt),

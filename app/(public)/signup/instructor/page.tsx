@@ -6,7 +6,9 @@ import { useActionState, useCallback, useEffect, useRef, useState } from "react"
 
 import BrandLockup from "@/components/brand-lockup";
 import SpamFolderNotice from "@/components/spam-folder-notice";
+import { YppApplyShell } from "@/components/signup/ypp-apply-shell";
 import { navigateToAuthDestination } from "@/lib/auth-client-navigation";
+import { COUNTRY_OPTIONS } from "@/lib/countries";
 import { createBrowserClientOrNull } from "@/lib/supabase/client";
 import { canUseLocalPasswordFallback } from "@/lib/supabase/config";
 import {
@@ -311,25 +313,11 @@ export default function InstructorSignupPage() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--background)" }}>
-      {/* Top bar */}
-      <div style={{ borderBottom: "1px solid var(--border)", padding: "14px 32px", display: "flex", alignItems: "center", gap: 14 }}>
-        <BrandLockup height={30} className="brand-lockup" priority reloadOnClick />
-        <span className="badge" style={{ fontSize: 11 }}>Instructor Application</span>
-      </div>
-
-      {/* Page body */}
-      <div style={{ maxWidth: 820, margin: "0 auto", padding: "40px 32px 80px" }}>
-        <h1 style={{ fontSize: 26, fontWeight: 700, margin: "0 0 8px" }}>
-          {isSummerWorkshop ? "Apply to be a YPP Summer Workshop Instructor." : "Apply to become a YPP instructor."}
-        </h1>
-
-        {/* Track selector */}
-        {!REGULAR_INSTRUCTOR_ENABLED ? (
-          <input type="hidden" name="applicationTrack" value="SUMMER_WORKSHOP_INSTRUCTOR" />
-        ) : (
+    <YppApplyShell role="instructor">
+        {/* Instructor track subtype UI (outside form); value is mirrored into the form below. */}
+        {REGULAR_INSTRUCTOR_ENABLED ? (
         <div style={{ marginBottom: 24 }}>
-          <div style={SECTION_STYLE}>What are you applying for?</div>
+          <div style={SECTION_STYLE}>Instructor track</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             {(
               [
@@ -360,7 +348,7 @@ export default function InstructorSignupPage() {
                 >
                   <input
                     type="radio"
-                    name="applicationTrack"
+                    name="applicationTrackPicker"
                     value={opt.value}
                     checked={selected}
                     onChange={() => setApplicationTrack(opt.value)}
@@ -373,7 +361,7 @@ export default function InstructorSignupPage() {
             })}
           </div>
         </div>
-        )}
+        ) : null}
 
         {resumeBanner && (
           <div style={{ marginBottom: 20, padding: "12px 16px", borderRadius: 10, background: "#f5f3ff", border: "1px solid #ddd6fe", fontSize: 13, lineHeight: 1.5 }}>
@@ -433,6 +421,15 @@ export default function InstructorSignupPage() {
         >
           <input type="hidden" name="accountType" value="APPLICANT" />
           <input type="hidden" name="hearAboutYPP" value={hearAboutCombined} />
+          <input
+            type="hidden"
+            name="applicationTrack"
+            value={
+              REGULAR_INSTRUCTOR_ENABLED
+                ? applicationTrack
+                : "SUMMER_WORKSHOP_INSTRUCTOR"
+            }
+          />
 
           {/* ── 1. Account ── */}
           <div data-signup-section="1">
@@ -442,7 +439,7 @@ export default function InstructorSignupPage() {
               Preferred name
               <input className="input" name="name" placeholder="What you'd like reviewers to call you" required defaultValue={field(d, "name", sf)} />
               <span style={HELPER}>
-                This is the name we use across the portal. You&apos;ll provide your legal name separately in the next section.
+                This is the name we use across the portal.
               </span>
             </label>
 
@@ -493,22 +490,12 @@ export default function InstructorSignupPage() {
           <div data-signup-section="2">
             <div style={SECTION_STYLE}>Personal details</div>
 
-            {!isSummerWorkshop && (
-              <label className="form-label">
-                Legal name
-                <input className="input" name="legalName" placeholder="First, middle, and last name" required defaultValue={field(d, "legalName", sf)} />
-                <span style={HELPER}>
-                  The name as it appears on your government ID. Used only for onboarding paperwork if you&apos;re hired. Not shown publicly.
-                </span>
-              </label>
-            )}
-
             <div className="grid two">
-              <label className="form-label">
+              <label className="form-label" style={{ marginTop: 0 }}>
                 Preferred first name
                 <input className="input" name="preferredFirstName" placeholder="What should we call you?" required defaultValue={field(d, "preferredFirstName", sf)} />
               </label>
-              <label className="form-label">
+              <label className="form-label" style={{ marginTop: 0 }}>
                 Last name *
                 <input className="input" name="lastName" placeholder="Your last name" required defaultValue={field(d, "lastName", sf)} />
               </label>
@@ -568,23 +555,15 @@ export default function InstructorSignupPage() {
               </label>
             </div>
 
-            <div className="grid two">
-              <label className="form-label">
-                ZIP or postal code
-                <input className="input" name="zipCode" placeholder="e.g. 85004" required defaultValue={field(d, "zipCode", sf)} />
-              </label>
-              <label className="form-label">
-                Country
-                <select className="input" name="country" defaultValue={field(d, "country", sf) ?? "United States"} required>
-                  <option value="United States">United States</option>
-                  <option value="Other">Other</option>
-                </select>
-              </label>
-            </div>
-
             <label className="form-label">
-              If you chose &quot;Other,&quot; which country?
-              <input className="input" name="countryOther" placeholder="Optional" defaultValue={field(d, "countryOther", sf)} />
+              Country
+              <select className="input" name="country" defaultValue={field(d, "country", sf) ?? "United States"} required>
+                {COUNTRY_OPTIONS.map((country) => (
+                  <option key={country} value={country}>
+                    {country}
+                  </option>
+                ))}
+              </select>
             </label>
 
             <label className="form-label">
@@ -873,7 +852,6 @@ export default function InstructorSignupPage() {
         <div className="login-help" style={{ marginTop: 24 }}>
           Already have an account? <Link href="/login">Sign in</Link>
         </div>
-      </div>
-    </div>
+    </YppApplyShell>
   );
 }

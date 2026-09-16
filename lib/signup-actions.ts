@@ -237,17 +237,6 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
         };
       }
 
-      // When the applicant picks "Other" we require a non-empty
-      // `countryOther` — otherwise the row would store the literal string
-      // "Other" as the country.
-      if (validation.data.country === "Other" && !validation.data.countryOther?.trim()) {
-        return {
-          status: "error",
-          message: "Please specify your country.",
-          fields: pickFormFields(formData),
-        };
-      }
-
       instructorApplicationInput = validation.data;
     }
 
@@ -376,11 +365,8 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
           hearAboutYPP: instructorApplicationInput.hearAboutYPP || null,
           city: instructorApplicationInput.city,
           stateProvince: instructorApplicationInput.stateProvince,
-          zipCode: instructorApplicationInput.zipCode,
-          country:
-            instructorApplicationInput.country === "Other"
-              ? instructorApplicationInput.countryOther || "Other"
-              : instructorApplicationInput.country,
+          zipCode: instructorApplicationInput.zipCode || null,
+          country: instructorApplicationInput.country,
           schoolName: instructorApplicationInput.schoolName,
           graduationYear: instructorApplicationInput.graduationYear,
           subjectsOfInterest: instructorApplicationInput.subjectsOfInterest || null,
@@ -458,12 +444,14 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
       }
       await syncInstructorApplicationWorkflow(application.id);
 
-      try {
-        const { appendHiringWaitlistKey } = await import("@/lib/hiring-waitlist/order-store");
-        const { waitlistKey } = await import("@/lib/hiring-waitlist/types");
-        await appendHiringWaitlistKey(waitlistKey("instructor", application.id));
-      } catch (waitlistErr) {
-        console.error("[Signup] waitlist append failed", waitlistErr);
+      if (!isSummerWorkshop) {
+        try {
+          const { appendHiringWaitlistKey } = await import("@/lib/hiring-waitlist/order-store");
+          const { waitlistKey } = await import("@/lib/hiring-waitlist/types");
+          await appendHiringWaitlistKey(waitlistKey("instructor", application.id));
+        } catch (waitlistErr) {
+          console.error("[Signup] waitlist append failed", waitlistErr);
+        }
       }
 
       // Best-effort: a newly submitted InstructorApplication can auto-start a
@@ -658,13 +646,6 @@ export async function submitInstructorApplicationForExistingUser(
         fields: pickFormFields(formData),
       };
     }
-    if (validation.data.country === "Other" && !validation.data.countryOther?.trim()) {
-      return {
-        status: "error",
-        message: "Please specify your country.",
-        fields: pickFormFields(formData),
-      };
-    }
     const input = validation.data;
 
     // Find the most recent prior application to chain to.
@@ -699,11 +680,8 @@ export async function submitInstructorApplicationForExistingUser(
         hearAboutYPP: input.hearAboutYPP || null,
         city: input.city,
         stateProvince: input.stateProvince,
-        zipCode: input.zipCode,
-        country:
-          input.country === "Other"
-            ? input.countryOther || "Other"
-            : input.country,
+        zipCode: input.zipCode || null,
+        country: input.country,
         schoolName: input.schoolName,
         graduationYear: input.graduationYear,
         subjectsOfInterest: input.subjectsOfInterest || null,
@@ -769,12 +747,14 @@ export async function submitInstructorApplicationForExistingUser(
 
     await syncInstructorApplicationWorkflow(application.id);
 
-    try {
-      const { appendHiringWaitlistKey } = await import("@/lib/hiring-waitlist/order-store");
-      const { waitlistKey } = await import("@/lib/hiring-waitlist/types");
-      await appendHiringWaitlistKey(waitlistKey("instructor", application.id));
-    } catch (waitlistErr) {
-      console.error("[submitInstructorApplicationForExistingUser] waitlist append failed", waitlistErr);
+    if (!isSummerWorkshop) {
+      try {
+        const { appendHiringWaitlistKey } = await import("@/lib/hiring-waitlist/order-store");
+        const { waitlistKey } = await import("@/lib/hiring-waitlist/types");
+        await appendHiringWaitlistKey(waitlistKey("instructor", application.id));
+      } catch (waitlistErr) {
+        console.error("[submitInstructorApplicationForExistingUser] waitlist append failed", waitlistErr);
+      }
     }
 
     // Best-effort: a newly submitted InstructorApplication can auto-start a

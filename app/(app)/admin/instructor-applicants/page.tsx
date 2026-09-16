@@ -12,6 +12,11 @@ import {
   mapStaffStatusToBoardStatus,
   parseApplicantKindFilter,
 } from "@/lib/applicant-board-kind";
+import {
+  APPLICANT_ARCHIVE_REASONS,
+  isClosedBoardStatus,
+  isRecentClosedDecision,
+} from "@/lib/applicant-archive";
 import { ensureTechnologyManagerPosition } from "@/lib/application-actions";
 import { loadStaffBoardApplications } from "@/lib/staff-board-applications";
 import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
@@ -19,6 +24,7 @@ import { listOperatingChaptersForFilters } from "@/lib/chapters/operating";
 import { TECHNOLOGY_MANAGER_POSITION_TITLE } from "@/lib/technology-manager-application";
 import { extractStaffLocation } from "@/lib/staff-applicant-location";
 import { ApplicationReviewShell } from "@/components/applications/application-review-shell";
+import { HiringNavLinks } from "@/components/hiring/hiring-nav-links";
 import InstructorApplicantsCommandCenter from "@/components/instructor-applicants/InstructorApplicantsCommandCenter";
 import { buttonVariants, PageHeaderV2 } from "@/components/ui-v2";
 import { isHiringDemoModeEnabled } from "@/lib/hiring-demo-mode";
@@ -581,13 +587,28 @@ export default async function AdminInstructorApplicantsPage({
     };
   }
 
-  const serializedPipeline = [
+  const boardCandidates = [
     ...pipelineApps.map(serializeApp),
     ...cpApps.map(serializeCpApp),
     ...staffApps.map(serializeStaffApp),
   ]
     // Board = only people already pulled off the hire waitlist into interviews.
-    .filter((app) => isActiveHiringBoardStatus(app.status))
+    .filter((app) => isActiveHiringBoardStatus(app.status));
+
+  // Closed keeps the past week of APPROVED/REJECTED; older decisions go to Archive
+  // immediately in the UI (cron also soft-archives after TERMINAL_ARCHIVE_DAYS).
+  const agedOutClosed = boardCandidates.filter(
+    (app) =>
+      isClosedBoardStatus(app.status) &&
+      !isRecentClosedDecision({
+        decidedAt: app.chairDecision?.decidedAt ?? null,
+        updatedAt: app.updatedAt,
+      })
+  );
+  const agedOutIds = new Set(agedOutClosed.map((app) => `${app.kind}:${app.id}`));
+
+  const serializedPipeline = boardCandidates
+    .filter((app) => !agedOutIds.has(`${app.kind}:${app.id}`))
     .sort((a, b) => {
       const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
       const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
@@ -645,18 +666,22 @@ export default async function AdminInstructorApplicantsPage({
     }),
     ...archivedCpApps.map(serializeCpApp),
     ...archivedStaffApps.map(serializeStaffApp),
+    // Decisions older than a week that cron hasn't soft-archived yet
+    ...agedOutClosed.map((app) => ({
+      ...app,
+      archivedAt: app.chairDecision?.decidedAt ?? app.updatedAt,
+      archiveReason:
+        app.status === "APPROVED"
+          ? APPLICANT_ARCHIVE_REASONS.APPROVED
+          : app.status === "REJECTED"
+            ? APPLICANT_ARCHIVE_REASONS.REJECTED
+            : APPLICANT_ARCHIVE_REASONS.TERMINAL_7D,
+    })),
   ].sort((a, b) => {
     const aTime = a.archivedAt ? new Date(a.archivedAt).getTime() : 0;
     const bTime = b.archivedAt ? new Date(b.archivedAt).getTime() : 0;
     return bTime - aTime;
   });
-
-  const strip = [
-    ...(isAdmin
-      ? [{ label: "Waitlist", href: "/admin/applicants/waitlist", icon: "list" as const, primary: true }]
-      : []),
-    { label: "Add Applicant", href: "/admin/external-applicants/new", icon: "user" as const },
-  ];
 
   return (
     <ApplicationReviewShell
@@ -672,9 +697,15 @@ export default async function AdminInstructorApplicantsPage({
                 ? "1 person in active interviews (pulled from the Waitlist)"
                 : `${serializedPipeline.length} people in active interviews (pulled from the Waitlist)`
           }
+          actions={
+            <HiringNavLinks
+              current="board"
+              boardCount={serializedPipeline.length}
+              showWaitlist={isAdmin}
+            />
+          }
         />
       }
-      actions={strip}
     >
       <InstructorApplicantsCommandCenter
         pipelineApps={serializedPipeline as any}

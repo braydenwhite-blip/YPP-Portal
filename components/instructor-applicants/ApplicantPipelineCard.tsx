@@ -4,14 +4,13 @@ import type { ReactNode, MouseEvent } from "react";
 import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
 import { cn } from "@/components/ui-v2";
 
-type PipelineCardApp = {
+export type PipelineCardApp = {
   id: string;
   status: string;
   interviewScheduledAt?: Date | string | null;
   legalName?: string | null;
   preferredFirstName?: string | null;
   lastName?: string | null;
-  /** When set, card shows Instructor / CP / Staff. */
   kind?: "instructor" | "cp" | "staff";
   applicant: {
     name: string | null;
@@ -24,40 +23,22 @@ export const PIPELINE_STATUS_LABELS: Record<string, string> = {
   SUBMITTED: "New",
   UNDER_REVIEW: "Under Review",
   INFO_REQUESTED: "Info Requested",
-  /** Pulled off waitlist — ready to book an interview. */
   PRE_APPROVED: "Ready to schedule",
-  /** Interview stage opened, no time picked yet. */
   INTERVIEW_SCHEDULED: "Needs scheduling",
   INTERVIEW_SCHEDULED_READY: "Scheduled",
   INTERVIEW_COMPLETED: "Interview done",
-  CHAIR_REVIEW: "Chair review",
+  CHAIR_REVIEW: "Needs hire decision",
   APPROVED: "Approved",
   REJECTED: "Rejected",
   ON_HOLD: "On Hold",
   WAITLISTED: "Waitlisted",
 };
 
-const STATUS_TONES: Record<string, string> = {
-  SUBMITTED: "bg-brand-50 text-brand-700",
-  UNDER_REVIEW: "bg-blue-50 text-blue-700",
-  INFO_REQUESTED: "bg-amber-50 text-amber-700",
-  PRE_APPROVED: "bg-emerald-50 text-emerald-700",
-  INTERVIEW_SCHEDULED: "bg-amber-50 text-amber-700",
-  INTERVIEW_SCHEDULED_READY: "bg-emerald-50 text-emerald-700",
-  INTERVIEW_COMPLETED: "bg-indigo-50 text-indigo-700",
-  CHAIR_REVIEW: "bg-amber-50 text-amber-800",
-  APPROVED: "bg-emerald-50 text-emerald-700",
-  REJECTED: "bg-rose-50 text-rose-700",
-  ON_HOLD: "bg-amber-50 text-amber-800",
-  WAITLISTED: "bg-violet-50 text-brand-700",
-};
-
-/** Board stages — only people already pulled off the hire waitlist. */
 export const PIPELINE_STAGE_FILTERS = [
-  { value: "", label: "All Stages" },
-  { value: "interview", label: "Interview" },
-  { value: "chair", label: "Chair" },
-  { value: "decided", label: "Decided" },
+  { value: "", label: "All stages" },
+  { value: "interview", label: "Interviewing" },
+  { value: "chair", label: "Decision needed" },
+  { value: "decided", label: "Closed" },
 ] as const;
 
 export const PIPELINE_STAGE_LABELS: Record<string, string> = Object.fromEntries(
@@ -70,7 +51,7 @@ const STAGE_STATUSES: Record<string, string[]> = {
   decided: ["APPROVED", "REJECTED"],
 };
 
-/** @deprecated Prefer PIPELINE_STAGE_FILTERS — kept for any leftover imports. */
+/** @deprecated Prefer PIPELINE_STAGE_FILTERS */
 export const PIPELINE_STATUS_FILTERS = PIPELINE_STAGE_FILTERS;
 
 export function cardStatusFilterValue(app: {
@@ -104,15 +85,137 @@ export function matchesPipelineStatusFilter(
     const derived = cardStatusFilterValue(app);
     return stageStatuses.includes(derived) || stageStatuses.includes(app.status);
   }
-  // Legacy fine-grained status params (e.g. from older links) still work.
   return cardStatusFilterValue(app) === filter;
+}
+
+function roleLabel(kind: PipelineCardApp["kind"]): string | null {
+  if (kind === "cp") return "CP";
+  if (kind === "staff") return "TM";
+  if (kind === "instructor") return "Instructor";
+  return null;
+}
+
+const AVATAR_TONES = [
+  "bg-brand-100 text-brand-800",
+  "bg-sky-100 text-sky-800",
+  "bg-orange-100 text-orange-800",
+  "bg-rose-100 text-rose-800",
+  "bg-emerald-100 text-emerald-800",
+  "bg-violet-100 text-violet-800",
+  "bg-amber-100 text-amber-900",
+] as const;
+
+function initialsFor(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0] ?? ""}${parts[parts.length - 1][0] ?? ""}`.toUpperCase();
+}
+
+function avatarTone(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+  return AVATAR_TONES[hash % AVATAR_TONES.length];
+}
+
+function formatInterviewWhen(value: Date | string | null | undefined): string | null {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+
+  const now = new Date();
+  const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startTarget = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const dayDiff = Math.round((startTarget.getTime() - startToday.getTime()) / 86400000);
+  const time = date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+
+  if (dayDiff === 0) return `Today, ${time}`;
+  if (dayDiff === 1) return `Tomorrow, ${time}`;
+  if (dayDiff === -1) return `Yesterday, ${time}`;
+  return `${date.toLocaleDateString([], { month: "short", day: "numeric" })}, ${time}`;
+}
+
+type StatusVisual = {
+  label: string;
+  className: string;
+  icon: "calendar" | "clock" | "file";
+};
+
+function statusVisual(status: string): StatusVisual {
+  if (status === "PRE_APPROVED") {
+    return {
+      label: "Ready to schedule",
+      className: "bg-emerald-50 text-emerald-800",
+      icon: "calendar",
+    };
+  }
+  if (status === "INTERVIEW_SCHEDULED") {
+    return {
+      label: "Needs scheduling",
+      className: "bg-orange-50 text-orange-800",
+      icon: "clock",
+    };
+  }
+  if (status === "INTERVIEW_SCHEDULED_READY") {
+    return {
+      label: "Scheduled",
+      className: "bg-sky-50 text-sky-800",
+      icon: "calendar",
+    };
+  }
+  if (status === "INTERVIEW_COMPLETED" || status === "CHAIR_REVIEW") {
+    return {
+      label: "Needs hire decision",
+      className: "bg-rose-50 text-rose-800",
+      icon: "file",
+    };
+  }
+  if (status === "APPROVED") {
+    return { label: "Approved", className: "bg-emerald-50 text-emerald-800", icon: "calendar" };
+  }
+  if (status === "REJECTED") {
+    return { label: "Rejected", className: "bg-rose-50 text-rose-800", icon: "file" };
+  }
+  return {
+    label: PIPELINE_STATUS_LABELS[status] ?? status.replace(/_/g, " "),
+    className: "bg-surface-soft text-ink-muted",
+    icon: "file",
+  };
+}
+
+function StatusIcon({ type }: { type: StatusVisual["icon"] }) {
+  if (type === "clock") {
+    return (
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
+        <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
+        <path d="M12 7v5l3 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (type === "calendar") {
+    return (
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
+        <rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="2" />
+        <path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <path d="M14 3v5h5" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  );
 }
 
 interface ApplicantPipelineCardProps {
   app: PipelineCardApp;
   onClick: () => void;
   isDragging?: boolean;
-  /** When set, status / chapter tags become filter toggles. */
   onFilterStatus?: (status: string) => void;
   onFilterChapter?: (chapterId: string) => void;
   activeStatusFilter?: string;
@@ -132,19 +235,17 @@ export default function ApplicantPipelineCard({
   const displayName = formatApplicantDisplayName(app);
   const statusFilterValue = cardStatusFilterValue(app);
   const stageValue = stageForStatus(app);
-  const statusLabel =
-    PIPELINE_STATUS_LABELS[statusFilterValue] ??
-    PIPELINE_STATUS_LABELS[app.status] ??
-    app.status.replace(/_/g, " ");
-  const statusTone =
-    STATUS_TONES[statusFilterValue] ??
-    STATUS_TONES[app.status] ??
-    "bg-surface-soft text-ink-muted";
+  const visual = statusVisual(statusFilterValue);
   const chapter = app.applicant?.chapter ?? null;
   const locationLabel = app.kind === "staff" ? "location" : "chapter";
   const statusActive =
     activeStatusFilter === stageValue || activeStatusFilter === statusFilterValue;
   const chapterActive = Boolean(chapter?.id && activeChapterId === chapter.id);
+  const kindLabel = roleLabel(app.kind);
+  const when =
+    statusFilterValue === "INTERVIEW_SCHEDULED_READY"
+      ? formatInterviewWhen(app.interviewScheduledAt)
+      : null;
 
   function stopAnd(filter: () => void) {
     return (event: MouseEvent) => {
@@ -158,33 +259,74 @@ export default function ApplicantPipelineCard({
     <button
       type="button"
       onClick={onClick}
-      className={`w-full cursor-pointer rounded-[10px] border border-line-soft bg-surface p-2.5 text-left shadow-card transition-shadow duration-100 hover:border-brand-400 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-400${isDragging ? " opacity-70" : ""}`}
+      className={cn(
+        "group flex w-full items-center gap-3 rounded-[12px] border border-line-soft bg-white px-3 py-2.5 text-left shadow-sm",
+        "transition-[border-color,box-shadow] duration-150",
+        "hover:border-brand-200 hover:shadow-md",
+        "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-400",
+        isDragging && "opacity-70"
+      )}
     >
-      <div className="truncate text-[13px] font-semibold text-ink">{displayName}</div>
-      <div className="mt-1 flex flex-wrap items-center gap-1">
-        {app.kind ? (
-          <span
-            className={cn(
-              "inline-flex items-center rounded-full px-2 py-0.5 text-[10.5px] font-bold",
-              app.kind === "cp"
-                ? "bg-violet-50 text-violet-800"
-                : app.kind === "staff"
-                  ? "bg-sky-50 text-sky-800"
-                  : "bg-surface-soft text-ink-muted"
-            )}
-          >
-            {app.kind === "cp"
-              ? "CP"
-              : app.kind === "staff"
-                ? "TM"
-                : "Instructor"}
-          </span>
-        ) : null}
+      <span
+        className={cn(
+          "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[12px] font-bold",
+          avatarTone(displayName)
+        )}
+        aria-hidden
+      >
+        {initialsFor(displayName)}
+      </span>
+
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-[13.5px] font-semibold tracking-[-0.01em] text-ink">
+          {displayName}
+        </div>
+        <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 text-[12px] text-ink-muted">
+          {kindLabel ? <span>{kindLabel}</span> : null}
+          {kindLabel && chapter?.name ? (
+            <span aria-hidden className="text-ink-muted/40">
+              ·
+            </span>
+          ) : null}
+          {chapter?.name ? (
+            onFilterChapter && chapter.id ? (
+              <span
+                role="button"
+                tabIndex={0}
+                title={
+                  chapterActive ? `Clear ${locationLabel} filter` : `Filter: ${chapter.name}`
+                }
+                aria-pressed={chapterActive}
+                onClick={stopAnd(() => onFilterChapter(chapter.id!))}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onFilterChapter(chapter.id!);
+                  }
+                }}
+                className={cn(
+                  "truncate rounded px-0.5 hover:text-brand-800",
+                  chapterActive && "font-semibold text-brand-800"
+                )}
+              >
+                {chapter.name}
+              </span>
+            ) : (
+              <span className="truncate">{chapter.name}</span>
+            )
+          ) : app.kind === "staff" ? (
+            <span className="italic">No location</span>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="flex shrink-0 flex-col items-end gap-1">
         {onFilterStatus ? (
           <span
             role="button"
             tabIndex={0}
-            title={statusActive ? "Clear status filter" : `Filter: ${statusLabel}`}
+            title={statusActive ? "Clear status filter" : `Filter: ${visual.label}`}
             aria-pressed={statusActive}
             onClick={stopAnd(() => onFilterStatus(stageValue))}
             onKeyDown={(event) => {
@@ -195,57 +337,38 @@ export default function ApplicantPipelineCard({
               }
             }}
             className={cn(
-              "inline-flex items-center rounded-full px-2 py-0.5 text-[10.5px] font-bold ring-offset-1 hover:ring-2 hover:ring-brand-300",
-              statusTone,
-              statusActive && "ring-2 ring-brand-500"
+              "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11.5px] font-semibold",
+              visual.className,
+              statusActive && "ring-2 ring-brand-400 ring-offset-1"
             )}
           >
-            {statusLabel}
+            <StatusIcon type={visual.icon} />
+            {visual.label}
           </span>
         ) : (
           <span
-            className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10.5px] font-bold ${statusTone}`}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11.5px] font-semibold",
+              visual.className
+            )}
           >
-            {statusLabel}
+            <StatusIcon type={visual.icon} />
+            {visual.label}
           </span>
         )}
-        {chapter?.name ? (
-          onFilterChapter && chapter.id ? (
-            <span
-              role="button"
-              tabIndex={0}
-              title={
-                chapterActive
-                  ? `Clear ${locationLabel} filter`
-                  : `Filter: ${chapter.name}`
-              }
-              aria-pressed={chapterActive}
-              onClick={stopAnd(() => onFilterChapter(chapter.id!))}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  onFilterChapter(chapter.id!);
-                }
-              }}
-              className={cn(
-                "inline-flex items-center rounded-full border border-brand-200 bg-brand-50 px-2 py-0.5 text-[10.5px] font-semibold text-brand-700 ring-offset-1 hover:ring-2 hover:ring-brand-300",
-                chapterActive && "ring-2 ring-brand-500"
-              )}
-            >
-              {chapter.name}
-            </span>
-          ) : (
-            <span className="inline-flex items-center rounded-full border border-brand-200 bg-brand-50 px-2 py-0.5 text-[10.5px] font-semibold text-brand-700">
-              {chapter.name}
-            </span>
-          )
-        ) : app.kind === "staff" ? (
-          <span className="inline-flex items-center rounded-full border border-dashed border-line px-2 py-0.5 text-[10.5px] font-semibold text-ink-muted">
-            No location
-          </span>
-        ) : null}
+        {when ? <span className="text-[11px] font-medium text-ink-muted">{when}</span> : null}
       </div>
+
+      <span
+        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-ink-muted opacity-60 group-hover:bg-surface-soft group-hover:opacity-100"
+        aria-hidden
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+          <circle cx="12" cy="5" r="1.7" />
+          <circle cx="12" cy="12" r="1.7" />
+          <circle cx="12" cy="19" r="1.7" />
+        </svg>
+      </span>
     </button>
   );
 }

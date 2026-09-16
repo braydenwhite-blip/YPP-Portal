@@ -150,7 +150,7 @@ export default function ArchiveTable({ applications }: ArchiveTableProps) {
       <EmptyStateV2
         icon="🗄️"
         title="No archived applications yet"
-        body="Final decisions archive after 30 days. Applicants with no activity for 14 days are archived as inactive."
+        body="Final decisions move to Archive after 7 days (Closed keeps the past week). Applicants with no activity for 14 days are archived as inactive."
       />
     );
   }

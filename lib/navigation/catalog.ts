@@ -1,4 +1,4 @@
-﻿import type { NavGroup, NavLink, NavRole } from "@/lib/navigation/types";
+import type { NavGroup, NavLink, NavRole } from "@/lib/navigation/types";
 import { INSTRUCTOR_SURFACE_ROLES } from "@/lib/org/role-sets";
 
 type CatalogInput = Omit<NavLink, "group" | "priority" | "coreEligible"> & {
@@ -1313,14 +1313,6 @@ export const NAV_CATALOG: NavLink[] = [
       roles: CHAPTER_PRESIDENT_ONLY,
       dashboardDescription: "Create chapter events, recurring series, and public calendar items.",
       dashboardPriority: 4,
-    },
-        {
-      href: "/chapter/student-intake",
-      label: "Student Intake",
-      icon: "🧭",
-      roles: ["CHAPTER_PRESIDENT", "ADMIN"] as NavRole[],
-      dashboardDescription: "Review parent-led student journeys and launch early support plans.",
-      dashboardPriority: 5,
     },
     {
       href: "/chapter/millennium-education",
