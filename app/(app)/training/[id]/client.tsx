@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, useTransition } from "react";
+import { useCallback, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { VideoPlayer } from "@/components/video-player";
 import { getCurriculumDraftProgress } from "@/lib/curriculum-draft-progress";
@@ -287,19 +287,22 @@ export default function TrainingModuleClient({
     });
   }
 
-  function saveVideoProgress(watchedSeconds: number, lastPosition: number, completed: boolean) {
-    startTransition(async () => {
-      const formData = new FormData();
-      formData.set("moduleId", module.id);
-      formData.set("watchedSeconds", String(Math.floor(watchedSeconds)));
-      formData.set("lastPosition", String(Math.floor(lastPosition)));
-      formData.set("completed", completed ? "true" : "false");
-      await updateVideoProgress(formData);
-      if (completed) {
-        router.refresh();
-      }
-    });
-  }
+  const saveVideoProgress = useCallback(
+    (watchedSeconds: number, lastPosition: number, completed: boolean) => {
+      startTransition(async () => {
+        const formData = new FormData();
+        formData.set("moduleId", module.id);
+        formData.set("watchedSeconds", String(Math.floor(watchedSeconds)));
+        formData.set("lastPosition", String(Math.floor(lastPosition)));
+        formData.set("completed", completed ? "true" : "false");
+        await updateVideoProgress(formData);
+        if (completed) {
+          router.refresh();
+        }
+      });
+    },
+    [module.id, router, startTransition]
+  );
 
   return (
     <div>
