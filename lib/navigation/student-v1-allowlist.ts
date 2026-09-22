@@ -17,6 +17,8 @@ export const STUDENT_V1_ALLOWED_HREFS: ReadonlySet<string> = new Set([
   "/curriculum",
   "/curriculum/schedule",
   "/calendar",
+  "/student-training",
+  "/my-chapter",
   "/my-chapter",
   // Student Operating System centerpiece. The catalog entry is `requiresGrowthOs`,
   // so this allowlist line only takes effect when ENABLE_GROWTH_OS is on.
