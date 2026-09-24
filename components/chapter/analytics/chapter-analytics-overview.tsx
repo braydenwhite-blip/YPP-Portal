@@ -94,7 +94,7 @@ function ChartTooltip({
   percent,
 }: {
   active?: boolean;
-  payload?: Array<{ name?: string; value?: number; color?: string }>;
+  payload?: ReadonlyArray<{ name?: string; value?: number | string; color?: string }>;
   label?: string;
   percent?: boolean;
 }) {
@@ -157,7 +157,7 @@ function categoryKpis(model: ChapterOverviewModel, category: AnalyticsCategoryKe
         {
           label: "Gap",
           value: model.kpis.students.gap > 0 ? `+${model.kpis.students.gap}` : String(model.kpis.students.gap),
-          tone: (model.kpis.students.gap < 0 ? "danger" : "good") as const,
+          tone: model.kpis.students.gap < 0 ? ("danger" as const) : ("good" as const),
         },
         { label: "Retention", value: `${model.kpis.students.retention}%` },
       ];
@@ -171,7 +171,10 @@ function categoryKpis(model: ChapterOverviewModel, category: AnalyticsCategoryKe
             model.current.instructors - model.expected.instructors > 0
               ? `+${model.current.instructors - model.expected.instructors}`
               : String(model.current.instructors - model.expected.instructors),
-          tone: (model.current.instructors - model.expected.instructors < 0 ? "danger" : "good") as const,
+          tone:
+            model.current.instructors - model.expected.instructors < 0
+              ? ("danger" as const)
+              : ("good" as const),
         },
         { label: "Utilization", value: `${model.kpis.instructors.utilization}%` },
       ];
@@ -182,7 +185,7 @@ function categoryKpis(model: ChapterOverviewModel, category: AnalyticsCategoryKe
         {
           label: "Gap",
           value: model.kpis.partners.gap > 0 ? `+${model.kpis.partners.gap}` : String(model.kpis.partners.gap),
-          tone: (model.kpis.partners.gap < 0 ? "danger" : "good") as const,
+          tone: model.kpis.partners.gap < 0 ? ("danger" as const) : ("good" as const),
         },
         { label: "Pending meetings", value: String(model.kpis.partners.pendingMeetings) },
       ];
@@ -235,7 +238,16 @@ function CategoryTrendChart({
           <CartesianGrid stroke="rgba(26,5,51,0.06)" vertical={false} />
           <XAxis dataKey="label" tick={tick} axisLine={false} tickLine={false} />
           <YAxis tick={tick} axisLine={false} tickLine={false} width={28} domain={[0, 100]} />
-          <Tooltip content={(props) => <ChartTooltip {...props} percent />} />
+          <Tooltip
+            content={(props) => (
+              <ChartTooltip
+                active={props.active}
+                label={typeof props.label === "string" ? props.label : undefined}
+                payload={props.payload as ReadonlyArray<{ name?: string; value?: number | string; color?: string }> | undefined}
+                percent
+              />
+            )}
+          />
           <Bar dataKey="have" name="Retention" fill={HAVE_STROKE} radius={[4, 4, 0, 0]} />
           <Bar dataKey="goal" name="Goal" fill={GOAL_BAR} radius={[4, 4, 0, 0]} />
         </BarChart>
@@ -249,7 +261,15 @@ function CategoryTrendChart({
         <CartesianGrid stroke="rgba(26,5,51,0.06)" vertical={false} />
         <XAxis dataKey="label" tick={tick} axisLine={false} tickLine={false} />
         <YAxis tick={tick} axisLine={false} tickLine={false} width={28} />
-        <Tooltip content={(props) => <ChartTooltip {...props} />} />
+        <Tooltip
+          content={(props) => (
+            <ChartTooltip
+              active={props.active}
+              label={typeof props.label === "string" ? props.label : undefined}
+              payload={props.payload as ReadonlyArray<{ name?: string; value?: number | string; color?: string }> | undefined}
+            />
+          )}
+        />
         <Line
           type="monotone"
           dataKey="actual"

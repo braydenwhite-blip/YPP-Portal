@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 
 import {
-  YPP_APPLY_HELPER,
   YPP_APPLY_HR,
   YPP_APPLY_SECTION_STYLE,
 } from "@/components/signup/ypp-apply-shell";
@@ -71,18 +70,6 @@ export function SharedApplyFields({
       <div>
         <div style={YPP_APPLY_SECTION_STYLE}>Account</div>
         <label className="form-label" style={{ marginTop: 0 }}>
-          Preferred name *
-          <input
-            className="input"
-            name="name"
-            placeholder="What you'd like reviewers to call you"
-            required
-          />
-          <span style={YPP_APPLY_HELPER}>
-            This is the name we use across the portal.
-          </span>
-        </label>
-        <label className="form-label">
           Email *
           <input
             className="input"

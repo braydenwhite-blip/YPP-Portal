@@ -25,10 +25,16 @@ export function CardV2({
   padding,
   children,
   as: Tag = "div",
+  id,
 }: {
   className?: string;
   children: React.ReactNode;
   as?: "div" | "section" | "article" | "li";
+  id?: string;
 } & VariantProps<typeof cardVariants>) {
-  return <Tag className={cn(cardVariants({ padding }), className)}>{children}</Tag>;
+  return (
+    <Tag id={id} className={cn(cardVariants({ padding }), className)}>
+      {children}
+    </Tag>
+  );
 }

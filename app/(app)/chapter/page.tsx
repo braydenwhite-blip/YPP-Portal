@@ -168,11 +168,6 @@ export default async function ChapterHomePage() {
                 >
                   {link.cta}
                 </ButtonLink>
-                {"secondaryHref" in link && link.secondaryHref ? (
-                  <ButtonLink href={link.secondaryHref} variant="ghost" size="sm">
-                    {link.secondaryCta}
-                  </ButtonLink>
-                ) : null}
               </div>
             </CardV2>
           ))}

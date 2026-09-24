@@ -41,6 +41,7 @@ const STATUS_TONE = {
   danger: "bg-[#fdecea] text-[#c0392b]",
   success: "bg-[#ecfdf5] text-[#0e7c52]",
   info: "bg-[#f3ecff] text-[#5a1da8]",
+  brand: "bg-[#f3ecff] text-[#5a1da8]",
 } as const;
 
 function dedupePeopleRows(rows: PeoplePerformanceRow[]): PeoplePerformanceRow[] {

@@ -170,6 +170,7 @@ export async function SelfGoalsSection() {
       rating: (ratingMap[g.id] ?? null) as GoalRatingColor | null,
       ratingComments:
         doc.latestReview?.goalRatings.find((gr) => gr.grDocumentGoalId === g.id)?.comments ?? null,
+      kpiTarget: null,
       kpiValues: g.kpiValues.map((v) => ({
         value: v.value,
         measuredAt: v.measuredAt.toISOString(),

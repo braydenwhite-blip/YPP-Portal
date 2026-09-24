@@ -138,14 +138,14 @@ export async function submitUnifiedApply(
       return { status: "error", message: "Choose a role to apply for." };
     }
 
-    const name = getString(formData, "name");
+    const preferredFirstName = getString(formData, "preferredFirstName");
+    const lastName = getString(formData, "lastName");
+    const name =
+      getString(formData, "name", false) ||
+      [preferredFirstName, lastName].filter(Boolean).join(" ");
     const email = getString(formData, "email").toLowerCase();
     const password = getString(formData, "password");
     const phone = getString(formData, "phoneNumber");
-    const preferredFirstName =
-      getString(formData, "preferredFirstName", false) || name.split(/\s+/)[0] || name;
-    const lastName =
-      getString(formData, "lastName", false) || name.split(/\s+/).slice(1).join(" ") || name;
     const legalName =
       getString(formData, "legalName", false) ||
       [preferredFirstName, lastName].filter(Boolean).join(" ") ||

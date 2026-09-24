@@ -63,7 +63,14 @@ export function ClassCompletionAction({ offeringId, offeringEnded, alreadyComple
   );
 }
 
-type FeedbackRow = { id: string; studentId: string; body: string; strengths: string | null; growthAreas: string | null; releasedToFamilyAt: string | Date | null };
+type FeedbackRow = {
+  id: string;
+  studentId: string;
+  body: string;
+  strengths?: string | null;
+  growthAreas?: string | null;
+  releasedToFamilyAt?: string | Date | null;
+};
 
 export function StudentFeedbackPanel({ offeringId, students, feedback }: { offeringId: string; students: { id: string; name: string | null }[]; feedback: FeedbackRow[] }) {
   const [openFor, setOpenFor] = useState<string | null>(null);

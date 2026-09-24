@@ -43,7 +43,7 @@ export type ChapterInstructorRow = {
   email: string;
   phone: string | null;
   school: string | null;
-  grade: string | null;
+  grade: string | number | null;
   trainingComplete: number;
   trainingTotal: number;
   offerings: ChapterInstructorOffering[];

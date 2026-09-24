@@ -450,7 +450,15 @@ export async function createActionItem(input: CreateActionItemInput) {
     ["CHAPTER_PRESIDENT"],
     session.primaryRole
   );
-  if (!isChapterLeadership(session) && isChapterPresident) {
+  if (
+    !isChapterLeadership({
+      id: session.id,
+      roles: session.roles,
+      primaryRole: session.primaryRole ?? "",
+      adminSubtypes: (session.adminSubtypes ?? []) as never,
+    }) &&
+    isChapterPresident
+  ) {
     const ctx = await getChapterViewerContext();
     if (!ctx.ledChapterId) {
       throw new Error("You need a chapter assigned before you can create actions.");

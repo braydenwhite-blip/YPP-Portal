@@ -436,14 +436,6 @@ export default function InstructorSignupPage() {
             <div style={SECTION_STYLE}>Account</div>
 
             <label className="form-label" style={{ marginTop: 0 }}>
-              Preferred name
-              <input className="input" name="name" placeholder="What you'd like reviewers to call you" required defaultValue={field(d, "name", sf)} />
-              <span style={HELPER}>
-                This is the name we use across the portal.
-              </span>
-            </label>
-
-            <label className="form-label">
               Email
               <input
                 className="input"

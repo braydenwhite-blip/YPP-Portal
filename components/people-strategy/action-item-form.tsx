@@ -46,6 +46,7 @@ export interface ActionItemFormInitial {
   departmentId?: string | null;
   departmentIds?: string[];
   status?: string;
+  priority?: string | null;
   actionType?: string | null;
   visibility?: string;
   deadlineStart?: Date | string | null;

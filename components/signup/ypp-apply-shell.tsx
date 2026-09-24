@@ -9,26 +9,26 @@ import {
 } from "@/components/signup/hiring-role-picker";
 
 export const YPP_APPLY_SECTION_STYLE: React.CSSProperties = {
-  fontSize: 12,
+  fontSize: 11,
   fontWeight: 700,
   color: "var(--muted)",
-  marginBottom: 12,
+  marginBottom: 8,
   textTransform: "uppercase",
-  letterSpacing: "0.06em",
+  letterSpacing: "0.05em",
 };
 
 export const YPP_APPLY_HR: React.CSSProperties = {
   border: "none",
   borderTop: "1px solid var(--border)",
-  margin: "24px 0 20px",
+  margin: "16px 0 14px",
 };
 
 export const YPP_APPLY_HELPER: React.CSSProperties = {
   display: "block",
-  fontSize: 12,
+  fontSize: 11,
   color: "var(--muted)",
-  marginTop: 5,
-  lineHeight: 1.5,
+  marginTop: 3,
+  lineHeight: 1.4,
 };
 
 const ROLE_COPY: Record<
@@ -38,33 +38,31 @@ const ROLE_COPY: Record<
   instructor: {
     title: "Instructor",
     intro:
-      "Teach students in your chapter through courses or workshops. We’re looking for people who can explain ideas clearly and care about student growth.",
+      "Teach students in your chapter through courses or workshops. We’re looking for people who explain ideas clearly and care about student growth.",
     bullets: [
-      "Design and lead engaging learning experiences",
-      "Support students through class sessions and feedback",
-      "Collaborate with your chapter leadership and YPP staff",
+      "Lead engaging learning experiences",
+      "Support students with feedback",
+      "Collaborate with chapter leadership",
     ],
   },
   cp: {
     title: "Chapter President",
     intro:
-      "Coordinate the launch and operation of a Youth Passion Project chapter in your local community. We’re looking for engaged students who communicate well and aren’t afraid to reach out to many people.",
+      "Coordinate a local YPP chapter. We’re looking for engaged students who communicate well and reach out to many people.",
     bullets: [
-      "Lead recruitment, management, and support of student volunteers and instructors",
-      "Plan and oversee classes, events, and outreach to grow your chapter",
-      "Serve as a key point of communication between YPP and your school district",
-      "Represent Youth Passion Project professionally in your school and community",
+      "Recruit and support volunteers and instructors",
+      "Plan classes, events, and outreach",
+      "Connect YPP with your school community",
     ],
   },
   staff: {
     title: "Technology Manager",
     intro:
-      "Join YPP’s technology team. Eligibility: 9th–12th grade, enrolled in high school. Programming experience is required.",
+      "Join YPP’s technology team (9th–12th grade). Programming experience is required.",
     bullets: [
-      "Design engaging ways to present YPP online",
-      "Oversee development and ongoing improvement of the YPP portal and website",
-      "Maintain and troubleshoot technical issues so the platform stays reliable",
-      "Collaborate with design and outreach on digital content and tools",
+      "Improve the portal and website",
+      "Troubleshoot and keep systems reliable",
+      "Collaborate on digital tools and content",
     ],
   },
 };
@@ -84,67 +82,104 @@ export function YppApplyShell({
       <div
         style={{
           borderBottom: "1px solid var(--border)",
-          padding: "14px 32px",
+          padding: "10px 20px",
           display: "flex",
           alignItems: "center",
-          gap: 14,
+          gap: 10,
         }}
       >
-        <BrandLockup height={30} className="brand-lockup" priority reloadOnClick />
-        <span className="badge" style={{ fontSize: 11 }}>
+        <BrandLockup height={24} className="brand-lockup" priority reloadOnClick />
+        <span className="badge" style={{ fontSize: 10, padding: "2px 8px" }}>
           YPP Application
         </span>
       </div>
 
-      <div style={{ maxWidth: 820, margin: "0 auto", padding: "40px 32px 80px" }}>
-        <h1 style={{ fontSize: 26, fontWeight: 700, margin: "0 0 8px" }}>Apply to YPP.</h1>
+      <div style={{ maxWidth: 680, margin: "0 auto", padding: "20px 16px 48px" }}>
+        <h1 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 4px", letterSpacing: "-0.02em" }}>
+          Apply to YPP.
+        </h1>
         <p
           style={{
-            fontSize: 14,
+            fontSize: 13,
             color: "var(--muted)",
-            margin: "0 0 20px",
-            lineHeight: 1.5,
-            maxWidth: 560,
+            margin: "0 0 14px",
+            lineHeight: 1.4,
+            maxWidth: 480,
           }}
         >
-          Choose the role you want, then complete the application. You can switch roles anytime
-          before you submit.
+          Choose a role, then complete the form. You can switch roles before submitting.
         </p>
 
         <HiringRolePicker value={role} navigateOnChange />
 
         <section
           style={{
-            marginBottom: 28,
-            padding: "16px 18px",
-            borderRadius: 12,
+            marginBottom: 16,
+            padding: "10px 12px",
+            borderRadius: 10,
             border: "1px solid #ddd6fe",
             background: "#f5f3ff",
           }}
         >
-          <h2 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 700, color: "#5b21b6" }}>
+          <h2 style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 700, color: "#5b21b6" }}>
             {copy.title}
           </h2>
-          <p style={{ margin: "0 0 12px", fontSize: 13, lineHeight: 1.55, color: "#4c1d95" }}>
+          <p style={{ margin: "0 0 8px", fontSize: 12, lineHeight: 1.4, color: "#4c1d95" }}>
             {copy.intro}
           </p>
-          <ul style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 6 }}>
+          <ul
+            style={{
+              margin: 0,
+              paddingLeft: 16,
+              display: "grid",
+              gap: 3,
+            }}
+          >
             {copy.bullets.map((item) => (
-              <li key={item} style={{ fontSize: 13, lineHeight: 1.45, color: "#5b21b6" }}>
+              <li key={item} style={{ fontSize: 12, lineHeight: 1.35, color: "#5b21b6" }}>
                 {item}
               </li>
             ))}
           </ul>
           {role === "cp" ? (
-            <p style={{ margin: "12px 0 0", fontSize: 12, lineHeight: 1.5, color: "#6b21c8" }}>
-              Tip: start contacting your school’s administration about establishing a YPP chapter
-              now — it helps in interviews.
+            <p style={{ margin: "8px 0 0", fontSize: 11, lineHeight: 1.4, color: "#6b21c8" }}>
+              Tip: start contacting your school about a YPP chapter now — it helps in interviews.
             </p>
           ) : null}
         </section>
 
-        {children}
+        <div className="ypp-apply-form-compact">{children}</div>
       </div>
+
+      <style>{`
+        .ypp-apply-form-compact .form-label {
+          margin-top: 10px;
+          font-size: 12.5px;
+        }
+        .ypp-apply-form-compact .input,
+        .ypp-apply-form-compact select.input,
+        .ypp-apply-form-compact textarea.input {
+          padding: 8px 10px;
+          font-size: 13px;
+          min-height: 36px;
+        }
+        .ypp-apply-form-compact textarea.input {
+          min-height: 72px;
+        }
+        .ypp-apply-form-compact .grid.two {
+          gap: 10px;
+        }
+        .ypp-apply-form-compact .button {
+          margin-top: 14px !important;
+          padding: 10px 14px;
+          font-size: 13.5px;
+        }
+        @media (max-width: 560px) {
+          .ypp-apply-role-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

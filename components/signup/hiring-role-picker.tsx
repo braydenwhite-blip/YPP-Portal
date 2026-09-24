@@ -14,21 +14,21 @@ export const HIRING_ROLE_OPTIONS: Array<{
   {
     id: "instructor",
     title: "Instructor",
-    blurb: "Teach a course or workshop with students in your chapter.",
+    blurb: "Teach a course or workshop.",
     href: "/signup/instructor",
     continueLabel: "Continue as Instructor",
   },
   {
     id: "cp",
     title: "Chapter President",
-    blurb: "Lead a local YPP chapter — people, partners, and programs.",
+    blurb: "Lead a local chapter.",
     href: "/signup/chapter-president",
     continueLabel: "Continue as Chapter President",
   },
   {
     id: "staff",
     title: "Technology Manager",
-    blurb: "Help build and support YPP’s portal tools and tech systems.",
+    blurb: "Build portal tools & tech.",
     href: "/signup/technology-manager",
     continueLabel: "Continue as Technology Manager",
   },
@@ -53,6 +53,7 @@ export function HiringRolePicker({
   current,
   onChange,
   navigateOnChange = false,
+  layout = "grid",
   className,
 }: {
   value?: HiringRoleId;
@@ -60,30 +61,34 @@ export function HiringRolePicker({
   current?: HiringRoleId;
   onChange?: (id: HiringRoleId) => void;
   navigateOnChange?: boolean;
+  /** `grid` = 3 columns (wide forms). `stack` = one column (narrow cards). */
+  layout?: "grid" | "stack";
   className?: string;
 }) {
   const router = useRouter();
   const selectedId = value ?? current ?? "instructor";
+  const isStack = layout === "stack";
 
   return (
-    <div className={className} style={{ marginBottom: 24 }}>
+    <div className={className} style={{ marginBottom: isStack ? 12 : 14 }}>
       <div
         style={{
-          fontSize: 11,
+          fontSize: 10,
           fontWeight: 700,
           textTransform: "uppercase",
-          letterSpacing: "0.06em",
+          letterSpacing: "0.05em",
           color: "var(--muted)",
-          marginBottom: 10,
+          marginBottom: 6,
         }}
       >
         What role are you applying for?
       </div>
       <div
+        className={isStack ? undefined : "ypp-apply-role-grid"}
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-          gap: 10,
+          gridTemplateColumns: isStack ? "1fr" : "repeat(3, minmax(0, 1fr))",
+          gap: isStack ? 8 : 6,
         }}
       >
         {HIRING_ROLE_OPTIONS.map((role) => {
@@ -104,71 +109,88 @@ export function HiringRolePicker({
               style={{
                 position: "relative",
                 textAlign: "left",
-                padding: "14px 14px 14px 14px",
-                borderRadius: 12,
-                border: selected ? "2px solid #6b21c8" : "1px solid var(--border)",
+                padding: isStack ? "10px 12px" : "8px 10px",
+                borderRadius: 8,
+                border: selected ? "1.5px solid #6b21c8" : "1px solid var(--border)",
                 background: selected ? "#f5f3ff" : "var(--background)",
-                boxShadow: selected
-                  ? "0 0 0 3px rgba(107, 33, 200, 0.12)"
-                  : "none",
+                boxShadow: selected ? "0 0 0 2px rgba(107, 33, 200, 0.1)" : "none",
                 cursor: selected ? "default" : "pointer",
                 color: "inherit",
                 transition: "border-color 120ms ease, box-shadow 120ms ease, background 120ms ease",
+                minWidth: 0,
+                display: isStack ? "flex" : undefined,
+                alignItems: isStack ? "center" : undefined,
+                justifyContent: isStack ? "space-between" : undefined,
+                gap: isStack ? 10 : undefined,
               }}
             >
-              <span
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 8,
-                  marginBottom: 6,
-                }}
-              >
+              <span style={{ minWidth: 0, flex: isStack ? 1 : undefined }}>
                 <span
                   style={{
-                    fontWeight: 700,
-                    fontSize: 14,
-                    color: selected ? "#5b21b6" : "inherit",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 4,
+                    marginBottom: isStack ? 2 : 2,
                   }}
                 >
-                  {role.title}
-                </span>
-                {selected ? (
                   <span
                     style={{
-                      flexShrink: 0,
-                      fontSize: 10,
                       fontWeight: 700,
-                      letterSpacing: "0.04em",
-                      textTransform: "uppercase",
-                      color: "#6b21c8",
-                      background: "#ede9fe",
-                      borderRadius: 999,
-                      padding: "3px 8px",
+                      fontSize: isStack ? 13.5 : 12.5,
+                      color: selected ? "#5b21b6" : "inherit",
+                      lineHeight: 1.25,
                     }}
                   >
-                    Selected
+                    {role.title}
                   </span>
-                ) : null}
+                  {!isStack && selected ? (
+                    <span
+                      style={{
+                        flexShrink: 0,
+                        fontSize: 9,
+                        fontWeight: 700,
+                        letterSpacing: "0.03em",
+                        textTransform: "uppercase",
+                        color: "#6b21c8",
+                        background: "#ede9fe",
+                        borderRadius: 999,
+                        padding: "1px 5px",
+                      }}
+                    >
+                      Selected
+                    </span>
+                  ) : null}
+                </span>
+                <span
+                  style={{
+                    display: "block",
+                    fontSize: isStack ? 12 : 11,
+                    color: "var(--muted)",
+                    lineHeight: 1.3,
+                  }}
+                >
+                  {role.blurb}
+                </span>
               </span>
-              <span
-                style={{
-                  display: "block",
-                  fontSize: 12,
-                  color: "var(--muted)",
-                  lineHeight: 1.45,
-                }}
-              >
-                {role.blurb}
-              </span>
+              {isStack ? (
+                <span
+                  aria-hidden
+                  style={{
+                    flexShrink: 0,
+                    width: 18,
+                    height: 18,
+                    borderRadius: "50%",
+                    border: selected ? "5px solid #6b21c8" : "1.5px solid #c4b5fd",
+                    background: selected ? "#fff" : "transparent",
+                    boxSizing: "border-box",
+                  }}
+                />
+              ) : null}
             </button>
           );
         })}
       </div>
-      <p style={{ margin: "10px 0 0", fontSize: 12, color: "var(--muted)", lineHeight: 1.45 }}>
-        You can change roles anytime before you submit.
-      </p>
     </div>
   );
 }

@@ -86,7 +86,18 @@ async function upsertPortalUser(params: {
 
 export async function signUp(prevState: FormState, formData: FormData): Promise<FormState> {
   try {
-    const name = getString(formData, "name");
+    const preferredFirstName = getString(formData, "preferredFirstName", false);
+    const lastName = getString(formData, "lastName", false);
+    const name =
+      getString(formData, "name", false) ||
+      [preferredFirstName, lastName].filter(Boolean).join(" ");
+    if (!name.trim()) {
+      return {
+        status: "error",
+        message: "Preferred first name and last name are required.",
+        fields: pickFormFields(formData),
+      };
+    }
     const email = getString(formData, "email").toLowerCase();
     const password = getString(formData, "password");
     const phone = getString(formData, "phone", false);

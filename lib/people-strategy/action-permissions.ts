@@ -38,6 +38,8 @@ export type ActionViewer = {
   roles: string[];
   primaryRole?: string | null;
   adminSubtypes?: string[];
+  name?: string | null;
+  email?: string | null;
   /** Chapter a Chapter President leads. National officers leave this unset. */
   ledChapterId?: string | null;
 };

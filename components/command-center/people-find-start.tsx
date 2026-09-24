@@ -128,7 +128,11 @@ export function PeopleFindStart({
         if (chapterId) fd.set("chapterId", chapterId);
 
         const result = await createUser(fd);
-        router.push(result.id ? `/people/${result.id}` : "/people");
+        if (!result.ok) {
+          setError(result.error);
+          return;
+        }
+        router.push(`/people/${result.id}`);
         router.refresh();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Could not add person. Try again.");

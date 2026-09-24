@@ -218,7 +218,7 @@ export function ActionCreateForm({
           chapterId: chapterId || undefined,
           visibility,
           status,
-          priority: initial?.priority,
+          priority: initial?.priority ?? undefined,
           relatedEntityType: initial?.relatedEntityType ?? undefined,
           relatedEntityId: initial?.relatedEntityId ?? undefined,
           sourceType: initial?.sourceType ?? undefined,

@@ -1,6 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { requireSessionUser, requireOfficer } from "@/lib/authorization";
 import { getChapterViewerContext } from "@/lib/chapters/access";
+import type { RegularInstructorAssignmentStatus } from "@prisma/client";
+
+const CONFIRMED_ASSIGNMENT_STATUSES: RegularInstructorAssignmentStatus[] = [
+  "INSTRUCTOR_CONFIRMED",
+  "CHAPTER_CONFIRMED",
+  "FULLY_CONFIRMED",
+];
 
 const includeOffering = {
   template: true,
@@ -10,7 +17,7 @@ const includeOffering = {
   regularInstructorAssignments: {
     where: {
       removedAt: null,
-      status: { in: ["INSTRUCTOR_CONFIRMED", "CHAPTER_CONFIRMED", "FULLY_CONFIRMED"] },
+      status: { in: CONFIRMED_ASSIGNMENT_STATUSES },
     },
     select: {
       id: true,
@@ -34,7 +41,19 @@ const includeOffering = {
 const ATTENDANCE_OPEN_STATUSES = ["SENT", "REVIEWING", "NEED_MORE_INFORMATION"];
 
 function assignedOfferingWhere(userId: string) {
-  return { OR: [{ instructorId: userId }, { regularInstructorAssignments: { some: { instructorId: userId, status: { in: ["INSTRUCTOR_CONFIRMED", "CHAPTER_CONFIRMED", "FULLY_CONFIRMED"] } } } }] };
+  return {
+    OR: [
+      { instructorId: userId },
+      {
+        regularInstructorAssignments: {
+          some: {
+            instructorId: userId,
+            status: { in: CONFIRMED_ASSIGNMENT_STATUSES },
+          },
+        },
+      },
+    ],
+  };
 }
 
 /** Assigned instructor / co-instructor, national leadership, or CP of the offering's chapter. */
@@ -47,7 +66,7 @@ async function classroomOfferingAccessWhere(userId: string) {
       regularInstructorAssignments: {
         some: {
           instructorId: userId,
-          status: { in: ["INSTRUCTOR_CONFIRMED", "CHAPTER_CONFIRMED", "FULLY_CONFIRMED"] },
+          status: { in: CONFIRMED_ASSIGNMENT_STATUSES },
         },
       },
     },

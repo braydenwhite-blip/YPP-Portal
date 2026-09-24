@@ -20,7 +20,7 @@ async function loadTemplates() {
     version: number;
     publishedAt?: Date | null;
     goals?: unknown[];
-    _count?: { assignments?: number; comments?: number };
+    _count?: { assignments?: number; comments?: number; goals?: number };
     updatedAt?: Date;
   }) => ({
     id: t.id,

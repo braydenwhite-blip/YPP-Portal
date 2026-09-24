@@ -147,6 +147,8 @@ export type MentorshipWorkspace = {
   isSelf: boolean;
   /** True when the viewer holds ADMIN — gates admin-only relationship controls. */
   isAdmin: boolean;
+  /** True when the viewer is leadership/board viewing someone else’s workspace. */
+  isLeadership: boolean;
   /** True when the viewer is the assigned mentor on the active pairing. */
   isMentor: boolean;
   /** The viewer's lifecycle point of view — drives every next-action verb. */
@@ -1031,6 +1033,7 @@ export async function loadMentorshipWorkspace(
     accessLevel: access.level,
     isSelf: access.isSelf,
     isAdmin: access.isAdmin,
+    isLeadership: access.isLeadership,
     isMentor: access.isMentor,
     pov,
     canRecordCheckIn: access.canRecordCheckIn,

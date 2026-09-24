@@ -73,6 +73,8 @@ export default function GRTemplateEditor({ template }: TemplateEditorProps) {
     );
   }
 
+  const currentTemplate = template;
+
   function run(action: () => Promise<unknown>) {
     setError(null);
     startTransition(async () => {
@@ -89,7 +91,7 @@ export default function GRTemplateEditor({ template }: TemplateEditorProps) {
     e.preventDefault();
     if (!goalTitle.trim()) return;
     const fd = new FormData();
-    fd.set("templateId", template.id);
+    fd.set("templateId", currentTemplate.id);
     fd.set("title", goalTitle.trim());
     fd.set("description", goalDescription.trim() || goalTitle.trim());
     fd.set("timePhase", goalPhase);
@@ -106,7 +108,7 @@ export default function GRTemplateEditor({ template }: TemplateEditorProps) {
     e.preventDefault();
     if (!commentText.trim()) return;
     const fd = new FormData();
-    fd.set("templateId", template.id);
+    fd.set("templateId", currentTemplate.id);
     fd.set("body", commentText.trim());
     run(async () => {
       await addGRTemplateComment(fd);
