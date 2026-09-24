@@ -281,16 +281,35 @@ function MetricDetailModal({
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[
-            { k: "Performance", v: formatMetricValue(m.unit, metric.actual) },
+            {
+              k: "Performance",
+              v: metric.hasRecordedActual
+                ? formatMetricValue(m.unit, metric.actual ?? 0)
+                : "—",
+              hint: metric.hasRecordedActual ? null : "Not recorded",
+            },
             {
               k: "Expectation",
-              v: metric.target != null && !m.noTarget ? formatMetricValue(m.unit, metric.target) : "—",
+              v: (() => {
+                const idx = metric.monthIndex ?? 0;
+                const display = m.targetDisplay?.[idx];
+                if (display) return display;
+                return metric.target != null && !m.noTarget
+                  ? formatMetricValue(m.unit, metric.target)
+                  : "—";
+              })(),
+              hint: null as string | null,
             },
             {
               k: "Pace",
               v: metric.percentOfTarget != null ? `${metric.percentOfTarget}%` : "—",
+              hint: null as string | null,
             },
-            { k: "Resets", v: m.reset === "cumulative" ? "Cumulative" : "Monthly" },
+            {
+              k: "Resets",
+              v: m.reset === "cumulative" ? "Cumulative" : "Monthly",
+              hint: null as string | null,
+            },
           ].map((cell) => (
             <div
               key={cell.k}
@@ -300,6 +319,9 @@ function MetricDetailModal({
                 {cell.k}
               </p>
               <p className="m-0 mt-0.5 text-[20px] font-bold tabular-nums text-ink">{cell.v}</p>
+              {cell.hint ? (
+                <p className="m-0 mt-0.5 text-[11px] text-ink-muted">{cell.hint}</p>
+              ) : null}
             </div>
           ))}
         </div>
@@ -312,6 +334,28 @@ function MetricDetailModal({
             <span className="font-semibold text-ink">Why it matters: </span>
             {m.why}
           </p>
+        ) : null}
+
+        {metric.statusNote ? (
+          <div className="rounded-[12px] border border-line-card bg-surface-soft px-3.5 py-3">
+            <p className="m-0 text-[11px] font-semibold uppercase tracking-[0.05em] text-ink-muted">
+              Status
+            </p>
+            <p className="m-0 mt-1 text-[13.5px] leading-relaxed text-ink">{metric.statusNote}</p>
+          </div>
+        ) : null}
+
+        {metric.notes && metric.notes.length > 0 ? (
+          <div className="rounded-[12px] border border-line-card bg-surface px-3.5 py-3">
+            <p className="m-0 text-[11px] font-semibold uppercase tracking-[0.05em] text-ink-muted">
+              Notes
+            </p>
+            <ul className="m-0 mt-1.5 list-disc space-y-1 pl-4 text-[13px] leading-relaxed text-ink-muted">
+              {metric.notes.map((note) => (
+                <li key={note}>{note}</li>
+              ))}
+            </ul>
+          </div>
         ) : null}
 
         <div>
@@ -382,16 +426,33 @@ function MetricCard({
 
       <div className="mt-3 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
         <span className="text-[22px] font-bold tabular-nums tracking-tight text-ink">
-          {formatMetricValue(metric.def.unit, metric.actual)}
+          {metric.hasRecordedActual
+            ? formatMetricValue(metric.def.unit, metric.actual ?? 0)
+            : "—"}
         </span>
         <span className="text-[12px] text-ink-muted">
-          {metric.def.targetLabel.trim()
-            ? `Target: ${metric.def.targetLabel}`
-            : metric.target != null && !metric.def.noTarget
-              ? `/ ${formatMetricValue(metric.def.unit, metric.target)}`
-              : "/ —"}
+          {!metric.hasRecordedActual
+            ? "Not recorded"
+            : (() => {
+                const idx = metric.monthIndex ?? 0;
+                const display = metric.def.targetDisplay?.[idx];
+                if (display && display !== "No Target" && display !== "X") {
+                  return `Target: ${display}`;
+                }
+                if (metric.def.noTarget || metric.target == null || display === "No Target" || display === "X") {
+                  return metric.def.targetLabel.trim()
+                    ? `Target: ${metric.def.targetLabel}`
+                    : "/ —";
+                }
+                return `/ ${formatMetricValue(metric.def.unit, metric.target)}`;
+              })()}
         </span>
       </div>
+      {metric.statusNote ? (
+        <p className="m-0 mt-2 line-clamp-2 text-[12px] leading-snug text-ink-muted">
+          {metric.statusNote}
+        </p>
+      ) : null}
 
       <div className="mt-2 -mx-1 rounded-lg px-1" style={{ background: `${accent.soft}99` }}>
         <MetricPerformanceChart
@@ -451,7 +512,6 @@ function StatusStrip({ metrics }: { metrics: EditableMetricSnapshot[] }) {
 }
 
 const TABS: Array<{ scope: MetricsScope; label: string }> = [
-  { scope: "org", label: "Organization" },
   { scope: "chapter_president", label: "Chapters" },
 ];
 
@@ -467,7 +527,7 @@ export function MetricsHubView({
   monthLabel?: string;
   canEdit?: boolean;
 }) {
-  const [tab, setTab] = useState<MetricsScope>("org");
+  const [tab, setTab] = useState<MetricsScope>("chapter_president");
   const [groupId, setGroupId] = useState<string | null>(null);
   const [detail, setDetail] = useState<DetailState | null>(null);
   const [editor, setEditor] = useState<MetricEditorState | null>(null);
@@ -489,45 +549,49 @@ export function MetricsHubView({
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="seg-tabs" role="tablist" aria-label="Metric scope">
-          {TABS.map((t) => (
-            <button
-              key={t.scope}
+      {TABS.length > 1 || canEdit ? (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {TABS.length > 1 ? (
+            <div className="seg-tabs" role="tablist" aria-label="Metric scope">
+              {TABS.map((t) => (
+                <button
+                  key={t.scope}
+                  type="button"
+                  role="tab"
+                  aria-selected={t.scope === tab}
+                  className={cn("seg-tab", t.scope === tab && "active")}
+                  onClick={() => selectTab(t.scope)}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div />
+          )}
+          {canEdit && selected ? (
+            <Button
               type="button"
-              role="tab"
-              aria-selected={t.scope === tab}
-              className={cn("seg-tab", t.scope === tab && "active")}
-              onClick={() => selectTab(t.scope)}
+              variant="secondary"
+              size="sm"
+              onClick={() =>
+                setEditor({
+                  mode: "create",
+                  scope: active.scope,
+                  categoryId: selected.categoryId,
+                })
+              }
             >
-              {t.label}
-            </button>
-          ))}
+              Add metric
+            </Button>
+          ) : null}
         </div>
-        {canEdit && selected ? (
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() =>
-              setEditor({
-                mode: "create",
-                scope: active.scope,
-                categoryId: selected.categoryId,
-              })
-            }
-          >
-            Add metric
-          </Button>
-        ) : null}
-      </div>
+      ) : null}
 
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-[14px] border border-line-card bg-surface px-4 py-3 shadow-sm">
         <p className="m-0 text-[13px] text-ink-muted">
-          Targets and pace for {monthLabel ?? `Month ${chapterMonth}`}
-          {tab === "chapter_president"
-            ? " — pick a chapter, then review chapter and instructor metrics."
-            : " — pick a group on the left."}
+          Targets and pace for {monthLabel ?? `Month ${chapterMonth}`} — pick a
+          chapter, then review chapter and instructor metrics.
         </p>
         <StatusStrip metrics={allMetrics} />
       </div>

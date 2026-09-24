@@ -1,0 +1,330 @@
+{
+  "chapters": {
+    "Scarsdale": {
+      "chapterMonth": 2,
+      "metrics": {
+        "cp_confirmed_partners": {
+          "actualByMonth": [1, 1, null, null, null, null],
+          "statusNote": "Scarsdale Public Library",
+          "notes": [
+            "Library willing to host a second session — details still being confirmed."
+          ]
+        },
+        "cp_partner_activity": {
+          "actualByMonth": [null, null, null, null, null, null],
+          "statusNote": null,
+          "notes": []
+        },
+        "cp_applicants": {
+          "actualByMonth": [12, 12, null, null, null, null],
+          "statusNote": "About 12 applicants total — 6 became instructors; the rest were denied or did not respond.",
+          "notes": []
+        },
+        "cp_accepted_instructors": {
+          "actualByMonth": [6, 6, null, null, null, null],
+          "statusNote": "6 current instructors. They have all already taught at least 1 class.",
+          "notes": []
+        },
+        "cp_instructor_activity": {
+          "actualByMonth": [null, 100, null, null, null, null],
+          "statusNote": "6/6 instructors active",
+          "notes": []
+        },
+        "cp_lifetime_students": {
+          "actualByMonth": [18, 18, null, null, null, null],
+          "statusNote": "18 students across all held in-person classes",
+          "notes": []
+        },
+        "cp_avg_class_size": {
+          "actualByMonth": [4, 4, null, null, null, null],
+          "statusNote": null,
+          "notes": ["Calculated and displayed, but does not need a target."]
+        },
+        "cp_hours_instruction": {
+          "actualByMonth": [null, null, null, null, null, null],
+          "statusNote": null,
+          "notes": []
+        },
+        "cp_hours_events": {
+          "actualByMonth": [null, null, null, null, null, null],
+          "statusNote": null,
+          "notes": []
+        },
+        "cp_course_completion": {
+          "actualByMonth": [null, null, null, null, null, null],
+          "statusNote": null,
+          "notes": []
+        },
+        "cp_repeat_enrollment": {
+          "actualByMonth": [null, null, null, null, null, null],
+          "statusNote": null,
+          "notes": []
+        },
+        "cp_satisfaction": {
+          "actualByMonth": [null, null, null, null, null, null],
+          "statusNote": null,
+          "notes": []
+        }
+      },
+      "categoryNotes": {
+        "partnerships": [
+          "Definition: a partner counts as confirmed if the organization has agreed to work with YPP and has a concrete next step. If inactive more than 2 months, it no longer counts.",
+          "Scarsdale Public Library is confirmed and open to a second session."
+        ],
+        "instructor_team": [
+          "~12 applicants cumulative; 6 accepted instructors, all have taught at least one class (100% activity)."
+        ],
+        "student_growth": [
+          "18 lifetime students served; average class size is 4 (no target required)."
+        ]
+      }
+    },
+    "The Bronx": {
+      "chapterMonth": 1,
+      "metrics": {
+        "cp_confirmed_partners": {
+          "actualByMonth": [1, null, null, null, null, null],
+          "statusNote": "Working with school",
+          "notes": [
+            "Email follow-ups have stalled — getting back in contact with the principal."
+          ]
+        },
+        "cp_partner_activity": {
+          "actualByMonth": [null, null, null, null, null, null],
+          "statusNote": null,
+          "notes": []
+        },
+        "cp_applicants": {
+          "actualByMonth": [0, null, null, null, null, null],
+          "statusNote": "Talked to principal — wants an interest meeting to explain YPP. Positive responses but little traction converting to applications.",
+          "notes": [
+            "School offers many activities and is bombarded with options.",
+            "Best path: get people to finish applications and attend the interest meeting."
+          ]
+        },
+        "cp_accepted_instructors": {
+          "actualByMonth": [0, null, null, null, null, null],
+          "statusNote": "No instructors yet",
+          "notes": []
+        },
+        "cp_instructor_activity": {
+          "actualByMonth": [null, null, null, null, null, null],
+          "statusNote": null,
+          "notes": []
+        },
+        "cp_lifetime_students": {
+          "actualByMonth": [0, null, null, null, null, null],
+          "statusNote": null,
+          "notes": []
+        },
+        "cp_avg_class_size": {
+          "actualByMonth": [null, null, null, null, null, null],
+          "statusNote": null,
+          "notes": ["Calculated and displayed, but does not need a target."]
+        },
+        "cp_hours_instruction": {
+          "actualByMonth": [null, null, null, null, null, null],
+          "statusNote": null,
+          "notes": []
+        },
+        "cp_hours_events": {
+          "actualByMonth": [0, null, null, null, null, null],
+          "statusNote": null,
+          "notes": []
+        },
+        "cp_course_completion": {
+          "actualByMonth": [null, null, null, null, null, null],
+          "statusNote": null,
+          "notes": []
+        },
+        "cp_repeat_enrollment": {
+          "actualByMonth": [null, null, null, null, null, null],
+          "statusNote": null,
+          "notes": []
+        },
+        "cp_satisfaction": {
+          "actualByMonth": [null, null, null, null, null, null],
+          "statusNote": null,
+          "notes": []
+        }
+      },
+      "categoryNotes": {
+        "partnerships": [
+          "Definition: a partner counts as confirmed if the organization has agreed to work with YPP and has a concrete next step. If inactive more than 2 months, it no longer counts.",
+          "Working with the school; reconnect with the principal after stalled email threads."
+        ],
+        "instructor_team": [
+          "Principal wants an interest meeting. Focus on finishing applications and getting people in the room — school is busy with many competing activities."
+        ]
+      }
+    },
+    "Frisco": {
+      "chapterMonth": 1,
+      "metrics": {
+        "cp_confirmed_partners": {
+          "actualByMonth": [null, null, null, null, null, null],
+          "statusNote": null,
+          "notes": ["Start classes the week of the 15th."]
+        },
+        "cp_partner_activity": {
+          "actualByMonth": [null, null, null, null, null, null],
+          "statusNote": null,
+          "notes": []
+        },
+        "cp_applicants": {
+          "actualByMonth": [null, null, null, null, null, null],
+          "statusNote": null,
+          "notes": ["Get 5+ instructors this week."]
+        },
+        "cp_accepted_instructors": {
+          "actualByMonth": [null, null, null, null, null, null],
+          "statusNote": null,
+          "notes": []
+        },
+        "cp_instructor_activity": {
+          "actualByMonth": [null, null, null, null, null, null],
+          "statusNote": null,
+          "notes": []
+        },
+        "cp_lifetime_students": {
+          "actualByMonth": [0, null, null, null, null, null],
+          "statusNote": null,
+          "notes": []
+        },
+        "cp_avg_class_size": {
+          "actualByMonth": [null, null, null, null, null, null],
+          "statusNote": null,
+          "notes": ["Calculated and displayed, but does not need a target."]
+        },
+        "cp_hours_instruction": {
+          "actualByMonth": [null, null, null, null, null, null],
+          "statusNote": null,
+          "notes": []
+        },
+        "cp_hours_events": {
+          "actualByMonth": [0, null, null, null, null, null],
+          "statusNote": null,
+          "notes": []
+        },
+        "cp_course_completion": {
+          "actualByMonth": [null, null, null, null, null, null],
+          "statusNote": null,
+          "notes": []
+        },
+        "cp_repeat_enrollment": {
+          "actualByMonth": [null, null, null, null, null, null],
+          "statusNote": null,
+          "notes": []
+        },
+        "cp_satisfaction": {
+          "actualByMonth": [null, null, null, null, null, null],
+          "statusNote": null,
+          "notes": []
+        }
+      },
+      "categoryNotes": {
+        "partnerships": [
+          "Definition: a partner counts as confirmed if the organization has agreed to work with YPP and has a concrete next step. If inactive more than 2 months, it no longer counts.",
+          "Start classes the week of the 15th."
+        ],
+        "instructor_team": ["Get 5+ instructors this week."]
+      }
+    },
+    "Lower Manhattan": {
+      "chapterMonth": 1,
+      "metrics": {
+        "cp_confirmed_partners": {
+          "actualByMonth": [0, null, null, null, null, null],
+          "statusNote": "Michelle reached out to people and needs to share her info so follow-ups can happen. Waiting for Stuyvesant to approve the club.",
+          "notes": [
+            "Stuyvesant supposed to respond closer to the beginning of the school year.",
+            "Need to get info from Michelle — ask Anthea for Michelle's contact."
+          ]
+        },
+        "cp_partner_activity": {
+          "actualByMonth": [null, null, null, null, null, null],
+          "statusNote": null,
+          "notes": []
+        },
+        "cp_applicants": {
+          "actualByMonth": [1, null, null, null, null, null],
+          "statusNote": "Need to get recruiting info from Michelle.",
+          "notes": [
+            "Post on Instagram, have friends post on Instagram, make a flyer."
+          ]
+        },
+        "cp_accepted_instructors": {
+          "actualByMonth": [0, null, null, null, null, null],
+          "statusNote": "Posted — only got two responses so far.",
+          "notes": []
+        },
+        "cp_instructor_activity": {
+          "actualByMonth": [null, null, null, null, null, null],
+          "statusNote": null,
+          "notes": []
+        },
+        "cp_lifetime_students": {
+          "actualByMonth": [0, null, null, null, null, null],
+          "statusNote": null,
+          "notes": []
+        },
+        "cp_avg_class_size": {
+          "actualByMonth": [null, null, null, null, null, null],
+          "statusNote": null,
+          "notes": ["Calculated and displayed, but does not need a target."]
+        },
+        "cp_hours_instruction": {
+          "actualByMonth": [null, null, null, null, null, null],
+          "statusNote": null,
+          "notes": []
+        },
+        "cp_hours_events": {
+          "actualByMonth": [0, null, null, null, null, null],
+          "statusNote": null,
+          "notes": []
+        },
+        "cp_course_completion": {
+          "actualByMonth": [null, null, null, null, null, null],
+          "statusNote": null,
+          "notes": []
+        },
+        "cp_repeat_enrollment": {
+          "actualByMonth": [null, null, null, null, null, null],
+          "statusNote": null,
+          "notes": []
+        },
+        "cp_satisfaction": {
+          "actualByMonth": [null, null, null, null, null, null],
+          "statusNote": null,
+          "notes": []
+        }
+      },
+      "categoryNotes": {
+        "partnerships": [
+          "Definition: a partner counts as confirmed if the organization has agreed to work with YPP and has a concrete next step. If inactive more than 2 months, it no longer counts.",
+          "Stuyvesant supposed to respond closer to the beginning of the school year.",
+          "Need Michelle's outreach list — ask Anthea for her contact."
+        ],
+        "instructor_team": [
+          "Recruiting: post on Instagram, ask friends to share, make a flyer.",
+          "Posted for instructors — only two responses so far; follow up with Michelle."
+        ],
+        "student_growth": [
+          "Average Class Size is calculated and displayed but does not need a target."
+        ]
+      }
+    },
+    "Brooklyn Bay Ridge": {
+      "chapterMonth": 1,
+      "metrics": {},
+      "categoryNotes": {
+        "partnerships": [
+          "Definition: a partner counts as confirmed if the organization has agreed to work with YPP and has a concrete next step. If inactive more than 2 months, it no longer counts."
+        ],
+        "student_growth": [
+          "Average Class Size is calculated and displayed but does not need a target."
+        ]
+      }
+    }
+  }
+}

@@ -232,9 +232,9 @@ export const CP_CATEGORIES: CategoryDef[] = [
     metrics: [
       {
         id: "cp_confirmed_partners",
-        label: "Confirmed",
+        label: "Current Confirmed Partners",
         owner: "Chapter President",
-        targetLabel: "Current Confirmed Partners",
+        targetLabel: "",
         tracks: "Organizations that agreed to work with YPP and have a next step",
         why: "Shows partnerships that have moved beyond plain interest",
         monthlyTargets: M6([2, 5, 8, 8, 10, 10]),
@@ -247,7 +247,7 @@ export const CP_CATEGORIES: CategoryDef[] = [
         id: "cp_partner_activity",
         label: "Partner Activity",
         owner: "Chapter President",
-        targetLabel: "80%+ of confirmed partners active that month",
+        targetLabel: "",
         tracks:
           "% of confirmed partners actively hosting, promoting, recruiting for, or supporting YPP programming that month",
         why: "Shows whether confirmed partnerships are actually contributing",
@@ -268,9 +268,9 @@ export const CP_CATEGORIES: CategoryDef[] = [
     metrics: [
       {
         id: "cp_applicants",
-        label: "Applicants",
+        label: "Applicants, cumulative",
         owner: "Chapter President",
-        targetLabel: "Applicants, cumulative",
+        targetLabel: "",
         tracks: "People who submit an instructor application",
         why: "Shows size of recruiting pipeline",
         monthlyTargets: M6([10, 20, 30, 40, 50, 60]),
@@ -281,9 +281,9 @@ export const CP_CATEGORIES: CategoryDef[] = [
       },
       {
         id: "cp_accepted_instructors",
-        label: "Accepted Instructors",
+        label: "Current Accepted Instructors",
         owner: "Chapter President",
-        targetLabel: "Current Accepted Instructors",
+        targetLabel: "",
         tracks: "Applicants approved through the YPP interview process",
         why: "Shows how many instructors have been approved",
         monthlyTargets: M6([5, 10, 15, 18, 22, 25]),
@@ -296,7 +296,7 @@ export const CP_CATEGORIES: CategoryDef[] = [
         id: "cp_instructor_activity",
         label: "Instructor Activity",
         owner: "Chapter President",
-        targetLabel: "80%+ trained and contributing ≥1 hour",
+        targetLabel: "",
         tracks:
           "% of accepted instructors who are trained and contribute at least 1 hour to Hours of Instruction that month",
         why: "Shows how many instructors are actually contributing",
@@ -320,7 +320,7 @@ export const CP_CATEGORIES: CategoryDef[] = [
         id: "cp_lifetime_students",
         label: "Lifetime Students Served",
         owner: "Chapter President",
-        targetLabel: "Unique students who attended one session",
+        targetLabel: "",
         tracks: "Unique students who have attended one session in the chapter",
         why: "Total chapter reach",
         monthlyTargets: M6([0, 50, 100, 150, 200, 250]),
@@ -333,11 +333,11 @@ export const CP_CATEGORIES: CategoryDef[] = [
         id: "cp_avg_class_size",
         label: "Average Class Size",
         owner: "Chapter President",
-        targetLabel: "Displayed — no fixed target",
+        targetLabel: "",
         tracks: "Average # of students across the chapter’s classes",
         why: "Shows how many students each class is reaching",
         monthlyTargets: M6([null, null, null, null, null, null]),
-        targetDisplay: ["—", "—", "—", "—", "—", "—"],
+        targetDisplay: ["No Target", "No Target", "No Target", "No Target", "No Target", "No Target"],
         reset: "monthly",
         unit: "count",
         chart: "scatter",
@@ -356,9 +356,9 @@ export const CP_CATEGORIES: CategoryDef[] = [
         id: "cp_hours_instruction",
         label: "Hours of Instruction",
         owner: "Chapter President",
-        targetLabel: "Student-facing instructional hours",
+        targetLabel: "",
         tracks: "Total student-facing instructional hours delivered across the chapter during the month",
-        why: "Shows total recurring programming delivered",
+        why: "Shows total recurring programming being delivered",
         monthlyTargets: M6([null, 15, 25, 40, 55, 65]),
         targetDisplay: ["X", "15+", "25+", "40+", "55+", "65+"],
         reset: "monthly",
@@ -369,7 +369,7 @@ export const CP_CATEGORIES: CategoryDef[] = [
         id: "cp_hours_events",
         label: "Hours of Events/Special Programming",
         owner: "Chapter President",
-        targetLabel: "One-time events and workshops",
+        targetLabel: "",
         tracks: "Hours of one-time events, workshops, and special programs held during the month",
         why: "Shows programming outside normal classes",
         monthlyTargets: M6([0, 2, 3, 3, 3, 3]),
@@ -391,7 +391,7 @@ export const CP_CATEGORIES: CategoryDef[] = [
         id: "cp_course_completion",
         label: "Course Completion",
         owner: "Chapter President",
-        targetLabel: "% who complete the class they started",
+        targetLabel: "",
         tracks: "% of students who complete the class they started",
         why: "Shows whether students stay through the course",
         monthlyTargets: M6([null, 70, 75, 75, 80, 80]),
@@ -404,7 +404,7 @@ export const CP_CATEGORIES: CategoryDef[] = [
         id: "cp_repeat_enrollment",
         label: "Repeat Enrollment",
         owner: "Chapter President",
-        targetLabel: "% who sign up for another YPP class",
+        targetLabel: "",
         tracks: "% of students who later sign up for another YPP class",
         why: "Shows whether students want to continue with YPP",
         monthlyTargets: M6([null, 25, 35, 40, 45, 50]),
@@ -417,7 +417,7 @@ export const CP_CATEGORIES: CategoryDef[] = [
         id: "cp_satisfaction",
         label: "Overall Satisfaction Rate",
         owner: "Chapter President",
-        targetLabel: "80%+ satisfied",
+        targetLabel: "80%+",
         tracks:
           "% of student, parent, and partner survey responses that report being satisfied with YPP",
         why: "Shows overall satisfaction with the chapter experience",
@@ -511,7 +511,7 @@ export const INSTRUCTOR_CATEGORIES: CategoryDef[] = [
       },
       {
         id: "ins_special_hours",
-        label: "Hours of Events/Special Programs Led",
+        label: "Hours Special Programming/Events Led, cumulative",
         owner: "Instructor",
         targetLabel: "Cumulative special programming hours",
         tracks: "Hours of additional workshops or special programming led by the instructor",
@@ -572,9 +572,15 @@ export const INSTRUCTOR_CATEGORIES: CategoryDef[] = [
         owner: "Instructor",
         targetLabel: "Share of new active instructors",
         tracks: "% of the chapter’s new active instructors that came through this instructor",
-        /** Spec lists the metric but no M1–M6 targets. */
         monthlyTargets: M6([null, null, null, null, null, null]),
-        targetDisplay: ["—", "—", "—", "—", "—", "—"],
+        targetDisplay: [
+          "No Target Specified",
+          "No Target Specified",
+          "No Target Specified",
+          "No Target Specified",
+          "No Target Specified",
+          "No Target Specified",
+        ],
         reset: "monthly",
         unit: "percent",
         chart: "scatter",
@@ -626,15 +632,23 @@ export function findCategory(scope: MetricsScope, categoryId: string): CategoryD
   return categoriesForScope(scope).find((c) => c.id === categoryId) ?? null;
 }
 
-export type MetricPoint = { month: string; actual: number; target: number | null };
+export type MetricPoint = { month: string; actual: number | null; target: number | null };
 
 export type MetricSnapshot = {
   def: MetricDef;
-  actual: number;
+  actual: number | null;
   target: number | null;
   status: PaceStatus | "informational";
   percentOfTarget: number | null;
   series: MetricPoint[];
+  /** From chapter tracker sheet — current status text. */
+  statusNote?: string | null;
+  /** Operational notes from the tracker sheet. */
+  notes?: string[];
+  /** True when actual came from recorded chapter data (not a placeholder). */
+  hasRecordedActual?: boolean;
+  /** 0-based month index for the active chapter month (M1 = 0). */
+  monthIndex?: number;
 };
 
 export type CategorySnapshot = {
@@ -669,6 +683,10 @@ export type EditableChapterGroupSnapshot = {
   blurb: string;
   status: PaceStatus;
   categories: EditableCategorySnapshot[];
+  /** Sheet notes organized by category id. */
+  categoryNotes?: Record<string, string[]>;
+  /** Lifecycle month used for this chapter's targets/actuals. */
+  chapterMonth?: number;
 };
 
 export type EditableScopeSnapshot = Omit<ScopeSnapshot, "categories"> & {

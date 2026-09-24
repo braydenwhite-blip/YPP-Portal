@@ -4,6 +4,11 @@ import { pacePercent, paceStatus, type PaceStatus } from "@/lib/chapters/analyti
 import { ensureOperatingChapters } from "@/lib/chapters/operating";
 import { OPERATING_CHAPTERS } from "@/lib/chapters/operating-chapters";
 import {
+  actualForMonth,
+  getChapterActuals,
+  type ChapterActuals,
+} from "./chapter-actuals";
+import {
   categoriesForScope,
   type CategoryDef,
   type EditableCategorySnapshot,
@@ -35,25 +40,23 @@ function hash01(seed: string): number {
   return ((h >>> 0) % 10_000) / 10_000;
 }
 
-function actualFor(
+/** Placeholder actual only for org-scope metrics that have no recorded sheet. */
+function placeholderActual(
   def: MetricDef,
   monthIndex: number,
   chapterMonth: number,
-  chapterKey?: string
+  seedKey: string
 ): number {
   const target = def.monthlyTargets[Math.min(monthIndex, 5)];
-  const seedBase = chapterKey
-    ? `${def.id}:${monthIndex}:${chapterKey}`
-    : `${def.id}:${monthIndex}`;
   if (target == null) {
-    return Math.round(8 + chapterMonth * 1.5 + hash01(`${seedBase}:f`) * 4);
+    return Math.round(8 + chapterMonth * 1.5 + hash01(`${seedKey}:f`) * 4);
   }
-  const ratio = 0.72 + hash01(`${seedBase}:r`) * 0.4;
+  const ratio = 0.72 + hash01(`${seedKey}:r`) * 0.4;
   if (def.reset === "cumulative") {
     return Math.round(target * Math.min(1.15, ratio));
   }
   if (def.id === "mttr") {
-    return Math.round(target * (0.7 + hash01(seedBase) * 0.5));
+    return Math.round(target * (0.7 + hash01(seedKey) * 0.5));
   }
   return Math.round(target * ratio);
 }
@@ -61,9 +64,11 @@ function actualFor(
 function statusFor(
   def: MetricDef,
   actual: number,
-  target: number | null
+  target: number | null,
+  hasRecordedActual: boolean
 ): PaceStatus | "informational" {
   if (def.noTarget || target == null) return "informational";
+  if (!hasRecordedActual) return "informational";
   if (def.id === "mttr") {
     if (actual <= target * 0.9) return "above";
     if (actual <= target) return "on_track";
@@ -76,35 +81,80 @@ function statusFor(
 function seriesFor(
   def: MetricDef,
   chapterMonth: number,
-  chapterKey?: string
-): MetricPoint[] {
-  return MONTH_LABELS.map((month, i) => ({
-    month,
-    actual: actualFor(def, i, chapterMonth, chapterKey),
-    target: def.monthlyTargets[i],
-  }));
+  actuals: ChapterActuals | null,
+  seedKey: string,
+  usePlaceholders: boolean
+): { series: MetricPoint[]; hasRecordedByMonth: boolean[] } {
+  const hasRecordedByMonth: boolean[] = [];
+  const series = MONTH_LABELS.map((month, i) => {
+    const recorded = actualForMonth(actuals, def.id, i);
+    const hasRecorded = recorded != null;
+    hasRecordedByMonth.push(hasRecorded);
+    let actual: number | null;
+    if (hasRecorded) {
+      actual = recorded;
+    } else if (usePlaceholders) {
+      actual = placeholderActual(def, i, chapterMonth, `${seedKey}:${i}`);
+    } else {
+      actual = null;
+    }
+    return { month, actual, target: def.monthlyTargets[i] };
+  });
+  return { series, hasRecordedByMonth };
 }
 
 function snapshotMetric(
   def: MetricDef,
   chapterMonth: number,
   rowId: string,
-  chapterKey?: string
+  opts: {
+    actuals?: ChapterActuals | null;
+    seedKey?: string;
+    usePlaceholders?: boolean;
+  } = {}
 ): EditableMetricSnapshot {
   const idx = Math.min(Math.max(chapterMonth, 1), 6) - 1;
-  const series = seriesFor(def, chapterMonth, chapterKey);
+  const usePlaceholders = opts.usePlaceholders ?? false;
+  const seedKey = opts.seedKey ?? def.id;
+  const { series, hasRecordedByMonth } = seriesFor(
+    def,
+    chapterMonth,
+    opts.actuals ?? null,
+    seedKey,
+    usePlaceholders
+  );
   const point = series[idx] ?? series[0];
   const target = point.target;
   const actual = point.actual;
-  const status = statusFor(def, actual, target);
+  const hasRecordedActual = Boolean(hasRecordedByMonth[idx]);
+  const status = statusFor(
+    def,
+    actual ?? 0,
+    target,
+    hasRecordedActual || usePlaceholders
+  );
   const percentOfTarget =
-    def.noTarget || target == null
+    def.noTarget || target == null || status === "informational" || actual == null
       ? null
       : def.id === "mttr"
         ? Math.round((target / Math.max(actual, 0.01)) * 100)
         : pacePercent(actual, target);
 
-  return { def, actual, target, status, percentOfTarget, series, rowId };
+  const metricActual = opts.actuals?.metrics[def.id];
+
+  return {
+    def,
+    actual,
+    target,
+    status,
+    percentOfTarget,
+    series,
+    rowId,
+    statusNote: metricActual?.statusNote ?? null,
+    notes: metricActual?.notes?.length ? metricActual.notes : undefined,
+    hasRecordedActual,
+    monthIndex: idx,
+  };
 }
 
 function rollupStatus(statuses: Array<PaceStatus | "informational">): PaceStatus {
@@ -128,11 +178,21 @@ function metricsForCategory(
   rows: DbMetricRow[],
   category: CategoryDef,
   chapterMonth: number,
-  chapterKey?: string
+  opts: {
+    actuals?: ChapterActuals | null;
+    seedKey?: string;
+    usePlaceholders?: boolean;
+  } = {}
 ): EditableMetricSnapshot[] {
   return rows
     .filter((r) => r.categoryId === category.id)
-    .map((r) => snapshotMetric(rowToMetricDef(r), chapterMonth, r.id, chapterKey));
+    .map((r) =>
+      snapshotMetric(rowToMetricDef(r), chapterMonth, r.id, {
+        actuals: opts.actuals,
+        seedKey: opts.seedKey,
+        usePlaceholders: opts.usePlaceholders,
+      })
+    );
 }
 
 function chapterSlug(name: string): string {
@@ -187,7 +247,10 @@ function assignedMetricsForCategory(
     .filter((r) => r.categoryId === category.id)
     .filter((r) => rowAssignedToPerson(r, personName, includeInstructorTemplate))
     .map((r) =>
-      snapshotMetric(metricDefForPerson(r, personName), chapterMonth, r.id, seed)
+      snapshotMetric(metricDefForPerson(r, personName), chapterMonth, r.id, {
+        seedKey: seed,
+        usePlaceholders: false,
+      })
     );
 }
 
@@ -200,47 +263,65 @@ export type PersonMetricsCategorySnapshot = EditableCategorySnapshot & {
 async function loadChapterGroups(
   cpRows: DbMetricRow[],
   instructorRows: DbMetricRow[],
-  chapterMonth: number
+  fallbackChapterMonth: number
 ): Promise<EditableChapterGroupSnapshot[]> {
   const dbChapters = await ensureOperatingChapters();
   const byName = new Map(dbChapters.map((c) => [c.name, c.id]));
 
-  return OPERATING_CHAPTERS.map((chapter) => {
-    const chapterKey = chapter.name;
-    const cpCategories: EditableCategorySnapshot[] = categoriesForScope("chapter_president").map(
-      (def) => {
-        const metrics = metricsForCategory(cpRows, def, chapterMonth, chapterKey);
-        return {
-          def,
-          status: rollupStatus(metrics.map((m) => m.status)),
-          percentOfTarget: rollupPercent(metrics),
-          metrics,
-        };
-      }
-    );
-    const instructorCategories: EditableCategorySnapshot[] = categoriesForScope("instructor").map(
-      (def) => {
-        const metrics = metricsForCategory(instructorRows, def, chapterMonth, chapterKey);
-        return {
-          def,
-          status: rollupStatus(metrics.map((m) => m.status)),
-          percentOfTarget: rollupPercent(metrics),
-          metrics,
-        };
-      }
-    );
-    const categories = [...cpCategories, ...instructorCategories];
-    const allMetrics = categories.flatMap((c) => c.metrics);
+  return Promise.all(
+    OPERATING_CHAPTERS.map(async (chapter) => {
+      const chapterKey = chapter.name;
+      const actuals = await getChapterActuals(chapterKey);
+      const chapterMonth = actuals?.chapterMonth ?? fallbackChapterMonth;
 
-    return {
-      id: chapterSlug(chapter.name),
-      chapterId: byName.get(chapter.name) ?? null,
-      label: chapter.name,
-      blurb: `${chapter.city} · ${chapter.region}`,
-      status: rollupStatus(allMetrics.map((m) => m.status)),
-      categories,
-    };
-  });
+      const cpCategories: EditableCategorySnapshot[] = categoriesForScope("chapter_president").map(
+        (def) => {
+          const sheetNotes = actuals?.categoryNotes?.[def.id] ?? [];
+          const metrics = metricsForCategory(cpRows, def, chapterMonth, {
+            actuals,
+            seedKey: chapterKey,
+            usePlaceholders: false,
+          });
+          return {
+            def: {
+              ...def,
+              notes: sheetNotes.length > 0 ? sheetNotes : def.notes,
+            },
+            status: rollupStatus(metrics.map((m) => m.status)),
+            percentOfTarget: rollupPercent(metrics),
+            metrics,
+          };
+        }
+      );
+      const instructorCategories: EditableCategorySnapshot[] = categoriesForScope("instructor").map(
+        (def) => {
+          const metrics = metricsForCategory(instructorRows, def, chapterMonth, {
+            seedKey: chapterKey,
+            usePlaceholders: false,
+          });
+          return {
+            def,
+            status: rollupStatus(metrics.map((m) => m.status)),
+            percentOfTarget: rollupPercent(metrics),
+            metrics,
+          };
+        }
+      );
+      const categories = [...cpCategories, ...instructorCategories];
+      const allMetrics = categories.flatMap((c) => c.metrics);
+
+      return {
+        id: chapterSlug(chapter.name),
+        chapterId: byName.get(chapter.name) ?? null,
+        label: chapter.name,
+        blurb: `${chapter.city} · ${chapter.region} · M${chapterMonth}`,
+        status: rollupStatus(allMetrics.map((m) => m.status)),
+        categories,
+        categoryNotes: actuals?.categoryNotes,
+        chapterMonth,
+      };
+    })
+  );
 }
 
 export async function loadScopeSnapshot(
@@ -269,7 +350,9 @@ export async function loadScopeSnapshot(
 
   const rows = await listActiveMetricsForScope(scope);
   const categories: EditableCategorySnapshot[] = categoriesForScope(scope).map((def) => {
-    const metrics = metricsForCategory(rows, def, chapterMonth);
+    const metrics = metricsForCategory(rows, def, chapterMonth, {
+      usePlaceholders: scope === "org",
+    });
     return {
       def,
       status: rollupStatus(metrics.map((m) => m.status)),
@@ -310,17 +393,11 @@ export async function loadCategoryDetail(
   return hub.categories.find((c) => c.def.id === categoryId) ?? null;
 }
 
-/**
- * Metrics assigned to one person (mentorship Metrics tab).
- * Includes org/chapter rows whose owner matches their name, plus instructor-track
- * template metrics when requested.
- */
 export async function loadPersonAssignedMetrics(
   personId: string,
   opts: {
     chapterMonth?: number;
     personName?: string;
-    /** Include generic instructor-catalog metrics for instructor-track people. */
     includeInstructorTemplate?: boolean;
   } = {}
 ): Promise<{ categories: PersonMetricsCategorySnapshot[]; status: PaceStatus }> {

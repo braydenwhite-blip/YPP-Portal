@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 
-export type HiringRoleId = "instructor" | "cp" | "staff";
+export type HiringRoleId = "instructor" | "cp" | "staff" | "interest";
 
 export const HIRING_ROLE_OPTIONS: Array<{
   id: HiringRoleId;
@@ -32,6 +32,13 @@ export const HIRING_ROLE_OPTIONS: Array<{
     href: "/signup/technology-manager",
     continueLabel: "Continue as Technology Manager",
   },
+  {
+    id: "interest",
+    title: "General Interest",
+    blurb: "Not sure yet — tell us how you’d like to get involved.",
+    href: "/signup/interest",
+    continueLabel: "Continue with General Interest",
+  },
 ];
 
 export function hiringRoleHref(id: HiringRoleId): string {
@@ -42,6 +49,10 @@ export function hiringRoleContinueLabel(id: HiringRoleId): string {
   return (
     HIRING_ROLE_OPTIONS.find((r) => r.id === id)?.continueLabel ?? "Continue"
   );
+}
+
+export function goToHiringRole(id: HiringRoleId, router: { push: (href: string) => void }) {
+  router.push(hiringRoleHref(id));
 }
 
 /**
@@ -61,7 +72,7 @@ export function HiringRolePicker({
   current?: HiringRoleId;
   onChange?: (id: HiringRoleId) => void;
   navigateOnChange?: boolean;
-  /** `grid` = 3 columns (wide forms). `stack` = one column (narrow cards). */
+  /** `grid` = multi-column (wide forms). `stack` = one column (narrow cards). */
   layout?: "grid" | "stack";
   className?: string;
 }) {
@@ -87,7 +98,7 @@ export function HiringRolePicker({
         className={isStack ? undefined : "ypp-apply-role-grid"}
         style={{
           display: "grid",
-          gridTemplateColumns: isStack ? "1fr" : "repeat(3, minmax(0, 1fr))",
+          gridTemplateColumns: isStack ? "1fr" : "repeat(2, minmax(0, 1fr))",
           gap: isStack ? 8 : 6,
         }}
       >
@@ -103,7 +114,7 @@ export function HiringRolePicker({
                 if (role.id === selectedId) return;
                 onChange?.(role.id);
                 if (navigateOnChange) {
-                  router.push(role.href);
+                  goToHiringRole(role.id, router);
                 }
               }}
               style={{

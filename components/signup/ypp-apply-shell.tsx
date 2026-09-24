@@ -65,6 +65,16 @@ const ROLE_COPY: Record<
       "Collaborate on digital tools and content",
     ],
   },
+  interest: {
+    title: "General YPP Interest Form",
+    intro:
+      "The Youth Passion Project is a Delaware Nonprofit Corporation, first created to make use of the free time in people’s schedules during COVID-19. We believe that students should always have the opportunity to explore new topics of interest that they cannot learn in most school settings.",
+    bullets: [
+      "Our goal is to provide these opportunities to those with a love for learning, while also allowing high school students to share their passions with others.",
+      "We offered free courses taught by high schoolers — classes range from Songwriting to the Art of Baking and Introduction to Coding in Java.",
+      "We are now exploring starting in-person classes at high schools and would like to know if you are interested in joining the team.",
+    ],
+  },
 };
 
 /** Shared chrome for Instructor / CP / Technology Manager public apply pages. */

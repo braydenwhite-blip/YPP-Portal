@@ -85,14 +85,18 @@ function MetricCard({
       </div>
       <div className="mt-3 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
         <span className="text-[22px] font-bold tabular-nums tracking-tight text-ink">
-          {formatMetricValue(metric.def.unit, metric.actual)}
+          {metric.hasRecordedActual && metric.actual != null
+            ? formatMetricValue(metric.def.unit, metric.actual)
+            : "—"}
         </span>
         <span className="text-[12px] text-ink-muted">
-          {metric.def.targetLabel.trim()
-            ? `Target: ${metric.def.targetLabel}`
-            : metric.target != null && !metric.def.noTarget
-              ? `/ ${formatMetricValue(metric.def.unit, metric.target)}`
-              : "/ —"}
+          {!metric.hasRecordedActual
+            ? "Not recorded"
+            : metric.def.targetLabel.trim()
+              ? `Target: ${metric.def.targetLabel}`
+              : metric.target != null && !metric.def.noTarget
+                ? `/ ${formatMetricValue(metric.def.unit, metric.target)}`
+                : "/ —"}
         </span>
       </div>
       <div className="mt-2 -mx-1 rounded-lg px-1" style={{ background: `${accent.soft}99` }}>
@@ -232,7 +236,9 @@ export function PersonMetricsPanel({
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <StatusBadge tone={tone(detail.status)}>{statusLabel(detail.status)}</StatusBadge>
                 <span className="text-[13px] text-ink-muted">
-                  {formatMetricValue(detail.def.unit, detail.actual)}
+                  {detail.hasRecordedActual && detail.actual != null
+                    ? formatMetricValue(detail.def.unit, detail.actual)
+                    : "—"}
                   {detail.target != null && !detail.def.noTarget
                     ? ` / ${formatMetricValue(detail.def.unit, detail.target)} expectation`
                     : ""}

@@ -12166,6 +12166,27 @@ model MetricsTrackerMetric {
   @@index([archivedAt])
 }
 
+/// Public “General YPP Interest Form” submissions (portal-native).
+model GeneralInterestSubmission {
+  id                       String   @id @default(cuid())
+  email                    String
+  firstName                String
+  lastName                 String
+  phone                    String
+  /// Freshman | Sophomore | Junior | Senior | Other: …
+  gradeLevel               String
+  age                      String
+  collaborationExperience  String   @db.Text
+  resumeUrl                String?
+  resumeFileName           String?
+  additionalInfo           String?  @db.Text
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  @@index([email])
+  @@index([createdAt])
+}
+
 // ============================================
 // CHAPTER INVITES & REFERRAL TRACKING
 // ============================================

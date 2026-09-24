@@ -41,7 +41,7 @@ function formatAxisTick(unit: EditableMetricSnapshot["def"]["unit"], value: numb
 
 type ChartPoint = {
   month: string;
-  performance: number;
+  performance: number | null;
   expectation: number | null;
 };
 
@@ -196,6 +196,7 @@ export function MetricPerformanceChart({
               strokeWidth={compact ? 2 : 2.25}
               dot={compact ? { r: 2, fill: perfColor } : { r: 3, fill: perfColor }}
               activeDot={{ r: 4 }}
+              connectNulls={false}
               name="performance"
             />
             {showExpectation ? (

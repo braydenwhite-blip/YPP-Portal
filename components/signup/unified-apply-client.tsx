@@ -7,8 +7,8 @@ import { useState } from "react";
 import BrandLockup from "@/components/brand-lockup";
 import {
   HiringRolePicker,
+  goToHiringRole,
   hiringRoleContinueLabel,
-  hiringRoleHref,
   type HiringRoleId,
 } from "@/components/signup/hiring-role-picker";
 import { UNIFIED_APPLICATION_STEPS } from "@/lib/unified-application/flow";
@@ -28,8 +28,8 @@ export function UnifiedApplyClient() {
             Apply to YPP
           </h1>
           <p className="page-subtitle" style={{ maxWidth: 440, lineHeight: 1.55 }}>
-            Choose the role you want, then continue to that application — instructor,
-            chapter president, or technology manager.
+            Choose the role you want, then continue — instructor, chapter president,
+            technology manager, or general interest if you&apos;re still exploring.
           </p>
 
           <ul
@@ -93,7 +93,7 @@ export function UnifiedApplyClient() {
             type="button"
             className="button"
             style={{ width: "100%", marginTop: 4, marginBottom: 12 }}
-            onClick={() => router.push(hiringRoleHref(role))}
+            onClick={() => goToHiringRole(role, router)}
           >
             {hiringRoleContinueLabel(role)}
           </button>
