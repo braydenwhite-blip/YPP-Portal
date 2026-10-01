@@ -225,10 +225,6 @@ export const CP_CATEGORIES: CategoryDef[] = [
     scope: "chapter_president",
     owner: "Chapter President",
     description: "Confirmed partners and whether they are actively contributing.",
-    notes: [
-      "A partner counts as confirmed if the organization has agreed to work with YPP and has a concrete next step.",
-      "If a partner has not been active for more than 2 months, it no longer counts as a confirmed partner.",
-    ],
     metrics: [
       {
         id: "cp_confirmed_partners",
@@ -314,7 +310,6 @@ export const CP_CATEGORIES: CategoryDef[] = [
     scope: "chapter_president",
     owner: "Chapter President",
     description: "Lifetime reach and average class size.",
-    notes: ["Average Class Size is calculated and displayed but does not need a target."],
     metrics: [
       {
         id: "cp_lifetime_students",

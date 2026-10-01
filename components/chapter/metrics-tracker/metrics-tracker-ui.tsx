@@ -336,28 +336,6 @@ function MetricDetailModal({
           </p>
         ) : null}
 
-        {metric.statusNote ? (
-          <div className="rounded-[12px] border border-line-card bg-surface-soft px-3.5 py-3">
-            <p className="m-0 text-[11px] font-semibold uppercase tracking-[0.05em] text-ink-muted">
-              Status
-            </p>
-            <p className="m-0 mt-1 text-[13.5px] leading-relaxed text-ink">{metric.statusNote}</p>
-          </div>
-        ) : null}
-
-        {metric.notes && metric.notes.length > 0 ? (
-          <div className="rounded-[12px] border border-line-card bg-surface px-3.5 py-3">
-            <p className="m-0 text-[11px] font-semibold uppercase tracking-[0.05em] text-ink-muted">
-              Notes
-            </p>
-            <ul className="m-0 mt-1.5 list-disc space-y-1 pl-4 text-[13px] leading-relaxed text-ink-muted">
-              {metric.notes.map((note) => (
-                <li key={note}>{note}</li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-
         <div>
           <p className="m-0 mb-2 text-[12px] font-semibold uppercase tracking-[0.05em] text-ink-muted">
             Monthly targets (M1–M6)
@@ -448,11 +426,6 @@ function MetricCard({
               })()}
         </span>
       </div>
-      {metric.statusNote ? (
-        <p className="m-0 mt-2 line-clamp-2 text-[12px] leading-snug text-ink-muted">
-          {metric.statusNote}
-        </p>
-      ) : null}
 
       <div className="mt-2 -mx-1 rounded-lg px-1" style={{ background: `${accent.soft}99` }}>
         <MetricPerformanceChart
@@ -682,14 +655,6 @@ export function MetricsHubView({
                       <div className="mb-3">
                         <h3 className="m-0 text-[15px] font-bold text-ink">{cat.def.label}</h3>
                         <p className="m-0 mt-0.5 text-[13px] text-ink-muted">{cat.def.description}</p>
-                        {cat.def.notes?.map((note) => (
-                          <p
-                            key={note}
-                            className="m-0 mt-2 max-w-2xl rounded-lg border border-warning-100 bg-warning-100/40 px-3 py-2 text-[12.5px] leading-snug text-ink-muted"
-                          >
-                            {note}
-                          </p>
-                        ))}
                       </div>
                       <div className="grid gap-3 sm:grid-cols-2">
                         {cat.metrics.map((metric) => (

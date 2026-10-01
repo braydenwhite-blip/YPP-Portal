@@ -140,8 +140,6 @@ function snapshotMetric(
         ? Math.round((target / Math.max(actual, 0.01)) * 100)
         : pacePercent(actual, target);
 
-  const metricActual = opts.actuals?.metrics[def.id];
-
   return {
     def,
     actual,
@@ -150,8 +148,6 @@ function snapshotMetric(
     percentOfTarget,
     series,
     rowId,
-    statusNote: metricActual?.statusNote ?? null,
-    notes: metricActual?.notes?.length ? metricActual.notes : undefined,
     hasRecordedActual,
     monthIndex: idx,
   };
@@ -276,17 +272,13 @@ async function loadChapterGroups(
 
       const cpCategories: EditableCategorySnapshot[] = categoriesForScope("chapter_president").map(
         (def) => {
-          const sheetNotes = actuals?.categoryNotes?.[def.id] ?? [];
           const metrics = metricsForCategory(cpRows, def, chapterMonth, {
             actuals,
             seedKey: chapterKey,
             usePlaceholders: false,
           });
           return {
-            def: {
-              ...def,
-              notes: sheetNotes.length > 0 ? sheetNotes : def.notes,
-            },
+            def,
             status: rollupStatus(metrics.map((m) => m.status)),
             percentOfTarget: rollupPercent(metrics),
             metrics,
@@ -317,7 +309,6 @@ async function loadChapterGroups(
         blurb: `${chapter.city} · ${chapter.region} · M${chapterMonth}`,
         status: rollupStatus(allMetrics.map((m) => m.status)),
         categories,
-        categoryNotes: actuals?.categoryNotes,
         chapterMonth,
       };
     })
