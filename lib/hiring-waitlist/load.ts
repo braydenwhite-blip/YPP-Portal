@@ -212,7 +212,8 @@ export async function loadHiringWaitlist(): Promise<HiringWaitlistEntry[]> {
   );
 
   if (merged.join("\0") !== savedOrder.join("\0")) {
-    await setHiringWaitlistOrder(merged);
+    // Best-effort — order store never throws, but keep load resilient anyway.
+    await setHiringWaitlistOrder(merged).catch(() => undefined);
   }
 
   return merged
